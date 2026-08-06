@@ -196,6 +196,7 @@ function renderSubscriptions() {
   const tbody = document.getElementById('sub-tbody');
   const q = document.getElementById('search').value.trim().toLowerCase();
   const cat = document.getElementById('filter-category').value;
+  const status = document.getElementById('filter-status').value;
 
   // Populate categories
   const cats = [...new Set(state.subscriptions.map(s => s.category).filter(Boolean))].sort();
@@ -212,6 +213,8 @@ function renderSubscriptions() {
       || (s.notes||'').toLowerCase().includes(q)
     )) return false;
     if (cat && s.category !== cat) return false;
+    if (status === 'active' && s.active === false) return false;
+    if (status === 'paused' && s.active !== false) return false;
     return true;
   });
 
@@ -969,6 +972,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('search').addEventListener('input', renderSubscriptions);
   document.getElementById('filter-category').addEventListener('change', renderSubscriptions);
+  document.getElementById('filter-status').addEventListener('change', renderSubscriptions);
+
+  document.querySelectorAll('.stat-card[data-goto]').forEach(card => {
+    card.addEventListener('click', () => {
+      const target = card.dataset.goto;
+      if (target === 'subscriptions') {
+        if (card.dataset.activeOnly === '1') document.getElementById('filter-status').value = 'active';
+        renderSubscriptions();
+      } else if (target === 'invoices' && card.dataset.invStatus) {
+        document.getElementById('inv-filter-status').value = card.dataset.invStatus;
+        renderInvoices();
+      }
+      switchView(target);
+    });
+  });
   document.querySelectorAll('.sub-table thead th[data-sort]').forEach(th => {
     th.addEventListener('click', () => {
       const k = th.dataset.sort;

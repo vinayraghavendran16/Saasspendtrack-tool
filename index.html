@@ -31,26 +31,26 @@
   <!-- Dashboard -->
   <section id="dashboard" class="view active">
     <div class="stat-grid">
-      <div class="stat-card">
+      <button type="button" class="stat-card" data-goto="subscriptions" data-active-only="1" title="View active subscriptions">
         <span class="stat-label">Monthly spend</span>
         <span class="stat-value" id="stat-monthly">$0</span>
         <span class="stat-sub" id="stat-monthly-sub">across 0 subscriptions</span>
-      </div>
-      <div class="stat-card">
+      </button>
+      <button type="button" class="stat-card" data-goto="subscriptions" data-active-only="1" title="View active subscriptions">
         <span class="stat-label">Annualized spend</span>
         <span class="stat-value" id="stat-annual">$0</span>
         <span class="stat-sub">projected yearly total</span>
-      </div>
-      <div class="stat-card">
+      </button>
+      <button type="button" class="stat-card" data-goto="invoices" data-inv-status="paid" title="View paid invoices">
         <span class="stat-label">Invoices paid (YTD)</span>
         <span class="stat-value" id="stat-paid">$0</span>
         <span class="stat-sub" id="stat-paid-sub">0 invoices</span>
-      </div>
-      <div class="stat-card">
+      </button>
+      <button type="button" class="stat-card" data-goto="invoices" data-inv-status="pending" title="View pending & overdue invoices">
         <span class="stat-label">Invoices pending</span>
         <span class="stat-value" id="stat-pending">$0</span>
         <span class="stat-sub" id="stat-pending-sub">0 pending · 0 overdue</span>
-      </div>
+      </button>
     </div>
 
     <div class="panel-grid">
@@ -132,6 +132,11 @@
         <input id="search" type="search" placeholder="Search…" />
         <select id="filter-category">
           <option value="">All categories</option>
+        </select>
+        <select id="filter-status">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
         </select>
         <button class="primary" id="add-btn">+ Add subscription</button>
       </div>
