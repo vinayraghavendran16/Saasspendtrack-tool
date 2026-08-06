@@ -434,8 +434,17 @@ function renderExtract(result) {
   attach.hidden = !found;
   if (found) {
     const sel = document.getElementById('attach-sub');
-    sel.innerHTML = '<option value="">Attach to subscription…</option>' +
-      state.subscriptions.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+    const btn = document.getElementById('attach-btn');
+    if (state.subscriptions.length === 0) {
+      sel.innerHTML = '<option value="">No subscriptions yet — add one first</option>';
+      sel.disabled = true;
+      btn.disabled = true;
+    } else {
+      sel.innerHTML = '<option value="">Attach to subscription…</option>' +
+        state.subscriptions.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+      sel.disabled = false;
+      btn.disabled = false;
+    }
   }
   window._lastExtract = result;
 }
@@ -443,9 +452,10 @@ function renderExtract(result) {
 function attachToSub() {
   const id = document.getElementById('attach-sub').value;
   const result = window._lastExtract;
-  if (!id || !result) { alert('Pick a subscription first.'); return; }
+  if (!result) { alert('Extract clauses first.'); return; }
+  if (!id) { alert('Pick a subscription from the dropdown first.'); return; }
   const sub = state.subscriptions.find(s => s.id === id);
-  if (!sub) return;
+  if (!sub) { alert('That subscription no longer exists.'); return; }
   sub.contract = {
     renewalType: result.renewalType?.value || null,
     autoRenew: result.renewalType?.value === 'Auto-renew',
@@ -455,7 +465,11 @@ function attachToSub() {
   };
   save();
   renderAll();
-  alert(`Saved contract terms to ${sub.name}.`);
+  switchView('subscriptions');
+  const btn = document.getElementById('attach-btn');
+  const orig = btn.textContent;
+  btn.textContent = `Saved to ${sub.name} ✓`;
+  setTimeout(() => { btn.textContent = orig; }, 2200);
 }
 
 const SAMPLE_CONTRACT = `MASTER SUBSCRIPTION AGREEMENT
