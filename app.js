@@ -140,8 +140,8 @@ function renderSubscriptions() {
       <td>${formatMoney(s.cost)}</td>
       <td style="text-transform:capitalize">${s.cycle}</td>
       <td>${formatMoney(monthlyCost(s))}</td>
-      <td>${s.renewal ? formatDate(s.renewal) : '—'}</td>
-      <td>${s.active !== false ? '<span class="badge ok">Active</span>' : '<span class="badge">Paused</span>'}</td>
+      <td>${s.renewal ? formatDate(s.renewal) : '—'}${renderCancelBy(s)}</td>
+      <td>${s.active !== false ? '<span class="badge ok">Active</span>' : '<span class="badge">Paused</span>'}${renderContractBadges(s)}</td>
       <td class="actions-cell">
         <button class="icon-btn" data-edit="${s.id}">Edit</button>
         <button class="icon-btn danger" data-delete="${s.id}">Delete</button>
@@ -151,6 +151,24 @@ function renderSubscriptions() {
 
   tbody.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openModal(b.dataset.edit));
   tbody.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => deleteSub(b.dataset.delete));
+}
+
+function renderContractBadges(s) {
+  if (!s.contract) return '';
+  const parts = [];
+  if (s.contract.autoRenew) parts.push('<span class="badge warn" title="Auto-renews">Auto-renew</span>');
+  if (s.contract.priceCapPct != null) parts.push(`<span class="badge" title="Price-increase cap">≤${s.contract.priceCapPct}%</span>`);
+  return parts.length ? `<div class="contract-summary">${parts.join('')}</div>` : '';
+}
+function renderCancelBy(s) {
+  if (!s.contract?.noticeDays || !s.renewal) return '';
+  const renewal = parseDate(s.renewal);
+  const cancelBy = new Date(renewal); cancelBy.setDate(cancelBy.getDate() - s.contract.noticeDays);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = Math.round((cancelBy - today) / 86400000);
+  const cls = days < 0 ? 'danger' : days <= 14 ? 'warn' : 'ok';
+  const label = days < 0 ? 'notice window passed' : `cancel by ${cancelBy.toLocaleDateString('en-US', { month:'short', day:'numeric' })}`;
+  return `<div style="margin-top:4px"><span class="badge ${cls}" title="Notice period: ${s.contract.noticeDays} days">${label}</span></div>`;
 }
 
 function renderRenewals() {
@@ -212,6 +230,16 @@ function renderInsights() {
   expensive.forEach(s => recos.push(`💸 <b>${escapeHtml(s.name)}</b> is one of your bigger line items at ${formatMoney(monthlyCost(s))}/mo. Confirm active usage.`));
   const soon = active.filter(s => { const d = daysUntil(s.renewal); return d !== null && d >= 0 && d <= 7; });
   soon.forEach(s => recos.push(`⏰ <b>${escapeHtml(s.name)}</b> renews in ${daysUntil(s.renewal)} day(s). Cancel now if you won't use it.`));
+  active.forEach(s => {
+    if (!s.contract?.autoRenew || !s.contract.noticeDays || !s.renewal) return;
+    const renewal = parseDate(s.renewal);
+    const cancelBy = new Date(renewal); cancelBy.setDate(cancelBy.getDate() - s.contract.noticeDays);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const days = Math.round((cancelBy - today) / 86400000);
+    if (days >= 0 && days <= 21) {
+      recos.push(`📄 <b>${escapeHtml(s.name)}</b> auto-renews and requires ${s.contract.noticeDays} days' notice — decide by <b>${cancelBy.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}</b>.`);
+    }
+  });
   if (!recos.length) recos.push('✅ Nothing jumping out — your subscription mix looks lean.');
   document.getElementById('recos').innerHTML = recos.map(r => `<li style="background:var(--panel-2);padding:12px 14px;border-radius:8px;font-size:13px;line-height:1.5">${r}</li>`).join('');
 }
@@ -270,6 +298,173 @@ function deleteSub(id) {
   save();
   renderAll();
 }
+
+// -------- contract extractor --------
+// Rule-based clause extractor. Returns { field: { value, snippet } | null }.
+const WORD_NUMS = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12, twenty:20, thirty:30, sixty:60, ninety:90 };
+function wordToNum(s) { if (!s) return null; s = s.toLowerCase(); return WORD_NUMS[s] ?? (isNaN(+s) ? null : +s); }
+
+function findMatch(text, patterns) {
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) return m;
+  }
+  return null;
+}
+function snippetAround(text, matchIndex, matchLen, radius = 90) {
+  const start = Math.max(0, matchIndex - radius);
+  const end = Math.min(text.length, matchIndex + matchLen + radius);
+  let s = text.slice(start, end).replace(/\s+/g, ' ').trim();
+  if (start > 0) s = '…' + s;
+  if (end < text.length) s = s + '…';
+  return s;
+}
+
+function extractRenewalType(text) {
+  const negative = [
+    /\b(shall|will|does)\s+not\s+(automatically\s+)?renew\b/i,
+    /\bno\s+auto(matic)?[-\s]?renewal\b/i,
+    /\brenewal\s+(only\s+)?upon\s+(mutual\s+)?(written\s+)?(consent|agreement)\b/i,
+    /\brequires\s+(mutual\s+)?(written\s+)?(consent|agreement)\s+to\s+renew\b/i,
+  ];
+  const positive = [
+    /\bautomatically\s+renew(s|ed|al)?\b/i,
+    /\bauto[-\s]?renew(s|ed|al)?\b/i,
+    /\b(shall|will)\s+renew\s+for\s+(successive|additional)\b/i,
+    /\bevergreen\b/i,
+    /\brenewal\s+term(s)?\b/i,
+  ];
+  const nm = findMatch(text, negative);
+  if (nm) return { value: 'Manual renewal', snippet: snippetAround(text, nm.index, nm[0].length) };
+  const pm = findMatch(text, positive);
+  if (pm) return { value: 'Auto-renew', snippet: snippetAround(text, pm.index, pm[0].length) };
+  return null;
+}
+
+function extractNoticePeriod(text) {
+  // Prefer parenthetical number: "sixty (60) days"
+  const patterns = [
+    /\((\d{1,3})\)\s*(day|week|month)s?['’]?\s+(prior\s+|advance\s+)?(written\s+)?notice/i,
+    /(?:at\s+least\s+|no\s+less\s+than\s+|minimum\s+of\s+|not\s+less\s+than\s+)?(\d{1,3})\s+(day|week|month)s?['’]?\s+(prior\s+|advance\s+)?(written\s+)?notice/i,
+    /(?:at\s+least\s+|no\s+less\s+than\s+)?(thirty|sixty|ninety|forty[-\s]five|one\s+hundred(?:\s+twenty)?)\s+(day|week|month)s?['’]?\s+(prior\s+|advance\s+)?(written\s+)?notice/i,
+    /notice\s+of\s+(?:at\s+least\s+|no\s+less\s+than\s+)?(?:\w+\s+)?\((\d{1,3})\)\s*(day|week|month)s?/i,
+    /notice\s+of\s+(?:at\s+least\s+|no\s+less\s+than\s+)?(\d{1,3}|thirty|sixty|ninety)\s+(day|week|month)s?/i,
+    /(\d{1,3})\s+(day|week|month)s?\s+before\s+(the\s+)?(end|expiration|renewal)/i,
+  ];
+  const m = findMatch(text, patterns);
+  if (!m) return null;
+  const rawNum = m[1].replace(/[-\s]+/g, ' ').trim();
+  let num = wordToNum(rawNum);
+  if (num === null) {
+    if (/forty\s*five/i.test(rawNum)) num = 45;
+    else if (/one\s+hundred\s+twenty/i.test(rawNum)) num = 120;
+    else if (/one\s+hundred/i.test(rawNum)) num = 100;
+  }
+  if (num === null) return null;
+  const unit = m[2].toLowerCase();
+  const days = unit.startsWith('day') ? num : unit.startsWith('week') ? num * 7 : num * 30;
+  return { value: `${num} ${unit}${num === 1 ? '' : 's'} (~${days} days)`, days, snippet: snippetAround(text, m.index, m[0].length) };
+}
+
+function extractTermLength(text) {
+  // Prefer parenthetical form: "two (2) years"
+  const patterns = [
+    /initial\s+term[^.]{0,80}?\((\d+)\)\s*(month|year)s?/i,
+    /initial\s+term[^.]{0,80}?(one|two|three|four|five|six|seven|eight|nine|ten)\s+(month|year)s?/i,
+    /initial\s+term[^.]{0,80}?(\d+)\s+(month|year)s?/i,
+    /(?:subscription|service)\s+term\s+of\s+\(?(\d+)\)?\s*(month|year)s?/i,
+    /(?:subscription|service)\s+term\s+of\s+(one|two|three|four|five)\s+(month|year)s?/i,
+    /term\s+of\s+\(?(\d+)\)?\s*(month|year)s?/i,
+    /(\d+|one|two|three|four|five)[-\s](year|month)\s+(initial\s+)?term/i,
+  ];
+  const m = findMatch(text, patterns);
+  if (!m) return null;
+  const num = wordToNum(m[1]);
+  if (num === null) return null;
+  const unit = m[2].toLowerCase();
+  return { value: `${num} ${unit}${num === 1 ? '' : 's'}`, months: unit === 'year' ? num * 12 : num, snippet: snippetAround(text, m.index, m[0].length) };
+}
+
+function extractPriceCap(text) {
+  const patterns = [
+    /(?:price|fee|rate|charges?)\s+(?:increase[s]?|escalation|adjustment)[^.]{0,160}?(?:not\s+(?:to\s+)?exceed|shall\s+not\s+exceed|capped\s+at|limited\s+to|no\s+more\s+than)[^.]{0,40}?\((\d+(?:\.\d+)?)\s*%\)/i,
+    /(?:price|fee|rate|charges?)\s+(?:increase[s]?|escalation|adjustment)[^.]{0,160}?(?:not\s+(?:to\s+)?exceed|shall\s+not\s+exceed|capped\s+at|limited\s+to|no\s+more\s+than)[^.]{0,40}?(\d+(?:\.\d+)?)\s*%/i,
+    /(?:annual\s+)?(?:increase|escalation)[^.]{0,120}?(?:capped\s+at|limited\s+to|not\s+(?:to\s+)?exceed)[^.]{0,20}?(\d+(?:\.\d+)?)\s*%/i,
+    /(\d+(?:\.\d+)?)\s*%\s+(?:annual\s+)?(?:cap|maximum)\s+on\s+(?:price|fee|rate)/i,
+    /(?:price|fee|rate)[^.]{0,60}(?:will\s+not|shall\s+not)\s+increase[^.]{0,60}?(\d+(?:\.\d+)?)\s*%/i,
+  ];
+  const m = findMatch(text, patterns);
+  if (!m) return null;
+  return { value: `${m[1]}%`, pct: parseFloat(m[1]), snippet: snippetAround(text, m.index, m[0].length) };
+}
+
+function extractContract(text) {
+  return {
+    renewalType: extractRenewalType(text),
+    noticePeriod: extractNoticePeriod(text),
+    termLength: extractTermLength(text),
+    priceCap: extractPriceCap(text),
+  };
+}
+
+function renderExtract(result) {
+  const items = [
+    { key: 'renewalType', label: 'Renewal type', missing: 'Not detected — assume auto-renew and confirm with counterparty.' },
+    { key: 'noticePeriod', label: 'Notice period to cancel', missing: 'Not detected.' },
+    { key: 'termLength', label: 'Term length', missing: 'Not detected.' },
+    { key: 'priceCap', label: 'Price-escalation cap', missing: 'No cap detected — renewal price could rise unlimited.' },
+  ];
+  const box = document.getElementById('extract-results');
+  box.innerHTML = items.map(it => {
+    const r = result[it.key];
+    if (r) return `<div class="extract-item">
+      <span class="label">${it.label}</span>
+      <span class="value">${escapeHtml(r.value)}</span>
+      <span class="snippet">${escapeHtml(r.snippet)}</span>
+    </div>`;
+    return `<div class="extract-item miss">
+      <span class="label">${it.label}</span>
+      <span class="value">${escapeHtml(it.missing)}</span>
+    </div>`;
+  }).join('');
+
+  // Populate attach dropdown
+  const found = Object.values(result).some(v => v);
+  const attach = document.getElementById('attach-row');
+  attach.hidden = !found;
+  if (found) {
+    const sel = document.getElementById('attach-sub');
+    sel.innerHTML = '<option value="">Attach to subscription…</option>' +
+      state.subscriptions.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  }
+  window._lastExtract = result;
+}
+
+function attachToSub() {
+  const id = document.getElementById('attach-sub').value;
+  const result = window._lastExtract;
+  if (!id || !result) { alert('Pick a subscription first.'); return; }
+  const sub = state.subscriptions.find(s => s.id === id);
+  if (!sub) return;
+  sub.contract = {
+    renewalType: result.renewalType?.value || null,
+    autoRenew: result.renewalType?.value === 'Auto-renew',
+    noticeDays: result.noticePeriod?.days || null,
+    termLength: result.termLength?.value || null,
+    priceCapPct: result.priceCap?.pct ?? null,
+  };
+  save();
+  renderAll();
+  alert(`Saved contract terms to ${sub.name}.`);
+}
+
+const SAMPLE_CONTRACT = `MASTER SUBSCRIPTION AGREEMENT
+
+Section 4. Term and Renewal. The initial term of this Agreement shall be two (2) years commencing on the Effective Date (the "Initial Term"). Thereafter, this Agreement shall automatically renew for successive one-year renewal terms unless either party provides at least sixty (60) days' prior written notice of non-renewal before the end of the then-current term.
+
+Section 5. Fees. Fees for the Services are set forth in the applicable Order Form. Provider may increase the Fees upon renewal; provided, however, that any such price increase shall not exceed seven percent (7%) per annum over the Fees charged in the immediately preceding term.
+
+Section 12. Termination for Convenience. Customer may terminate this Agreement for convenience only at the end of the then-current term by providing the notice described in Section 4.`;
 
 // -------- utils --------
 function escapeHtml(s) {
@@ -355,4 +550,30 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('clear-btn').addEventListener('click', clearAll);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  document.getElementById('extract-btn').addEventListener('click', () => {
+    const text = document.getElementById('contract-text').value;
+    if (!text.trim()) { alert('Paste some contract text first.'); return; }
+    renderExtract(extractContract(text));
+  });
+  document.getElementById('clear-contract').addEventListener('click', () => {
+    document.getElementById('contract-text').value = '';
+    document.getElementById('extract-results').innerHTML = '<p class="empty" style="padding:20px 0;font-size:13px">Paste text and click <b>Extract clauses</b>.</p>';
+    document.getElementById('attach-row').hidden = true;
+  });
+  document.getElementById('sample-contract').addEventListener('click', () => {
+    document.getElementById('contract-text').value = SAMPLE_CONTRACT;
+    renderExtract(extractContract(SAMPLE_CONTRACT));
+  });
+  document.getElementById('contract-file').addEventListener('change', (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById('contract-text').value = reader.result;
+      renderExtract(extractContract(reader.result));
+    };
+    reader.readAsText(f);
+    e.target.value = '';
+  });
+  document.getElementById('attach-btn').addEventListener('click', attachToSub);
 });
