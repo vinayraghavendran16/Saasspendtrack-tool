@@ -13,7 +13,18 @@ function load() {
     if (raw) state = JSON.parse(raw);
   } catch (_) {}
   if (!Array.isArray(state.subscriptions)) state.subscriptions = [];
+  if (!Array.isArray(state.invoices)) state.invoices = [];
 }
+
+function invoiceStatus(inv) {
+  if (inv.paidDate) return 'paid';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due = parseDate(inv.dueDate);
+  if (due && due < today) return 'overdue';
+  return 'pending';
+}
+function subName(id) { return state.subscriptions.find(s => s.id === id)?.name || '—'; }
+function subTeam(id) { return state.subscriptions.find(s => s.id === id)?.team || ''; }
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
@@ -61,35 +72,24 @@ function renderDashboard() {
   const paused = state.subscriptions.length - active.length;
 
   document.getElementById('stat-monthly').textContent = formatMoney(totalMonthly);
-  document.getElementById('stat-monthly-sub').textContent = `across ${active.length} subscription${active.length === 1 ? '' : 's'}`;
+  document.getElementById('stat-monthly-sub').textContent = `${active.length} active · ${paused} paused`;
   document.getElementById('stat-annual').textContent = formatMoney(totalAnnual);
-  document.getElementById('stat-count').textContent = active.length;
-  document.getElementById('stat-count-sub').textContent = `${paused} paused`;
 
-  // Next decision — prefer an urgent notice window if we have one, else next renewal
-  const nextByNotice = active
-    .map(s => ({ sub: s, win: computeNoticeWindow(s) }))
-    .filter(x => x.win && x.win.daysLeft >= 0)
-    .sort((a, b) => a.win.daysLeft - b.win.daysLeft)[0];
+  // Invoices YTD paid / pending
+  const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  const paidYtd = state.invoices.filter(i => i.paidDate && parseDate(i.paidDate) >= yearStart);
+  const paidTotal = paidYtd.reduce((s, i) => s + i.amount, 0);
+  const pending = state.invoices.filter(i => invoiceStatus(i) !== 'paid');
+  const overdue = pending.filter(i => invoiceStatus(i) === 'overdue');
+  const pendingTotal = pending.reduce((s, i) => s + i.amount, 0);
+  document.getElementById('stat-paid').textContent = formatMoney(paidTotal);
+  document.getElementById('stat-paid-sub').textContent = `${paidYtd.length} invoice${paidYtd.length === 1 ? '' : 's'}`;
+  document.getElementById('stat-pending').textContent = formatMoney(pendingTotal);
+  const pendEl = document.getElementById('stat-pending-sub');
+  pendEl.textContent = `${pending.length} pending · ${overdue.length} overdue`;
+  document.getElementById('stat-pending').style.color = overdue.length ? 'var(--danger)' : '';
+
   const withDates = active.filter(s => s.renewal).sort((a,b) => parseDate(a.renewal) - parseDate(b.renewal));
-  const nextFuture = withDates.find(s => daysUntil(s.renewal) >= 0);
-  const statNext = document.getElementById('stat-next');
-  const statNextSub = document.getElementById('stat-next-sub');
-  if (nextByNotice) {
-    const { sub, win } = nextByNotice;
-    statNext.textContent = sub.name;
-    statNextSub.textContent = `act by ${win.cancelBy.toLocaleDateString('en-US', { month:'short', day:'numeric' })} · ${win.daysLeft}d`;
-    statNext.style.color = win.daysLeft <= 7 ? 'var(--danger)' : win.daysLeft <= 30 ? 'var(--warning)' : '';
-  } else if (nextFuture) {
-    const d = daysUntil(nextFuture.renewal);
-    statNext.textContent = nextFuture.name;
-    statNextSub.textContent = `${formatMoney(nextFuture.cost)} in ${d} day${d === 1 ? '' : 's'}`;
-    statNext.style.color = '';
-  } else {
-    statNext.textContent = '—';
-    statNextSub.textContent = 'no upcoming renewals';
-    statNext.style.color = '';
-  }
 
   // Category chart
   const byCat = {};
@@ -107,6 +107,46 @@ function renderDashboard() {
       <span class="chart-value">${formatMoney(val)}/mo</span>
     </div>
   `).join('') : '<p class="empty" style="padding:20px 0">Add subscriptions to see the breakdown.</p>';
+
+  // Team chart
+  const byTeam = {};
+  active.forEach(s => {
+    const t = s.team || 'Unassigned';
+    byTeam[t] = (byTeam[t] || 0) + monthlyCost(s);
+  });
+  const teamEntries = Object.entries(byTeam).sort((a,b) => b[1] - a[1]);
+  const teamMax = teamEntries[0]?.[1] || 1;
+  const teamChart = document.getElementById('team-chart');
+  teamChart.innerHTML = teamEntries.length ? teamEntries.map(([t, v]) => `
+    <div class="chart-row">
+      <span>${escapeHtml(t)}</span>
+      <div class="chart-bar"><div class="chart-bar-fill" style="width:${(v/teamMax*100).toFixed(1)}%"></div></div>
+      <span class="chart-value">${formatMoney(v)}/mo</span>
+    </div>
+  `).join('') : '<p class="empty" style="padding:20px 0">Assign a team on each subscription to see the breakdown.</p>';
+
+  // Vendor totals
+  renderVendorTotals();
+
+  // Invoices due soon
+  const dueSoon = state.invoices
+    .filter(i => invoiceStatus(i) !== 'paid')
+    .sort((a,b) => (parseDate(a.dueDate) || 0) - (parseDate(b.dueDate) || 0))
+    .slice(0, 6);
+  const dueEl = document.getElementById('due-list');
+  dueEl.innerHTML = dueSoon.length ? dueSoon.map(i => {
+    const st = invoiceStatus(i);
+    const d = daysUntil(i.dueDate);
+    const cls = st === 'overdue' ? 'danger' : d <= 7 ? 'warn' : 'ok';
+    const dayLabel = d < 0 ? `${Math.abs(d)}d overdue` : d === 0 ? 'today' : `${d}d`;
+    return `<li>
+      <div><div class="name">${escapeHtml(subName(i.subId))}</div><div class="meta">${escapeHtml(i.invoiceNumber || 'no #')} · due ${formatDate(i.dueDate)}</div></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="amount">${formatMoney(i.amount)}</span>
+        <span class="badge ${cls}">${dayLabel}</span>
+      </div>
+    </li>`;
+  }).join('') : '<p class="empty" style="padding:20px 0">Nothing due.</p>';
 
   // Upcoming renewals
   const upcoming = withDates.filter(s => { const d = daysUntil(s.renewal); return d !== null && d >= 0 && d <= 30; }).slice(0, 6);
@@ -219,6 +259,129 @@ function renderNoticeWindows() {
   }).join('');
 }
 
+function renderVendorTotals() {
+  const tbody = document.getElementById('vendor-tbody');
+  const empty = document.getElementById('vendor-empty');
+  if (!state.subscriptions.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  const rows = state.subscriptions.map(s => {
+    const invs = state.invoices.filter(i => i.subId === s.id);
+    const paid = invs.filter(i => i.paidDate).reduce((sum, i) => sum + i.amount, 0);
+    const pend = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + i.amount, 0);
+    const monthly = monthlyCost(s);
+    return { s, invCount: invs.length, paid, pend, total: paid + pend, monthly };
+  }).sort((a, b) => b.total - a.total || b.monthly - a.monthly);
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td><span class="vendor-name">${escapeHtml(r.s.name)}</span>${r.s.active === false ? ' <span class="badge">Paused</span>' : ''}</td>
+      <td>${r.s.team ? `<span class="team-chip">${escapeHtml(r.s.team)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td class="num">${formatMoney(r.monthly)}</td>
+      <td class="num">${formatMoney(r.monthly * 12)}</td>
+      <td class="num">${r.invCount}</td>
+      <td class="num paid-cell ${r.paid > 0 ? 'gt0' : ''}">${formatMoney(r.paid)}</td>
+      <td class="num pending-cell ${r.pend > 0 ? 'gt0' : ''}">${formatMoney(r.pend)}</td>
+      <td class="num"><b>${formatMoney(r.total)}</b></td>
+    </tr>
+  `).join('');
+}
+
+function renderInvoices() {
+  const tbody = document.getElementById('inv-tbody');
+  const empty = document.getElementById('inv-empty');
+  const vSel = document.getElementById('inv-filter-vendor');
+  const sSel = document.getElementById('inv-filter-status');
+  const currentV = vSel.value, currentS = sSel.value;
+  vSel.innerHTML = '<option value="">All vendors</option>' + state.subscriptions.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  vSel.value = currentV;
+
+  const rows = state.invoices.filter(i => {
+    if (currentV && i.subId !== currentV) return false;
+    if (currentS && invoiceStatus(i) !== currentS) return false;
+    return true;
+  }).sort((a, b) => (parseDate(b.dueDate) || 0) - (parseDate(a.dueDate) || 0));
+
+  empty.style.display = rows.length ? 'none' : 'block';
+  tbody.innerHTML = rows.map(i => {
+    const st = invoiceStatus(i);
+    const badgeCls = st === 'paid' ? 'ok' : st === 'overdue' ? 'danger' : 'warn';
+    const badgeText = st === 'paid' ? `Paid ${formatDate(i.paidDate)}` : st === 'overdue' ? 'Overdue' : 'Pending';
+    return `<tr>
+      <td>${escapeHtml(subName(i.subId))}</td>
+      <td>${subTeam(i.subId) ? `<span class="team-chip">${escapeHtml(subTeam(i.subId))}</span>` : '—'}</td>
+      <td>${escapeHtml(i.invoiceNumber || '—')}</td>
+      <td>${formatMoney(i.amount)}</td>
+      <td>${i.issueDate ? formatDate(i.issueDate) : '—'}</td>
+      <td>${formatDate(i.dueDate)}</td>
+      <td><span class="badge ${badgeCls}">${badgeText}</span></td>
+      <td class="actions-cell">
+        ${st !== 'paid' ? `<button class="icon-btn" data-mark-paid="${i.id}">Mark paid</button>` : ''}
+        <button class="icon-btn" data-edit-inv="${i.id}">Edit</button>
+        <button class="icon-btn danger" data-delete-inv="${i.id}">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-mark-paid]').forEach(b => b.onclick = () => markPaid(b.dataset.markPaid));
+  tbody.querySelectorAll('[data-edit-inv]').forEach(b => b.onclick = () => openInvModal(b.dataset.editInv));
+  tbody.querySelectorAll('[data-delete-inv]').forEach(b => b.onclick = () => deleteInvoice(b.dataset.deleteInv));
+}
+
+function openInvModal(id) {
+  const inv = id ? state.invoices.find(i => i.id === id) : null;
+  document.getElementById('inv-modal-title').textContent = inv ? 'Edit invoice' : 'Add invoice';
+  document.getElementById('inv-id').value = inv?.id || '';
+  const subSel = document.getElementById('inv-sub');
+  subSel.innerHTML = '<option value="">Choose vendor…</option>' + state.subscriptions.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  subSel.value = inv?.subId || '';
+  document.getElementById('inv-amount').value = inv?.amount ?? '';
+  document.getElementById('inv-number').value = inv?.invoiceNumber || '';
+  document.getElementById('inv-issue').value = inv?.issueDate || '';
+  document.getElementById('inv-due').value = inv?.dueDate || '';
+  document.getElementById('inv-paid').value = inv?.paidDate || '';
+  document.getElementById('inv-notes').value = inv?.notes || '';
+  document.getElementById('inv-modal').hidden = false;
+}
+function closeInvModal() { document.getElementById('inv-modal').hidden = true; }
+
+function handleInvSubmit(e) {
+  e.preventDefault();
+  const subId = document.getElementById('inv-sub').value;
+  if (!subId) { alert('Pick a vendor.'); return; }
+  const id = document.getElementById('inv-id').value || crypto.randomUUID();
+  const inv = {
+    id, subId,
+    amount: parseFloat(document.getElementById('inv-amount').value) || 0,
+    invoiceNumber: document.getElementById('inv-number').value.trim(),
+    issueDate: document.getElementById('inv-issue').value || null,
+    dueDate: document.getElementById('inv-due').value || null,
+    paidDate: document.getElementById('inv-paid').value || null,
+    notes: document.getElementById('inv-notes').value.trim(),
+  };
+  const idx = state.invoices.findIndex(i => i.id === id);
+  if (idx >= 0) state.invoices[idx] = inv; else state.invoices.push(inv);
+  save();
+  renderAll();
+  closeInvModal();
+}
+
+function markPaid(id) {
+  const inv = state.invoices.find(i => i.id === id);
+  if (!inv) return;
+  inv.paidDate = new Date().toISOString().slice(0, 10);
+  save();
+  renderAll();
+}
+function deleteInvoice(id) {
+  if (!confirm('Delete this invoice?')) return;
+  state.invoices = state.invoices.filter(i => i.id !== id);
+  save();
+  renderAll();
+}
+
 function renderContractBadges(s) {
   if (!s.contract) return '';
   const parts = [];
@@ -313,6 +476,7 @@ function renderAll() {
   renderDashboard();
   renderNoticeWindows();
   renderSubscriptions();
+  renderInvoices();
   renderRenewals();
   renderInsights();
 }
@@ -328,6 +492,8 @@ function openModal(id) {
   document.getElementById('f-cycle').value = sub?.cycle || 'monthly';
   document.getElementById('f-category').value = sub?.category || '';
   document.getElementById('f-renewal').value = sub?.renewal || '';
+  document.getElementById('f-team').value = sub?.team || '';
+  document.getElementById('f-url').value = sub?.url || '';
   document.getElementById('f-notes').value = sub?.notes || '';
   document.getElementById('f-active').checked = sub ? sub.active !== false : true;
   modal.hidden = false;
@@ -345,8 +511,11 @@ function handleSubmit(e) {
     cycle: document.getElementById('f-cycle').value,
     category: document.getElementById('f-category').value.trim(),
     renewal: document.getElementById('f-renewal').value || null,
+    team: document.getElementById('f-team').value.trim(),
+    url: document.getElementById('f-url').value.trim(),
     notes: document.getElementById('f-notes').value.trim(),
     active: document.getElementById('f-active').checked,
+    contract: state.subscriptions.find(x => x.id === id)?.contract || null,
   };
   const idx = state.subscriptions.findIndex(s => s.id === id);
   if (idx >= 0) state.subscriptions[idx] = sub;
@@ -359,8 +528,11 @@ function handleSubmit(e) {
 function deleteSub(id) {
   const sub = state.subscriptions.find(s => s.id === id);
   if (!sub) return;
-  if (!confirm(`Delete "${sub.name}"?`)) return;
+  const invCount = state.invoices.filter(i => i.subId === id).length;
+  const msg = invCount ? `Delete "${sub.name}" and ${invCount} invoice(s)?` : `Delete "${sub.name}"?`;
+  if (!confirm(msg)) return;
   state.subscriptions = state.subscriptions.filter(s => s.id !== id);
+  state.invoices = state.invoices.filter(i => i.subId !== id);
   save();
   renderAll();
 }
@@ -556,18 +728,30 @@ function seed() {
   const today = new Date();
   const future = (days) => { const d = new Date(today); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
   state.subscriptions = [
-    { id: crypto.randomUUID(), name: 'Figma',        cost: 15,    cycle: 'monthly', category: 'Design',        renewal: future(4),  notes: 'Professional plan', active: true },
-    { id: crypto.randomUUID(), name: 'Notion',       cost: 96,    cycle: 'yearly',  category: 'Productivity',  renewal: future(45), notes: 'Team plan', active: true },
-    { id: crypto.randomUUID(), name: 'GitHub',       cost: 4,     cycle: 'monthly', category: 'Development',   renewal: future(12), notes: 'Pro', active: true },
-    { id: crypto.randomUUID(), name: 'Vercel',       cost: 20,    cycle: 'monthly', category: 'Development',   renewal: future(18), notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'ChatGPT Plus', cost: 20,    cycle: 'monthly', category: 'AI / LLM',      renewal: future(6),  notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'Claude Pro',   cost: 20,    cycle: 'monthly', category: 'AI / LLM',      renewal: future(22), notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'Slack',        cost: 87.5,  cycle: 'monthly', category: 'Communication', renewal: future(9),  notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'Google Workspace', cost: 72, cycle: 'yearly', category: 'Productivity',  renewal: future(120),notes: 'Business Starter', active: true },
-    { id: crypto.randomUUID(), name: 'HubSpot',      cost: 800,   cycle: 'monthly', category: 'Marketing',     renewal: future(28), notes: 'Marketing Hub Pro', active: true },
-    { id: crypto.randomUUID(), name: 'Zoom',         cost: 149.9, cycle: 'yearly',  category: 'Communication', renewal: future(65), notes: 'Pro annual', active: true },
-    { id: crypto.randomUUID(), name: 'Dropbox',      cost: 12,    cycle: 'monthly', category: 'Storage',       renewal: future(2),  notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'Netflix',      cost: 15.49, cycle: 'monthly', category: 'Entertainment', renewal: future(14), notes: 'Standard', active: false },
+    { id: crypto.randomUUID(), name: 'Figma',        cost: 15,    cycle: 'monthly', category: 'Design',        team: 'Design',      renewal: future(4),  notes: 'Professional plan', active: true },
+    { id: crypto.randomUUID(), name: 'Notion',       cost: 96,    cycle: 'yearly',  category: 'Productivity',  team: 'Ops',         renewal: future(45), notes: 'Team plan', active: true },
+    { id: crypto.randomUUID(), name: 'GitHub',       cost: 4,     cycle: 'monthly', category: 'Development',   team: 'Engineering', renewal: future(12), notes: 'Pro', active: true },
+    { id: crypto.randomUUID(), name: 'Vercel',       cost: 20,    cycle: 'monthly', category: 'Development',   team: 'Engineering', renewal: future(18), notes: '', active: true },
+    { id: crypto.randomUUID(), name: 'ChatGPT Plus', cost: 20,    cycle: 'monthly', category: 'AI / LLM',      team: 'Engineering', renewal: future(6),  notes: '', active: true },
+    { id: crypto.randomUUID(), name: 'Claude Pro',   cost: 20,    cycle: 'monthly', category: 'AI / LLM',      team: 'Engineering', renewal: future(22), notes: '', active: true },
+    { id: crypto.randomUUID(), name: 'Slack',        cost: 87.5,  cycle: 'monthly', category: 'Communication', team: 'Ops',         renewal: future(9),  notes: '', active: true },
+    { id: crypto.randomUUID(), name: 'Google Workspace', cost: 72, cycle: 'yearly', category: 'Productivity',  team: 'Ops',         renewal: future(120),notes: 'Business Starter', active: true },
+    { id: crypto.randomUUID(), name: 'HubSpot',      cost: 800,   cycle: 'monthly', category: 'Marketing',     team: 'Marketing',   renewal: future(28), notes: 'Marketing Hub Pro', active: true },
+    { id: crypto.randomUUID(), name: 'Zoom',         cost: 149.9, cycle: 'yearly',  category: 'Communication', team: 'Sales',       renewal: future(65), notes: 'Pro annual', active: true },
+    { id: crypto.randomUUID(), name: 'Dropbox',      cost: 12,    cycle: 'monthly', category: 'Storage',       team: 'Ops',         renewal: future(2),  notes: '', active: true },
+    { id: crypto.randomUUID(), name: 'Netflix',      cost: 15.49, cycle: 'monthly', category: 'Entertainment', team: 'People',      renewal: future(14), notes: 'Standard', active: false },
+  ];
+  // Sample invoices — a couple paid, a couple pending, one overdue
+  const past = (days) => future(-days);
+  const byName = (n) => state.subscriptions.find(s => s.name === n).id;
+  state.invoices = [
+    { id: crypto.randomUUID(), subId: byName('HubSpot'),      amount: 800,   invoiceNumber: 'HS-24089', issueDate: past(35), dueDate: past(5), paidDate: past(3), notes: '' },
+    { id: crypto.randomUUID(), subId: byName('Slack'),        amount: 87.5,  invoiceNumber: 'SLK-1088', issueDate: past(20), dueDate: past(1), paidDate: past(1), notes: '' },
+    { id: crypto.randomUUID(), subId: byName('Zoom'),         amount: 149.9, invoiceNumber: 'ZM-77712', issueDate: past(300),dueDate: past(285), paidDate: past(283), notes: 'Annual' },
+    { id: crypto.randomUUID(), subId: byName('HubSpot'),      amount: 800,   invoiceNumber: 'HS-24101', issueDate: past(5),  dueDate: future(10), paidDate: null, notes: '' },
+    { id: crypto.randomUUID(), subId: byName('Vercel'),       amount: 20,    invoiceNumber: 'VC-8842',  issueDate: past(3),  dueDate: future(12), paidDate: null, notes: '' },
+    { id: crypto.randomUUID(), subId: byName('Figma'),        amount: 45,    invoiceNumber: 'FIG-2214', issueDate: past(15), dueDate: past(2),  paidDate: null, notes: '3 seats' },
+    { id: crypto.randomUUID(), subId: byName('Google Workspace'), amount: 72,invoiceNumber: 'GW-2026',  issueDate: past(400),dueDate: past(380),paidDate: past(378), notes: '' },
   ];
   save();
   renderAll();
@@ -596,8 +780,8 @@ function importJson(file) {
   reader.readAsText(file);
 }
 function clearAll() {
-  if (!confirm('Delete ALL subscriptions? This cannot be undone.')) return;
-  state = { subscriptions: [] };
+  if (!confirm('Delete ALL subscriptions and invoices? This cannot be undone.')) return;
+  state = { subscriptions: [], invoices: [] };
   save();
   renderAll();
 }
@@ -629,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.target.value = '';
   });
   document.getElementById('clear-btn').addEventListener('click', clearAll);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); closeInvModal(); } });
 
   document.getElementById('extract-btn').addEventListener('click', () => {
     const text = document.getElementById('contract-text').value;
@@ -656,4 +840,13 @@ document.addEventListener('DOMContentLoaded', () => {
     e.target.value = '';
   });
   document.getElementById('attach-btn').addEventListener('click', attachToSub);
+
+  document.getElementById('add-inv-btn').addEventListener('click', () => openInvModal(null));
+  document.getElementById('inv-cancel').addEventListener('click', closeInvModal);
+  document.getElementById('inv-form').addEventListener('submit', handleInvSubmit);
+  document.getElementById('inv-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'inv-modal') closeInvModal();
+  });
+  document.getElementById('inv-filter-vendor').addEventListener('change', renderInvoices);
+  document.getElementById('inv-filter-status').addEventListener('change', renderInvoices);
 });

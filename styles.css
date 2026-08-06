@@ -172,6 +172,27 @@ button.primary:hover { filter: brightness(1.08); }
 }
 .renewal-month li .day { color: var(--text-dim); font-size: 12px; }
 
+/* Vendor totals */
+.vendor-table-wrap { overflow-x: auto; }
+.vendor-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.vendor-table th, .vendor-table td { padding: 10px 14px; text-align: left; }
+.vendor-table thead th {
+  color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
+}
+.vendor-table tbody tr { border-top: 1px solid var(--border); }
+.vendor-table tbody tr:hover { background: var(--panel-2); }
+.vendor-table td.num { font-variant-numeric: tabular-nums; text-align: right; }
+.vendor-table th.num { text-align: right; }
+.vendor-table .vendor-name { font-weight: 600; }
+.vendor-table .team-chip {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--border);
+  font-size: 11px; color: var(--text-dim);
+}
+.vendor-table .pending-cell.gt0 { color: var(--warning); font-weight: 600; }
+.vendor-table .paid-cell.gt0 { color: var(--success); }
+
 /* Notice windows */
 .panel-sub { color: var(--text-dim); font-size: 12px; margin: -6px 0 14px; }
 .notice-windows { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }

@@ -19,6 +19,7 @@
   <nav class="tabs">
     <button class="tab active" data-view="dashboard">Dashboard</button>
     <button class="tab" data-view="subscriptions">Subscriptions</button>
+    <button class="tab" data-view="invoices">Invoices</button>
     <button class="tab" data-view="renewals">Renewals</button>
     <button class="tab" data-view="contracts">Contracts</button>
     <button class="tab" data-view="insights">Insights</button>
@@ -40,14 +41,14 @@
         <span class="stat-sub">projected yearly total</span>
       </div>
       <div class="stat-card">
-        <span class="stat-label">Active subscriptions</span>
-        <span class="stat-value" id="stat-count">0</span>
-        <span class="stat-sub" id="stat-count-sub">0 paused</span>
+        <span class="stat-label">Invoices paid (YTD)</span>
+        <span class="stat-value" id="stat-paid">$0</span>
+        <span class="stat-sub" id="stat-paid-sub">0 invoices</span>
       </div>
       <div class="stat-card">
-        <span class="stat-label">Next decision</span>
-        <span class="stat-value" id="stat-next">—</span>
-        <span class="stat-sub" id="stat-next-sub">no upcoming renewals</span>
+        <span class="stat-label">Invoices pending</span>
+        <span class="stat-value" id="stat-pending">$0</span>
+        <span class="stat-sub" id="stat-pending-sub">0 pending · 0 overdue</span>
       </div>
     </div>
 
@@ -57,14 +58,65 @@
         <div id="category-chart" class="chart"></div>
       </div>
       <div class="panel">
-        <h2>Upcoming renewals</h2>
-        <ul id="upcoming-list" class="upcoming-list"></ul>
+        <h2>Spend by team</h2>
+        <div id="team-chart" class="chart"></div>
+      </div>
+      <div class="panel span-2">
+        <h2>Vendor totals — every dollar, every invoice</h2>
+        <p class="panel-sub">Retire the spreadsheet: subscription run-rate plus paid + pending invoices per vendor. Useful context at renewal time.</p>
+        <div class="vendor-table-wrap">
+          <table class="vendor-table">
+            <thead><tr>
+              <th>Vendor</th><th>Team</th><th>Monthly</th><th>Annual</th>
+              <th>Invoices</th><th>Paid</th><th>Pending</th><th>Total to date</th>
+            </tr></thead>
+            <tbody id="vendor-tbody"></tbody>
+          </table>
+          <p id="vendor-empty" class="empty" style="display:none;padding:24px">No vendors yet.</p>
+        </div>
       </div>
       <div class="panel span-2">
         <h2>Notice windows — act-by dates</h2>
         <p class="panel-sub">Calculated from each vendor's own notice clause, not a 30-day guess.</p>
         <div id="notice-windows" class="notice-windows"></div>
       </div>
+      <div class="panel">
+        <h2>Upcoming renewals</h2>
+        <ul id="upcoming-list" class="upcoming-list"></ul>
+      </div>
+      <div class="panel">
+        <h2>Invoices due soon</h2>
+        <ul id="due-list" class="upcoming-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Invoices -->
+  <section id="invoices" class="view">
+    <div class="section-head">
+      <h2>Invoices</h2>
+      <div class="controls">
+        <select id="inv-filter-vendor"><option value="">All vendors</option></select>
+        <select id="inv-filter-status">
+          <option value="">All statuses</option>
+          <option value="paid">Paid</option>
+          <option value="pending">Pending</option>
+          <option value="overdue">Overdue</option>
+        </select>
+        <button id="add-inv-btn" class="primary">+ Add invoice</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th>Vendor</th><th>Team</th><th>Invoice #</th><th>Amount</th>
+            <th>Issued</th><th>Due</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="inv-tbody"></tbody>
+      </table>
+      <p id="inv-empty" class="empty">No invoices yet. Click <b>+ Add invoice</b> to log one.</p>
     </div>
   </section>
 
@@ -198,6 +250,24 @@
         </label>
         <label>Next renewal<input type="date" id="f-renewal" /></label>
       </div>
+      <div class="row">
+        <label>Team / owner
+          <input type="text" id="f-team" list="team-list" placeholder="Engineering" />
+          <datalist id="team-list">
+            <option value="Engineering"></option>
+            <option value="Design"></option>
+            <option value="Marketing"></option>
+            <option value="Sales"></option>
+            <option value="Finance"></option>
+            <option value="Ops"></option>
+            <option value="People"></option>
+            <option value="Support"></option>
+            <option value="Product"></option>
+            <option value="Leadership"></option>
+          </datalist>
+        </label>
+        <label>Vendor URL<input type="url" id="f-url" placeholder="https://…" /></label>
+      </div>
       <label>Notes<textarea id="f-notes" rows="2" placeholder="Team plan, 5 seats…"></textarea></label>
       <label class="check"><input type="checkbox" id="f-active" checked /> Active</label>
       <div class="actions">
@@ -218,6 +288,33 @@
   </span>
 </footer>
 <input type="file" id="import-file" accept="application/json" hidden />
+
+<!-- Invoice modal -->
+<div class="modal-backdrop" id="inv-modal" hidden>
+  <div class="modal">
+    <h2 id="inv-modal-title">Add invoice</h2>
+    <form id="inv-form">
+      <input type="hidden" id="inv-id" />
+      <label>Vendor
+        <select id="inv-sub" required></select>
+      </label>
+      <div class="row">
+        <label>Amount (USD)<input type="number" id="inv-amount" min="0" step="0.01" required /></label>
+        <label>Invoice #<input type="text" id="inv-number" placeholder="INV-2026-042" /></label>
+      </div>
+      <div class="row">
+        <label>Issue date<input type="date" id="inv-issue" /></label>
+        <label>Due date<input type="date" id="inv-due" required /></label>
+      </div>
+      <label>Paid date <span style="color:var(--text-dim)">(leave blank if unpaid)</span><input type="date" id="inv-paid" /></label>
+      <label>Notes<textarea id="inv-notes" rows="2"></textarea></label>
+      <div class="actions">
+        <button type="button" id="inv-cancel">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>
