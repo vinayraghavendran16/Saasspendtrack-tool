@@ -954,14 +954,30 @@ function clearAll() {
 }
 
 // -------- wiring --------
-function switchView(name) {
+const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'renewals', 'contracts', 'insights'];
+function switchView(name, opts = {}) {
+  if (!VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === name));
+  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  if (!opts.replaceHistory) {
+    const target = '#' + name;
+    if (location.hash !== target) history.pushState({ view: name }, '', target);
+  }
+}
+function viewFromHash() {
+  const raw = (location.hash || '').replace(/^#/, '');
+  return VIEWS.includes(raw) ? raw : 'dashboard';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   load();
   renderAll();
+
+  // Restore view from URL hash on load (deep-linking + reload safety)
+  switchView(viewFromHash(), { replaceHistory: true });
+  window.addEventListener('popstate', () => switchView(viewFromHash(), { replaceHistory: true }));
+  window.addEventListener('hashchange', () => switchView(viewFromHash(), { replaceHistory: true }));
 
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
   document.getElementById('add-btn').addEventListener('click', () => openModal(null));
