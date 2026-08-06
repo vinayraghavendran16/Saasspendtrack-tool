@@ -178,6 +178,7 @@ button.primary:hover { filter: brightness(1.08); }
   backdrop-filter: blur(4px);
   display: grid; place-items: center; z-index: 20; padding: 20px;
 }
+.modal-backdrop[hidden] { display: none; }
 .modal {
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 16px; padding: 24px; width: 100%; max-width: 480px;
