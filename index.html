@@ -21,6 +21,7 @@
     <button class="tab active" data-view="dashboard">Dashboard</button>
     <button class="tab" data-view="subscriptions">Subscriptions</button>
     <button class="tab" data-view="invoices">Invoices</button>
+    <button class="tab" data-view="alerts">Alerts</button>
     <button class="tab" data-view="renewals">Renewals</button>
     <button class="tab" data-view="contracts">Contracts</button>
     <button class="tab" data-view="insights">Insights</button>
@@ -162,6 +163,43 @@
     </div>
   </section>
 
+  <!-- Alerts -->
+  <section id="alerts" class="view">
+    <div class="section-head">
+      <h2>Renewal alerts</h2>
+      <div class="controls">
+        <select id="alert-filter">
+          <option value="">All statuses</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="due">Due to send</option>
+          <option value="sent">Sent · awaiting ack</option>
+          <option value="acknowledged">Acknowledged</option>
+          <option value="escalated">Escalated</option>
+        </select>
+        <button id="download-ics" class="icon-btn">Download .ics</button>
+      </div>
+    </div>
+    <p class="contract-lede">Every active subscription fires a warning at <b>90</b>, <b>60</b>, and <b>30</b> days before renewal. If the owner doesn't acknowledge within 3 days of the trigger, it escalates to their manager. This app can't send from your browser, but it prepares the exact email and Slack payload for each alert so renewals stop depending on one person remembering.</p>
+
+    <div class="stat-grid" style="margin-bottom:18px">
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Scheduled</span><span class="stat-value" id="alerts-scheduled">0</span><span class="stat-sub">future warnings</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Due to send</span><span class="stat-value" id="alerts-due">0</span><span class="stat-sub">trigger today or earlier</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Awaiting ack</span><span class="stat-value" id="alerts-awaiting">0</span><span class="stat-sub">owner has 3 days</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Escalated</span><span class="stat-value" id="alerts-escalated">0</span><span class="stat-sub">forwarded to managers</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="sub-table">
+        <thead><tr>
+          <th>Vendor</th><th>Trigger</th><th>Fires on</th><th>Renews</th>
+          <th>Owner</th><th>Escalates to</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody id="alerts-tbody"></tbody>
+      </table>
+      <p id="alerts-empty" class="empty">No alerts yet. Add an owner (with email) to a subscription in <b>Subscriptions → Edit</b>.</p>
+    </div>
+  </section>
+
   <!-- Renewals -->
   <section id="renewals" class="view">
     <div class="section-head">
@@ -277,6 +315,14 @@
           </datalist>
         </label>
         <label>Vendor URL<input type="url" id="f-url" placeholder="https://…" /></label>
+      </div>
+      <div class="row">
+        <label>Owner name<input type="text" id="f-owner-name" placeholder="Priya Rao" /></label>
+        <label>Owner email<input type="email" id="f-owner-email" placeholder="priya@company.com" /></label>
+      </div>
+      <div class="row">
+        <label>Manager name<input type="text" id="f-manager-name" placeholder="Alex Kim" /></label>
+        <label>Manager email<input type="email" id="f-manager-email" placeholder="alex@company.com" /></label>
       </div>
       <label>Notes<textarea id="f-notes" rows="2" placeholder="Team plan, 5 seats…"></textarea></label>
       <label class="check"><input type="checkbox" id="f-active" checked /> Active</label>

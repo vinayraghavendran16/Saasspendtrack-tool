@@ -196,6 +196,17 @@ button.primary:hover { filter: brightness(1.08); }
 }
 .renewal-month li .day { color: var(--text-dim); font-size: 12px; }
 
+/* Alerts */
+.alert-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.alert-actions .icon-btn { font-size: 11px; padding: 4px 8px; }
+.alert-contact { font-size: 12px; color: var(--text-dim); line-height: 1.35; }
+.alert-contact b { color: var(--text); }
+.alert-contact.missing { color: var(--warning); }
+.alert-trigger { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.alert-trigger.d90 { color: var(--success); }
+.alert-trigger.d60 { color: var(--warning); }
+.alert-trigger.d30 { color: var(--danger); }
+
 /* Vendor totals */
 .vendor-table-wrap { overflow-x: auto; }
 .vendor-table { width: 100%; border-collapse: collapse; font-size: 13px; }

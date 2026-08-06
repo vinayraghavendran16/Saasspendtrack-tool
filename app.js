@@ -15,6 +15,7 @@ function load() {
   } catch (_) {}
   if (!Array.isArray(state.subscriptions)) state.subscriptions = [];
   if (!Array.isArray(state.invoices)) state.invoices = [];
+  if (!state.alertLog) state.alertLog = {}; // { "<subId>:<trigger>:<renewalISO>": { sentAt, ackAt, escalatedAt } }
 }
 
 function invoiceStatus(inv) {
@@ -590,6 +591,7 @@ function renderAll() {
   renderNoticeWindows();
   renderSubscriptions();
   renderInvoices();
+  renderAlerts();
   renderRenewals();
   renderInsights();
 }
@@ -604,9 +606,14 @@ function renderUrgencyStrip() {
     return d !== null && d >= 0 && d <= 7;
   }).length;
   const chips = [];
-  if (overdueCount)   chips.push({ tier: 'danger', view: 'invoices', txt: `${overdueCount} overdue` });
-  if (urgentNotice)   chips.push({ tier: 'warn',   view: 'dashboard', txt: `${urgentNotice} act-by soon` });
-  if (dueSoon)        chips.push({ tier: 'warn',   view: 'invoices', txt: `${dueSoon} due in 7d` });
+  const alerts = computeAlerts();
+  const escalatedAlerts = alerts.filter(a => a.status === 'escalated').length;
+  const awaitingAck = alerts.filter(a => a.status === 'sent').length;
+  if (overdueCount)     chips.push({ tier: 'danger', view: 'invoices', txt: `${overdueCount} overdue` });
+  if (escalatedAlerts)  chips.push({ tier: 'danger', view: 'alerts',   txt: `${escalatedAlerts} escalated` });
+  if (awaitingAck)      chips.push({ tier: 'warn',   view: 'alerts',   txt: `${awaitingAck} awaiting ack` });
+  if (urgentNotice)     chips.push({ tier: 'warn',   view: 'dashboard',txt: `${urgentNotice} act-by soon` });
+  if (dueSoon)          chips.push({ tier: 'warn',   view: 'invoices', txt: `${dueSoon} due in 7d` });
   strip.innerHTML = chips.map(c => `<button class="urgency-chip ${c.tier}" data-goto="${c.view}"><span class="dot"></span>${c.txt}</button>`).join('');
   strip.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => switchView(b.dataset.goto));
 }
@@ -624,6 +631,10 @@ function openModal(id) {
   document.getElementById('f-renewal').value = sub?.renewal || '';
   document.getElementById('f-team').value = sub?.team || '';
   document.getElementById('f-url').value = sub?.url || '';
+  document.getElementById('f-owner-name').value = sub?.owner?.name || '';
+  document.getElementById('f-owner-email').value = sub?.owner?.email || '';
+  document.getElementById('f-manager-name').value = sub?.manager?.name || '';
+  document.getElementById('f-manager-email').value = sub?.manager?.email || '';
   document.getElementById('f-notes').value = sub?.notes || '';
   document.getElementById('f-active').checked = sub ? sub.active !== false : true;
   modal.hidden = false;
@@ -643,6 +654,14 @@ function handleSubmit(e) {
     renewal: document.getElementById('f-renewal').value || null,
     team: document.getElementById('f-team').value.trim(),
     url: document.getElementById('f-url').value.trim(),
+    owner: {
+      name: document.getElementById('f-owner-name').value.trim(),
+      email: document.getElementById('f-owner-email').value.trim(),
+    },
+    manager: {
+      name: document.getElementById('f-manager-name').value.trim(),
+      email: document.getElementById('f-manager-email').value.trim(),
+    },
     notes: document.getElementById('f-notes').value.trim(),
     active: document.getElementById('f-active').checked,
     contract: state.subscriptions.find(x => x.id === id)?.contract || null,
@@ -665,6 +684,247 @@ function deleteSub(id) {
   state.invoices = state.invoices.filter(i => i.subId !== id);
   save();
   renderAll();
+}
+
+// -------- alerts --------
+const ALERT_TRIGGERS = [90, 60, 30]; // days before renewal
+const ACK_GRACE_DAYS = 3;
+
+function alertKey(subId, trigger, renewalISO) { return `${subId}:${trigger}:${renewalISO}`; }
+
+// Returns the flat list of computed alerts for all active subs with a
+// renewal date and an owner email. Each entry is: { sub, trigger, fireOn,
+// renewalOn, log, status }.
+function computeAlerts() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const out = [];
+  activeSubs().forEach(sub => {
+    if (!sub.owner?.email) return;
+    const renewal = nextRenewal(sub);
+    if (!renewal) return;
+    const renewalISO = renewal.toISOString().slice(0, 10);
+    ALERT_TRIGGERS.forEach(trigger => {
+      const fireOn = new Date(renewal); fireOn.setDate(fireOn.getDate() - trigger);
+      const key = alertKey(sub.id, trigger, renewalISO);
+      const log = state.alertLog[key] || {};
+      let status;
+      if (log.ackAt) {
+        status = 'acknowledged';
+      } else if (fireOn > today) {
+        status = 'scheduled';
+      } else {
+        // Trigger has fired. Auto-mark sentAt on first read if the log is empty.
+        if (!log.sentAt) log.sentAt = fireOn.toISOString().slice(0, 10);
+        const daysSinceFire = Math.round((today - fireOn) / 86400000);
+        if (daysSinceFire >= ACK_GRACE_DAYS) status = 'escalated';
+        else status = 'sent';
+      }
+      out.push({ sub, trigger, fireOn, renewalOn: renewal, key, log, status });
+    });
+  });
+  out.sort((a, b) => a.fireOn - b.fireOn);
+  return out;
+}
+
+function acknowledgeAlert(key, actor) {
+  const log = state.alertLog[key] || {};
+  log.ackAt = new Date().toISOString().slice(0, 10);
+  log.ackBy = actor || 'user';
+  state.alertLog[key] = log;
+  save(); renderAll();
+}
+function escalateAlert(key) {
+  const log = state.alertLog[key] || {};
+  log.escalatedAt = new Date().toISOString().slice(0, 10);
+  if (!log.sentAt) log.sentAt = log.escalatedAt;
+  state.alertLog[key] = log;
+  save(); renderAll();
+}
+function unacknowledgeAlert(key) {
+  const log = state.alertLog[key] || {};
+  delete log.ackAt; delete log.ackBy;
+  state.alertLog[key] = log;
+  save(); renderAll();
+}
+
+function alertRecipients(a) {
+  if (a.status === 'escalated' && a.sub.manager?.email) {
+    return { to: [a.sub.manager.email], cc: a.sub.owner?.email ? [a.sub.owner.email] : [], primary: a.sub.manager };
+  }
+  return { to: a.sub.owner?.email ? [a.sub.owner.email] : [], cc: [], primary: a.sub.owner };
+}
+function alertSubject(a) {
+  return `Renewal decision needed: ${a.sub.name} in ${a.trigger} days (${formatMoney(a.sub.cost)})`;
+}
+function alertBody(a) {
+  const win = computeNoticeWindow(a.sub);
+  const lines = [
+    `${a.sub.name} renews on ${formatDate(a.renewalOn.toISOString().slice(0,10))} — ${a.trigger} days from ${formatDate(a.fireOn.toISOString().slice(0,10))}.`,
+    ``,
+    `Amount: ${formatMoney(a.sub.cost)} / ${a.sub.cycle}`,
+    a.sub.team ? `Team: ${a.sub.team}` : null,
+    a.sub.category ? `Category: ${a.sub.category}` : null,
+    a.sub.contract?.autoRenew ? `Contract: auto-renews${a.sub.contract.noticeDays ? `, requires ${a.sub.contract.noticeDays} days' notice to cancel` : ''}` : null,
+    a.sub.contract?.priceCapPct != null ? `Price-increase cap: ${a.sub.contract.priceCapPct}%` : null,
+    win && win.daysLeft >= 0 ? `Act by: ${formatDate(win.cancelBy.toISOString().slice(0,10))} (${win.daysLeft} days from today)` : null,
+    ``,
+    `Please decide: renew, renegotiate, or cancel. Reply to acknowledge.`,
+    a.status === 'escalated' ? `\nThis is an ESCALATION — the owner did not acknowledge within ${ACK_GRACE_DAYS} days.` : ``,
+  ].filter(x => x !== null);
+  return lines.join('\n');
+}
+function alertMailto(a) {
+  const r = alertRecipients(a);
+  if (!r.to.length) return null;
+  const params = new URLSearchParams();
+  params.set('subject', alertSubject(a));
+  params.set('body', alertBody(a));
+  if (r.cc.length) params.set('cc', r.cc.join(','));
+  return `mailto:${r.to.join(',')}?${params.toString().replace(/\+/g, '%20')}`;
+}
+function alertSlackPayload(a) {
+  const r = alertRecipients(a);
+  const audience = r.primary ? `<@${r.primary.name || 'owner'}>` : '';
+  return {
+    text: `Renewal decision needed — ${a.sub.name}`,
+    blocks: [
+      { type: 'header', text: { type: 'plain_text', text: `${a.status === 'escalated' ? '🚨 ESCALATION · ' : ''}${a.sub.name} renews in ${a.trigger} days` } },
+      { type: 'section', fields: [
+        { type: 'mrkdwn', text: `*Amount:*\n${formatMoney(a.sub.cost)} / ${a.sub.cycle}` },
+        { type: 'mrkdwn', text: `*Renews:*\n${formatDate(a.renewalOn.toISOString().slice(0,10))}` },
+        { type: 'mrkdwn', text: `*Owner:*\n${a.sub.owner?.name || a.sub.owner?.email || '—'}` },
+        { type: 'mrkdwn', text: `*Team:*\n${a.sub.team || '—'}` },
+      ] },
+      { type: 'section', text: { type: 'mrkdwn', text: `${audience} Please decide — renew, renegotiate, or cancel. Then acknowledge in SaaS Spend Track.` } },
+    ],
+  };
+}
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      const o = btn.textContent;
+      btn.textContent = 'Copied ✓';
+      setTimeout(() => { btn.textContent = o; }, 1200);
+    }
+  }, () => alert('Copy failed. Selection is in your clipboard? Try again.'));
+}
+
+function statusPill(status) {
+  const map = {
+    scheduled:    { cls: '',       txt: 'Scheduled' },
+    sent:         { cls: 'warn',   txt: 'Awaiting ack' },
+    escalated:    { cls: 'danger', txt: 'Escalated' },
+    acknowledged: { cls: 'ok',     txt: 'Acknowledged' },
+  }[status] || { cls: '', txt: status };
+  return `<span class="badge ${map.cls}">${map.txt}</span>`;
+}
+
+function renderAlerts() {
+  const alerts = computeAlerts();
+  const filter = document.getElementById('alert-filter').value;
+  const filtered = alerts.filter(a => {
+    if (!filter) return true;
+    if (filter === 'due') return a.status === 'sent' || a.status === 'escalated';
+    return a.status === filter;
+  });
+
+  document.getElementById('alerts-scheduled').textContent   = alerts.filter(a => a.status === 'scheduled').length;
+  document.getElementById('alerts-due').textContent         = alerts.filter(a => (a.status === 'sent' || a.status === 'escalated') && !a.log.ackAt).length;
+  document.getElementById('alerts-awaiting').textContent    = alerts.filter(a => a.status === 'sent').length;
+  document.getElementById('alerts-escalated').textContent   = alerts.filter(a => a.status === 'escalated').length;
+
+  const empty = document.getElementById('alerts-empty');
+  const tbody = document.getElementById('alerts-tbody');
+  empty.style.display = filtered.length ? 'none' : 'block';
+  if (!filtered.length) { tbody.innerHTML = ''; return; }
+
+  tbody.innerHTML = filtered.map((a, idx) => {
+    const owner = a.sub.owner;
+    const mgr = a.sub.manager;
+    const ownerCell = owner?.email
+      ? `<div class="alert-contact"><b>${escapeHtml(owner.name || owner.email)}</b><br>${escapeHtml(owner.email)}</div>`
+      : `<div class="alert-contact missing">No owner set</div>`;
+    const mgrCell = mgr?.email
+      ? `<div class="alert-contact"><b>${escapeHtml(mgr.name || mgr.email)}</b><br>${escapeHtml(mgr.email)}</div>`
+      : `<div class="alert-contact missing">No manager set</div>`;
+
+    const canSend = alertMailto(a) !== null;
+    const isAck = a.status === 'acknowledged';
+    const actions = [
+      canSend ? `<a class="icon-btn" href="${alertMailto(a)}" title="Compose email in your mail app">Email</a>` : '',
+      `<button class="icon-btn" data-slack="${idx}">Copy Slack JSON</button>`,
+      isAck
+        ? `<button class="icon-btn" data-unack="${a.key}">Undo ack</button>`
+        : `<button class="icon-btn" data-ack="${a.key}">Acknowledge</button>`,
+      (!isAck && a.status !== 'escalated' && mgr?.email) ? `<button class="icon-btn danger" data-esc="${a.key}">Escalate now</button>` : '',
+    ].filter(Boolean).join('');
+
+    const trigCls = a.trigger === 30 ? 'd30' : a.trigger === 60 ? 'd60' : 'd90';
+    const fireISO = a.fireOn.toISOString().slice(0, 10);
+    const renewISO = a.renewalOn.toISOString().slice(0, 10);
+    const dayFromNow = Math.round((a.fireOn - new Date(new Date().setHours(0,0,0,0))) / 86400000);
+    const fireLabel = dayFromNow > 0 ? `in ${dayFromNow}d` : dayFromNow === 0 ? 'today' : `${Math.abs(dayFromNow)}d ago`;
+
+    return `<tr>
+      <td><b>${escapeHtml(a.sub.name)}</b>${a.sub.team ? `<div class="alert-contact">${escapeHtml(a.sub.team)}</div>` : ''}</td>
+      <td><span class="alert-trigger ${trigCls}">T-${a.trigger}d</span></td>
+      <td>${formatDate(fireISO)}<div class="alert-contact">${fireLabel}</div></td>
+      <td>${formatDate(renewISO)}<div class="alert-contact">${formatMoney(a.sub.cost)}</div></td>
+      <td>${ownerCell}</td>
+      <td>${mgrCell}</td>
+      <td>${statusPill(a.status)}${a.log.ackAt ? `<div class="alert-contact">${escapeHtml(a.log.ackAt)}</div>` : a.log.escalatedAt ? `<div class="alert-contact">escalated ${escapeHtml(a.log.escalatedAt)}</div>` : ''}</td>
+      <td><div class="alert-actions">${actions}</div></td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('[data-ack]').forEach(b => b.onclick = () => acknowledgeAlert(b.dataset.ack));
+  tbody.querySelectorAll('[data-unack]').forEach(b => b.onclick = () => unacknowledgeAlert(b.dataset.unack));
+  tbody.querySelectorAll('[data-esc]').forEach(b => b.onclick = () => { if (confirm('Escalate to manager now?')) escalateAlert(b.dataset.esc); });
+  tbody.querySelectorAll('[data-slack]').forEach(b => {
+    const a = filtered[+b.dataset.slack];
+    b.onclick = () => copyToClipboard(JSON.stringify(alertSlackPayload(a), null, 2), b);
+  });
+}
+
+function icsDate(d) {
+  const iso = new Date(d).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  return iso;
+}
+function downloadIcs() {
+  const alerts = computeAlerts().filter(a => a.status !== 'acknowledged');
+  if (!alerts.length) { alert('No unacknowledged alerts to export.'); return; }
+  const now = new Date();
+  const events = alerts.map(a => {
+    const start = new Date(a.fireOn); start.setHours(9, 0, 0, 0);
+    const end = new Date(start); end.setHours(9, 30, 0, 0);
+    const uid = `alert-${a.key}@saasspendtrack`;
+    const desc = alertBody(a).replace(/\n/g, '\\n');
+    return [
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${icsDate(now)}`,
+      `DTSTART:${icsDate(start)}`,
+      `DTEND:${icsDate(end)}`,
+      `SUMMARY:${alertSubject(a).replace(/[\n,;]/g, ' ')}`,
+      `DESCRIPTION:${desc}`,
+      a.sub.owner?.email ? `ATTENDEE;CN=${(a.sub.owner.name || a.sub.owner.email).replace(/[,;]/g,' ')}:mailto:${a.sub.owner.email}` : null,
+      `BEGIN:VALARM`,
+      `TRIGGER:-PT9H`,
+      `ACTION:DISPLAY`,
+      `DESCRIPTION:${alertSubject(a).replace(/[\n,;]/g, ' ')}`,
+      `END:VALARM`,
+      'END:VEVENT',
+    ].filter(Boolean).join('\r\n');
+  }).join('\r\n');
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//SaaS Spend Track//EN',
+    'CALSCALE:GREGORIAN',
+    events,
+    'END:VCALENDAR',
+  ].join('\r\n');
+  downloadFile('saas-spendtrack-alerts.ics', ics, 'text/calendar;charset=utf-8');
 }
 
 // -------- contract extractor --------
@@ -865,9 +1125,15 @@ function seed() {
     { id: crypto.randomUUID(), name: 'ChatGPT Plus', cost: 20,    cycle: 'monthly', category: 'AI / LLM',      team: 'Engineering', renewal: future(6),  notes: '', active: true },
     { id: crypto.randomUUID(), name: 'Claude Pro',   cost: 20,    cycle: 'monthly', category: 'AI / LLM',      team: 'Engineering', renewal: future(22), notes: '', active: true },
     { id: crypto.randomUUID(), name: 'Slack',        cost: 87.5,  cycle: 'monthly', category: 'Communication', team: 'Ops',         renewal: future(9),  notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'Google Workspace', cost: 72, cycle: 'yearly', category: 'Productivity',  team: 'Ops',         renewal: future(120),notes: 'Business Starter', active: true },
-    { id: crypto.randomUUID(), name: 'HubSpot',      cost: 800,   cycle: 'monthly', category: 'Marketing',     team: 'Marketing',   renewal: future(28), notes: 'Marketing Hub Pro', active: true },
-    { id: crypto.randomUUID(), name: 'Zoom',         cost: 149.9, cycle: 'yearly',  category: 'Communication', team: 'Sales',       renewal: future(65), notes: 'Pro annual', active: true },
+    { id: crypto.randomUUID(), name: 'Google Workspace', cost: 72, cycle: 'yearly', category: 'Productivity',  team: 'Ops',         renewal: future(120),notes: 'Business Starter', active: true,
+      owner:   { name: 'Sam Patel',  email: 'sam@company.com' },
+      manager: { name: 'Alex Kim',   email: 'alex@company.com' } },
+    { id: crypto.randomUUID(), name: 'HubSpot',      cost: 800,   cycle: 'monthly', category: 'Marketing',     team: 'Marketing',   renewal: future(28), notes: 'Marketing Hub Pro', active: true,
+      owner:   { name: 'Priya Rao', email: 'priya@company.com' },
+      manager: { name: 'Alex Kim',  email: 'alex@company.com' } },
+    { id: crypto.randomUUID(), name: 'Zoom',         cost: 149.9, cycle: 'yearly',  category: 'Communication', team: 'Sales',       renewal: future(65), notes: 'Pro annual', active: true,
+      owner:   { name: 'Jordan Lee', email: 'jordan@company.com' },
+      manager: { name: 'Alex Kim',   email: 'alex@company.com' } },
     { id: crypto.randomUUID(), name: 'Dropbox',      cost: 12,    cycle: 'monthly', category: 'Storage',       team: 'Ops',         renewal: future(2),  notes: '', active: true },
     { id: crypto.randomUUID(), name: 'Netflix',      cost: 15.49, cycle: 'monthly', category: 'Entertainment', team: 'People',      renewal: future(14), notes: 'Standard', active: false },
   ];
@@ -937,6 +1203,7 @@ function importJson(file) {
       state = {
         subscriptions: data.subscriptions,
         invoices: Array.isArray(data.invoices) ? data.invoices : [],
+        alertLog: (data.alertLog && typeof data.alertLog === 'object') ? data.alertLog : {},
       };
       save(); renderAll();
       alert(`Imported ${state.subscriptions.length} subscription(s) and ${state.invoices.length} invoice(s).`);
@@ -948,13 +1215,13 @@ function importJson(file) {
 }
 function clearAll() {
   if (!confirm('Delete ALL subscriptions and invoices? This cannot be undone.')) return;
-  state = { subscriptions: [], invoices: [] };
+  state = { subscriptions: [], invoices: [], alertLog: {} };
   save();
   renderAll();
 }
 
 // -------- wiring --------
-const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'renewals', 'contracts', 'insights'];
+const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'alerts', 'renewals', 'contracts', 'insights'];
 function switchView(name, opts = {}) {
   if (!VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
@@ -1057,4 +1324,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('inv-filter-vendor').addEventListener('change', renderInvoices);
   document.getElementById('inv-filter-status').addEventListener('change', renderInvoices);
+
+  document.getElementById('alert-filter').addEventListener('change', renderAlerts);
+  document.getElementById('download-ics').addEventListener('click', downloadIcs);
 });
