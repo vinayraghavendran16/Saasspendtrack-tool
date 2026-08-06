@@ -5,6 +5,7 @@ const CYCLE_MONTHS = { weekly: 1/4.345, monthly: 1, quarterly: 3, yearly: 12 };
 const AVATAR_COLORS = ['#7c5cff', '#35d0ba', '#ff8a4c', '#4cb1ff', '#ff5c7a', '#ffb545', '#a374ff', '#4cd3ff'];
 
 let state = { subscriptions: [] };
+let uiSort = { key: 'renewal', dir: 'asc' };
 
 // -------- storage --------
 function load() {
@@ -34,6 +35,7 @@ function monthlyCost(sub) {
   const months = CYCLE_MONTHS[sub.cycle] || 1;
   return sub.cost / months;
 }
+function periodCost(sub) { return sub.cost || 0; } // cost for one billing period as stored
 function formatMoney(n) {
   return '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -47,6 +49,31 @@ function daysUntil(dateStr) {
   if (!d) return null;
   const now = new Date(); now.setHours(0,0,0,0);
   return Math.round((d - now) / 86400000);
+}
+function addCycles(date, cycle, n) {
+  const d = new Date(date);
+  if (cycle === 'weekly')    d.setDate(d.getDate() + 7 * n);
+  else if (cycle === 'monthly')   d.setMonth(d.getMonth() + n);
+  else if (cycle === 'quarterly') d.setMonth(d.getMonth() + 3 * n);
+  else /* yearly */               d.setFullYear(d.getFullYear() + n);
+  return d;
+}
+// Returns the next renewal that is >= today, projected forward if the
+// stored date is stale. Returns null if the sub has no renewal on file.
+function nextRenewal(sub) {
+  if (!sub.renewal) return null;
+  const stored = parseDate(sub.renewal);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (stored >= today) return stored;
+  const cycle = sub.cycle || 'monthly';
+  let d = new Date(stored);
+  // guard against pathological loops (e.g. renewal 20 years ago on weekly)
+  for (let i = 0; i < 400 && d < today; i++) d = addCycles(d, cycle, 1);
+  return d;
+}
+function nextRenewalISO(sub) {
+  const d = nextRenewal(sub);
+  return d ? d.toISOString().slice(0, 10) : null;
 }
 function formatDate(dateStr) {
   const d = parseDate(dateStr);
@@ -89,7 +116,7 @@ function renderDashboard() {
   pendEl.textContent = `${pending.length} pending · ${overdue.length} overdue`;
   document.getElementById('stat-pending').style.color = overdue.length ? 'var(--danger)' : '';
 
-  const withDates = active.filter(s => s.renewal).sort((a,b) => parseDate(a.renewal) - parseDate(b.renewal));
+  const withDates = active.filter(s => s.renewal).map(s => ({ s, next: nextRenewalISO(s) })).sort((a,b) => parseDate(a.next) - parseDate(b.next));
 
   // Category chart
   const byCat = {};
@@ -148,14 +175,15 @@ function renderDashboard() {
     </li>`;
   }).join('') : '<p class="empty" style="padding:20px 0">Nothing due.</p>';
 
-  // Upcoming renewals
-  const upcoming = withDates.filter(s => { const d = daysUntil(s.renewal); return d !== null && d >= 0 && d <= 30; }).slice(0, 6);
+  // Upcoming renewals — projected forward for stale dates
+  const upcoming = withDates.filter(x => { const d = daysUntil(x.next); return d !== null && d >= 0 && d <= 30; }).slice(0, 6);
   const ul = document.getElementById('upcoming-list');
-  ul.innerHTML = upcoming.length ? upcoming.map(s => {
-    const d = daysUntil(s.renewal);
+  ul.innerHTML = upcoming.length ? upcoming.map(({ s, next }) => {
+    const d = daysUntil(next);
     const badge = d <= 3 ? 'danger' : d <= 7 ? 'warn' : 'ok';
+    const projected = next !== s.renewal;
     return `<li>
-      <div><div class="name">${escapeHtml(s.name)}</div><div class="meta">${formatDate(s.renewal)}</div></div>
+      <div><div class="name">${escapeHtml(s.name)}</div><div class="meta">${formatDate(next)}${projected ? ' <span class="badge" style="font-size:10px">projected</span>' : ''}</div></div>
       <div style="display:flex;align-items:center;gap:10px">
         <span class="amount">${formatMoney(s.cost)}</span>
         <span class="badge ${badge}">${d === 0 ? 'today' : d + 'd'}</span>
@@ -177,30 +205,60 @@ function renderSubscriptions() {
   filterSel.value = current;
 
   const rows = state.subscriptions.filter(s => {
-    if (q && !(s.name.toLowerCase().includes(q) || (s.category||'').toLowerCase().includes(q))) return false;
+    if (q && !(
+      s.name.toLowerCase().includes(q)
+      || (s.category||'').toLowerCase().includes(q)
+      || (s.team||'').toLowerCase().includes(q)
+      || (s.notes||'').toLowerCase().includes(q)
+    )) return false;
     if (cat && s.category !== cat) return false;
     return true;
   });
 
+  // Sort
+  const sortKey = uiSort.key;
+  const dir = uiSort.dir === 'desc' ? -1 : 1;
+  rows.sort((a, b) => {
+    let av, bv;
+    if (sortKey === 'monthly')      { av = monthlyCost(a); bv = monthlyCost(b); }
+    else if (sortKey === 'cost')    { av = a.cost; bv = b.cost; }
+    else if (sortKey === 'renewal') { av = parseDate(nextRenewalISO(a))?.getTime() ?? Infinity; bv = parseDate(nextRenewalISO(b))?.getTime() ?? Infinity; }
+    else                            { av = (a[sortKey] || '').toString().toLowerCase(); bv = (b[sortKey] || '').toString().toLowerCase(); }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return  1 * dir;
+    return 0;
+  });
+
+  // Sort indicators
+  document.querySelectorAll('.sub-table thead th[data-sort]').forEach(th => {
+    const k = th.dataset.sort;
+    th.classList.toggle('sorted', k === sortKey);
+    th.classList.toggle('sorted-desc', k === sortKey && uiSort.dir === 'desc');
+  });
+
   document.getElementById('empty-state').style.display = rows.length ? 'none' : 'block';
-  tbody.innerHTML = rows.map(s => `
+  tbody.innerHTML = rows.map(s => {
+    const next = nextRenewalISO(s);
+    const projected = next && next !== s.renewal;
+    return `
     <tr>
       <td><div class="name-cell">
         <div class="avatar" style="background:${avatarColor(s.name)}">${initials(s.name)}</div>
         <div><div style="font-weight:600">${escapeHtml(s.name)}</div>${s.notes ? `<div style="color:var(--text-dim);font-size:11px">${escapeHtml(s.notes)}</div>` : ''}</div>
       </div></td>
+      <td>${s.team ? `<span class="team-chip">${escapeHtml(s.team)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
       <td>${escapeHtml(s.category || '—')}</td>
-      <td>${formatMoney(s.cost)}</td>
+      <td class="num">${formatMoney(s.cost)}</td>
       <td style="text-transform:capitalize">${s.cycle}</td>
-      <td>${formatMoney(monthlyCost(s))}</td>
-      <td>${s.renewal ? formatDate(s.renewal) : '—'}${renderCancelBy(s)}</td>
+      <td class="num">${formatMoney(monthlyCost(s))}</td>
+      <td>${next ? formatDate(next) : '—'}${projected ? ' <span class="badge" style="font-size:10px" title="Original date passed; projected forward one cycle">projected</span>' : ''}${renderCancelBy(s)}</td>
       <td>${s.active !== false ? '<span class="badge ok">Active</span>' : '<span class="badge">Paused</span>'}${renderContractBadges(s)}</td>
       <td class="actions-cell">
         <button class="icon-btn" data-edit="${s.id}">Edit</button>
         <button class="icon-btn danger" data-delete="${s.id}">Delete</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 
   tbody.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => openModal(b.dataset.edit));
   tbody.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => deleteSub(b.dataset.delete));
@@ -208,7 +266,8 @@ function renderSubscriptions() {
 
 function computeNoticeWindow(s) {
   if (!s.contract?.noticeDays || !s.renewal) return null;
-  const renewal = parseDate(s.renewal);
+  const renewal = nextRenewal(s);
+  if (!renewal) return null;
   const cancelBy = new Date(renewal); cancelBy.setDate(cancelBy.getDate() - s.contract.noticeDays);
   const today = new Date(); today.setHours(0,0,0,0);
   const daysLeft = Math.round((cancelBy - today) / 86400000);
@@ -286,8 +345,10 @@ function renderVendorTotals() {
       <td class="num paid-cell ${r.paid > 0 ? 'gt0' : ''}">${formatMoney(r.paid)}</td>
       <td class="num pending-cell ${r.pend > 0 ? 'gt0' : ''}">${formatMoney(r.pend)}</td>
       <td class="num"><b>${formatMoney(r.total)}</b></td>
+      <td class="actions-cell"><button class="icon-btn" data-new-inv="${r.s.id}" title="Log invoice for ${escapeHtml(r.s.name)}">+ Invoice</button></td>
     </tr>
   `).join('');
+  tbody.querySelectorAll('[data-new-inv]').forEach(b => b.onclick = () => openInvModal(null, b.dataset.newInv));
 }
 
 function renderInvoices() {
@@ -299,11 +360,19 @@ function renderInvoices() {
   vSel.innerHTML = '<option value="">All vendors</option>' + state.subscriptions.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
   vSel.value = currentV;
 
+  const statusRank = { overdue: 0, pending: 1, paid: 2 };
   const rows = state.invoices.filter(i => {
     if (currentV && i.subId !== currentV) return false;
     if (currentS && invoiceStatus(i) !== currentS) return false;
     return true;
-  }).sort((a, b) => (parseDate(b.dueDate) || 0) - (parseDate(a.dueDate) || 0));
+  }).sort((a, b) => {
+    const sa = statusRank[invoiceStatus(a)], sb = statusRank[invoiceStatus(b)];
+    if (sa !== sb) return sa - sb;
+    // within status: soonest due first for unpaid, most recent paid first for paid
+    const da = parseDate(a.dueDate)?.getTime() ?? Infinity;
+    const db = parseDate(b.dueDate)?.getTime() ?? Infinity;
+    return invoiceStatus(a) === 'paid' ? db - da : da - db;
+  });
 
   empty.style.display = rows.length ? 'none' : 'block';
   tbody.innerHTML = rows.map(i => {
@@ -330,14 +399,17 @@ function renderInvoices() {
   tbody.querySelectorAll('[data-delete-inv]').forEach(b => b.onclick = () => deleteInvoice(b.dataset.deleteInv));
 }
 
-function openInvModal(id) {
+function openInvModal(id, prefillSubId) {
   const inv = id ? state.invoices.find(i => i.id === id) : null;
   document.getElementById('inv-modal-title').textContent = inv ? 'Edit invoice' : 'Add invoice';
   document.getElementById('inv-id').value = inv?.id || '';
   const subSel = document.getElementById('inv-sub');
   subSel.innerHTML = '<option value="">Choose vendor…</option>' + state.subscriptions.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
-  subSel.value = inv?.subId || '';
-  document.getElementById('inv-amount').value = inv?.amount ?? '';
+  const chosenSubId = inv?.subId || prefillSubId || document.getElementById('inv-filter-vendor')?.value || '';
+  subSel.value = chosenSubId;
+  // Prefill amount from the sub's stored cost when adding a new invoice
+  const prefillSub = chosenSubId ? state.subscriptions.find(s => s.id === chosenSubId) : null;
+  document.getElementById('inv-amount').value = inv?.amount ?? (prefillSub?.cost ?? '');
   document.getElementById('inv-number').value = inv?.invoiceNumber || '';
   document.getElementById('inv-issue').value = inv?.issueDate || '';
   document.getElementById('inv-due').value = inv?.dueDate || '';
@@ -407,17 +479,23 @@ function renderRenewals() {
     return { year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) };
   });
   cal.innerHTML = months.map(m => {
-    const subs = activeSubs().filter(s => {
-      const d = parseDate(s.renewal); if (!d) return false;
-      return d.getFullYear() === m.year && d.getMonth() === m.month;
-    }).sort((a,b) => parseDate(a.renewal) - parseDate(b.renewal));
-    const total = subs.reduce((sum, s) => sum + s.cost, 0);
+    const subs = activeSubs()
+      .map(s => ({ s, next: nextRenewal(s) }))
+      .filter(x => x.next && x.next.getFullYear() === m.year && x.next.getMonth() === m.month)
+      .sort((a,b) => a.next - b.next);
+    const total = subs.reduce((sum, x) => sum + x.s.cost, 0);
     return `<div class="renewal-month">
       <h3>${m.label} · ${formatMoney(total)}</h3>
-      ${subs.length ? '<ul>' + subs.map(s => `<li>
-        <div><div style="font-weight:600">${escapeHtml(s.name)}</div><div class="day">${formatDate(s.renewal)}</div></div>
-        <div style="font-weight:600">${formatMoney(s.cost)}</div>
-      </li>`).join('') + '</ul>' : '<p class="empty" style="padding:16px 0;font-size:12px">No renewals</p>'}
+      ${subs.length ? '<ul>' + subs.map(({ s, next }) => {
+        const win = computeNoticeWindow(s);
+        const actby = win && win.daysLeft >= 0
+          ? `<div class="day" style="color:var(--warning);margin-top:2px">act by ${win.cancelBy.toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${win.daysLeft}d</div>`
+          : '';
+        return `<li>
+          <div><div style="font-weight:600">${escapeHtml(s.name)}</div><div class="day">${formatDate(next.toISOString().slice(0,10))}</div>${actby}</div>
+          <div style="font-weight:600">${formatMoney(s.cost)}</div>
+        </li>`;
+      }).join('') + '</ul>' : '<p class="empty" style="padding:16px 0;font-size:12px">No renewals</p>'}
     </div>`;
   }).join('');
 }
@@ -446,7 +524,6 @@ function renderInsights() {
 
   // Recommendations
   const recos = [];
-  const yearly = active.filter(s => s.cycle === 'yearly');
   const monthly = active.filter(s => s.cycle === 'monthly');
   if (monthly.length >= 3) {
     const savings = monthly.reduce((sum, s) => sum + s.cost * 12 * 0.15, 0);
@@ -468,17 +545,67 @@ function renderInsights() {
       recos.push(`📄 <b>${escapeHtml(s.name)}</b> auto-renews and requires ${s.contract.noticeDays} days' notice — decide by <b>${cancelBy.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}</b>.`);
     }
   });
+  // Missing renewal dates — the silent failure that breaks everything downstream
+  const missingRenewal = active.filter(s => !s.renewal);
+  if (missingRenewal.length) {
+    recos.push(`🗓️ <b>${missingRenewal.length} subscription${missingRenewal.length === 1 ? '' : 's'} missing a renewal date</b> — add one to enable countdowns and reminders: ${missingRenewal.slice(0,5).map(s => escapeHtml(s.name)).join(', ')}${missingRenewal.length > 5 ? '…' : ''}.`);
+  }
+
+  // Price-hike detection: an unpaid invoice > expected per-period cost by ≥5%
+  active.forEach(s => {
+    const per = periodCost(s);
+    if (!per) return;
+    const invs = state.invoices.filter(i => i.subId === s.id);
+    if (!invs.length) return;
+    const latest = invs.sort((a,b) => (parseDate(b.dueDate) || 0) - (parseDate(a.dueDate) || 0))[0];
+    if (!latest) return;
+    const pctOver = (latest.amount - per) / per;
+    if (pctOver >= 0.05) {
+      const cap = s.contract?.priceCapPct;
+      const capBreached = cap != null && pctOver * 100 > cap;
+      const msg = capBreached
+        ? `🚨 <b>${escapeHtml(s.name)}</b> latest invoice ${formatMoney(latest.amount)} is ${(pctOver*100).toFixed(1)}% over expected ${formatMoney(per)} — <b>above the ${cap}% contract cap</b>. Push back.`
+        : `📈 <b>${escapeHtml(s.name)}</b> latest invoice ${formatMoney(latest.amount)} is ${(pctOver*100).toFixed(1)}% over your saved rate ${formatMoney(per)}${cap != null ? ` (contract cap ${cap}%)` : ''}. Confirm this isn't a stealth increase.`;
+      recos.push(msg);
+    }
+  });
+
+  // Overdue invoices summary
+  const od = state.invoices.filter(i => invoiceStatus(i) === 'overdue');
+  if (od.length) {
+    const total = od.reduce((s, i) => s + i.amount, 0);
+    recos.push(`❗ <b>${od.length} overdue invoice${od.length === 1 ? '' : 's'}</b> totaling ${formatMoney(total)}. Clear or dispute before finance closes the month.`);
+  }
+
   if (!recos.length) recos.push('✅ Nothing jumping out — your subscription mix looks lean.');
   document.getElementById('recos').innerHTML = recos.map(r => `<li style="background:var(--panel-2);padding:12px 14px;border-radius:8px;font-size:13px;line-height:1.5">${r}</li>`).join('');
 }
 
 function renderAll() {
+  renderUrgencyStrip();
   renderDashboard();
   renderNoticeWindows();
   renderSubscriptions();
   renderInvoices();
   renderRenewals();
   renderInsights();
+}
+
+function renderUrgencyStrip() {
+  const strip = document.getElementById('urgency-strip');
+  const overdueCount = state.invoices.filter(i => invoiceStatus(i) === 'overdue').length;
+  const urgentNotice = activeSubs().map(s => computeNoticeWindow(s)).filter(w => w && w.daysLeft >= 0 && w.daysLeft <= 14).length;
+  const dueSoon = state.invoices.filter(i => {
+    if (invoiceStatus(i) === 'paid') return false;
+    const d = daysUntil(i.dueDate);
+    return d !== null && d >= 0 && d <= 7;
+  }).length;
+  const chips = [];
+  if (overdueCount)   chips.push({ tier: 'danger', view: 'invoices', txt: `${overdueCount} overdue` });
+  if (urgentNotice)   chips.push({ tier: 'warn',   view: 'dashboard', txt: `${urgentNotice} act-by soon` });
+  if (dueSoon)        chips.push({ tier: 'warn',   view: 'invoices', txt: `${dueSoon} due in 7d` });
+  strip.innerHTML = chips.map(c => `<button class="urgency-chip ${c.tier}" data-goto="${c.view}"><span class="dot"></span>${c.txt}</button>`).join('');
+  strip.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => switchView(b.dataset.goto));
 }
 
 // -------- modal --------
@@ -757,6 +884,39 @@ function seed() {
   renderAll();
 }
 
+function csvEscape(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function exportSubscriptionsCsv() {
+  const headers = ['name','team','category','cost','cycle','monthly_cost','renewal','next_projected_renewal','auto_renew','notice_days','term_length','price_cap_pct','url','notes','active'];
+  const rows = state.subscriptions.map(s => [
+    s.name, s.team || '', s.category || '', s.cost, s.cycle,
+    monthlyCost(s).toFixed(2), s.renewal || '', nextRenewalISO(s) || '',
+    s.contract?.autoRenew ?? '', s.contract?.noticeDays ?? '', s.contract?.termLength || '',
+    s.contract?.priceCapPct ?? '', s.url || '', s.notes || '', s.active !== false ? 'yes' : 'no',
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
+  downloadFile('subscriptions.csv', csv, 'text/csv;charset=utf-8');
+}
+function exportInvoicesCsv() {
+  const headers = ['vendor','team','invoice_number','amount','issue_date','due_date','paid_date','status','notes'];
+  const rows = state.invoices.map(i => [
+    subName(i.subId), subTeam(i.subId), i.invoiceNumber || '', i.amount,
+    i.issueDate || '', i.dueDate || '', i.paidDate || '', invoiceStatus(i), i.notes || '',
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
+  downloadFile('invoices.csv', csv, 'text/csv;charset=utf-8');
+}
+
 function exportJson() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -770,9 +930,13 @@ function importJson(file) {
   reader.onload = () => {
     try {
       const data = JSON.parse(reader.result);
-      if (!Array.isArray(data.subscriptions)) throw new Error('Bad file');
-      state = data; save(); renderAll();
-      alert(`Imported ${data.subscriptions.length} subscription(s).`);
+      if (!Array.isArray(data.subscriptions)) throw new Error('Bad file: no subscriptions');
+      state = {
+        subscriptions: data.subscriptions,
+        invoices: Array.isArray(data.invoices) ? data.invoices : [],
+      };
+      save(); renderAll();
+      alert(`Imported ${state.subscriptions.length} subscription(s) and ${state.invoices.length} invoice(s).`);
     } catch (e) {
       alert('Could not import: ' + e.message);
     }
@@ -805,8 +969,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('search').addEventListener('input', renderSubscriptions);
   document.getElementById('filter-category').addEventListener('change', renderSubscriptions);
+  document.querySelectorAll('.sub-table thead th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (uiSort.key === k) uiSort.dir = uiSort.dir === 'asc' ? 'desc' : 'asc';
+      else { uiSort.key = k; uiSort.dir = (k === 'cost' || k === 'monthly') ? 'desc' : 'asc'; }
+      renderSubscriptions();
+    });
+  });
   document.getElementById('seed-btn').addEventListener('click', seed);
   document.getElementById('export-btn').addEventListener('click', exportJson);
+  document.getElementById('csv-subs-btn').addEventListener('click', exportSubscriptionsCsv);
+  document.getElementById('csv-invs-btn').addEventListener('click', exportInvoicesCsv);
   document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file').click());
   document.getElementById('import-file').addEventListener('change', (e) => {
     if (e.target.files[0]) importJson(e.target.files[0]);

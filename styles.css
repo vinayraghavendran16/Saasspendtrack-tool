@@ -48,7 +48,26 @@ body {
   flex-wrap: wrap;
   gap: 12px;
 }
-.brand { display: flex; align-items: center; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.urgency-strip { display: flex; gap: 6px; margin-left: 6px; }
+.urgency-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+  cursor: pointer;
+}
+.urgency-chip:hover { color: var(--text); }
+.urgency-chip.danger { color: var(--danger); border-color: rgba(255,92,122,0.35); background: rgba(255,92,122,0.1); }
+.urgency-chip.warn   { color: var(--warning); border-color: rgba(255,181,69,0.35); background: rgba(255,181,69,0.1); }
+.urgency-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.sub-table thead th[data-sort] { cursor: pointer; user-select: none; }
+.sub-table thead th[data-sort]:hover { color: var(--text); }
+.sub-table thead th.sorted { color: var(--accent); }
+.sub-table thead th.sorted::after { content: ' ▲'; font-size: 9px; }
+.sub-table thead th.sorted.sorted-desc::after { content: ' ▼'; }
+.sub-table td.num, .sub-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
 .logo {
   width: 44px; height: 44px;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));

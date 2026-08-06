@@ -15,6 +15,7 @@
       <h1>SaaS Spend Track</h1>
       <p class="tagline">Every subscription. One dashboard.</p>
     </div>
+    <div class="urgency-strip" id="urgency-strip"></div>
   </div>
   <nav class="tabs">
     <button class="tab active" data-view="dashboard">Dashboard</button>
@@ -67,8 +68,11 @@
         <div class="vendor-table-wrap">
           <table class="vendor-table">
             <thead><tr>
-              <th>Vendor</th><th>Team</th><th>Monthly</th><th>Annual</th>
-              <th>Invoices</th><th>Paid</th><th>Pending</th><th>Total to date</th>
+              <th>Vendor</th><th>Team</th>
+              <th class="num">Monthly</th><th class="num">Annual</th>
+              <th class="num">Invoices</th><th class="num">Paid</th>
+              <th class="num">Pending</th><th class="num">Total to date</th>
+              <th></th>
             </tr></thead>
             <tbody id="vendor-tbody"></tbody>
           </table>
@@ -136,12 +140,13 @@
       <table class="sub-table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Cost</th>
+            <th data-sort="name">Name</th>
+            <th data-sort="team">Team</th>
+            <th data-sort="category">Category</th>
+            <th data-sort="cost" class="num">Cost</th>
             <th>Cycle</th>
-            <th>Monthly</th>
-            <th>Next renewal</th>
+            <th data-sort="monthly" class="num">Monthly</th>
+            <th data-sort="renewal">Next renewal</th>
             <th>Status</th>
             <th></th>
           </tr>
@@ -283,6 +288,8 @@
   <span>
     <button id="seed-btn" class="link">Load sample data</button> ·
     <button id="export-btn" class="link">Export JSON</button> ·
+    <button id="csv-subs-btn" class="link">CSV: subscriptions</button> ·
+    <button id="csv-invs-btn" class="link">CSV: invoices</button> ·
     <button id="import-btn" class="link">Import</button> ·
     <button id="clear-btn" class="link danger">Clear all</button>
   </span>
