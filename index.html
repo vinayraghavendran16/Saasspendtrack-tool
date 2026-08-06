@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SaaS Spend Track — Manage every subscription in one place</title>
+<meta name="description" content="Track your SaaS subscriptions, monitor monthly and annual spend, and never miss a renewal." />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">S$</div>
+    <div>
+      <h1>SaaS Spend Track</h1>
+      <p class="tagline">Every subscription. One dashboard.</p>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-view="dashboard">Dashboard</button>
+    <button class="tab" data-view="subscriptions">Subscriptions</button>
+    <button class="tab" data-view="renewals">Renewals</button>
+    <button class="tab" data-view="insights">Insights</button>
+  </nav>
+</header>
+
+<main>
+  <!-- Dashboard -->
+  <section id="dashboard" class="view active">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="stat-label">Monthly spend</span>
+        <span class="stat-value" id="stat-monthly">$0</span>
+        <span class="stat-sub" id="stat-monthly-sub">across 0 subscriptions</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Annualized spend</span>
+        <span class="stat-value" id="stat-annual">$0</span>
+        <span class="stat-sub">projected yearly total</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Active subscriptions</span>
+        <span class="stat-value" id="stat-count">0</span>
+        <span class="stat-sub" id="stat-count-sub">0 paused</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Next renewal</span>
+        <span class="stat-value" id="stat-next">—</span>
+        <span class="stat-sub" id="stat-next-sub">no upcoming renewals</span>
+      </div>
+    </div>
+
+    <div class="panel-grid">
+      <div class="panel">
+        <h2>Spend by category</h2>
+        <div id="category-chart" class="chart"></div>
+      </div>
+      <div class="panel">
+        <h2>Upcoming renewals</h2>
+        <ul id="upcoming-list" class="upcoming-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Subscriptions -->
+  <section id="subscriptions" class="view">
+    <div class="section-head">
+      <h2>Your subscriptions</h2>
+      <div class="controls">
+        <input id="search" type="search" placeholder="Search…" />
+        <select id="filter-category">
+          <option value="">All categories</option>
+        </select>
+        <button class="primary" id="add-btn">+ Add subscription</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Cost</th>
+            <th>Cycle</th>
+            <th>Monthly</th>
+            <th>Next renewal</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="sub-tbody"></tbody>
+      </table>
+      <p id="empty-state" class="empty">No subscriptions yet. Click <b>+ Add subscription</b> to get started.</p>
+    </div>
+  </section>
+
+  <!-- Renewals -->
+  <section id="renewals" class="view">
+    <div class="section-head">
+      <h2>Renewals in the next 90 days</h2>
+    </div>
+    <div id="renewal-calendar" class="renewal-calendar"></div>
+  </section>
+
+  <!-- Insights -->
+  <section id="insights" class="view">
+    <div class="section-head"><h2>Insights</h2></div>
+    <div class="panel-grid">
+      <div class="panel">
+        <h2>Most expensive</h2>
+        <ul id="top-spend" class="upcoming-list"></ul>
+      </div>
+      <div class="panel">
+        <h2>By billing cycle</h2>
+        <div id="cycle-chart" class="chart"></div>
+      </div>
+      <div class="panel span-2">
+        <h2>Recommendations</h2>
+        <ul id="recos" class="reco-list"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal">
+    <h2 id="modal-title">Add subscription</h2>
+    <form id="sub-form">
+      <input type="hidden" id="f-id" />
+      <label>Name<input type="text" id="f-name" required placeholder="Figma" /></label>
+      <div class="row">
+        <label>Cost (USD)<input type="number" id="f-cost" min="0" step="0.01" required placeholder="12.00" /></label>
+        <label>Billing cycle
+          <select id="f-cycle">
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="weekly">Weekly</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label>Category
+          <input type="text" id="f-category" list="cat-list" placeholder="Design" />
+          <datalist id="cat-list">
+            <option value="Design"></option>
+            <option value="Development"></option>
+            <option value="Productivity"></option>
+            <option value="Marketing"></option>
+            <option value="Sales"></option>
+            <option value="Analytics"></option>
+            <option value="Communication"></option>
+            <option value="Storage"></option>
+            <option value="Entertainment"></option>
+            <option value="AI / LLM"></option>
+          </datalist>
+        </label>
+        <label>Next renewal<input type="date" id="f-renewal" /></label>
+      </div>
+      <label>Notes<textarea id="f-notes" rows="2" placeholder="Team plan, 5 seats…"></textarea></label>
+      <label class="check"><input type="checkbox" id="f-active" checked /> Active</label>
+      <div class="actions">
+        <button type="button" id="cancel-btn">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <span>Data lives in your browser (localStorage). Nothing is uploaded.</span>
+  <span>
+    <button id="seed-btn" class="link">Load sample data</button> ·
+    <button id="export-btn" class="link">Export JSON</button> ·
+    <button id="import-btn" class="link">Import</button> ·
+    <button id="clear-btn" class="link danger">Clear all</button>
+  </span>
+</footer>
+<input type="file" id="import-file" accept="application/json" hidden />
+
+<script src="app.js"></script>
+</body>
+</html>
