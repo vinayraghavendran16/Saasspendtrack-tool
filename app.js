@@ -66,16 +66,29 @@ function renderDashboard() {
   document.getElementById('stat-count').textContent = active.length;
   document.getElementById('stat-count-sub').textContent = `${paused} paused`;
 
-  // Next renewal
+  // Next decision — prefer an urgent notice window if we have one, else next renewal
+  const nextByNotice = active
+    .map(s => ({ sub: s, win: computeNoticeWindow(s) }))
+    .filter(x => x.win && x.win.daysLeft >= 0)
+    .sort((a, b) => a.win.daysLeft - b.win.daysLeft)[0];
   const withDates = active.filter(s => s.renewal).sort((a,b) => parseDate(a.renewal) - parseDate(b.renewal));
   const nextFuture = withDates.find(s => daysUntil(s.renewal) >= 0);
-  if (nextFuture) {
+  const statNext = document.getElementById('stat-next');
+  const statNextSub = document.getElementById('stat-next-sub');
+  if (nextByNotice) {
+    const { sub, win } = nextByNotice;
+    statNext.textContent = sub.name;
+    statNextSub.textContent = `act by ${win.cancelBy.toLocaleDateString('en-US', { month:'short', day:'numeric' })} · ${win.daysLeft}d`;
+    statNext.style.color = win.daysLeft <= 7 ? 'var(--danger)' : win.daysLeft <= 30 ? 'var(--warning)' : '';
+  } else if (nextFuture) {
     const d = daysUntil(nextFuture.renewal);
-    document.getElementById('stat-next').textContent = nextFuture.name;
-    document.getElementById('stat-next-sub').textContent = `${formatMoney(nextFuture.cost)} in ${d} day${d === 1 ? '' : 's'}`;
+    statNext.textContent = nextFuture.name;
+    statNextSub.textContent = `${formatMoney(nextFuture.cost)} in ${d} day${d === 1 ? '' : 's'}`;
+    statNext.style.color = '';
   } else {
-    document.getElementById('stat-next').textContent = '—';
-    document.getElementById('stat-next-sub').textContent = 'no upcoming renewals';
+    statNext.textContent = '—';
+    statNextSub.textContent = 'no upcoming renewals';
+    statNext.style.color = '';
   }
 
   // Category chart
@@ -153,6 +166,59 @@ function renderSubscriptions() {
   tbody.querySelectorAll('[data-delete]').forEach(b => b.onclick = () => deleteSub(b.dataset.delete));
 }
 
+function computeNoticeWindow(s) {
+  if (!s.contract?.noticeDays || !s.renewal) return null;
+  const renewal = parseDate(s.renewal);
+  const cancelBy = new Date(renewal); cancelBy.setDate(cancelBy.getDate() - s.contract.noticeDays);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const daysLeft = Math.round((cancelBy - today) / 86400000);
+  const daysToRenewal = Math.round((renewal - today) / 86400000);
+  return { cancelBy, daysLeft, daysToRenewal, renewal };
+}
+
+function renderNoticeWindows() {
+  const box = document.getElementById('notice-windows');
+  const rows = activeSubs()
+    .map(s => ({ sub: s, win: computeNoticeWindow(s) }))
+    .filter(x => x.win)
+    .sort((a, b) => a.win.daysLeft - b.win.daysLeft);
+
+  if (!rows.length) {
+    box.innerHTML = `<div class="notice-empty">
+      No notice windows yet. Extract a contract in <b>Contracts</b> and attach it to a subscription to see its personalized act-by date here.
+    </div>`;
+    return;
+  }
+
+  box.innerHTML = rows.map(({ sub, win }) => {
+    let tier;
+    if (win.daysLeft < 0)      tier = 'passed';
+    else if (win.daysLeft <= 7)  tier = 'urgent';
+    else if (win.daysLeft <= 30) tier = 'warn';
+    else                         tier = 'ok';
+
+    const label = win.daysLeft < 0
+      ? 'notice window has passed'
+      : `to give notice · renews in ${win.daysToRenewal}d`;
+
+    const num = win.daysLeft < 0 ? Math.abs(win.daysLeft) : win.daysLeft;
+    const unit = win.daysLeft < 0 ? `day${num === 1 ? '' : 's'} overdue` : `day${num === 1 ? '' : 's'} left`;
+
+    const clauseParts = [`<b>${sub.contract.noticeDays}-day</b> notice`];
+    if (sub.contract.termLength) clauseParts.push(`${sub.contract.termLength} term`);
+    if (sub.contract.priceCapPct != null) clauseParts.push(`≤${sub.contract.priceCapPct}% cap`);
+    if (sub.contract.autoRenew) clauseParts.push('auto-renews');
+
+    return `<div class="notice-card ${tier}">
+      <span class="vendor">${escapeHtml(sub.name)}</span>
+      <span class="actby">Act by <b>${win.cancelBy.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</b></span>
+      <div class="countdown"><span class="num">${num}</span><span class="unit">${unit}</span></div>
+      <div class="actby">${label}</div>
+      <div class="clause">${clauseParts.join(' · ')}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderContractBadges(s) {
   if (!s.contract) return '';
   const parts = [];
@@ -161,13 +227,12 @@ function renderContractBadges(s) {
   return parts.length ? `<div class="contract-summary">${parts.join('')}</div>` : '';
 }
 function renderCancelBy(s) {
-  if (!s.contract?.noticeDays || !s.renewal) return '';
-  const renewal = parseDate(s.renewal);
-  const cancelBy = new Date(renewal); cancelBy.setDate(cancelBy.getDate() - s.contract.noticeDays);
-  const today = new Date(); today.setHours(0,0,0,0);
-  const days = Math.round((cancelBy - today) / 86400000);
-  const cls = days < 0 ? 'danger' : days <= 14 ? 'warn' : 'ok';
-  const label = days < 0 ? 'notice window passed' : `cancel by ${cancelBy.toLocaleDateString('en-US', { month:'short', day:'numeric' })}`;
+  const win = computeNoticeWindow(s);
+  if (!win) return '';
+  const cls = win.daysLeft < 0 ? 'danger' : win.daysLeft <= 7 ? 'danger' : win.daysLeft <= 30 ? 'warn' : 'ok';
+  const label = win.daysLeft < 0
+    ? `notice window passed`
+    : `cancel by ${win.cancelBy.toLocaleDateString('en-US', { month:'short', day:'numeric' })} · ${win.daysLeft}d left`;
   return `<div style="margin-top:4px"><span class="badge ${cls}" title="Notice period: ${s.contract.noticeDays} days">${label}</span></div>`;
 }
 
@@ -246,6 +311,7 @@ function renderInsights() {
 
 function renderAll() {
   renderDashboard();
+  renderNoticeWindows();
   renderSubscriptions();
   renderRenewals();
   renderInsights();
