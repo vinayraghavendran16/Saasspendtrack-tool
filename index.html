@@ -248,11 +248,11 @@
       <h2>Auto-renew clause extraction</h2>
       <div class="controls">
         <button id="sample-contract" class="icon-btn">Load sample contract</button>
-        <label class="icon-btn" for="contract-file" style="cursor:pointer">Upload .txt</label>
-        <input type="file" id="contract-file" accept=".txt,text/plain" hidden />
+        <label class="icon-btn" for="contract-file" style="cursor:pointer">Upload .pdf / .txt</label>
+        <input type="file" id="contract-file" accept=".txt,.pdf,text/plain,application/pdf" hidden />
       </div>
     </div>
-    <p class="contract-lede">Paste the contract text. We scan for renewal type, notice period, term length, and any price-escalation cap — so you skip the Ctrl-F through a 40-page MSA.</p>
+    <p class="contract-lede">Paste text, or upload a PDF and we'll pull the text out for you. We scan for renewal type, notice period, term length, and any price-escalation cap — so you skip the Ctrl-F through a 40-page MSA. Scanned/image-only PDFs need OCR first.</p>
 
     <div class="contract-grid">
       <div class="panel">
@@ -307,8 +307,8 @@
         <p class="integ-desc">The Drive API needs OAuth (that's a backend). Meanwhile: keep contracts in one Drive folder, then drop the exported <code>.txt</code> versions here. Each file becomes a draft subscription with renewal, notice, and price cap already extracted.</p>
         <label>Drive folder link (for your reference)<input type="url" id="drive-folder" placeholder="https://drive.google.com/drive/folders/…" /></label>
         <div class="dropzone" id="contract-drop">
-          <input type="file" id="contract-multi" accept=".txt,.md,text/plain" multiple hidden />
-          <p><b>Drop contract .txt files here</b> or <button class="link" id="contract-pick">click to select</button>. We'll parse each one and stage a subscription.</p>
+          <input type="file" id="contract-multi" accept=".txt,.md,.pdf,text/plain,application/pdf" multiple hidden />
+          <p><b>Drop contract .pdf or .txt files here</b> or <button class="link" id="contract-pick">click to select</button>. We'll parse each one and stage a subscription.</p>
         </div>
         <div id="import-preview" class="import-preview" hidden></div>
         <div class="integ-actions">

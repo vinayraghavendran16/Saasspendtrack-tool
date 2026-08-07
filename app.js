@@ -1145,16 +1145,39 @@ function parseFilename(name) {
   return { vendor, base };
 }
 
-async function stageContractFiles(files) {
-  const readOne = (f) => new Promise((res) => {
+async function readContractFile(f) {
+  const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+  if (isPdf) {
+    try {
+      return { file: f, text: await extractTextFromPdf(await f.arrayBuffer()), error: null };
+    } catch (e) {
+      return { file: f, text: '', error: e.message };
+    }
+  }
+  return new Promise((res) => {
     const r = new FileReader();
-    r.onload = () => res({ file: f, text: r.result });
+    r.onload = () => res({ file: f, text: r.result, error: null });
+    r.onerror = () => res({ file: f, text: '', error: 'File read failed' });
     r.readAsText(f);
   });
-  const results = await Promise.all([...files].map(readOne));
-  results.forEach(({ file, text }) => {
-    const extracted = extractContract(text);
+}
+
+async function stageContractFiles(files) {
+  const results = await Promise.all([...files].map(readContractFile));
+  results.forEach(({ file, text, error }) => {
     const { vendor } = parseFilename(file.name);
+    if (error) {
+      stagedImports.push({
+        id: crypto.randomUUID(),
+        filename: file.name,
+        name: vendor,
+        extracted: { renewalType: null, noticePeriod: null, termLength: null, priceCap: null },
+        error,
+        textLen: 0,
+      });
+      return;
+    }
+    const extracted = extractContract(text);
     stagedImports.push({
       id: crypto.randomUUID(),
       filename: file.name,
@@ -1177,12 +1200,17 @@ function renderImportPreview() {
   box.hidden = false;
   confirmBtn.disabled = false;
   box.innerHTML = stagedImports.map(s => {
-    const bits = [];
-    if (s.extracted.renewalType) bits.push(s.extracted.renewalType.value);
-    if (s.extracted.noticePeriod) bits.push(`${s.extracted.noticePeriod.days}d notice`);
-    if (s.extracted.termLength) bits.push(s.extracted.termLength.value);
-    if (s.extracted.priceCap) bits.push(`≤${s.extracted.priceCap.pct}% cap`);
-    const detected = bits.length ? bits.join(' · ') : '<span style="color:var(--warning)">no clauses detected</span>';
+    let detected;
+    if (s.error) {
+      detected = `<span style="color:var(--danger)">${escapeHtml(s.error)}</span>`;
+    } else {
+      const bits = [];
+      if (s.extracted.renewalType) bits.push(s.extracted.renewalType.value);
+      if (s.extracted.noticePeriod) bits.push(`${s.extracted.noticePeriod.days}d notice`);
+      if (s.extracted.termLength) bits.push(s.extracted.termLength.value);
+      if (s.extracted.priceCap) bits.push(`≤${s.extracted.priceCap.pct}% cap`);
+      detected = bits.length ? bits.join(' · ') : '<span style="color:var(--warning)">no clauses detected</span>';
+    }
     return `<div class="stage-row">
       <div><div class="stage-name">${escapeHtml(s.name)}</div><div class="stage-meta">${escapeHtml(s.filename)} · ${detected}</div></div>
       <button class="stage-drop" data-drop="${s.id}">remove</button>
@@ -1197,6 +1225,7 @@ function renderImportPreview() {
 function confirmImport() {
   if (!stagedImports.length) return;
   stagedImports.forEach(s => {
+    if (s.error) return;
     // Skip duplicates by name
     if (state.subscriptions.some(x => x.name.toLowerCase() === s.name.toLowerCase())) return;
     const e = s.extracted;
@@ -1250,6 +1279,116 @@ function exportErpCsv() {
   });
   const csv = [headers, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
   downloadFile('erp-ready-vendors.csv', csv, 'text/csv;charset=utf-8');
+}
+
+// -------- PDF text extraction --------
+// Lightweight browser-side PDF text extractor. Uses DecompressionStream to
+// inflate FlateDecode streams and pulls text from PDF content operators.
+// Works for text-based PDFs (most e-signed / native-exported contracts);
+// scanned images need OCR and we bail with a helpful error.
+
+async function inflateBytes(bytes) {
+  const blob = new Blob([bytes]);
+  const stream = blob.stream().pipeThrough(new DecompressionStream('deflate'));
+  const reader = stream.getReader();
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); total += value.length;
+  }
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const c of chunks) { out.set(c, pos); pos += c.length; }
+  return out;
+}
+
+function decodePdfStringLit(s) {
+  return s
+    .replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t')
+    .replace(/\\b/g, '\b').replace(/\\f/g, '\f')
+    .replace(/\\\(/g, '(').replace(/\\\)/g, ')').replace(/\\\\/g, '\\')
+    .replace(/\\(\d{1,3})/g, (_, o) => String.fromCharCode(parseInt(o, 8)));
+}
+
+function decodePdfHex(hex) {
+  hex = hex.replace(/\s+/g, '');
+  if (hex.length % 2) hex += '0';
+  let str = '';
+  for (let i = 0; i < hex.length; i += 2) str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+  return str;
+}
+
+function extractPdfOperators(content) {
+  const out = [];
+  // Text-showing operators: Tj, TJ, ', "
+  // Case (a): (literal) Tj  or  (literal) '  or  (literal) "
+  const litRe = /\(((?:\\[\s\S]|[^\\()])*)\)\s*(?:Tj|TJ|'|")/g;
+  let m;
+  while ((m = litRe.exec(content))) out.push(decodePdfStringLit(m[1]));
+  // Case (b): [ (a) 25 (b) -10 (c) ] TJ
+  const arrRe = /\[([\s\S]*?)\]\s*TJ/g;
+  while ((m = arrRe.exec(content))) {
+    const inner = m[1];
+    const innerLit = /\(((?:\\[\s\S]|[^\\()])*)\)/g;
+    const innerHex = /<([0-9A-Fa-f\s]+)>/g;
+    let sm;
+    while ((sm = innerLit.exec(inner))) out.push(decodePdfStringLit(sm[1]));
+    while ((sm = innerHex.exec(inner))) out.push(decodePdfHex(sm[1]));
+  }
+  // Case (c): <hex> Tj
+  const hexRe = /<([0-9A-Fa-f\s]+)>\s*(?:Tj|'|")/g;
+  while ((m = hexRe.exec(content))) out.push(decodePdfHex(m[1]));
+  return out.join(' ');
+}
+
+async function extractTextFromPdf(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  if (!(bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46)) {
+    throw new Error('Not a PDF file (missing %PDF header)');
+  }
+  // Latin-1 view of the binary — every byte becomes one JS char so regex works
+  let raw = '';
+  const CHUNK = 65536;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    raw += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+
+  const parts = [];
+  const streamRe = /stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g;
+  let m;
+  while ((m = streamRe.exec(raw))) {
+    // Find the object dictionary preceding this stream
+    const dictEnd = m.index;
+    const dictStart = raw.lastIndexOf('<<', dictEnd);
+    const dict = dictStart >= 0 ? raw.slice(dictStart, dictEnd) : '';
+    let body = m[1];
+    if (/\/Filter\s*(?:\/FlateDecode|\[\s*\/FlateDecode)/.test(dict) || /\/FlateDecode/.test(dict)) {
+      try {
+        const buf = new Uint8Array(body.length);
+        for (let i = 0; i < body.length; i++) buf[i] = body.charCodeAt(i) & 0xff;
+        const infl = await inflateBytes(buf);
+        body = '';
+        for (let i = 0; i < infl.length; i += CHUNK) {
+          body += String.fromCharCode.apply(null, infl.subarray(i, i + CHUNK));
+        }
+      } catch (_) { continue; } // skip streams we can't decompress
+    } else if (/\/Filter\s*\//.test(dict) && !/\/FlateDecode/.test(dict)) {
+      // Non-Flate filter (LZW / DCT / JBIG2) — image or exotic, skip
+      continue;
+    }
+    if (/Tj|TJ|'|"/.test(body)) {
+      parts.push(extractPdfOperators(body));
+    }
+  }
+
+  let text = parts.join('\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+
+  if (!text || text.length < 40) {
+    throw new Error("Couldn't extract text — the PDF may be a scanned image or use unsupported encoding. Try copying the text into the box, or use a text-based export.");
+  }
+  return text;
 }
 
 // -------- contract extractor --------
@@ -1643,15 +1782,29 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('contract-text').value = SAMPLE_CONTRACT;
     renderExtract(extractContract(SAMPLE_CONTRACT));
   });
-  document.getElementById('contract-file').addEventListener('change', (e) => {
+  document.getElementById('contract-file').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      document.getElementById('contract-text').value = reader.result;
-      renderExtract(extractContract(reader.result));
-    };
-    reader.readAsText(f);
     e.target.value = '';
+    const textarea = document.getElementById('contract-text');
+    const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    if (isPdf) {
+      textarea.value = 'Reading PDF…';
+      try {
+        const text = await extractTextFromPdf(await f.arrayBuffer());
+        textarea.value = text;
+        renderExtract(extractContract(text));
+      } catch (err) {
+        textarea.value = '';
+        alert('PDF parsing failed: ' + err.message);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        textarea.value = reader.result;
+        renderExtract(extractContract(reader.result));
+      };
+      reader.readAsText(f);
+    }
   });
   document.getElementById('attach-btn').addEventListener('click', attachToSub);
 
