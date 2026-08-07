@@ -48,7 +48,16 @@ function renderPlanBadge() {
 function renderPricing() {
   const p = currentPlan();
   document.querySelectorAll('.pricing-card').forEach(card => {
-    card.classList.toggle('plan-active', card.dataset.plan === p);
+    const isCurrent = card.dataset.plan === p;
+    card.classList.toggle('plan-active', isCurrent);
+    // Remove any prior tag before re-adding
+    card.querySelectorAll('.current-plan-tag').forEach(t => t.remove());
+    if (isCurrent) {
+      const tag = document.createElement('div');
+      tag.className = 'current-plan-tag';
+      tag.textContent = 'Current plan';
+      card.appendChild(tag);
+    }
   });
   applyBillingCycle(state.settings.billingCycle || 'annual');
 }
@@ -817,11 +826,10 @@ function handleSubmit(e) {
   if (isNew) {
     const limit = PLANS[currentPlan()].subLimit;
     if (state.subscriptions.length >= limit) {
-      if (confirm(`Free plan is capped at ${limit} subscriptions. Upgrade to Pro to keep adding?`)) {
-        setPlan('pro');
-      } else {
-        return;
+      if (confirm(`Free plan is capped at ${limit} subscriptions. Open the pricing page to upgrade to Pro?`)) {
+        window.open('https://saasspendtrack.com/#pricing', '_blank', 'noopener');
       }
+      return;
     }
   }
   if (idx >= 0) state.subscriptions[idx] = sub;
@@ -1758,14 +1766,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderAll();
 
   document.getElementById('plan-badge').addEventListener('click', () => switchView('pricing'));
-  document.querySelectorAll('[data-choose-plan]').forEach(b => {
-    const original = b.textContent;
-    b.addEventListener('click', () => {
-      setPlan(b.dataset.choosePlan);
-      b.textContent = b.dataset.choosePlan === 'enterprise' ? 'Request logged ✓' : 'Current plan ✓';
-      setTimeout(() => { b.textContent = original; renderPricing(); }, 1400);
-    });
-  });
   document.querySelectorAll('.bt-opt').forEach(b => {
     b.addEventListener('click', () => applyBillingCycle(b.dataset.bill));
   });

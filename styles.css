@@ -140,6 +140,16 @@ body {
 .pricing-cta:hover { filter: brightness(1.08); }
 .pricing-cta:hover:not(.primary) { border-color: var(--text); }
 .plan-active { outline: 2px solid #22c55e; outline-offset: 4px; }
+.current-plan-tag {
+  position: absolute; top: -14px; right: 20px;
+  background: var(--panel); color: #22c55e;
+  border: 1px solid #22c55e;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 5px 12px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.current-plan-tag::before { content: '●'; font-size: 10px; }
+a.pricing-cta { text-decoration: none; display: inline-block; text-align: center; }
 
 @media (max-width: 900px) {
   .pricing-grid { grid-template-columns: 1fr; }
