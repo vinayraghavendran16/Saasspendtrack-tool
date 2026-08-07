@@ -156,6 +156,48 @@ function formatDate(dateStr) {
   if (!d) return '—';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
+// -------- interactivity: toast + animated numbers --------
+function toast(message, kind) {
+  const container = document.getElementById('toast-container');
+  if (!container) { console.log('[toast]', message); return; }
+  const el = document.createElement('div');
+  el.className = `toast ${kind || 'info'}`;
+  el.textContent = message;
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 240);
+  }, 3200);
+}
+
+// Smoothly animate a number from its current displayed value to `target`.
+// The el's `data-num` attribute stores the last raw number.
+function animateNumber(el, target, formatter) {
+  if (!el) return;
+  const start = Number(el.dataset.num) || 0;
+  const end = Number(target) || 0;
+  el.dataset.num = String(end);
+  if (start === end) { el.textContent = formatter(end); return; }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    el.textContent = formatter(end);
+    return;
+  }
+  const duration = 700;
+  const t0 = performance.now();
+  const step = (t) => {
+    const p = Math.min(1, (t - t0) / duration);
+    // ease-out cubic
+    const eased = 1 - Math.pow(1 - p, 3);
+    const v = start + (end - start) * eased;
+    el.textContent = formatter(v);
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+const fmtMoney = (n) => formatMoney(n);
+const fmtInt = (n) => String(Math.round(n));
+
 function avatarColor(name) {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
@@ -174,9 +216,9 @@ function renderDashboard() {
   const totalAnnual = totalMonthly * 12;
   const paused = state.subscriptions.length - active.length;
 
-  document.getElementById('stat-monthly').textContent = formatMoney(totalMonthly);
+  animateNumber(document.getElementById('stat-monthly'), totalMonthly, fmtMoney);
   document.getElementById('stat-monthly-sub').textContent = `${active.length} active · ${paused} paused`;
-  document.getElementById('stat-annual').textContent = formatMoney(totalAnnual);
+  animateNumber(document.getElementById('stat-annual'), totalAnnual, fmtMoney);
 
   // Invoices YTD paid / pending
   const yearStart = new Date(new Date().getFullYear(), 0, 1);
@@ -185,9 +227,9 @@ function renderDashboard() {
   const pending = state.invoices.filter(i => invoiceStatus(i) !== 'paid');
   const overdue = pending.filter(i => invoiceStatus(i) === 'overdue');
   const pendingTotal = pending.reduce((s, i) => s + i.amount, 0);
-  document.getElementById('stat-paid').textContent = formatMoney(paidTotal);
+  animateNumber(document.getElementById('stat-paid'), paidTotal, fmtMoney);
   document.getElementById('stat-paid-sub').textContent = `${paidYtd.length} invoice${paidYtd.length === 1 ? '' : 's'}`;
-  document.getElementById('stat-pending').textContent = formatMoney(pendingTotal);
+  animateNumber(document.getElementById('stat-pending'), pendingTotal, fmtMoney);
   const pendEl = document.getElementById('stat-pending-sub');
   pendEl.textContent = `${pending.length} pending · ${overdue.length} overdue`;
   document.getElementById('stat-pending').style.color = overdue.length ? 'var(--danger)' : '';
@@ -206,7 +248,7 @@ function renderDashboard() {
   chart.innerHTML = catEntries.length ? catEntries.map(([cat, val]) => `
     <div class="chart-row">
       <span>${escapeHtml(cat)}</span>
-      <div class="chart-bar"><div class="chart-bar-fill" style="width:${(val/max*100).toFixed(1)}%"></div></div>
+      <div class="chart-bar"><div class="chart-bar-fill" style="--w:${(val/max*100).toFixed(1)}%"></div></div>
       <span class="chart-value">${formatMoney(val)}/mo</span>
     </div>
   `).join('') : '<p class="empty" style="padding:20px 0">Add subscriptions to see the breakdown.</p>';
@@ -223,7 +265,7 @@ function renderDashboard() {
   teamChart.innerHTML = teamEntries.length ? teamEntries.map(([t, v]) => `
     <div class="chart-row">
       <span>${escapeHtml(t)}</span>
-      <div class="chart-bar"><div class="chart-bar-fill" style="width:${(v/teamMax*100).toFixed(1)}%"></div></div>
+      <div class="chart-bar"><div class="chart-bar-fill" style="--w:${(v/teamMax*100).toFixed(1)}%"></div></div>
       <span class="chart-value">${formatMoney(v)}/mo</span>
     </div>
   `).join('') : '<p class="empty" style="padding:20px 0">Assign a team on each subscription to see the breakdown.</p>';
@@ -387,14 +429,17 @@ function renderNoticeWindows() {
     if (sub.contract.priceCapPct != null) clauseParts.push(`≤${sub.contract.priceCapPct}% cap`);
     if (sub.contract.autoRenew) clauseParts.push('auto-renews');
 
-    return `<div class="notice-card ${tier}">
+    return `<button class="notice-card ${tier}" type="button" data-notice-sub="${sub.id}" title="Open ${escapeHtml(sub.name)}">
       <span class="vendor">${escapeHtml(sub.name)}</span>
       <span class="actby">Act by <b>${win.cancelBy.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</b></span>
       <div class="countdown"><span class="num">${num}</span><span class="unit">${unit}</span></div>
       <div class="actby">${label}</div>
       <div class="clause">${clauseParts.join(' · ')}</div>
-    </div>`;
+    </button>`;
   }).join('');
+  box.querySelectorAll('[data-notice-sub]').forEach(el => {
+    el.onclick = () => openModal(el.dataset.noticeSub);
+  });
 }
 
 function renderConsumption() {
@@ -658,7 +703,7 @@ function renderInsights() {
   document.getElementById('cycle-chart').innerHTML = entries.length ? entries.map(([cycle, val]) => `
     <div class="chart-row">
       <span style="text-transform:capitalize">${cycle}</span>
-      <div class="chart-bar"><div class="chart-bar-fill" style="width:${(val/max*100).toFixed(1)}%"></div></div>
+      <div class="chart-bar"><div class="chart-bar-fill" style="--w:${(val/max*100).toFixed(1)}%"></div></div>
       <span class="chart-value">${formatMoney(val)}/mo</span>
     </div>
   `).join('') : '<p class="empty">No data.</p>';
@@ -1601,10 +1646,7 @@ function attachToSub() {
   save();
   renderAll();
   switchView('subscriptions');
-  const btn = document.getElementById('attach-btn');
-  const orig = btn.textContent;
-  btn.textContent = `Saved to ${sub.name} ✓`;
-  setTimeout(() => { btn.textContent = orig; }, 2200);
+  toast(`Saved contract terms to ${sub.name}`, 'success');
 }
 
 const SAMPLE_CONTRACT = `MASTER SUBSCRIPTION AGREEMENT
@@ -1882,6 +1924,7 @@ document.addEventListener('DOMContentLoaded', () => {
     save();
     const s = document.getElementById('slack-status');
     s.textContent = 'Saved.'; s.className = 'integ-status ok';
+    toast('Slack settings saved.', 'success');
     renderAll();
   });
   document.getElementById('slack-test').addEventListener('click', (e) => {
@@ -1896,7 +1939,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('drive-save').addEventListener('click', () => {
     state.settings.driveFolder = driveInput.value.trim();
     save();
-    alert('Drive folder link saved for your reference.');
+    toast('Drive folder link saved.', 'success');
   });
   const drop = document.getElementById('contract-drop');
   const multi = document.getElementById('contract-multi');

@@ -10,9 +10,16 @@
 <body>
 <header class="topbar">
   <div class="brand">
-    <div class="logo">S$</div>
+    <a class="brand-link" href="#dashboard" title="Dashboard">
+      <svg class="logo-svg" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+        <rect x="4"  y="18" width="4" height="10" rx="1.5" fill="#22c55e"/>
+        <rect x="11" y="12" width="4" height="16" rx="1.5" fill="#22c55e"/>
+        <rect x="18" y="6"  width="4" height="22" rx="1.5" fill="#22c55e"/>
+        <rect x="25" y="14" width="4" height="14" rx="1.5" fill="#22c55e" opacity="0.55"/>
+      </svg>
+    </a>
     <div>
-      <h1>SaaS Spend Track</h1>
+      <h1>SaaSSpendTrack</h1>
       <p class="tagline">Every subscription. One dashboard.</p>
     </div>
     <div class="urgency-strip" id="urgency-strip"></div>
@@ -557,6 +564,7 @@
   </span>
 </footer>
 <input type="file" id="import-file" accept="application/json" hidden />
+<div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
 <!-- Invoice modal -->
 <div class="modal-backdrop" id="inv-modal" hidden>
