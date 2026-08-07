@@ -8,17 +8,20 @@ let state = { subscriptions: [] };
 let uiSort = { key: 'renewal', dir: 'asc' };
 
 // -------- storage --------
+function ensureStateShape() {
+  if (!Array.isArray(state.subscriptions)) state.subscriptions = [];
+  if (!Array.isArray(state.invoices)) state.invoices = [];
+  if (!state.alertLog || typeof state.alertLog !== 'object') state.alertLog = {};
+  if (!state.settings || typeof state.settings !== 'object') state.settings = {};
+  if (!state.settings.autoSentAlerts || typeof state.settings.autoSentAlerts !== 'object') state.settings.autoSentAlerts = {};
+  if (!state.settings.plan) state.settings.plan = 'free';
+}
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) state = JSON.parse(raw);
   } catch (_) {}
-  if (!Array.isArray(state.subscriptions)) state.subscriptions = [];
-  if (!Array.isArray(state.invoices)) state.invoices = [];
-  if (!state.alertLog) state.alertLog = {}; // { "<subId>:<trigger>:<renewalISO>": { sentAt, ackAt, escalatedAt } }
-  if (!state.settings) state.settings = {}; // { slackWebhook, slackAuto, driveFolder, autoSentAlerts, plan }
-  if (!state.settings.autoSentAlerts) state.settings.autoSentAlerts = {};
-  if (!state.settings.plan) state.settings.plan = 'free';
+  ensureStateShape();
 }
 
 const PLANS = {
@@ -375,7 +378,6 @@ function renderConsumption() {
   document.getElementById('cons-vendors-sub').textContent = `of ${state.subscriptions.length} subscription${state.subscriptions.length === 1 ? '' : 's'}`;
   const totalSeats    = rows.reduce((s, x) => s + x.c.total, 0);
   const assignedSeats = rows.reduce((s, x) => s + x.c.assigned, 0);
-  const utilizedSeats = rows.reduce((s, x) => s + x.c.utilized, 0);
   document.getElementById('cons-assigned').textContent = `${assignedSeats} / ${totalSeats}`;
   // Weighted utilization = utilized-cost / license-cost
   const licenseCost  = rows.reduce((s, x) => s + monthlyCost(x.s), 0);
@@ -816,6 +818,15 @@ function deleteSub(id) {
   if (!confirm(msg)) return;
   state.subscriptions = state.subscriptions.filter(s => s.id !== id);
   state.invoices = state.invoices.filter(i => i.subId !== id);
+  // Clean up alertLog entries keyed by this subscription (subId:trigger:renewalISO)
+  const prefix = id + ':';
+  for (const k of Object.keys(state.alertLog)) {
+    if (k.startsWith(prefix)) delete state.alertLog[k];
+  }
+  // Same for auto-sent alert dedup log
+  for (const k of Object.keys(state.settings.autoSentAlerts)) {
+    if (k.startsWith(prefix)) delete state.settings.autoSentAlerts[k];
+  }
   save();
   renderAll();
 }
@@ -1101,12 +1112,15 @@ async function slackTest(btn) {
     status.className = 'integ-status err';
   } finally { btn.disabled = false; }
 }
-async function slackSendAlert(alert, btn) {
-  if (!slackWebhook()) { alert && alert(); return; }
+async function slackSendAlert(a, btn) {
+  if (!slackWebhook()) {
+    window.alert('Configure a Slack webhook in Integrations first.');
+    return;
+  }
   const orig = btn?.textContent;
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
   try {
-    await slackSend(alertSlackPayload(alert));
+    await slackSend(alertSlackPayload(a));
     if (btn) btn.textContent = 'Sent ✓';
   } catch (e) {
     if (btn) btn.textContent = 'Failed';
@@ -1667,12 +1681,17 @@ function importJson(file) {
     try {
       const data = JSON.parse(reader.result);
       if (!Array.isArray(data.subscriptions)) throw new Error('Bad file: no subscriptions');
+      // Preserve current settings (Slack webhook, plan, Drive folder) —
+      // an import is data-level, not a factory reset.
+      const preservedSettings = state.settings;
       state = {
         subscriptions: data.subscriptions,
         invoices: Array.isArray(data.invoices) ? data.invoices : [],
         alertLog: (data.alertLog && typeof data.alertLog === 'object') ? data.alertLog : {},
+        settings: (data.settings && typeof data.settings === 'object') ? data.settings : preservedSettings,
       };
-      save(); renderAll();
+      ensureStateShape();
+      save(); renderPlanBadge(); renderPricing(); renderAll();
       alert(`Imported ${state.subscriptions.length} subscription(s) and ${state.invoices.length} invoice(s).`);
     } catch (e) {
       alert('Could not import: ' + e.message);
@@ -1682,8 +1701,15 @@ function importJson(file) {
 }
 function clearAll() {
   if (!confirm('Delete ALL subscriptions and invoices? This cannot be undone.')) return;
-  state = { subscriptions: [], invoices: [], alertLog: {} };
+  // Preserve settings — clearing data shouldn't disconnect Slack or reset the plan.
+  const preservedSettings = state.settings;
+  state = { subscriptions: [], invoices: [], alertLog: {}, settings: preservedSettings };
+  ensureStateShape();
+  // Also clear the auto-sent alert dedup log so future alerts fire cleanly.
+  state.settings.autoSentAlerts = {};
   save();
+  renderPlanBadge();
+  renderPricing();
   renderAll();
 }
 
