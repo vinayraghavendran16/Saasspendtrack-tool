@@ -11,6 +11,7 @@ let uiSort = { key: 'renewal', dir: 'asc' };
 function ensureStateShape() {
   if (!Array.isArray(state.subscriptions)) state.subscriptions = [];
   if (!Array.isArray(state.invoices)) state.invoices = [];
+  if (!Array.isArray(state.employees)) state.employees = [];
   if (!state.alertLog || typeof state.alertLog !== 'object') state.alertLog = {};
   if (!state.settings || typeof state.settings !== 'object') state.settings = {};
   if (!state.settings.autoSentAlerts || typeof state.settings.autoSentAlerts !== 'object') state.settings.autoSentAlerts = {};
@@ -782,6 +783,7 @@ function renderAll() {
   renderSubscriptions();
   renderInvoices();
   renderConsumption();
+  renderTeam();
   renderAlerts();
   renderRenewals();
   renderInsights();
@@ -1346,6 +1348,196 @@ function confirmImport() {
   switchView('subscriptions');
 }
 
+// -------- team directory: CSV / TSV parsing --------
+// Parses delimited text with quoted fields and doubled-up quotes ("").
+function parseDelimited(text, delimiter) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === delimiter) { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (field !== '' || row.length) { row.push(field); rows.push(row); }
+        row = []; field = '';
+        if (c === '\r' && text[i + 1] === '\n') i++;
+      } else field += c;
+    }
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+function detectDelimiter(text) {
+  const line = text.split(/\r?\n/, 1)[0] || '';
+  const commas = (line.match(/,/g) || []).length;
+  const tabs   = (line.match(/\t/g) || []).length;
+  return tabs > commas ? '\t' : ',';
+}
+// Fuzzy column-name matcher — accepts "employee_id", "Employee ID", "EmpID", etc.
+function pickColumn(headers, candidates) {
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  for (const cand of candidates) {
+    const idx = headers.findIndex(h => norm(h) === norm(cand));
+    if (idx >= 0) return idx;
+  }
+  for (const cand of candidates) {
+    const idx = headers.findIndex(h => norm(h).includes(norm(cand)));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function importEmployeesFromText(text) {
+  const rows = parseDelimited(text, detectDelimiter(text)).filter(r => r.length && r.some(c => c && c.trim()));
+  if (rows.length < 2) throw new Error('Need at least a header row and one employee row.');
+  const headers = rows[0].map(h => h.trim());
+  const idxId    = pickColumn(headers, ['Employee ID', 'EmpID', 'ID', 'Employee Number', 'Emp No']);
+  const idxEmail = pickColumn(headers, ['Email', 'Work Email', 'Business Email', 'Email Address']);
+  const idxTitle = pickColumn(headers, ['Title', 'Job Title', 'Role', 'Position']);
+  const idxDept  = pickColumn(headers, ['Department', 'Team', 'Dept', 'Division', 'Business Unit']);
+  const idxName  = pickColumn(headers, ['Name', 'Full Name', 'Employee Name', 'First Name']);
+  if (idxEmail < 0 && idxId < 0) throw new Error('Need at least an Email or Employee ID column.');
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const email = (idxEmail >= 0 ? r[idxEmail] : '').trim();
+    const empId = (idxId    >= 0 ? r[idxId]    : '').trim();
+    if (!email && !empId) continue;
+    out.push({
+      id: crypto.randomUUID(),
+      employeeId: empId,
+      email,
+      name:  idxName  >= 0 ? (r[idxName]  || '').trim() : '',
+      title: idxTitle >= 0 ? (r[idxTitle] || '').trim() : '',
+      department: idxDept >= 0 ? (r[idxDept] || '').trim() : '',
+    });
+  }
+  state.employees = out;
+  save(); renderAll();
+  return out.length;
+}
+
+// Roll-up: for each department in the directory, count employees + join to
+// subscriptions where sub.team === department, sum monthly cost.
+function teamRollup() {
+  const rows = [];
+  const empByDept = {};
+  state.employees.forEach(e => {
+    const d = e.department || 'Unassigned';
+    (empByDept[d] = empByDept[d] || []).push(e);
+  });
+  const subsByTeam = {};
+  activeSubs().forEach(s => {
+    const t = s.team || 'Unassigned';
+    (subsByTeam[t] = subsByTeam[t] || []).push(s);
+  });
+  const allDepts = new Set([...Object.keys(empByDept), ...Object.keys(subsByTeam)]);
+  for (const dept of allDepts) {
+    const emps = empByDept[dept] || [];
+    const subs = subsByTeam[dept] || [];
+    const monthly = subs.reduce((sum, s) => sum + monthlyCost(s), 0);
+    const perEmp = emps.length > 0 ? monthly / emps.length : 0;
+    const top = [...subs].sort((a, b) => monthlyCost(b) - monthlyCost(a))[0];
+    rows.push({
+      dept,
+      employees: emps.length,
+      tools: subs.length,
+      monthly,
+      perEmp,
+      top: top?.name || null,
+      orphan: subs.length > 0 && emps.length === 0,
+    });
+  }
+  rows.sort((a, b) => b.monthly - a.monthly);
+  return rows;
+}
+
+function renderTeam() {
+  // Stat cards
+  const emps = state.employees;
+  const depts = new Set(emps.map(e => e.department).filter(Boolean));
+  const totalMonthlyActive = activeSubs().reduce((s, sub) => s + monthlyCost(sub), 0);
+  animateNumber(document.getElementById('team-stat-count'), emps.length, fmtInt);
+  document.getElementById('team-stat-count-sub').textContent = emps.length ? 'active in directory' : 'upload to populate';
+  animateNumber(document.getElementById('team-stat-depts'), depts.size, fmtInt);
+  const perEmp = emps.length ? totalMonthlyActive / emps.length : 0;
+  animateNumber(document.getElementById('team-stat-per'), perEmp, fmtMoney);
+
+  const rollup = teamRollup();
+  const orphan = rollup.filter(r => r.orphan).reduce((s, r) => s + r.monthly, 0);
+  animateNumber(document.getElementById('team-stat-orphan'), orphan, fmtMoney);
+  const orphanCount = rollup.filter(r => r.orphan).length;
+  document.getElementById('team-stat-orphan-sub').textContent = orphanCount
+    ? `${orphanCount} team${orphanCount === 1 ? '' : 's'} not in directory`
+    : 'every team is covered';
+
+  // Department filter
+  const filterSel = document.getElementById('team-filter-dept');
+  const current = filterSel.value;
+  const sortedDepts = [...depts].sort();
+  filterSel.innerHTML = '<option value="">All departments</option>' + sortedDepts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+  filterSel.value = current;
+  const filter = filterSel.value;
+
+  // Employees table
+  const tbody = document.getElementById('team-tbody');
+  const empty = document.getElementById('team-empty');
+  const rowsE = filter ? emps.filter(e => e.department === filter) : emps;
+  empty.style.display = rowsE.length ? 'none' : 'block';
+  tbody.innerHTML = rowsE.map(e => `
+    <tr>
+      <td>${escapeHtml(e.employeeId || '—')}</td>
+      <td><b>${escapeHtml(e.email || '—')}</b>${e.name ? `<div class="alert-contact">${escapeHtml(e.name)}</div>` : ''}</td>
+      <td>${escapeHtml(e.title || '—')}</td>
+      <td>${e.department ? `<span class="emp-dept-chip">${escapeHtml(e.department)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td class="actions-cell"><button class="icon-btn danger" data-drop-emp="${e.id}">Remove</button></td>
+    </tr>
+  `).join('');
+  tbody.querySelectorAll('[data-drop-emp]').forEach(b => b.onclick = () => {
+    state.employees = state.employees.filter(e => e.id !== b.dataset.dropEmp);
+    save(); renderAll();
+    toast('Employee removed', 'success');
+  });
+
+  // Roll-up table
+  const rollTbody = document.getElementById('team-rollup-tbody');
+  const rollEmpty = document.getElementById('team-rollup-empty');
+  rollEmpty.style.display = rollup.length ? 'none' : 'block';
+  rollTbody.innerHTML = rollup.map(r => `
+    <tr>
+      <td><b>${escapeHtml(r.dept)}</b>${r.orphan ? ' <span class="badge warn" title="Tools tagged to this team but no employees in directory">orphan</span>' : ''}</td>
+      <td class="num">${r.employees}</td>
+      <td class="num">${r.tools}</td>
+      <td class="num">${formatMoney(r.monthly)}</td>
+      <td class="num">${r.employees > 0 ? formatMoney(r.perEmp) : '<span class="rollup-orphan">n/a</span>'}</td>
+      <td>${r.top ? `<span class="rollup-top">${escapeHtml(r.top)}</span>` : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function seedTeam() {
+  state.employees = [
+    { id: crypto.randomUUID(), employeeId: 'E-001', email: 'priya@company.com',  name: 'Priya Rao',    title: 'Marketing Lead',      department: 'Marketing' },
+    { id: crypto.randomUUID(), employeeId: 'E-002', email: 'alex@company.com',   name: 'Alex Kim',     title: 'Head of Ops',         department: 'Ops' },
+    { id: crypto.randomUUID(), employeeId: 'E-003', email: 'sam@company.com',    name: 'Sam Patel',    title: 'People Partner',      department: 'Ops' },
+    { id: crypto.randomUUID(), employeeId: 'E-004', email: 'jordan@company.com', name: 'Jordan Lee',   title: 'AE',                   department: 'Sales' },
+    { id: crypto.randomUUID(), employeeId: 'E-005', email: 'rina@company.com',   name: 'Rina Shah',    title: 'Senior Engineer',      department: 'Engineering' },
+    { id: crypto.randomUUID(), employeeId: 'E-006', email: 'mike@company.com',   name: 'Mike Chen',    title: 'Engineer',             department: 'Engineering' },
+    { id: crypto.randomUUID(), employeeId: 'E-007', email: 'ana@company.com',    name: 'Ana Diaz',     title: 'Product Designer',     department: 'Design' },
+    { id: crypto.randomUUID(), employeeId: 'E-008', email: 'lisa@company.com',   name: 'Lisa Wong',    title: 'Growth Marketer',      department: 'Marketing' },
+    { id: crypto.randomUUID(), employeeId: 'E-009', email: 'omar@company.com',   name: 'Omar Nasri',   title: 'SDR',                  department: 'Sales' },
+    { id: crypto.randomUUID(), employeeId: 'E-010', email: 'eva@company.com',    name: 'Eva Silva',    title: 'Engineering Manager', department: 'Engineering' },
+  ];
+  save(); renderAll();
+  toast('Loaded 10 sample employees.', 'success');
+}
+
 // -------- integrations: SSO / ERP request stub --------
 function requestEnterprise(kind, statusEl) {
   statusEl.textContent = `Request logged — we'll reach out to enable ${kind}.`;
@@ -1758,6 +1950,7 @@ function importJson(file) {
       state = {
         subscriptions: data.subscriptions,
         invoices: Array.isArray(data.invoices) ? data.invoices : [],
+        employees: Array.isArray(data.employees) ? data.employees : [],
         alertLog: (data.alertLog && typeof data.alertLog === 'object') ? data.alertLog : {},
         settings: (data.settings && typeof data.settings === 'object') ? data.settings : preservedSettings,
       };
@@ -1774,7 +1967,7 @@ function clearAll() {
   if (!confirm('Delete ALL subscriptions and invoices? This cannot be undone.')) return;
   // Preserve settings — clearing data shouldn't disconnect Slack or reset the plan.
   const preservedSettings = state.settings;
-  state = { subscriptions: [], invoices: [], alertLog: {}, settings: preservedSettings };
+  state = { subscriptions: [], invoices: [], employees: [], alertLog: {}, settings: preservedSettings };
   ensureStateShape();
   // Also clear the auto-sent alert dedup log so future alerts fire cleanly.
   state.settings.autoSentAlerts = {};
@@ -1785,7 +1978,7 @@ function clearAll() {
 }
 
 // -------- wiring --------
-const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'consumption', 'alerts', 'renewals', 'contracts', 'integrations', 'insights', 'pricing'];
+const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'consumption', 'team', 'alerts', 'renewals', 'contracts', 'integrations', 'insights', 'pricing'];
 function switchView(name, opts = {}) {
   if (!VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
@@ -1957,4 +2150,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('sso-request').addEventListener('click', () => requestEnterprise('SSO', document.getElementById('sso-status')));
   document.getElementById('erp-request').addEventListener('click', () => requestEnterprise('ERP sync', document.getElementById('erp-status')));
   document.getElementById('erp-csv').addEventListener('click', exportErpCsv);
+
+  // Team directory
+  document.getElementById('team-filter-dept').addEventListener('change', renderTeam);
+  document.getElementById('team-sample').addEventListener('click', seedTeam);
+  document.getElementById('team-file').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    e.target.value = '';
+    try {
+      const text = await f.text();
+      const n = importEmployeesFromText(text);
+      toast(`Imported ${n} employee${n === 1 ? '' : 's'}.`, 'success');
+    } catch (err) {
+      toast('Import failed: ' + err.message, 'error');
+    }
+  });
+  document.getElementById('hrms-request').addEventListener('click', () => requestEnterprise('HRMS sync', document.getElementById('hrms-status')));
 });

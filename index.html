@@ -32,6 +32,7 @@
     <button class="tab" data-view="subscriptions">Subscriptions</button>
     <button class="tab" data-view="invoices">Invoices</button>
     <button class="tab" data-view="consumption">Consumption</button>
+    <button class="tab" data-view="team">Team</button>
     <button class="tab" data-view="alerts">Alerts</button>
     <button class="tab" data-view="renewals">Renewals</button>
     <button class="tab" data-view="contracts">Contracts</button>
@@ -201,6 +202,94 @@
         <tbody id="cons-tbody"></tbody>
       </table>
       <p id="cons-empty" class="empty">No consumption data yet. Open a subscription → <b>Edit</b> and fill in Total / Assigned / Utilized seats.</p>
+    </div>
+  </section>
+
+  <!-- Team -->
+  <section id="team" class="view">
+    <div class="section-head">
+      <h2>Team directory</h2>
+      <div class="controls">
+        <select id="team-filter-dept"><option value="">All departments</option></select>
+        <label class="icon-btn" for="team-file" style="cursor:pointer">Upload CSV / TSV</label>
+        <input type="file" id="team-file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" hidden />
+        <button id="team-sample" class="icon-btn">Load sample</button>
+      </div>
+    </div>
+    <p class="contract-lede">Bring in your directory from an <b>Excel / Google Sheet</b> export or an HRMS. We map <code>Employee ID</code>, <code>Email</code>, <code>Title</code>, and <code>Department</code>, then roll up SaaS spend by team so you can see cost-per-head per tool.</p>
+
+    <div class="stat-grid" style="margin-bottom:18px">
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Employees</span><span class="stat-value" id="team-stat-count">0</span><span class="stat-sub" id="team-stat-count-sub">upload to populate</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Departments</span><span class="stat-value" id="team-stat-depts">0</span><span class="stat-sub">unique teams</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Spend / employee</span><span class="stat-value" id="team-stat-per">—</span><span class="stat-sub">monthly, weighted</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Uncovered dept spend</span><span class="stat-value" id="team-stat-orphan">$0</span><span class="stat-sub" id="team-stat-orphan-sub">tools whose team isn't in the directory</span></div>
+    </div>
+
+    <div class="panel-grid" style="margin-top:0">
+      <div class="panel span-2">
+        <h2>Department spend roll-up</h2>
+        <p class="panel-sub">Each department's total employees, tools they own, monthly spend, and dollars per head.</p>
+        <div class="table-wrap" style="overflow-x:auto">
+          <table class="vendor-table" id="team-rollup-table">
+            <thead><tr>
+              <th>Department</th>
+              <th class="num">Employees</th>
+              <th class="num">Tools</th>
+              <th class="num">Monthly spend</th>
+              <th class="num">$ / employee</th>
+              <th>Top tool</th>
+            </tr></thead>
+            <tbody id="team-rollup-tbody"></tbody>
+          </table>
+          <p id="team-rollup-empty" class="empty" style="display:none;padding:24px">Upload a directory to see the roll-up.</p>
+        </div>
+      </div>
+
+      <div class="panel span-2">
+        <h2>Employees</h2>
+        <div class="table-wrap">
+          <table class="sub-table">
+            <thead><tr>
+              <th>Employee ID</th><th>Email</th><th>Title</th><th>Department</th><th></th>
+            </tr></thead>
+            <tbody id="team-tbody"></tbody>
+          </table>
+          <p id="team-empty" class="empty">No employees yet. Upload a CSV or click <b>Load sample</b>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:24px"><h2>HRMS connectors</h2></div>
+    <p class="contract-lede">Sync directory changes automatically from your HRMS. Each connector needs OAuth server-side, so these unlock on Enterprise.</p>
+    <div class="hrms-grid">
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#0e79c8">R</div>
+        <div><h3>Rippling</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#f45d22">G</div>
+        <div><h3>Gusto</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#589e39">B</div>
+        <div><h3>BambooHR</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#0075a9">W</div>
+        <div><h3>Workday</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#d40024">A</div>
+        <div><h3>ADP</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#111">P</div>
+        <div><h3>Personio</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+    </div>
+    <div class="integ-actions" style="margin-top:14px">
+      <button id="hrms-request" class="primary">Request Enterprise access</button>
+      <span id="hrms-status" class="integ-status"></span>
     </div>
   </section>
 
