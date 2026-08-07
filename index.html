@@ -24,6 +24,7 @@
     <button class="tab active" data-view="dashboard">Dashboard</button>
     <button class="tab" data-view="subscriptions">Subscriptions</button>
     <button class="tab" data-view="invoices">Invoices</button>
+    <button class="tab" data-view="consumption">Consumption</button>
     <button class="tab" data-view="alerts">Alerts</button>
     <button class="tab" data-view="renewals">Renewals</button>
     <button class="tab" data-view="contracts">Contracts</button>
@@ -166,6 +167,33 @@
         <tbody id="sub-tbody"></tbody>
       </table>
       <p id="empty-state" class="empty">No subscriptions yet. Click <b>+ Add subscription</b> to get started.</p>
+    </div>
+  </section>
+
+  <!-- Consumption -->
+  <section id="consumption" class="view">
+    <div class="section-head"><h2>Consumption</h2></div>
+    <p class="contract-lede">Total licenses, assigned, utilized, unused seats, and the dollar cost of what's sitting idle. Reclaim before renewal, not after.</p>
+
+    <div class="stat-grid" style="margin-bottom:18px">
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Vendors tracked</span><span class="stat-value" id="cons-vendors">0</span><span class="stat-sub" id="cons-vendors-sub">of 0 subscriptions</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Seats assigned / total</span><span class="stat-value" id="cons-assigned">0 / 0</span><span class="stat-sub" id="cons-assigned-sub">across licensed vendors</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Utilization</span><span class="stat-value" id="cons-util">—</span><span class="stat-sub">weighted by license cost</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Wasted spend</span><span class="stat-value" id="cons-wasted">$0</span><span class="stat-sub" id="cons-wasted-sub">on unused seats</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="sub-table cons-table">
+        <thead><tr>
+          <th>Vendor</th><th>Team</th>
+          <th class="num">Total</th><th class="num">Assigned</th><th class="num">Utilized</th>
+          <th class="num">Unused seats</th><th>Utilization</th>
+          <th class="num">Unused $/mo</th><th class="num">Unused $/yr</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="cons-tbody"></tbody>
+      </table>
+      <p id="cons-empty" class="empty">No consumption data yet. Open a subscription → <b>Edit</b> and fill in Total / Assigned / Utilized seats.</p>
     </div>
   </section>
 

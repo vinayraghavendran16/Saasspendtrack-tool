@@ -364,6 +364,57 @@ function renderNoticeWindows() {
   }).join('');
 }
 
+function renderConsumption() {
+  const rows = state.subscriptions
+    .map(s => ({ s, c: consumption(s) }))
+    .filter(x => x.c)
+    .sort((a, b) => b.c.unusedCostMonthly - a.c.unusedCostMonthly);
+
+  // Stat cards
+  document.getElementById('cons-vendors').textContent = rows.length;
+  document.getElementById('cons-vendors-sub').textContent = `of ${state.subscriptions.length} subscription${state.subscriptions.length === 1 ? '' : 's'}`;
+  const totalSeats    = rows.reduce((s, x) => s + x.c.total, 0);
+  const assignedSeats = rows.reduce((s, x) => s + x.c.assigned, 0);
+  const utilizedSeats = rows.reduce((s, x) => s + x.c.utilized, 0);
+  document.getElementById('cons-assigned').textContent = `${assignedSeats} / ${totalSeats}`;
+  // Weighted utilization = utilized-cost / license-cost
+  const licenseCost  = rows.reduce((s, x) => s + monthlyCost(x.s), 0);
+  const utilizedCost = rows.reduce((s, x) => s + (x.c.utilized / x.c.total) * monthlyCost(x.s), 0);
+  const weightedPct  = licenseCost > 0 ? Math.round((utilizedCost / licenseCost) * 100) : 0;
+  document.getElementById('cons-util').textContent = licenseCost > 0 ? `${weightedPct}%` : '—';
+  const wastedMonthly = rows.reduce((s, x) => s + x.c.unusedCostMonthly, 0);
+  document.getElementById('cons-wasted').textContent = formatMoney(wastedMonthly);
+  document.getElementById('cons-wasted-sub').textContent = wastedMonthly > 0
+    ? `${formatMoney(wastedMonthly * 12)}/yr if left in place`
+    : 'no unused seats';
+
+  const tbody = document.getElementById('cons-tbody');
+  const empty = document.getElementById('cons-empty');
+  empty.style.display = rows.length ? 'none' : 'block';
+  tbody.innerHTML = rows.map(({ s, c }) => {
+    const fillCls = c.utilizationPct >= 80 ? 'good' : c.utilizationPct >= 60 ? 'mid' : 'bad';
+    const rowCls = c.unusedCostMonthly > 0 ? 'wasted' : '';
+    return `<tr class="${rowCls}">
+      <td><span class="vendor-name">${escapeHtml(s.name)}</span>${s.active === false ? ' <span class="badge">Paused</span>' : ''}</td>
+      <td>${s.team ? `<span class="team-chip">${escapeHtml(s.team)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td class="num">${c.total}</td>
+      <td class="num">${c.assigned}</td>
+      <td class="num">${c.utilized}</td>
+      <td class="num">${c.unused}</td>
+      <td>
+        <div class="util-bar">
+          <div class="util-track"><div class="util-fill ${fillCls}" style="width:${c.utilizationPct}%"></div></div>
+          <span class="util-pct">${c.utilizationPct}%</span>
+        </div>
+      </td>
+      <td class="num ${c.unusedCostMonthly > 0 ? 'pending-cell gt0' : ''}">${formatMoney(c.unusedCostMonthly)}</td>
+      <td class="num ${c.unusedCostMonthly > 0 ? 'pending-cell gt0' : ''}">${formatMoney(c.unusedCostMonthly * 12)}</td>
+      <td class="actions-cell"><button class="icon-btn" data-edit-cons="${s.id}">Edit seats</button></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-edit-cons]').forEach(b => b.onclick = () => openModal(b.dataset.editCons));
+}
+
 function renderVendorTotals() {
   const tbody = document.getElementById('vendor-tbody');
   const empty = document.getElementById('vendor-empty');
@@ -653,6 +704,7 @@ function renderAll() {
   renderNoticeWindows();
   renderSubscriptions();
   renderInvoices();
+  renderConsumption();
   renderAlerts();
   renderRenewals();
   renderInsights();
@@ -677,6 +729,8 @@ function renderUrgencyStrip() {
   if (awaitingAck)      chips.push({ tier: 'warn',   view: 'alerts',   txt: `${awaitingAck} awaiting ack` });
   if (urgentNotice)     chips.push({ tier: 'warn',   view: 'dashboard',txt: `${urgentNotice} act-by soon` });
   if (dueSoon)          chips.push({ tier: 'warn',   view: 'invoices', txt: `${dueSoon} due in 7d` });
+  const wastedMonthly = state.subscriptions.reduce((s, sub) => { const c = consumption(sub); return s + (c ? c.unusedCostMonthly : 0); }, 0);
+  if (wastedMonthly > 0) chips.push({ tier: 'warn', view: 'consumption', txt: `${formatMoney(wastedMonthly)}/mo wasted` });
   strip.innerHTML = chips.map(c => `<button class="urgency-chip ${c.tier}" data-goto="${c.view}"><span class="dot"></span>${c.txt}</button>`).join('');
   strip.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => switchView(b.dataset.goto));
 }
@@ -1495,7 +1549,7 @@ function clearAll() {
 }
 
 // -------- wiring --------
-const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'alerts', 'renewals', 'contracts', 'integrations', 'insights', 'pricing'];
+const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'consumption', 'alerts', 'renewals', 'contracts', 'integrations', 'insights', 'pricing'];
 function switchView(name, opts = {}) {
   if (!VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
