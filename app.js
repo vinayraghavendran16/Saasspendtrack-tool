@@ -16,6 +16,36 @@ function load() {
   if (!Array.isArray(state.subscriptions)) state.subscriptions = [];
   if (!Array.isArray(state.invoices)) state.invoices = [];
   if (!state.alertLog) state.alertLog = {}; // { "<subId>:<trigger>:<renewalISO>": { sentAt, ackAt, escalatedAt } }
+  if (!state.settings) state.settings = {}; // { slackWebhook, slackAuto, driveFolder, autoSentAlerts, plan }
+  if (!state.settings.autoSentAlerts) state.settings.autoSentAlerts = {};
+  if (!state.settings.plan) state.settings.plan = 'free';
+}
+
+const PLANS = {
+  free:       { label: 'Free',       subLimit: 10 },
+  pro:        { label: 'Pro',        subLimit: Infinity },
+  enterprise: { label: 'Enterprise', subLimit: Infinity },
+};
+function currentPlan() { return PLANS[state.settings.plan] ? state.settings.plan : 'free'; }
+function setPlan(p) {
+  if (!PLANS[p]) return;
+  state.settings.plan = p;
+  save();
+  renderPlanBadge();
+  renderPricing();
+  renderAll();
+}
+function renderPlanBadge() {
+  const p = currentPlan();
+  const badge = document.getElementById('plan-badge');
+  badge.className = `plan-badge ${p}`;
+  document.getElementById('plan-label').textContent = PLANS[p].label;
+}
+function renderPricing() {
+  const p = currentPlan();
+  document.querySelectorAll('.pricing-card').forEach(card => {
+    card.classList.toggle('plan-active', card.dataset.plan === p);
+  });
 }
 
 function invoiceStatus(inv) {
@@ -37,6 +67,18 @@ function monthlyCost(sub) {
   return sub.cost / months;
 }
 function periodCost(sub) { return sub.cost || 0; } // cost for one billing period as stored
+
+// Consumption: returns { total, assigned, utilized, unused, utilizationPct, unusedCostMonthly } or null
+function consumption(sub) {
+  const total = Number(sub.licenses) || 0;
+  if (!total) return null;
+  const assigned = Math.min(total, Math.max(0, Number(sub.assigned) || 0));
+  const utilized = Math.min(total, Math.max(0, Number(sub.utilized) || 0));
+  const unused = Math.max(0, total - utilized);
+  const utilizationPct = Math.round((utilized / total) * 100);
+  const unusedCostMonthly = (unused / total) * monthlyCost(sub);
+  return { total, assigned, utilized, unused, utilizationPct, unusedCostMonthly };
+}
 function formatMoney(n) {
   return '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -339,19 +381,31 @@ function renderVendorTotals() {
     return { s, invCount: invs.length, paid, pend, total: paid + pend, monthly };
   }).sort((a, b) => b.total - a.total || b.monthly - a.monthly);
 
-  tbody.innerHTML = rows.map(r => `
+  tbody.innerHTML = rows.map(r => {
+    const c = consumption(r.s);
+    let seatsCell = '<span style="color:var(--text-dim)">—</span>';
+    let unusedCell = '<span style="color:var(--text-dim)">—</span>';
+    if (c) {
+      const cls = c.utilizationPct < 60 ? 'danger' : c.utilizationPct < 80 ? 'warn' : 'ok';
+      seatsCell = `<span title="Assigned ${c.assigned} of ${c.total}">${c.utilized}/${c.total}</span> <span class="badge ${cls}">${c.utilizationPct}%</span>`;
+      const uc = c.unusedCostMonthly;
+      unusedCell = uc > 0 ? `<span class="pending-cell gt0">${formatMoney(uc)}</span>` : formatMoney(0);
+    }
+    return `
     <tr>
       <td><span class="vendor-name">${escapeHtml(r.s.name)}</span>${r.s.active === false ? ' <span class="badge">Paused</span>' : ''}</td>
       <td>${r.s.team ? `<span class="team-chip">${escapeHtml(r.s.team)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
       <td class="num">${formatMoney(r.monthly)}</td>
       <td class="num">${formatMoney(r.monthly * 12)}</td>
+      <td class="num">${seatsCell}</td>
+      <td class="num">${unusedCell}</td>
       <td class="num">${r.invCount}</td>
       <td class="num paid-cell ${r.paid > 0 ? 'gt0' : ''}">${formatMoney(r.paid)}</td>
       <td class="num pending-cell ${r.pend > 0 ? 'gt0' : ''}">${formatMoney(r.pend)}</td>
       <td class="num"><b>${formatMoney(r.total)}</b></td>
       <td class="actions-cell"><button class="icon-btn" data-new-inv="${r.s.id}" title="Log invoice for ${escapeHtml(r.s.name)}">+ Invoice</button></td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
   tbody.querySelectorAll('[data-new-inv]').forEach(b => b.onclick = () => openInvModal(null, b.dataset.newInv));
 }
 
@@ -574,6 +628,14 @@ function renderInsights() {
     }
   });
 
+  // Utilization — unused seats
+  const wasted = active.map(s => ({ s, c: consumption(s) })).filter(x => x.c && x.c.unusedCostMonthly > 0);
+  if (wasted.length) {
+    const total = wasted.reduce((sum, x) => sum + x.c.unusedCostMonthly, 0);
+    const worst = [...wasted].sort((a,b) => b.c.unusedCostMonthly - a.c.unusedCostMonthly).slice(0, 3);
+    recos.push(`💺 <b>${formatMoney(total)}/mo on unused seats</b> across ${wasted.length} vendor${wasted.length === 1 ? '' : 's'}. Biggest offenders: ${worst.map(x => `${escapeHtml(x.s.name)} (${x.c.utilizationPct}% used, ${formatMoney(x.c.unusedCostMonthly)}/mo)`).join(', ')}. Downgrade or reclaim seats before renewal.`);
+  }
+
   // Overdue invoices summary
   const od = state.invoices.filter(i => invoiceStatus(i) === 'overdue');
   if (od.length) {
@@ -594,6 +656,7 @@ function renderAll() {
   renderAlerts();
   renderRenewals();
   renderInsights();
+  slackAutoPost();
 }
 
 function renderUrgencyStrip() {
@@ -631,6 +694,9 @@ function openModal(id) {
   document.getElementById('f-renewal').value = sub?.renewal || '';
   document.getElementById('f-team').value = sub?.team || '';
   document.getElementById('f-url').value = sub?.url || '';
+  document.getElementById('f-lic-total').value = sub?.licenses ?? '';
+  document.getElementById('f-lic-assigned').value = sub?.assigned ?? '';
+  document.getElementById('f-lic-utilized').value = sub?.utilized ?? '';
   document.getElementById('f-owner-name').value = sub?.owner?.name || '';
   document.getElementById('f-owner-email').value = sub?.owner?.email || '';
   document.getElementById('f-manager-name').value = sub?.manager?.name || '';
@@ -654,6 +720,9 @@ function handleSubmit(e) {
     renewal: document.getElementById('f-renewal').value || null,
     team: document.getElementById('f-team').value.trim(),
     url: document.getElementById('f-url').value.trim(),
+    licenses:  parseInt(document.getElementById('f-lic-total').value, 10) || null,
+    assigned:  parseInt(document.getElementById('f-lic-assigned').value, 10) || null,
+    utilized:  parseInt(document.getElementById('f-lic-utilized').value, 10) || null,
     owner: {
       name: document.getElementById('f-owner-name').value.trim(),
       email: document.getElementById('f-owner-email').value.trim(),
@@ -667,6 +736,17 @@ function handleSubmit(e) {
     contract: state.subscriptions.find(x => x.id === id)?.contract || null,
   };
   const idx = state.subscriptions.findIndex(s => s.id === id);
+  const isNew = idx < 0;
+  if (isNew) {
+    const limit = PLANS[currentPlan()].subLimit;
+    if (state.subscriptions.length >= limit) {
+      if (confirm(`Free plan is capped at ${limit} subscriptions. Upgrade to Pro to keep adding?`)) {
+        setPlan('pro');
+      } else {
+        return;
+      }
+    }
+  }
   if (idx >= 0) state.subscriptions[idx] = sub;
   else state.subscriptions.push(sub);
   save();
@@ -850,9 +930,12 @@ function renderAlerts() {
 
     const canSend = alertMailto(a) !== null;
     const isAck = a.status === 'acknowledged';
+    const hasSlack = !!slackWebhook();
     const actions = [
       canSend ? `<a class="icon-btn" href="${alertMailto(a)}" title="Compose email in your mail app">Email</a>` : '',
-      `<button class="icon-btn" data-slack="${idx}">Copy Slack JSON</button>`,
+      hasSlack
+        ? `<button class="icon-btn" data-slack-send="${idx}" title="Post this alert to your Slack channel">Send to Slack</button>`
+        : `<button class="icon-btn" data-slack="${idx}" title="Copy Slack Block Kit JSON">Copy Slack JSON</button>`,
       isAck
         ? `<button class="icon-btn" data-unack="${a.key}">Undo ack</button>`
         : `<button class="icon-btn" data-ack="${a.key}">Acknowledge</button>`,
@@ -883,6 +966,10 @@ function renderAlerts() {
   tbody.querySelectorAll('[data-slack]').forEach(b => {
     const a = filtered[+b.dataset.slack];
     b.onclick = () => copyToClipboard(JSON.stringify(alertSlackPayload(a), null, 2), b);
+  });
+  tbody.querySelectorAll('[data-slack-send]').forEach(b => {
+    const a = filtered[+b.dataset.slackSend];
+    b.onclick = () => slackSendAlert(a, b);
   });
 }
 
@@ -925,6 +1012,190 @@ function downloadIcs() {
     'END:VCALENDAR',
   ].join('\r\n');
   downloadFile('saas-spendtrack-alerts.ics', ics, 'text/calendar;charset=utf-8');
+}
+
+// -------- integrations: Slack --------
+function slackWebhook() { return state.settings.slackWebhook || ''; }
+async function slackSend(payload) {
+  const url = slackWebhook();
+  if (!url) throw new Error('No webhook configured.');
+  // Slack incoming webhooks return CORS headers that allow browser POSTs.
+  // Response body is usually 'ok' plaintext.
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Slack ${res.status}: ${text || 'error'}`);
+  return text;
+}
+async function slackTest(btn) {
+  const status = document.getElementById('slack-status');
+  status.textContent = ''; status.className = 'integ-status';
+  if (!slackWebhook()) { status.textContent = 'Add a webhook URL first.'; status.className = 'integ-status err'; return; }
+  btn.disabled = true;
+  try {
+    await slackSend({
+      text: '✅ SaaS Spend Track connected.',
+      blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*✅ SaaS Spend Track is connected.* Renewal alerts will land here.' } }],
+    });
+    status.textContent = 'Delivered.';
+    status.className = 'integ-status ok';
+  } catch (e) {
+    status.textContent = e.message;
+    status.className = 'integ-status err';
+  } finally { btn.disabled = false; }
+}
+async function slackSendAlert(alert, btn) {
+  if (!slackWebhook()) { alert && alert(); return; }
+  const orig = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    await slackSend(alertSlackPayload(alert));
+    if (btn) btn.textContent = 'Sent ✓';
+  } catch (e) {
+    if (btn) btn.textContent = 'Failed';
+    console.error(e);
+  } finally {
+    if (btn) setTimeout(() => { btn.disabled = false; btn.textContent = orig; }, 1400);
+  }
+}
+// Auto-post: called after computeAlerts on renderAll. Fires once per alert key.
+async function slackAutoPost() {
+  if (!state.settings.slackAuto || !slackWebhook()) return;
+  const alerts = computeAlerts();
+  const dueForAuto = alerts.filter(a =>
+    (a.status === 'sent' || a.status === 'escalated') &&
+    !state.settings.autoSentAlerts[a.key]
+  );
+  for (const a of dueForAuto) {
+    try {
+      await slackSend(alertSlackPayload(a));
+      state.settings.autoSentAlerts[a.key] = new Date().toISOString();
+    } catch (e) {
+      console.warn('Auto-post failed for', a.key, e);
+      break; // don't hammer a bad webhook
+    }
+  }
+  save();
+}
+
+// -------- integrations: bulk contract import --------
+let stagedImports = [];
+
+function parseFilename(name) {
+  // "HubSpot_MSA_2026.txt" -> "HubSpot MSA 2026" -> best-effort vendor: first token
+  const base = name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+  const vendor = base.split(/\s+/)[0] || base;
+  return { vendor, base };
+}
+
+async function stageContractFiles(files) {
+  const readOne = (f) => new Promise((res) => {
+    const r = new FileReader();
+    r.onload = () => res({ file: f, text: r.result });
+    r.readAsText(f);
+  });
+  const results = await Promise.all([...files].map(readOne));
+  results.forEach(({ file, text }) => {
+    const extracted = extractContract(text);
+    const { vendor } = parseFilename(file.name);
+    stagedImports.push({
+      id: crypto.randomUUID(),
+      filename: file.name,
+      name: vendor,
+      extracted,
+      textLen: text.length,
+    });
+  });
+  renderImportPreview();
+}
+
+function renderImportPreview() {
+  const box = document.getElementById('import-preview');
+  const confirmBtn = document.getElementById('import-confirm');
+  if (!stagedImports.length) {
+    box.hidden = true;
+    confirmBtn.disabled = true;
+    return;
+  }
+  box.hidden = false;
+  confirmBtn.disabled = false;
+  box.innerHTML = stagedImports.map(s => {
+    const bits = [];
+    if (s.extracted.renewalType) bits.push(s.extracted.renewalType.value);
+    if (s.extracted.noticePeriod) bits.push(`${s.extracted.noticePeriod.days}d notice`);
+    if (s.extracted.termLength) bits.push(s.extracted.termLength.value);
+    if (s.extracted.priceCap) bits.push(`≤${s.extracted.priceCap.pct}% cap`);
+    const detected = bits.length ? bits.join(' · ') : '<span style="color:var(--warning)">no clauses detected</span>';
+    return `<div class="stage-row">
+      <div><div class="stage-name">${escapeHtml(s.name)}</div><div class="stage-meta">${escapeHtml(s.filename)} · ${detected}</div></div>
+      <button class="stage-drop" data-drop="${s.id}">remove</button>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-drop]').forEach(b => b.onclick = () => {
+    stagedImports = stagedImports.filter(s => s.id !== b.dataset.drop);
+    renderImportPreview();
+  });
+}
+
+function confirmImport() {
+  if (!stagedImports.length) return;
+  stagedImports.forEach(s => {
+    // Skip duplicates by name
+    if (state.subscriptions.some(x => x.name.toLowerCase() === s.name.toLowerCase())) return;
+    const e = s.extracted;
+    const contract = (e.renewalType || e.noticePeriod || e.termLength || e.priceCap) ? {
+      renewalType: e.renewalType?.value || null,
+      autoRenew: e.renewalType?.value === 'Auto-renew',
+      noticeDays: e.noticePeriod?.days || null,
+      termLength: e.termLength?.value || null,
+      priceCapPct: e.priceCap?.pct ?? null,
+    } : null;
+    state.subscriptions.push({
+      id: crypto.randomUUID(),
+      name: s.name,
+      cost: 0,
+      cycle: 'monthly',
+      category: '',
+      team: '',
+      renewal: null,
+      notes: `Imported from ${s.filename}`,
+      active: true,
+      contract,
+    });
+  });
+  const n = stagedImports.length;
+  stagedImports = [];
+  save();
+  renderAll();
+  renderImportPreview();
+  alert(`Staged ${n} subscription${n === 1 ? '' : 's'}. Add a cost and renewal date in the Subscriptions tab to activate alerts.`);
+  switchView('subscriptions');
+}
+
+// -------- integrations: SSO / ERP request stub --------
+function requestEnterprise(kind, statusEl) {
+  statusEl.textContent = `Request logged — we'll reach out to enable ${kind}.`;
+  statusEl.className = 'integ-status ok';
+}
+function exportErpCsv() {
+  // Combined header including vendor + AP-ready invoice rows.
+  const headers = ['vendor','vendor_email','team','category','cycle','recurring_amount','contract_end_date','notice_days','price_cap_pct','last_paid_amount','last_paid_date','last_invoice_number','open_ap_amount'];
+  const rows = state.subscriptions.map(s => {
+    const invs = state.invoices.filter(i => i.subId === s.id);
+    const paid = invs.filter(i => i.paidDate).sort((a,b) => (parseDate(b.paidDate) || 0) - (parseDate(a.paidDate) || 0));
+    const open = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + i.amount, 0);
+    const last = paid[0];
+    return [
+      s.name, s.owner?.email || '', s.team || '', s.category || '', s.cycle, s.cost,
+      nextRenewalISO(s) || '', s.contract?.noticeDays ?? '', s.contract?.priceCapPct ?? '',
+      last?.amount ?? '', last?.paidDate || '', last?.invoiceNumber || '', open || 0,
+    ];
+  });
+  const csv = [headers, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
+  downloadFile('erp-ready-vendors.csv', csv, 'text/csv;charset=utf-8');
 }
 
 // -------- contract extractor --------
@@ -1118,19 +1389,22 @@ function seed() {
   const today = new Date();
   const future = (days) => { const d = new Date(today); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
   state.subscriptions = [
-    { id: crypto.randomUUID(), name: 'Figma',        cost: 15,    cycle: 'monthly', category: 'Design',        team: 'Design',      renewal: future(4),  notes: 'Professional plan', active: true },
+    { id: crypto.randomUUID(), name: 'Figma',        cost: 15,    cycle: 'monthly', category: 'Design',        team: 'Design',      renewal: future(4),  notes: 'Professional plan', active: true,
+      licenses: 12, assigned: 10, utilized: 9 },
     { id: crypto.randomUUID(), name: 'Notion',       cost: 96,    cycle: 'yearly',  category: 'Productivity',  team: 'Ops',         renewal: future(45), notes: 'Team plan', active: true },
     { id: crypto.randomUUID(), name: 'GitHub',       cost: 4,     cycle: 'monthly', category: 'Development',   team: 'Engineering', renewal: future(12), notes: 'Pro', active: true },
     { id: crypto.randomUUID(), name: 'Vercel',       cost: 20,    cycle: 'monthly', category: 'Development',   team: 'Engineering', renewal: future(18), notes: '', active: true },
     { id: crypto.randomUUID(), name: 'ChatGPT Plus', cost: 20,    cycle: 'monthly', category: 'AI / LLM',      team: 'Engineering', renewal: future(6),  notes: '', active: true },
     { id: crypto.randomUUID(), name: 'Claude Pro',   cost: 20,    cycle: 'monthly', category: 'AI / LLM',      team: 'Engineering', renewal: future(22), notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'Slack',        cost: 87.5,  cycle: 'monthly', category: 'Communication', team: 'Ops',         renewal: future(9),  notes: '', active: true },
+    { id: crypto.randomUUID(), name: 'Slack',        cost: 87.5,  cycle: 'monthly', category: 'Communication', team: 'Ops',         renewal: future(9),  notes: '', active: true,
+      licenses: 25, assigned: 22, utilized: 14 },
     { id: crypto.randomUUID(), name: 'Google Workspace', cost: 72, cycle: 'yearly', category: 'Productivity',  team: 'Ops',         renewal: future(120),notes: 'Business Starter', active: true,
       owner:   { name: 'Sam Patel',  email: 'sam@company.com' },
       manager: { name: 'Alex Kim',   email: 'alex@company.com' } },
     { id: crypto.randomUUID(), name: 'HubSpot',      cost: 800,   cycle: 'monthly', category: 'Marketing',     team: 'Marketing',   renewal: future(28), notes: 'Marketing Hub Pro', active: true,
       owner:   { name: 'Priya Rao', email: 'priya@company.com' },
-      manager: { name: 'Alex Kim',  email: 'alex@company.com' } },
+      manager: { name: 'Alex Kim',  email: 'alex@company.com' },
+      licenses: 5, assigned: 5, utilized: 3 },
     { id: crypto.randomUUID(), name: 'Zoom',         cost: 149.9, cycle: 'yearly',  category: 'Communication', team: 'Sales',       renewal: future(65), notes: 'Pro annual', active: true,
       owner:   { name: 'Jordan Lee', email: 'jordan@company.com' },
       manager: { name: 'Alex Kim',   email: 'alex@company.com' } },
@@ -1221,7 +1495,7 @@ function clearAll() {
 }
 
 // -------- wiring --------
-const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'alerts', 'renewals', 'contracts', 'insights'];
+const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'alerts', 'renewals', 'contracts', 'integrations', 'insights', 'pricing'];
 function switchView(name, opts = {}) {
   if (!VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
@@ -1239,7 +1513,18 @@ function viewFromHash() {
 
 document.addEventListener('DOMContentLoaded', () => {
   load();
+  renderPlanBadge();
+  renderPricing();
   renderAll();
+
+  document.getElementById('plan-badge').addEventListener('click', () => switchView('pricing'));
+  document.querySelectorAll('[data-choose-plan]').forEach(b => {
+    b.addEventListener('click', () => {
+      setPlan(b.dataset.choosePlan);
+      b.textContent = b.dataset.choosePlan === 'enterprise' ? 'Talk to sales · request logged' : 'Current plan ✓';
+      setTimeout(() => renderPricing(), 800);
+    });
+  });
 
   // Restore view from URL hash on load (deep-linking + reload safety)
   switchView(viewFromHash(), { replaceHistory: true });
@@ -1327,4 +1612,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('alert-filter').addEventListener('change', renderAlerts);
   document.getElementById('download-ics').addEventListener('click', downloadIcs);
+
+  // Integrations: Slack
+  const slackHook = document.getElementById('slack-webhook');
+  const slackAuto = document.getElementById('slack-auto');
+  slackHook.value = state.settings.slackWebhook || '';
+  slackAuto.checked = !!state.settings.slackAuto;
+  document.getElementById('slack-save').addEventListener('click', () => {
+    state.settings.slackWebhook = slackHook.value.trim();
+    state.settings.slackAuto = slackAuto.checked;
+    save();
+    const s = document.getElementById('slack-status');
+    s.textContent = 'Saved.'; s.className = 'integ-status ok';
+    renderAll();
+  });
+  document.getElementById('slack-test').addEventListener('click', (e) => {
+    state.settings.slackWebhook = slackHook.value.trim();
+    save();
+    slackTest(e.currentTarget);
+  });
+
+  // Integrations: Drive
+  const driveInput = document.getElementById('drive-folder');
+  driveInput.value = state.settings.driveFolder || '';
+  document.getElementById('drive-save').addEventListener('click', () => {
+    state.settings.driveFolder = driveInput.value.trim();
+    save();
+    alert('Drive folder link saved for your reference.');
+  });
+  const drop = document.getElementById('contract-drop');
+  const multi = document.getElementById('contract-multi');
+  document.getElementById('contract-pick').addEventListener('click', (e) => { e.preventDefault(); multi.click(); });
+  multi.addEventListener('change', (e) => { if (e.target.files.length) stageContractFiles(e.target.files); e.target.value = ''; });
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault(); drop.classList.remove('dragover');
+    if (e.dataTransfer.files.length) stageContractFiles(e.dataTransfer.files);
+  });
+  document.getElementById('import-confirm').addEventListener('click', confirmImport);
+
+  // Integrations: SSO / ERP
+  document.getElementById('sso-request').addEventListener('click', () => requestEnterprise('SSO', document.getElementById('sso-status')));
+  document.getElementById('erp-request').addEventListener('click', () => requestEnterprise('ERP sync', document.getElementById('erp-status')));
+  document.getElementById('erp-csv').addEventListener('click', exportErpCsv);
 });

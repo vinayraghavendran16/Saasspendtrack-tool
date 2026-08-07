@@ -16,6 +16,9 @@
       <p class="tagline">Every subscription. One dashboard.</p>
     </div>
     <div class="urgency-strip" id="urgency-strip"></div>
+    <button type="button" class="plan-badge" id="plan-badge" title="Current plan — click to change">
+      <span class="plan-dot"></span><span id="plan-label">Free</span>
+    </button>
   </div>
   <nav class="tabs">
     <button class="tab active" data-view="dashboard">Dashboard</button>
@@ -24,7 +27,9 @@
     <button class="tab" data-view="alerts">Alerts</button>
     <button class="tab" data-view="renewals">Renewals</button>
     <button class="tab" data-view="contracts">Contracts</button>
+    <button class="tab" data-view="integrations">Integrations</button>
     <button class="tab" data-view="insights">Insights</button>
+    <button class="tab" data-view="pricing">Pricing</button>
   </nav>
 </header>
 
@@ -71,6 +76,7 @@
             <thead><tr>
               <th>Vendor</th><th>Team</th>
               <th class="num">Monthly</th><th class="num">Annual</th>
+              <th class="num">Seats used</th><th class="num">Unused $/mo</th>
               <th class="num">Invoices</th><th class="num">Paid</th>
               <th class="num">Pending</th><th class="num">Total to date</th>
               <th></th>
@@ -242,6 +248,163 @@
     </div>
   </section>
 
+  <!-- Integrations -->
+  <section id="integrations" class="view">
+    <div class="section-head"><h2>Integrations</h2></div>
+    <p class="contract-lede">Point us at a Drive folder and contracts flow in. Alerts land in Slack where work happens. SSO and ERP sync unlock on Enterprise.</p>
+
+    <div class="integ-grid">
+      <!-- Slack -->
+      <div class="panel integ-card">
+        <div class="integ-head">
+          <div class="integ-icon" style="background:#4A154B">S</div>
+          <div><h3>Slack</h3><span class="integ-plan ok">Ships now · works client-side</span></div>
+        </div>
+        <p class="integ-desc">Paste an <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noopener">incoming webhook</a> URL. Test posts a message; from any alert, click <b>Send to Slack</b> to fire that vendor's decision request into the channel.</p>
+        <label>Webhook URL<input type="url" id="slack-webhook" placeholder="https://hooks.slack.com/services/T…/B…/…" /></label>
+        <label class="check"><input type="checkbox" id="slack-auto" /> Auto-post when a 90/60/30-day alert first fires (while you have the app open)</label>
+        <div class="integ-actions">
+          <button id="slack-test" class="primary">Send test message</button>
+          <button id="slack-save" class="icon-btn">Save settings</button>
+          <span id="slack-status" class="integ-status"></span>
+        </div>
+      </div>
+
+      <!-- Drive -->
+      <div class="panel integ-card">
+        <div class="integ-head">
+          <div class="integ-icon" style="background:linear-gradient(135deg,#4285F4,#34A853,#FBBC05,#EA4335);color:#fff">D</div>
+          <div><h3>Google Drive — contracts</h3><span class="integ-plan ok">Ships now · bulk-import mode</span></div>
+        </div>
+        <p class="integ-desc">The Drive API needs OAuth (that's a backend). Meanwhile: keep contracts in one Drive folder, then drop the exported <code>.txt</code> versions here. Each file becomes a draft subscription with renewal, notice, and price cap already extracted.</p>
+        <label>Drive folder link (for your reference)<input type="url" id="drive-folder" placeholder="https://drive.google.com/drive/folders/…" /></label>
+        <div class="dropzone" id="contract-drop">
+          <input type="file" id="contract-multi" accept=".txt,.md,text/plain" multiple hidden />
+          <p><b>Drop contract .txt files here</b> or <button class="link" id="contract-pick">click to select</button>. We'll parse each one and stage a subscription.</p>
+        </div>
+        <div id="import-preview" class="import-preview" hidden></div>
+        <div class="integ-actions">
+          <button id="drive-save" class="icon-btn">Save folder link</button>
+          <button id="import-confirm" class="primary" disabled>Import staged subscriptions</button>
+        </div>
+      </div>
+
+      <!-- SSO -->
+      <div class="panel integ-card">
+        <div class="integ-head">
+          <div class="integ-icon" style="background:#111">✦</div>
+          <div><h3>SSO</h3><span class="integ-plan gated">Enterprise · needs backend</span></div>
+        </div>
+        <p class="integ-desc">SAML / OIDC via Okta, Azure AD, or Google Workspace. Provisioning through SCIM. Handled by a small server component; the browser can't do this alone.</p>
+        <div class="integ-logos">
+          <span class="logo-chip">Okta</span>
+          <span class="logo-chip">Azure AD</span>
+          <span class="logo-chip">Google Workspace</span>
+          <span class="logo-chip">JumpCloud</span>
+        </div>
+        <div class="integ-actions">
+          <button id="sso-request" class="primary">Request Enterprise access</button>
+          <span id="sso-status" class="integ-status"></span>
+        </div>
+      </div>
+
+      <!-- ERP -->
+      <div class="panel integ-card">
+        <div class="integ-head">
+          <div class="integ-icon" style="background:#0f766e">⇄</div>
+          <div><h3>ERP sync</h3><span class="integ-plan gated">Enterprise · needs backend</span></div>
+        </div>
+        <p class="integ-desc">Two-way sync with NetSuite, QuickBooks, Sage Intacct, and SAP. Vendors ↔ subscriptions, POs ↔ contracts, AP invoices ↔ invoice log. Here's the mapping we'd use:</p>
+        <div class="mapping-wrap">
+          <table class="mapping-table"><thead><tr><th>SaaS Spend Track</th><th>Direction</th><th>ERP</th></tr></thead><tbody>
+            <tr><td>Subscription</td><td>↔</td><td>Vendor + recurring PO</td></tr>
+            <tr><td>Invoice</td><td>→</td><td>AP invoice draft</td></tr>
+            <tr><td>Team</td><td>→</td><td>Cost center / department</td></tr>
+            <tr><td>Contract renewal date</td><td>→</td><td>PO expiration + reminder</td></tr>
+            <tr><td>Price-cap %</td><td>→</td><td>Vendor terms note</td></tr>
+          </tbody></table>
+        </div>
+        <div class="integ-logos">
+          <span class="logo-chip">NetSuite</span>
+          <span class="logo-chip">QuickBooks</span>
+          <span class="logo-chip">Sage Intacct</span>
+          <span class="logo-chip">SAP</span>
+        </div>
+        <div class="integ-actions">
+          <button id="erp-request" class="primary">Request Enterprise access</button>
+          <button id="erp-csv" class="icon-btn">Meanwhile: export ERP-ready CSV</button>
+          <span id="erp-status" class="integ-status"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="pricing" class="view">
+    <div class="section-head"><h2>Plans</h2></div>
+    <p class="contract-lede">Three tiers. Free covers a solo operator; Pro handles a small team's contracts, alerts, and integrations; Enterprise adds SSO, ERP sync, and a shared workspace.</p>
+    <div class="pricing-grid">
+      <div class="pricing-card" data-plan="free">
+        <div class="pricing-head">
+          <h3>Free</h3>
+          <div class="pricing-price">$0<span>/month</span></div>
+          <p class="pricing-sub">For a single operator getting a handle on their stack.</p>
+        </div>
+        <ul class="pricing-list">
+          <li>✓ Up to <b>10 subscriptions</b></li>
+          <li>✓ Dashboard + spend by category / team</li>
+          <li>✓ Invoice log &amp; vendor totals</li>
+          <li>✓ Notice-window countdown</li>
+          <li>✓ CSV &amp; JSON export</li>
+          <li class="pricing-off">— No contract extractor</li>
+          <li class="pricing-off">— No escalating alerts</li>
+          <li class="pricing-off">— No integrations</li>
+        </ul>
+        <button class="pricing-cta" data-choose-plan="free">Use Free</button>
+      </div>
+      <div class="pricing-card featured" data-plan="pro">
+        <div class="pricing-featured-tag">Most teams start here</div>
+        <div class="pricing-head">
+          <h3>Pro</h3>
+          <div class="pricing-price">$29<span>/user/month</span></div>
+          <p class="pricing-sub">For finance / ops running renewals across a team.</p>
+        </div>
+        <ul class="pricing-list">
+          <li>✓ Everything in Free</li>
+          <li>✓ <b>Unlimited</b> subscriptions &amp; invoices</li>
+          <li>✓ Auto-renew clause extraction</li>
+          <li>✓ 90 / 60 / 30-day alerts with escalation</li>
+          <li>✓ Slack webhook + <b>.ics</b> calendar export</li>
+          <li>✓ Drive folder bulk contract import</li>
+          <li>✓ Consumption tracker &amp; wasted-spend flags</li>
+          <li>✓ Price-hike detection vs. contract cap</li>
+        </ul>
+        <button class="pricing-cta primary" data-choose-plan="pro">Choose Pro</button>
+      </div>
+      <div class="pricing-card" data-plan="enterprise">
+        <div class="pricing-head">
+          <h3>Enterprise</h3>
+          <div class="pricing-price">Custom</div>
+          <p class="pricing-sub">For finance orgs needing SSO, ERP sync, and audit.</p>
+        </div>
+        <ul class="pricing-list">
+          <li>✓ Everything in Pro</li>
+          <li>✓ SSO (Okta / Azure AD / Google Workspace)</li>
+          <li>✓ SCIM user provisioning</li>
+          <li>✓ Two-way ERP sync (NetSuite / QuickBooks / Sage / SAP)</li>
+          <li>✓ Multi-workspace &amp; roles (Owner / Approver / Viewer)</li>
+          <li>✓ Audit log &amp; export retention</li>
+          <li>✓ Managed alert delivery (email + Slack from our side)</li>
+          <li>✓ Dedicated success + SLA</li>
+        </ul>
+        <button class="pricing-cta" data-choose-plan="enterprise">Talk to sales</button>
+      </div>
+    </div>
+    <p class="contract-lede" style="margin-top:20px">
+      <b>Hosting.</b> Free is a single-page app you can self-host (drop <code>index.html</code>, <code>styles.css</code>, <code>app.js</code> on any static host: Netlify, Vercel, Cloudflare Pages, GitHub Pages, S3). Pro and Enterprise run on the SaaS Spend Track cloud: a managed Node / Postgres backend (Fly.io / Render for compute, Neon Postgres for storage, Cloudflare for CDN and WAF, S3-compatible object storage for contract files). Enterprise offers single-tenant deployments in your VPC on request.
+    </p>
+  </section>
+
   <!-- Insights -->
   <section id="insights" class="view">
     <div class="section-head"><h2>Insights</h2></div>
@@ -316,6 +479,14 @@
         </label>
         <label>Vendor URL<input type="url" id="f-url" placeholder="https://…" /></label>
       </div>
+      <fieldset class="form-fieldset">
+        <legend>Licenses / seats</legend>
+        <div class="row triple">
+          <label>Total<input type="number" id="f-lic-total" min="0" step="1" placeholder="25" /></label>
+          <label>Assigned<input type="number" id="f-lic-assigned" min="0" step="1" placeholder="18" /></label>
+          <label>Utilized (last 30d)<input type="number" id="f-lic-utilized" min="0" step="1" placeholder="12" /></label>
+        </div>
+      </fieldset>
       <div class="row">
         <label>Owner name<input type="text" id="f-owner-name" placeholder="Priya Rao" /></label>
         <label>Owner email<input type="email" id="f-owner-email" placeholder="priya@company.com" /></label>
