@@ -370,64 +370,76 @@
   <!-- Pricing -->
   <section id="pricing" class="view">
     <div class="section-head"><h2>Plans</h2></div>
-    <p class="contract-lede">Three tiers. Free covers a solo operator; Pro handles a small team's contracts, alerts, and integrations; Enterprise adds SSO, ERP sync, and a shared workspace.</p>
+
+    <div class="billing-toggle" role="tablist" aria-label="Billing cycle">
+      <button type="button" class="bt-opt" data-bill="monthly" role="tab" aria-selected="false">Monthly</button>
+      <button type="button" class="bt-opt active" data-bill="annual" role="tab" aria-selected="true">Annual <span class="bt-save">Save 17%</span></button>
+    </div>
+
     <div class="pricing-grid">
       <div class="pricing-card" data-plan="free">
         <div class="pricing-head">
-          <h3>Free</h3>
-          <div class="pricing-price">$0<span>/month</span></div>
-          <p class="pricing-sub">For a single operator getting a handle on their stack.</p>
+          <div class="pricing-tier">FREE</div>
+          <div class="pricing-price"><span class="pricing-currency">$</span><span class="pricing-amount">0</span></div>
+          <p class="pricing-cycle">Forever</p>
         </div>
+        <div class="pricing-tagline pricing-tagline-free">Unlimited vendors</div>
         <ul class="pricing-list">
-          <li>✓ Up to <b>10 subscriptions</b></li>
-          <li>✓ Dashboard + spend by category / team</li>
-          <li>✓ Invoice log &amp; vendor totals</li>
-          <li>✓ Notice-window countdown</li>
-          <li>✓ CSV &amp; JSON export</li>
-          <li class="pricing-off">— No contract extractor</li>
-          <li class="pricing-off">— No escalating alerts</li>
-          <li class="pricing-off">— No integrations</li>
+          <li>Unlimited vendors &amp; contracts</li>
+          <li>Unlimited users</li>
+          <li>Renewal &amp; notice date tracking</li>
+          <li>Notice-window countdown</li>
+          <li>Email alerts at 90/60/30 days</li>
         </ul>
-        <button class="pricing-cta" data-choose-plan="free">Use Free</button>
+        <button class="pricing-cta" data-choose-plan="free">Start tracking free</button>
       </div>
+
       <div class="pricing-card featured" data-plan="pro">
-        <div class="pricing-featured-tag">Most teams start here</div>
+        <div class="pricing-featured-tag">Most popular</div>
         <div class="pricing-head">
-          <h3>Pro</h3>
-          <div class="pricing-price">$29<span>/user/month</span></div>
-          <p class="pricing-sub">For finance / ops running renewals across a team.</p>
+          <div class="pricing-tier">PRO</div>
+          <div class="pricing-price">
+            <span class="pricing-currency">$</span>
+            <span class="pricing-amount" data-price-monthly="49" data-price-annual="499">499</span>
+            <span class="pricing-suffix" data-suffix-monthly="/mo" data-suffix-annual="/yr">/yr</span>
+          </div>
+          <p class="pricing-cycle" data-cycle-monthly="Billed monthly" data-cycle-annual="~$41/mo · no budget approval needed">~$41/mo · no budget approval needed</p>
         </div>
+        <div class="pricing-tagline pricing-tagline-pro">For teams that negotiate</div>
         <ul class="pricing-list">
-          <li>✓ Everything in Free</li>
-          <li>✓ <b>Unlimited</b> subscriptions &amp; invoices</li>
-          <li>✓ Auto-renew clause extraction</li>
-          <li>✓ 90 / 60 / 30-day alerts with escalation</li>
-          <li>✓ Slack webhook + <b>.ics</b> calendar export</li>
-          <li>✓ Drive folder bulk contract import</li>
-          <li>✓ Consumption tracker &amp; wasted-spend flags</li>
-          <li>✓ Price-hike detection vs. contract cap</li>
+          <li>Everything in Free</li>
+          <li>Automatic clause extraction</li>
+          <li>Slack alerts + escalation paths</li>
+          <li>Renewal prep briefs</li>
+          <li>Invoice &amp; spend tracking</li>
+          <li>Multi-department access</li>
         </ul>
-        <button class="pricing-cta primary" data-choose-plan="pro">Choose Pro</button>
+        <button class="pricing-cta primary" data-choose-plan="pro">Get started →</button>
       </div>
+
       <div class="pricing-card" data-plan="enterprise">
         <div class="pricing-head">
-          <h3>Enterprise</h3>
-          <div class="pricing-price">Custom</div>
-          <p class="pricing-sub">For finance orgs needing SSO, ERP sync, and audit.</p>
+          <div class="pricing-tier">ENTERPRISE</div>
+          <div class="pricing-price">
+            <span class="pricing-currency">$</span>
+            <span class="pricing-amount" data-price-monthly="149" data-price-annual="1,499">1,499</span>
+            <span class="pricing-suffix" data-suffix-monthly="/mo" data-suffix-annual="/yr">/yr</span>
+          </div>
+          <p class="pricing-cycle" data-cycle-monthly="Billed monthly" data-cycle-annual="~$125/mo · easy corporate card purchase">~$125/mo · easy corporate card purchase</p>
         </div>
+        <div class="pricing-tagline pricing-tagline-ent">For complex vendor stacks</div>
         <ul class="pricing-list">
-          <li>✓ Everything in Pro</li>
-          <li>✓ SSO (Okta / Azure AD / Google Workspace)</li>
-          <li>✓ SCIM user provisioning</li>
-          <li>✓ Two-way ERP sync (NetSuite / QuickBooks / Sage / SAP)</li>
-          <li>✓ Multi-workspace &amp; roles (Owner / Approver / Viewer)</li>
-          <li>✓ Audit log &amp; export retention</li>
-          <li>✓ Managed alert delivery (email + Slack from our side)</li>
-          <li>✓ Dedicated success + SLA</li>
+          <li>Everything in Pro</li>
+          <li>Price benchmarking at renewal</li>
+          <li>Automated contract risk scoring</li>
+          <li>SSO + ERP integrations</li>
+          <li>Custom approval workflows</li>
+          <li>Priority support</li>
         </ul>
-        <button class="pricing-cta" data-choose-plan="enterprise">Talk to sales</button>
+        <button class="pricing-cta" data-choose-plan="enterprise">Get started →</button>
       </div>
     </div>
+
     <p class="contract-lede" style="margin-top:20px">
       <b>Hosting.</b> Free is a single-page app you can self-host (drop <code>index.html</code>, <code>styles.css</code>, <code>app.js</code> on any static host: Netlify, Vercel, Cloudflare Pages, GitHub Pages, S3). Pro and Enterprise run on the SaaS Spend Track cloud: a managed Node / Postgres backend (Fly.io / Render for compute, Neon Postgres for storage, Cloudflare for CDN and WAF, S3-compatible object storage for contract files). Enterprise offers single-tenant deployments in your VPC on request.
     </p>

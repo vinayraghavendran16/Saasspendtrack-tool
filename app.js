@@ -15,6 +15,7 @@ function ensureStateShape() {
   if (!state.settings || typeof state.settings !== 'object') state.settings = {};
   if (!state.settings.autoSentAlerts || typeof state.settings.autoSentAlerts !== 'object') state.settings.autoSentAlerts = {};
   if (!state.settings.plan) state.settings.plan = 'free';
+  if (!state.settings.billingCycle) state.settings.billingCycle = 'annual';
 }
 function load() {
   try {
@@ -49,6 +50,26 @@ function renderPricing() {
   document.querySelectorAll('.pricing-card').forEach(card => {
     card.classList.toggle('plan-active', card.dataset.plan === p);
   });
+  applyBillingCycle(state.settings.billingCycle || 'annual');
+}
+
+function applyBillingCycle(cycle) {
+  document.querySelectorAll('.bt-opt').forEach(b => {
+    const on = b.dataset.bill === cycle;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-price-monthly]').forEach(el => {
+    el.textContent = cycle === 'annual' ? el.dataset.priceAnnual : el.dataset.priceMonthly;
+  });
+  document.querySelectorAll('[data-suffix-monthly]').forEach(el => {
+    el.textContent = cycle === 'annual' ? el.dataset.suffixAnnual : el.dataset.suffixMonthly;
+  });
+  document.querySelectorAll('[data-cycle-monthly]').forEach(el => {
+    el.textContent = cycle === 'annual' ? el.dataset.cycleAnnual : el.dataset.cycleMonthly;
+  });
+  state.settings.billingCycle = cycle;
+  save();
 }
 
 function invoiceStatus(inv) {
@@ -1738,11 +1759,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('plan-badge').addEventListener('click', () => switchView('pricing'));
   document.querySelectorAll('[data-choose-plan]').forEach(b => {
+    const original = b.textContent;
     b.addEventListener('click', () => {
       setPlan(b.dataset.choosePlan);
-      b.textContent = b.dataset.choosePlan === 'enterprise' ? 'Talk to sales · request logged' : 'Current plan ✓';
-      setTimeout(() => renderPricing(), 800);
+      b.textContent = b.dataset.choosePlan === 'enterprise' ? 'Request logged ✓' : 'Current plan ✓';
+      setTimeout(() => { b.textContent = original; renderPricing(); }, 1400);
     });
+  });
+  document.querySelectorAll('.bt-opt').forEach(b => {
+    b.addEventListener('click', () => applyBillingCycle(b.dataset.bill));
   });
 
   // Restore view from URL hash on load (deep-linking + reload safety)
