@@ -3,48 +3,90 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SaaS Spend Track — Manage every subscription in one place</title>
+<title>SaaS Spend Track</title>
 <meta name="description" content="Track your SaaS subscriptions, monitor monthly and annual spend, and never miss a renewal." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <a class="brand-link" href="#dashboard" title="Dashboard">
-      <svg class="logo-svg" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
-        <rect x="4"  y="18" width="4" height="10" rx="1.5" fill="#22c55e"/>
-        <rect x="11" y="12" width="4" height="16" rx="1.5" fill="#22c55e"/>
-        <rect x="18" y="6"  width="4" height="22" rx="1.5" fill="#22c55e"/>
-        <rect x="25" y="14" width="4" height="14" rx="1.5" fill="#22c55e" opacity="0.55"/>
-      </svg>
-    </a>
-    <div>
-      <h1>SaaSSpendTrack</h1>
-      <p class="tagline">Every subscription. One dashboard.</p>
+<div class="app">
+  <aside class="sidebar" aria-label="Primary">
+    <div class="brand">
+      <a class="brand-link" href="#dashboard" title="Dashboard">
+        <svg class="logo-svg" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+          <rect x="4"  y="18" width="4" height="10" rx="1.5" fill="#16a34a"/>
+          <rect x="11" y="12" width="4" height="16" rx="1.5" fill="#16a34a"/>
+          <rect x="18" y="6"  width="4" height="22" rx="1.5" fill="#16a34a"/>
+          <rect x="25" y="14" width="4" height="14" rx="1.5" fill="#16a34a" opacity="0.55"/>
+        </svg>
+      </a>
+      <div>
+        <h1>SaaS Spend Track</h1>
+        <p class="tagline">Every subscription. One dashboard.</p>
+      </div>
     </div>
-    <div class="urgency-strip" id="urgency-strip"></div>
-    <button type="button" class="plan-badge" id="plan-badge" title="Current plan — click to change">
-      <span class="plan-dot"></span><span id="plan-label">Free</span>
-    </button>
-  </div>
-  <nav class="tabs">
-    <button class="tab active" data-view="dashboard">Dashboard</button>
-    <button class="tab" data-view="subscriptions">Subscriptions</button>
-    <button class="tab" data-view="invoices">Invoices</button>
-    <button class="tab" data-view="consumption">Consumption</button>
-    <button class="tab" data-view="team">Team</button>
-    <button class="tab" data-view="alerts">Alerts</button>
-    <button class="tab" data-view="renewals">Renewals</button>
-    <button class="tab" data-view="contracts">Contracts</button>
-    <button class="tab" data-view="integrations">Integrations</button>
-    <button class="tab" data-view="insights">Insights</button>
-    <button class="tab" data-view="pricing">Pricing</button>
-  </nav>
-</header>
+    <div class="nav-group"><div class="nav-label">Overview</div>
+      <button class="tab active" data-view="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Dashboard</span><span class="nav-count" id="nav-count-dashboard" hidden></span></button>
+      <button class="tab" data-view="insights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-5 4 3 5-7"/></svg><span>Insights</span><span class="nav-count" id="nav-count-insights" hidden></span></button>
+    </div>
+    <div class="nav-group"><div class="nav-label">Spend</div>
+      <button class="tab" data-view="subscriptions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg><span>Subscriptions</span><span class="nav-count" id="nav-count-subscriptions" hidden></span></button>
+      <button class="tab" data-view="invoices"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg><span>Invoices</span><span class="nav-count" id="nav-count-invoices" hidden></span></button>
+      <button class="tab" data-view="consumption"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Licence usage</span><span class="nav-count" id="nav-count-consumption" hidden></span></button>
+    </div>
+    <div class="nav-group"><div class="nav-label">Contracts &amp; risk</div>
+      <button class="tab" data-view="contracts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 13l2 2 4-4"/></svg><span>Contract terms</span><span class="nav-count" id="nav-count-contracts" hidden></span></button>
+      <button class="tab" data-view="renewals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span>Renewals</span><span class="nav-count" id="nav-count-renewals" hidden></span></button>
+      <button class="tab" data-view="alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg><span>Alerts</span><span class="nav-count" id="nav-count-alerts" hidden></span></button>
+    </div>
+    <div class="nav-group"><div class="nav-label">People</div>
+      <button class="tab" data-view="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5a5 5 0 0 1 6 4.5"/></svg><span>Team directory</span><span class="nav-count" id="nav-count-team" hidden></span></button>
+    </div>
+    <div class="nav-group"><div class="nav-label">Workspace</div>
+      <button class="tab" data-view="integrations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v5"/></svg><span>Integrations</span><span class="nav-count" id="nav-count-integrations" hidden></span></button>
+      <button class="tab" data-view="pricing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 15.6 6.7 18.5l1.1-6L3.4 8.3l6-.8z"/></svg><span>Plans</span><span class="nav-count" id="nav-count-pricing" hidden></span></button>
+    </div>
+    <div class="sidebar-foot">
+      <button type="button" class="plan-badge free" id="plan-badge" title="Current plan. Click to change">
+        <span class="plan-left"><span class="plan-dot"></span><span><span id="plan-label">Free</span> plan</span></span>
+        <span class="plan-cta">Upgrade</span>
+      </button>
+      <p class="data-note">Data stays in this browser. Nothing is uploaded.</p>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="crumb">Acme Corp &nbsp;/&nbsp; <b id="page-crumb">Dashboard</b></span>
+        <div class="urgency-strip" id="urgency-strip"></div>
+      </div>
+      <div class="topbar-right">
+        <button type="button" class="icon-only" id="theme-toggle" title="Toggle light / dark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+        <span class="avatar-chip" title="Signed in">AC</span>
+      </div>
+    </header>
+    <nav class="mobile-nav" aria-label="Sections">
+      <button class="tab active" data-view="dashboard">Dashboard</button>
+      <button class="tab" data-view="subscriptions">Subscriptions</button>
+      <button class="tab" data-view="invoices">Invoices</button>
+      <button class="tab" data-view="consumption">Usage</button>
+      <button class="tab" data-view="contracts">Contracts</button>
+      <button class="tab" data-view="renewals">Renewals</button>
+      <button class="tab" data-view="alerts">Alerts</button>
+      <button class="tab" data-view="team">Team</button>
+      <button class="tab" data-view="insights">Insights</button>
+      <button class="tab" data-view="integrations">Integrations</button>
+      <button class="tab" data-view="pricing">Plans</button>
+    </nav>
 
 <main>
   <!-- Dashboard -->
   <section id="dashboard" class="view active">
+    <div class="section-head"><div><h2>Dashboard</h2><p class="page-sub">Spend, invoices and the renewals that need a decision.</p></div></div>
     <div class="stat-grid">
       <button type="button" class="stat-card" data-goto="subscriptions" data-active-only="1" title="View active subscriptions">
         <span class="stat-label">Monthly spend</span>
@@ -78,7 +120,7 @@
         <div id="team-chart" class="chart"></div>
       </div>
       <div class="panel span-2">
-        <h2>Vendor totals — every dollar, every invoice</h2>
+        <h2>Vendor totals</h2>
         <p class="panel-sub">Retire the spreadsheet: subscription run-rate plus paid + pending invoices per vendor. Useful context at renewal time.</p>
         <div class="vendor-table-wrap">
           <table class="vendor-table">
@@ -96,7 +138,7 @@
         </div>
       </div>
       <div class="panel span-2">
-        <h2>Notice windows — act-by dates</h2>
+        <h2>Notice windows</h2>
         <p class="panel-sub">Calculated from each vendor's own notice clause, not a 30-day guess.</p>
         <div id="notice-windows" class="notice-windows"></div>
       </div>
@@ -114,7 +156,7 @@
   <!-- Invoices -->
   <section id="invoices" class="view">
     <div class="section-head">
-      <h2>Invoices</h2>
+      <div><h2>Invoices</h2><p class="page-sub">Every bill logged against its vendor. Mark paid, chase pending, catch overdue.</p></div>
       <div class="controls">
         <select id="inv-filter-vendor"><option value="">All vendors</option></select>
         <select id="inv-filter-status">
@@ -143,7 +185,7 @@
   <!-- Subscriptions -->
   <section id="subscriptions" class="view">
     <div class="section-head">
-      <h2>Your subscriptions</h2>
+      <div><h2>Subscriptions</h2><p class="page-sub">All vendors, owners, billing cycles and next renewal dates in one register.</p></div>
       <div class="controls">
         <input id="search" type="search" placeholder="Search…" />
         <select id="filter-category">
@@ -180,7 +222,7 @@
 
   <!-- Consumption -->
   <section id="consumption" class="view">
-    <div class="section-head"><h2>Consumption</h2></div>
+    <div class="section-head"><div><h2>Licence usage</h2><p class="page-sub">Seats you pay for versus seats people actually use.</p></div></div>
     <p class="contract-lede">Total licenses, assigned, utilized, unused seats, and the dollar cost of what's sitting idle. Reclaim before renewal, not after.</p>
 
     <div class="stat-grid" style="margin-bottom:18px">
@@ -208,7 +250,7 @@
   <!-- Team -->
   <section id="team" class="view">
     <div class="section-head">
-      <h2>Team directory</h2>
+      <div><h2>Team directory</h2><p class="page-sub">Employees by department, with SaaS spend rolled up per head.</p></div>
       <div class="controls">
         <select id="team-filter-dept"><option value="">All departments</option></select>
         <label class="icon-btn" for="team-file" style="cursor:pointer">Upload CSV / TSV</label>
@@ -296,7 +338,7 @@
   <!-- Alerts -->
   <section id="alerts" class="view">
     <div class="section-head">
-      <h2>Renewal alerts</h2>
+      <div><h2>Alerts</h2><p class="page-sub">90 / 60 / 30-day renewal warnings with owner acknowledgement and manager escalation.</p></div>
       <div class="controls">
         <select id="alert-filter">
           <option value="">All statuses</option>
@@ -333,7 +375,7 @@
   <!-- Renewals -->
   <section id="renewals" class="view">
     <div class="section-head">
-      <h2>Renewals in the next 90 days</h2>
+      <div><h2>Renewals</h2><p class="page-sub">Everything renewing in the next 90 days, grouped by month.</p></div>
     </div>
     <div id="renewal-calendar" class="renewal-calendar"></div>
   </section>
@@ -341,7 +383,7 @@
   <!-- Contracts -->
   <section id="contracts" class="view">
     <div class="section-head">
-      <h2>Auto-renew clause extraction</h2>
+      <div><h2>Contract terms</h2><p class="page-sub">Pull renewal type, notice period, term length and price caps out of an MSA.</p></div>
       <div class="controls">
         <button id="sample-contract" class="icon-btn">Load sample contract</button>
         <label class="icon-btn" for="contract-file" style="cursor:pointer">Upload .pdf / .txt</label>
@@ -374,7 +416,7 @@
 
   <!-- Integrations -->
   <section id="integrations" class="view">
-    <div class="section-head"><h2>Integrations</h2></div>
+    <div class="section-head"><div><h2>Integrations</h2><p class="page-sub">Slack, Drive, SSO and ERP connections.</p></div></div>
     <p class="contract-lede">Point us at a Drive folder and contracts flow in. Alerts land in Slack where work happens. SSO and ERP sync unlock on Enterprise.</p>
 
     <div class="integ-grid">
@@ -465,7 +507,7 @@
 
   <!-- Pricing -->
   <section id="pricing" class="view">
-    <div class="section-head"><h2>Plans</h2></div>
+    <div class="section-head"><div><h2>Plans</h2><p class="page-sub">Pick the tier that matches your vendor stack.</p></div></div>
 
     <div class="billing-toggle" role="tablist" aria-label="Billing cycle">
       <button type="button" class="bt-opt" data-bill="monthly" role="tab" aria-selected="false">Monthly</button>
@@ -543,7 +585,7 @@
 
   <!-- Insights -->
   <section id="insights" class="view">
-    <div class="section-head"><h2>Insights</h2></div>
+    <div class="section-head"><div><h2>Insights</h2><p class="page-sub">Where the money goes and what to do about it.</p></div></div>
     <div class="panel-grid">
       <div class="panel">
         <h2>Most expensive</h2>
@@ -560,6 +602,19 @@
     </div>
   </section>
 </main>
+<footer>
+  <span>Data lives in your browser (localStorage). Nothing is uploaded.</span>
+  <span>
+    <button id="seed-btn" class="link">Load sample data</button> ·
+    <button id="export-btn" class="link">Export JSON</button> ·
+    <button id="csv-subs-btn" class="link">CSV: subscriptions</button> ·
+    <button id="csv-invs-btn" class="link">CSV: invoices</button> ·
+    <button id="import-btn" class="link">Import</button> ·
+    <button id="clear-btn" class="link danger">Clear all</button>
+  </span>
+</footer>
+  </div><!-- /main-area -->
+</div><!-- /app -->
 
 <!-- Modal -->
 <div class="modal-backdrop" id="modal" hidden>
@@ -641,17 +696,7 @@
   </div>
 </div>
 
-<footer>
-  <span>Data lives in your browser (localStorage). Nothing is uploaded.</span>
-  <span>
-    <button id="seed-btn" class="link">Load sample data</button> ·
-    <button id="export-btn" class="link">Export JSON</button> ·
-    <button id="csv-subs-btn" class="link">CSV: subscriptions</button> ·
-    <button id="csv-invs-btn" class="link">CSV: invoices</button> ·
-    <button id="import-btn" class="link">Import</button> ·
-    <button id="clear-btn" class="link danger">Clear all</button>
-  </span>
-</footer>
+
 <input type="file" id="import-file" accept="application/json" hidden />
 <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 

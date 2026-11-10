@@ -776,7 +776,16 @@ function renderInsights() {
   document.getElementById('recos').innerHTML = recos.map(r => `<li style="background:var(--panel-2);padding:12px 14px;border-radius:8px;font-size:13px;line-height:1.5">${r}</li>`).join('');
 }
 
+function renderNavCounts() {
+  const set = (view, n) => { const el = document.getElementById('nav-count-' + view); if (!el) return; el.textContent = n; el.hidden = !n; };
+  set('subscriptions', activeSubs().length);
+  set('invoices', state.invoices.filter(i => invoiceStatus(i) !== 'paid').length);
+  const alerts = computeAlerts();
+  set('alerts', alerts.filter(a => a.status === 'due' || a.status === 'sent' || a.status === 'escalated').length);
+  set('renewals', activeSubs().filter(s => { const d = daysUntil(nextRenewalISO(s)); return d !== null && d >= 0 && d <= 90; }).length);
+}
 function renderAll() {
+  renderNavCounts();
   renderUrgencyStrip();
   renderDashboard();
   renderNoticeWindows();
@@ -1522,20 +1531,9 @@ function renderTeam() {
 }
 
 function seedTeam() {
-  state.employees = [
-    { id: crypto.randomUUID(), employeeId: 'E-001', email: 'priya@company.com',  name: 'Priya Rao',    title: 'Marketing Lead',      department: 'Marketing' },
-    { id: crypto.randomUUID(), employeeId: 'E-002', email: 'alex@company.com',   name: 'Alex Kim',     title: 'Head of Ops',         department: 'Ops' },
-    { id: crypto.randomUUID(), employeeId: 'E-003', email: 'sam@company.com',    name: 'Sam Patel',    title: 'People Partner',      department: 'Ops' },
-    { id: crypto.randomUUID(), employeeId: 'E-004', email: 'jordan@company.com', name: 'Jordan Lee',   title: 'AE',                   department: 'Sales' },
-    { id: crypto.randomUUID(), employeeId: 'E-005', email: 'rina@company.com',   name: 'Rina Shah',    title: 'Senior Engineer',      department: 'Engineering' },
-    { id: crypto.randomUUID(), employeeId: 'E-006', email: 'mike@company.com',   name: 'Mike Chen',    title: 'Engineer',             department: 'Engineering' },
-    { id: crypto.randomUUID(), employeeId: 'E-007', email: 'ana@company.com',    name: 'Ana Diaz',     title: 'Product Designer',     department: 'Design' },
-    { id: crypto.randomUUID(), employeeId: 'E-008', email: 'lisa@company.com',   name: 'Lisa Wong',    title: 'Growth Marketer',      department: 'Marketing' },
-    { id: crypto.randomUUID(), employeeId: 'E-009', email: 'omar@company.com',   name: 'Omar Nasri',   title: 'SDR',                  department: 'Sales' },
-    { id: crypto.randomUUID(), employeeId: 'E-010', email: 'eva@company.com',    name: 'Eva Silva',    title: 'Engineering Manager', department: 'Engineering' },
-  ];
+  state.employees = SAMPLE_EMPLOYEES.map(e => ({ id: crypto.randomUUID(), employeeId: e[0], email: e[1], name: e[2], title: e[3], department: e[4] }));
   save(); renderAll();
-  toast('Loaded 10 sample employees.', 'success');
+  toast(`Loaded ${state.employees.length} sample employees.`, 'success');
 }
 
 // -------- integrations: SSO / ERP request stub --------
@@ -1854,47 +1852,136 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function seed() {
-  if (state.subscriptions.length && !confirm('Replace current data with sample subscriptions?')) return;
-  const today = new Date();
-  const future = (days) => { const d = new Date(today); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); };
-  state.subscriptions = [
-    { id: crypto.randomUUID(), name: 'Figma',        cost: 15,    cycle: 'monthly', category: 'Design',        team: 'Design',      renewal: future(4),  notes: 'Professional plan', active: true,
-      licenses: 12, assigned: 10, utilized: 9 },
-    { id: crypto.randomUUID(), name: 'Notion',       cost: 96,    cycle: 'yearly',  category: 'Productivity',  team: 'Ops',         renewal: future(45), notes: 'Team plan', active: true },
-    { id: crypto.randomUUID(), name: 'GitHub',       cost: 4,     cycle: 'monthly', category: 'Development',   team: 'Engineering', renewal: future(12), notes: 'Pro', active: true },
-    { id: crypto.randomUUID(), name: 'Vercel',       cost: 20,    cycle: 'monthly', category: 'Development',   team: 'Engineering', renewal: future(18), notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'ChatGPT Plus', cost: 20,    cycle: 'monthly', category: 'AI / LLM',      team: 'Engineering', renewal: future(6),  notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'Claude Pro',   cost: 20,    cycle: 'monthly', category: 'AI / LLM',      team: 'Engineering', renewal: future(22), notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'Slack',        cost: 87.5,  cycle: 'monthly', category: 'Communication', team: 'Ops',         renewal: future(9),  notes: '', active: true,
-      licenses: 25, assigned: 22, utilized: 14 },
-    { id: crypto.randomUUID(), name: 'Google Workspace', cost: 72, cycle: 'yearly', category: 'Productivity',  team: 'Ops',         renewal: future(120),notes: 'Business Starter', active: true,
-      owner:   { name: 'Sam Patel',  email: 'sam@company.com' },
-      manager: { name: 'Alex Kim',   email: 'alex@company.com' } },
-    { id: crypto.randomUUID(), name: 'HubSpot',      cost: 800,   cycle: 'monthly', category: 'Marketing',     team: 'Marketing',   renewal: future(28), notes: 'Marketing Hub Pro', active: true,
-      owner:   { name: 'Priya Rao', email: 'priya@company.com' },
-      manager: { name: 'Alex Kim',  email: 'alex@company.com' },
-      licenses: 5, assigned: 5, utilized: 3 },
-    { id: crypto.randomUUID(), name: 'Zoom',         cost: 149.9, cycle: 'yearly',  category: 'Communication', team: 'Sales',       renewal: future(65), notes: 'Pro annual', active: true,
-      owner:   { name: 'Jordan Lee', email: 'jordan@company.com' },
-      manager: { name: 'Alex Kim',   email: 'alex@company.com' } },
-    { id: crypto.randomUUID(), name: 'Dropbox',      cost: 12,    cycle: 'monthly', category: 'Storage',       team: 'Ops',         renewal: future(2),  notes: '', active: true },
-    { id: crypto.randomUUID(), name: 'Netflix',      cost: 15.49, cycle: 'monthly', category: 'Entertainment', team: 'People',      renewal: future(14), notes: 'Standard', active: false },
-  ];
-  // Sample invoices — a couple paid, a couple pending, one overdue
-  const past = (days) => future(-days);
-  const byName = (n) => state.subscriptions.find(s => s.name === n).id;
-  state.invoices = [
-    { id: crypto.randomUUID(), subId: byName('HubSpot'),      amount: 800,   invoiceNumber: 'HS-24089', issueDate: past(35), dueDate: past(5), paidDate: past(3), notes: '' },
-    { id: crypto.randomUUID(), subId: byName('Slack'),        amount: 87.5,  invoiceNumber: 'SLK-1088', issueDate: past(20), dueDate: past(1), paidDate: past(1), notes: '' },
-    { id: crypto.randomUUID(), subId: byName('Zoom'),         amount: 149.9, invoiceNumber: 'ZM-77712', issueDate: past(300),dueDate: past(285), paidDate: past(283), notes: 'Annual' },
-    { id: crypto.randomUUID(), subId: byName('HubSpot'),      amount: 800,   invoiceNumber: 'HS-24101', issueDate: past(5),  dueDate: future(10), paidDate: null, notes: '' },
-    { id: crypto.randomUUID(), subId: byName('Vercel'),       amount: 20,    invoiceNumber: 'VC-8842',  issueDate: past(3),  dueDate: future(12), paidDate: null, notes: '' },
-    { id: crypto.randomUUID(), subId: byName('Figma'),        amount: 45,    invoiceNumber: 'FIG-2214', issueDate: past(15), dueDate: past(2),  paidDate: null, notes: '3 seats' },
-    { id: crypto.randomUUID(), subId: byName('Google Workspace'), amount: 72,invoiceNumber: 'GW-2026',  issueDate: past(400),dueDate: past(380),paidDate: past(378), notes: '' },
-  ];
+// -------- sample data: a 150-person B2B SaaS company, 25 vendors --------
+const SAMPLE_EMPLOYEES = [
+  ['E-001','priya.rao@acme.com','Priya Rao','VP Marketing','Marketing'],
+  ['E-002','alex.kim@acme.com','Alex Kim','Head of Operations','Ops'],
+  ['E-003','sam.patel@acme.com','Sam Patel','People Partner','People'],
+  ['E-004','jordan.lee@acme.com','Jordan Lee','Director of Sales','Sales'],
+  ['E-005','rina.shah@acme.com','Rina Shah','Staff Engineer','Engineering'],
+  ['E-006','mike.chen@acme.com','Mike Chen','DevOps Lead','Engineering'],
+  ['E-007','ana.diaz@acme.com','Ana Diaz','Head of Design','Design'],
+  ['E-008','lisa.wong@acme.com','Lisa Wong','Growth Marketing Manager','Marketing'],
+  ['E-009','omar.nasri@acme.com','Omar Nasri','Sales Development Manager','Sales'],
+  ['E-010','eva.silva@acme.com','Eva Silva','VP Engineering','Engineering'],
+  ['E-011','dev.menon@acme.com','Dev Menon','Finance Controller','Finance'],
+  ['E-012','tara.oconnell@acme.com','Tara O\'Connell','Head of Customer Success','Customer Success'],
+  ['E-013','ravi.iyer@acme.com','Ravi Iyer','IT Administrator','IT'],
+  ['E-014','nina.park@acme.com','Nina Park','Security Engineer','Engineering'],
+  ['E-015','leo.brandt@acme.com','Leo Brandt','Data Lead','Engineering'],
+  ['E-016','maya.fernandes@acme.com','Maya Fernandes','Legal Counsel','Finance'],
+];
+const EMP = Object.fromEntries(SAMPLE_EMPLOYEES.map(e => [e[0], { name: e[2], email: e[1] }]));
+
+// [name, cost, cycle, category, team, renewalOffsetDays, ownerId, managerId, licenses, assigned, utilized, contract{renewalType, noticeDays, termLength, priceCapPct}, notes, url, active]
+const SAMPLE_VENDORS = [
+  ['Salesforce Sales Cloud', 54000, 'yearly', 'CRM', 'Sales', 98, 'E-004','E-002', 45, 43, 31, ['Auto-renew', 60, '12 months', 7], 'Enterprise edition, 45 seats. Price uplift capped at 7% per MSA s.4.2.', 'https://salesforce.com', true],
+  ['HubSpot Marketing Hub', 3200, 'monthly', 'Marketing', 'Marketing', 44, 'E-001','E-002', 10, 10, 6, ['Auto-renew', 30, '12 months', 5], 'Professional tier. Contacts tier 50k.', 'https://hubspot.com', true],
+  ['Slack', 2437.5, 'monthly', 'Communication', 'Ops', 47, 'E-002','E-011', 195, 188, 174, ['Auto-renew', 30, '12 months', null], 'Business+ plan. True-up quarterly.', 'https://slack.com', true],
+  ['Google Workspace', 2880, 'monthly', 'Productivity', 'IT', 74, 'E-013','E-002', 200, 196, 196, ['Auto-renew', 30, '12 months', null], 'Business Standard, annual commit billed monthly.', 'https://workspace.google.com', true],
+  ['Microsoft 365', 1875, 'monthly', 'Productivity', 'IT', 143, 'E-013','E-002', 75, 60, 38, ['Auto-renew', 30, '12 months', null], 'E3 licences for finance and sales ops. Overlaps with Google Workspace.', 'https://microsoft.com', true],
+  ['Zoom', 5988, 'yearly', 'Communication', 'Sales', 64, 'E-004','E-002', 60, 58, 41, ['Auto-renew', 60, '12 months', 10], 'Business plan with webinar add-on.', 'https://zoom.us', true],
+  ['Notion', 1200, 'monthly', 'Productivity', 'Ops', 92, 'E-002','E-011', 150, 150, 121, ['Auto-renew', 30, '12 months', null], 'Plus plan, company wiki.', 'https://notion.so', true],
+  ['Figma', 2700, 'monthly', 'Design', 'Design', 27, 'E-007','E-010', 36, 36, 22, ['Auto-renew', 30, '12 months', null], 'Organization plan. 14 editor seats unused since the Q3 reorg.', 'https://figma.com', true],
+  ['GitHub Enterprise', 2310, 'monthly', 'Development', 'Engineering', 88, 'E-010','E-002', 110, 105, 98, ['Auto-renew', 60, '12 months', 5], 'Enterprise Cloud with Advanced Security.', 'https://github.com', true],
+  ['Atlassian Jira + Confluence', 1890, 'monthly', 'Development', 'Engineering', 131, 'E-010','E-002', 135, 130, 112, ['Auto-renew', 30, '12 months', 5], 'Cloud Premium.', 'https://atlassian.com', true],
+  ['AWS', 18400, 'monthly', 'Infrastructure', 'Engineering', 201, 'E-006','E-010', null, null, null, ['Evergreen', 0, 'Month to month', null], 'Pay as you go plus 1-year savings plan on EC2 and RDS.', 'https://aws.amazon.com', true],
+  ['Datadog', 7200, 'monthly', 'Observability', 'Engineering', 101, 'E-006','E-010', 120, 96, 71, ['Auto-renew', 90, '12 months', 8], 'Infra + APM + logs. Committed 120 hosts; running 96.', 'https://datadoghq.com', true],
+  ['Snowflake', 32000, 'quarterly', 'Data', 'Engineering', 128, 'E-015','E-010', null, null, null, ['Auto-renew', 90, '24 months', 0], 'Capacity contract, 2-year term. Overage billed at list.', 'https://snowflake.com', true],
+  ['Okta', 1620, 'monthly', 'Security', 'IT', 66, 'E-013','E-002', 180, 176, 176, ['Auto-renew', 60, '12 months', 7], 'Workforce Identity, SSO + MFA.', 'https://okta.com', true],
+  ['1Password', 1536, 'yearly', 'Security', 'IT', 212, 'E-013','E-002', 160, 152, 139, ['Auto-renew', 30, '12 months', null], 'Business plan.', 'https://1password.com', true],
+  ['Zendesk', 4400, 'monthly', 'Support', 'Customer Success', 55, 'E-012','E-002', 40, 38, 29, ['Auto-renew', 60, '12 months', 6], 'Suite Professional. Seats added for the summer intern cohort never removed.', 'https://zendesk.com', true],
+  ['Intercom', 2950, 'monthly', 'Support', 'Customer Success', 118, 'E-012','E-002', 25, 22, 19, ['Auto-renew', 30, '12 months', null], 'Overlaps with Zendesk on live chat.', 'https://intercom.com', true],
+  ['Gong', 38400, 'yearly', 'Sales Intelligence', 'Sales', 112, 'E-004','E-002', 30, 30, 24, ['Auto-renew', 90, '12 months', 10], 'Revenue intelligence. 90-day notice, renewal uplift capped at 10%.', 'https://gong.io', true],
+  ['Apollo.io', 1188, 'monthly', 'Sales Intelligence', 'Sales', 84, 'E-009','E-004', 12, 12, 11, ['Auto-renew', 30, '12 months', null], 'Professional, 12 seats, export credits included.', 'https://apollo.io', true],
+  ['LinkedIn Sales Navigator', 1799.4, 'monthly', 'Sales Intelligence', 'Sales', 36, 'E-009','E-004', 18, 18, 9, ['Auto-renew', 30, '12 months', null], 'Advanced. Half the SDR seats inactive 30+ days.', 'https://linkedin.com', true],
+  ['DocuSign', 4800, 'yearly', 'Legal', 'Finance', 163, 'E-016','E-011', 15, 15, 12, ['Auto-renew', 60, '12 months', 5], 'Business Pro. Envelope cap 1,000/yr.', 'https://docusign.com', true],
+  ['Rippling', 3000, 'monthly', 'HR', 'People', 155, 'E-003','E-002', 200, 200, 200, ['Auto-renew', 60, '12 months', 5], 'HRIS + payroll + device management.', 'https://rippling.com', true],
+  ['Greenhouse', 14000, 'yearly', 'HR', 'People', 71, 'E-003','E-002', 20, 18, 7, ['Auto-renew', 60, '12 months', 8], 'Recruiting ATS. Hiring freeze since September; usage down sharply.', 'https://greenhouse.io', true],
+  ['Segment', 1200, 'monthly', 'Analytics', 'Marketing', 97, 'E-008','E-001', null, null, null, ['Auto-renew', 30, '12 months', null], 'Team plan, 10k MTU. Consider consolidating into Snowflake pipelines.', 'https://segment.com', true],
+  ['Anthropic Claude for Work', 1500, 'monthly', 'AI / LLM', 'Engineering', 81, 'E-005','E-010', 50, 50, 47, ['Auto-renew', 30, '12 months', null], 'Team plan for engineering and product.', 'https://claude.ai', true],
+  ['Adobe Creative Cloud', 1079.4, 'monthly', 'Design', 'Marketing', 229, 'E-008','E-001', 12, 12, 5, ['Auto-renew', 30, '12 months', null], 'All Apps. Marketing uses Figma for most work now.', 'https://adobe.com', true],
+  ['Vercel', 450, 'monthly', 'Development', 'Engineering', 12, 'E-005','E-010', 15, 14, 14, ['Evergreen', 0, 'Month to month', null], 'Pro team for marketing site and docs.', 'https://vercel.com', true],
+  ['Loom', 150, 'monthly', 'Communication', 'Customer Success', 33, 'E-012','E-002', 12, 12, 3, ['Auto-renew', 30, '12 months', null], 'Paused: team moved to Zoom clips. Cancel before renewal.', 'https://loom.com', false],
+];
+
+function buildSampleState() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const shift = (days) => { const d = new Date(today); d.setDate(d.getDate() + days); return iso(d); };
+  const subs = SAMPLE_VENDORS.map(v => {
+    const [name, cost, cycle, category, team, off, ownerId, mgrId, lic, asg, util, c, notes, url, active] = v;
+    const sub = {
+      id: crypto.randomUUID(), name, cost, cycle, category, team, renewal: shift(off), notes, url, active,
+      owner: EMP[ownerId], manager: EMP[mgrId],
+    };
+    if (lic) { sub.licenses = lic; sub.assigned = asg; sub.utilized = util; }
+    if (c) sub.contract = { renewalType: c[0], autoRenew: c[0] === 'Auto-renew', noticeDays: c[1] || null, termLength: c[2], priceCapPct: c[3] };
+    return sub;
+  });
+  const byName = (n) => subs.find(s => s.name === n).id;
+  const prefix = (n) => n.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
+  const invoices = [];
+  let seq = 4100;
+  const inv = (vendor, amount, issuedAgo, dueInDays, paidAgo, notes = '') => {
+    invoices.push({ id: crypto.randomUUID(), subId: byName(vendor), amount,
+      invoiceNumber: `${prefix(vendor)}-${seq++}`, issueDate: shift(-issuedAgo), dueDate: shift(-issuedAgo + dueInDays),
+      paidDate: paidAgo === null ? null : shift(-paidAgo), notes });
+  };
+  // Monthly vendors: last 3 months paid, current month pending
+  const monthly = ['Slack','Google Workspace','HubSpot Marketing Hub','Datadog','AWS','Zendesk','Notion','GitHub Enterprise','Okta','Figma','Rippling','Intercom','Atlassian Jira + Confluence','Microsoft 365','Apollo.io','LinkedIn Sales Navigator','Anthropic Claude for Work','Segment'];
+  monthly.forEach((v, i) => {
+    const cost = subs.find(s => s.name === v).cost;
+    inv(v, cost, 95 + (i % 5), 30, 62 + (i % 4));
+    inv(v, cost, 64 + (i % 5), 30, 33 + (i % 4));
+    inv(v, cost, 34 + (i % 5), 30, 4 + (i % 3));
+  });
+  // Current cycle: pending and a few overdue
+  inv('AWS', 18940.22, 6, 30, null, 'Usage ran over savings plan');
+  inv('Slack', 2437.5, 4, 30, null);
+  inv('Datadog', 7612, 8, 30, null, 'Overage on log ingestion');
+  inv('HubSpot Marketing Hub', 3200, 3, 30, null);
+  inv('Zendesk', 4400, 12, 30, null);
+  inv('Google Workspace', 2880, 2, 30, null);
+  inv('Figma', 2700, 41, 30, null, 'Disputed: seat count');
+  inv('Microsoft 365', 1875, 38, 30, null, 'Routed to wrong AP inbox');
+  inv('Intercom', 2950, 46, 30, null);
+  // Annual / quarterly vendors
+  inv('Salesforce Sales Cloud', 54000, 327, 45, 290, 'FY annual');
+  inv('Gong', 38400, 338, 30, 320, 'Annual');
+  inv('Snowflake', 32000, 92, 30, 70, 'Q3 capacity');
+  inv('Snowflake', 32000, 2, 30, null, 'Q4 capacity');
+  inv('Zoom', 5988, 301, 30, 282, 'Annual');
+  inv('Greenhouse', 14000, 324, 30, 300, 'Annual');
+  inv('DocuSign', 4800, 202, 30, 190, 'Annual');
+  inv('1Password', 1536, 153, 30, 140, 'Annual');
+  inv('Adobe Creative Cloud', 1079.4, 20, 30, 5);
+  inv('Vercel', 450, 15, 30, 2);
+  inv('Loom', 150, 50, 30, 30, 'Final month before pause');
+  const employees = SAMPLE_EMPLOYEES.map(e => ({ id: crypto.randomUUID(), employeeId: e[0], email: e[1], name: e[2], title: e[3], department: e[4] }));
+  return { subs, invoices, employees };
+}
+
+function seed(opts = {}) {
+  if (!opts.silent && state.subscriptions.length && !confirm('Replace current data with the sample company (25 vendors, invoices, team)?')) return;
+  const { subs, invoices, employees } = buildSampleState();
+  state.subscriptions = subs;
+  state.invoices = invoices;
+  state.employees = employees;
+  state.alertLog = {};
+  state.settings.autoSentAlerts = {};
+  state.settings.seededOnce = true;
+  // Acknowledge most already-fired alerts so the queue reflects a team that mostly keeps up.
+  const liveVendors = new Set(['Zendesk', 'Figma', 'Greenhouse', 'LinkedIn Sales Navigator', 'Datadog']);
+  computeAlerts().forEach(a => {
+    if (a.status === 'scheduled') return;
+    if (liveVendors.has(a.sub.name) && a.trigger <= 60) return; // leave these for the owner / escalation
+    const ackOn = new Date(a.fireOn); ackOn.setDate(ackOn.getDate() + 1);
+    state.alertLog[a.key] = { sentAt: a.fireOn.toISOString().slice(0, 10), ackAt: ackOn.toISOString().slice(0, 10), ackBy: a.sub.owner?.name || 'owner' };
+  });
   save();
   renderAll();
+  if (!opts.silent) toast('Loaded sample company: 25 vendors, 71 invoices, 16 employees.', 'success');
 }
 
 function csvEscape(v) {
@@ -1978,11 +2065,14 @@ function clearAll() {
 }
 
 // -------- wiring --------
+const PAGE_TITLES = { dashboard: 'Dashboard', subscriptions: 'Subscriptions', invoices: 'Invoices', consumption: 'Licence usage', team: 'Team directory', alerts: 'Alerts', renewals: 'Renewals', contracts: 'Contract terms', integrations: 'Integrations', insights: 'Insights', pricing: 'Plans' };
 const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'consumption', 'team', 'alerts', 'renewals', 'contracts', 'integrations', 'insights', 'pricing'];
 function switchView(name, opts = {}) {
   if (!VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === name));
+  const crumb = document.getElementById('page-crumb');
+  if (crumb) crumb.textContent = PAGE_TITLES[name] || name;
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
   if (!opts.replaceHistory) {
     const target = '#' + name;
@@ -1994,8 +2084,16 @@ function viewFromHash() {
   return VIEWS.includes(raw) ? raw : 'dashboard';
 }
 
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('saasspendtrack.theme', t); } catch (_) {}
+}
 document.addEventListener('DOMContentLoaded', () => {
   load();
+  try { applyTheme(localStorage.getItem('saasspendtrack.theme') || 'light'); } catch (_) { applyTheme('light'); }
+  const tt = document.getElementById('theme-toggle');
+  if (tt) tt.addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+  if (!state.subscriptions.length && !state.settings.seededOnce) seed({ silent: true });
   renderPlanBadge();
   renderPricing();
   renderAll();
