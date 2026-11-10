@@ -1,247 +1,686 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Overcharge Finder — SaaSSpendTrack</title>
-<meta name="description" content="Check what your software vendors charged against what your contracts allow. Runs entirely in your browser — nothing is uploaded.">
-<meta name="robots" content="noindex">
-<link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SaaS Spend Track — Manage every subscription in one place</title>
+<meta name="description" content="Track your SaaS subscriptions, monitor monthly and annual spend, and never miss a renewal." />
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-
 <header class="topbar">
-  <div class="topbar-in">
-    <a href="https://saasspendtrack.com/" class="brand" aria-label="SaaSSpendTrack">
-      <svg width="24" height="24" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-        <rect width="26" height="26" rx="7" fill="#0C1422" stroke="#1A2740"/>
-        <rect x="6" y="14" width="3.2" height="6" rx="1" fill="#22C55E"/>
-        <rect x="11.4" y="10" width="3.2" height="10" rx="1" fill="#22C55E"/>
-        <rect x="16.8" y="6" width="3.2" height="14" rx="1" fill="#22C55E"/>
+  <div class="brand">
+    <a class="brand-link" href="#dashboard" title="Dashboard">
+      <svg class="logo-svg" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+        <rect x="4"  y="18" width="4" height="10" rx="1.5" fill="#22c55e"/>
+        <rect x="11" y="12" width="4" height="16" rx="1.5" fill="#22c55e"/>
+        <rect x="18" y="6"  width="4" height="22" rx="1.5" fill="#22c55e"/>
+        <rect x="25" y="14" width="4" height="14" rx="1.5" fill="#22c55e" opacity="0.55"/>
       </svg>
-      <span>SaaSSpendTrack</span>
     </a>
-
-    <nav class="tabs" role="tablist">
-      <button class="tab is-active" role="tab" data-view="vendors">Vendors</button>
-      <button class="tab" role="tab" data-view="findings">Findings <span class="pip" id="pipFindings" hidden>0</span></button>
-      <button class="tab" role="tab" data-view="renewals">Renewals <span class="pip warn" id="pipRenewals" hidden>0</span></button>
-      <button class="tab" role="tab" data-view="data">Data</button>
-    </nav>
-
-    <div class="topbar-right">
-      <span class="local-badge" title="Everything is stored in this browser only">
-        <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
-          <path d="M2 5.5V3.5a3.5 3.5 0 017 0v2" stroke="#22C55E" stroke-width="1.3"/>
-          <rect x="1" y="5.5" width="9" height="6.5" rx="1.5" stroke="#22C55E" stroke-width="1.3"/>
-        </svg>
-        Local only
-      </span>
-      <button class="btn btn-primary btn-sm" id="btnAdd">Add vendor</button>
+    <div>
+      <h1>SaaSSpendTrack</h1>
+      <p class="tagline">Every subscription. One dashboard.</p>
     </div>
+    <div class="urgency-strip" id="urgency-strip"></div>
+    <button type="button" class="plan-badge" id="plan-badge" title="Current plan — click to change">
+      <span class="plan-dot"></span><span id="plan-label">Free</span>
+    </button>
   </div>
+  <nav class="tabs">
+    <button class="tab active" data-view="dashboard">Dashboard</button>
+    <button class="tab" data-view="subscriptions">Subscriptions</button>
+    <button class="tab" data-view="invoices">Invoices</button>
+    <button class="tab" data-view="consumption">Consumption</button>
+    <button class="tab" data-view="team">Team</button>
+    <button class="tab" data-view="alerts">Alerts</button>
+    <button class="tab" data-view="renewals">Renewals</button>
+    <button class="tab" data-view="contracts">Contracts</button>
+    <button class="tab" data-view="integrations">Integrations</button>
+    <button class="tab" data-view="insights">Insights</button>
+    <button class="tab" data-view="pricing">Pricing</button>
+  </nav>
 </header>
 
-<div class="banner" id="sampleBanner" hidden>
-  <div class="banner-in">
-    <span>You're looking at sample data so the checks have something to run on.</span>
-    <button class="linkbtn" id="btnClearSample">Clear it and start with my vendors</button>
+<main>
+  <!-- Dashboard -->
+  <section id="dashboard" class="view active">
+    <div class="stat-grid">
+      <button type="button" class="stat-card" data-goto="subscriptions" data-active-only="1" title="View active subscriptions">
+        <span class="stat-label">Monthly spend</span>
+        <span class="stat-value" id="stat-monthly">$0</span>
+        <span class="stat-sub" id="stat-monthly-sub">across 0 subscriptions</span>
+      </button>
+      <button type="button" class="stat-card" data-goto="subscriptions" data-active-only="1" title="View active subscriptions">
+        <span class="stat-label">Annualized spend</span>
+        <span class="stat-value" id="stat-annual">$0</span>
+        <span class="stat-sub">projected yearly total</span>
+      </button>
+      <button type="button" class="stat-card" data-goto="invoices" data-inv-status="paid" title="View paid invoices">
+        <span class="stat-label">Invoices paid (YTD)</span>
+        <span class="stat-value" id="stat-paid">$0</span>
+        <span class="stat-sub" id="stat-paid-sub">0 invoices</span>
+      </button>
+      <button type="button" class="stat-card" data-goto="invoices" data-inv-status="pending" title="View pending & overdue invoices">
+        <span class="stat-label">Invoices pending</span>
+        <span class="stat-value" id="stat-pending">$0</span>
+        <span class="stat-sub" id="stat-pending-sub">0 pending · 0 overdue</span>
+      </button>
+    </div>
+
+    <div class="panel-grid">
+      <div class="panel">
+        <h2>Spend by category</h2>
+        <div id="category-chart" class="chart"></div>
+      </div>
+      <div class="panel">
+        <h2>Spend by team</h2>
+        <div id="team-chart" class="chart"></div>
+      </div>
+      <div class="panel span-2">
+        <h2>Vendor totals — every dollar, every invoice</h2>
+        <p class="panel-sub">Retire the spreadsheet: subscription run-rate plus paid + pending invoices per vendor. Useful context at renewal time.</p>
+        <div class="vendor-table-wrap">
+          <table class="vendor-table">
+            <thead><tr>
+              <th>Vendor</th><th>Team</th>
+              <th class="num">Monthly</th><th class="num">Annual</th>
+              <th class="num">Seats used</th><th class="num">Unused $/mo</th>
+              <th class="num">Invoices</th><th class="num">Paid</th>
+              <th class="num">Pending</th><th class="num">Total to date</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="vendor-tbody"></tbody>
+          </table>
+          <p id="vendor-empty" class="empty" style="display:none;padding:24px">No vendors yet.</p>
+        </div>
+      </div>
+      <div class="panel span-2">
+        <h2>Notice windows — act-by dates</h2>
+        <p class="panel-sub">Calculated from each vendor's own notice clause, not a 30-day guess.</p>
+        <div id="notice-windows" class="notice-windows"></div>
+      </div>
+      <div class="panel">
+        <h2>Upcoming renewals</h2>
+        <ul id="upcoming-list" class="upcoming-list"></ul>
+      </div>
+      <div class="panel">
+        <h2>Invoices due soon</h2>
+        <ul id="due-list" class="upcoming-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Invoices -->
+  <section id="invoices" class="view">
+    <div class="section-head">
+      <h2>Invoices</h2>
+      <div class="controls">
+        <select id="inv-filter-vendor"><option value="">All vendors</option></select>
+        <select id="inv-filter-status">
+          <option value="">All statuses</option>
+          <option value="paid">Paid</option>
+          <option value="pending">Pending</option>
+          <option value="overdue">Overdue</option>
+        </select>
+        <button id="add-inv-btn" class="primary">+ Add invoice</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th>Vendor</th><th>Team</th><th>Invoice #</th><th>Amount</th>
+            <th>Issued</th><th>Due</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="inv-tbody"></tbody>
+      </table>
+      <p id="inv-empty" class="empty">No invoices yet. Click <b>+ Add invoice</b> to log one.</p>
+    </div>
+  </section>
+
+  <!-- Subscriptions -->
+  <section id="subscriptions" class="view">
+    <div class="section-head">
+      <h2>Your subscriptions</h2>
+      <div class="controls">
+        <input id="search" type="search" placeholder="Search…" />
+        <select id="filter-category">
+          <option value="">All categories</option>
+        </select>
+        <select id="filter-status">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+        </select>
+        <button class="primary" id="add-btn">+ Add subscription</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th data-sort="name">Name</th>
+            <th data-sort="team">Team</th>
+            <th data-sort="category">Category</th>
+            <th data-sort="cost" class="num">Cost</th>
+            <th>Cycle</th>
+            <th data-sort="monthly" class="num">Monthly</th>
+            <th data-sort="renewal">Next renewal</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="sub-tbody"></tbody>
+      </table>
+      <p id="empty-state" class="empty">No subscriptions yet. Click <b>+ Add subscription</b> to get started.</p>
+    </div>
+  </section>
+
+  <!-- Consumption -->
+  <section id="consumption" class="view">
+    <div class="section-head"><h2>Consumption</h2></div>
+    <p class="contract-lede">Total licenses, assigned, utilized, unused seats, and the dollar cost of what's sitting idle. Reclaim before renewal, not after.</p>
+
+    <div class="stat-grid" style="margin-bottom:18px">
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Vendors tracked</span><span class="stat-value" id="cons-vendors">0</span><span class="stat-sub" id="cons-vendors-sub">of 0 subscriptions</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Seats assigned / total</span><span class="stat-value" id="cons-assigned">0 / 0</span><span class="stat-sub" id="cons-assigned-sub">across licensed vendors</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Utilization</span><span class="stat-value" id="cons-util">—</span><span class="stat-sub">weighted by license cost</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Wasted spend</span><span class="stat-value" id="cons-wasted">$0</span><span class="stat-sub" id="cons-wasted-sub">on unused seats</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="sub-table cons-table">
+        <thead><tr>
+          <th>Vendor</th><th>Team</th>
+          <th class="num">Total</th><th class="num">Assigned</th><th class="num">Utilized</th>
+          <th class="num">Unused seats</th><th>Utilization</th>
+          <th class="num">Unused $/mo</th><th class="num">Unused $/yr</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="cons-tbody"></tbody>
+      </table>
+      <p id="cons-empty" class="empty">No consumption data yet. Open a subscription → <b>Edit</b> and fill in Total / Assigned / Utilized seats.</p>
+    </div>
+  </section>
+
+  <!-- Team -->
+  <section id="team" class="view">
+    <div class="section-head">
+      <h2>Team directory</h2>
+      <div class="controls">
+        <select id="team-filter-dept"><option value="">All departments</option></select>
+        <label class="icon-btn" for="team-file" style="cursor:pointer">Upload CSV / TSV</label>
+        <input type="file" id="team-file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" hidden />
+        <button id="team-sample" class="icon-btn">Load sample</button>
+      </div>
+    </div>
+    <p class="contract-lede">Bring in your directory from an <b>Excel / Google Sheet</b> export or an HRMS. We map <code>Employee ID</code>, <code>Email</code>, <code>Title</code>, and <code>Department</code>, then roll up SaaS spend by team so you can see cost-per-head per tool.</p>
+
+    <div class="stat-grid" style="margin-bottom:18px">
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Employees</span><span class="stat-value" id="team-stat-count">0</span><span class="stat-sub" id="team-stat-count-sub">upload to populate</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Departments</span><span class="stat-value" id="team-stat-depts">0</span><span class="stat-sub">unique teams</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Spend / employee</span><span class="stat-value" id="team-stat-per">—</span><span class="stat-sub">monthly, weighted</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Uncovered dept spend</span><span class="stat-value" id="team-stat-orphan">$0</span><span class="stat-sub" id="team-stat-orphan-sub">tools whose team isn't in the directory</span></div>
+    </div>
+
+    <div class="panel-grid" style="margin-top:0">
+      <div class="panel span-2">
+        <h2>Department spend roll-up</h2>
+        <p class="panel-sub">Each department's total employees, tools they own, monthly spend, and dollars per head.</p>
+        <div class="table-wrap" style="overflow-x:auto">
+          <table class="vendor-table" id="team-rollup-table">
+            <thead><tr>
+              <th>Department</th>
+              <th class="num">Employees</th>
+              <th class="num">Tools</th>
+              <th class="num">Monthly spend</th>
+              <th class="num">$ / employee</th>
+              <th>Top tool</th>
+            </tr></thead>
+            <tbody id="team-rollup-tbody"></tbody>
+          </table>
+          <p id="team-rollup-empty" class="empty" style="display:none;padding:24px">Upload a directory to see the roll-up.</p>
+        </div>
+      </div>
+
+      <div class="panel span-2">
+        <h2>Employees</h2>
+        <div class="table-wrap">
+          <table class="sub-table">
+            <thead><tr>
+              <th>Employee ID</th><th>Email</th><th>Title</th><th>Department</th><th></th>
+            </tr></thead>
+            <tbody id="team-tbody"></tbody>
+          </table>
+          <p id="team-empty" class="empty">No employees yet. Upload a CSV or click <b>Load sample</b>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:24px"><h2>HRMS connectors</h2></div>
+    <p class="contract-lede">Sync directory changes automatically from your HRMS. Each connector needs OAuth server-side, so these unlock on Enterprise.</p>
+    <div class="hrms-grid">
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#0e79c8">R</div>
+        <div><h3>Rippling</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#f45d22">G</div>
+        <div><h3>Gusto</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#589e39">B</div>
+        <div><h3>BambooHR</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#0075a9">W</div>
+        <div><h3>Workday</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#d40024">A</div>
+        <div><h3>ADP</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+      <div class="hrms-card">
+        <div class="hrms-icon" style="background:#111">P</div>
+        <div><h3>Personio</h3><span class="integ-plan gated">Enterprise</span></div>
+      </div>
+    </div>
+    <div class="integ-actions" style="margin-top:14px">
+      <button id="hrms-request" class="primary">Request Enterprise access</button>
+      <span id="hrms-status" class="integ-status"></span>
+    </div>
+  </section>
+
+  <!-- Alerts -->
+  <section id="alerts" class="view">
+    <div class="section-head">
+      <h2>Renewal alerts</h2>
+      <div class="controls">
+        <select id="alert-filter">
+          <option value="">All statuses</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="due">Due to send</option>
+          <option value="sent">Sent · awaiting ack</option>
+          <option value="acknowledged">Acknowledged</option>
+          <option value="escalated">Escalated</option>
+        </select>
+        <button id="download-ics" class="icon-btn">Download .ics</button>
+      </div>
+    </div>
+    <p class="contract-lede">Every active subscription fires a warning at <b>90</b>, <b>60</b>, and <b>30</b> days before renewal. If the owner doesn't acknowledge within 3 days of the trigger, it escalates to their manager. This app can't send from your browser, but it prepares the exact email and Slack payload for each alert so renewals stop depending on one person remembering.</p>
+
+    <div class="stat-grid" style="margin-bottom:18px">
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Scheduled</span><span class="stat-value" id="alerts-scheduled">0</span><span class="stat-sub">future warnings</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Due to send</span><span class="stat-value" id="alerts-due">0</span><span class="stat-sub">trigger today or earlier</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Awaiting ack</span><span class="stat-value" id="alerts-awaiting">0</span><span class="stat-sub">owner has 3 days</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Escalated</span><span class="stat-value" id="alerts-escalated">0</span><span class="stat-sub">forwarded to managers</span></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="sub-table">
+        <thead><tr>
+          <th>Vendor</th><th>Trigger</th><th>Fires on</th><th>Renews</th>
+          <th>Owner</th><th>Escalates to</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody id="alerts-tbody"></tbody>
+      </table>
+      <p id="alerts-empty" class="empty">No alerts yet. Add an owner (with email) to a subscription in <b>Subscriptions → Edit</b>.</p>
+    </div>
+  </section>
+
+  <!-- Renewals -->
+  <section id="renewals" class="view">
+    <div class="section-head">
+      <h2>Renewals in the next 90 days</h2>
+    </div>
+    <div id="renewal-calendar" class="renewal-calendar"></div>
+  </section>
+
+  <!-- Contracts -->
+  <section id="contracts" class="view">
+    <div class="section-head">
+      <h2>Auto-renew clause extraction</h2>
+      <div class="controls">
+        <button id="sample-contract" class="icon-btn">Load sample contract</button>
+        <label class="icon-btn" for="contract-file" style="cursor:pointer">Upload .pdf / .txt</label>
+        <input type="file" id="contract-file" accept=".txt,.pdf,text/plain,application/pdf" hidden />
+      </div>
+    </div>
+    <p class="contract-lede">Paste text, or upload a PDF and we'll pull the text out for you. We scan for renewal type, notice period, term length, and any price-escalation cap — so you skip the Ctrl-F through a 40-page MSA. Scanned/image-only PDFs need OCR first.</p>
+
+    <div class="contract-grid">
+      <div class="panel">
+        <h2>Contract text</h2>
+        <textarea id="contract-text" placeholder="Paste your MSA, order form, or subscription agreement here…"></textarea>
+        <div class="contract-actions">
+          <button id="extract-btn" class="primary">Extract clauses</button>
+          <button id="clear-contract" class="icon-btn">Clear</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Extracted terms</h2>
+        <div id="extract-results" class="extract-results">
+          <p class="empty" style="padding:20px 0;font-size:13px">Paste text and click <b>Extract clauses</b>.</p>
+        </div>
+        <div id="attach-row" class="attach-row" hidden>
+          <select id="attach-sub"><option value="">Attach to subscription…</option></select>
+          <button id="attach-btn" class="primary">Save to subscription</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrations -->
+  <section id="integrations" class="view">
+    <div class="section-head"><h2>Integrations</h2></div>
+    <p class="contract-lede">Point us at a Drive folder and contracts flow in. Alerts land in Slack where work happens. SSO and ERP sync unlock on Enterprise.</p>
+
+    <div class="integ-grid">
+      <!-- Slack -->
+      <div class="panel integ-card">
+        <div class="integ-head">
+          <div class="integ-icon" style="background:#4A154B">S</div>
+          <div><h3>Slack</h3><span class="integ-plan ok">Ships now · works client-side</span></div>
+        </div>
+        <p class="integ-desc">Paste an <a href="https://api.slack.com/messaging/webhooks" target="_blank" rel="noopener">incoming webhook</a> URL. Test posts a message; from any alert, click <b>Send to Slack</b> to fire that vendor's decision request into the channel.</p>
+        <label>Webhook URL<input type="url" id="slack-webhook" placeholder="https://hooks.slack.com/services/T…/B…/…" /></label>
+        <label class="check"><input type="checkbox" id="slack-auto" /> Auto-post when a 90/60/30-day alert first fires (while you have the app open)</label>
+        <div class="integ-actions">
+          <button id="slack-test" class="primary">Send test message</button>
+          <button id="slack-save" class="icon-btn">Save settings</button>
+          <span id="slack-status" class="integ-status"></span>
+        </div>
+      </div>
+
+      <!-- Drive -->
+      <div class="panel integ-card">
+        <div class="integ-head">
+          <div class="integ-icon" style="background:linear-gradient(135deg,#4285F4,#34A853,#FBBC05,#EA4335);color:#fff">D</div>
+          <div><h3>Google Drive — contracts</h3><span class="integ-plan ok">Ships now · bulk-import mode</span></div>
+        </div>
+        <p class="integ-desc">The Drive API needs OAuth (that's a backend). Meanwhile: keep contracts in one Drive folder, then drop the exported <code>.txt</code> versions here. Each file becomes a draft subscription with renewal, notice, and price cap already extracted.</p>
+        <label>Drive folder link (for your reference)<input type="url" id="drive-folder" placeholder="https://drive.google.com/drive/folders/…" /></label>
+        <div class="dropzone" id="contract-drop">
+          <input type="file" id="contract-multi" accept=".txt,.md,.pdf,text/plain,application/pdf" multiple hidden />
+          <p><b>Drop contract .pdf or .txt files here</b> or <button class="link" id="contract-pick">click to select</button>. We'll parse each one and stage a subscription.</p>
+        </div>
+        <div id="import-preview" class="import-preview" hidden></div>
+        <div class="integ-actions">
+          <button id="drive-save" class="icon-btn">Save folder link</button>
+          <button id="import-confirm" class="primary" disabled>Import staged subscriptions</button>
+        </div>
+      </div>
+
+      <!-- SSO -->
+      <div class="panel integ-card">
+        <div class="integ-head">
+          <div class="integ-icon" style="background:#111">✦</div>
+          <div><h3>SSO</h3><span class="integ-plan gated">Enterprise · needs backend</span></div>
+        </div>
+        <p class="integ-desc">SAML / OIDC via Okta, Azure AD, or Google Workspace. Provisioning through SCIM. Handled by a small server component; the browser can't do this alone.</p>
+        <div class="integ-logos">
+          <span class="logo-chip">Okta</span>
+          <span class="logo-chip">Azure AD</span>
+          <span class="logo-chip">Google Workspace</span>
+          <span class="logo-chip">JumpCloud</span>
+        </div>
+        <div class="integ-actions">
+          <button id="sso-request" class="primary">Request Enterprise access</button>
+          <span id="sso-status" class="integ-status"></span>
+        </div>
+      </div>
+
+      <!-- ERP -->
+      <div class="panel integ-card">
+        <div class="integ-head">
+          <div class="integ-icon" style="background:#0f766e">⇄</div>
+          <div><h3>ERP sync</h3><span class="integ-plan gated">Enterprise · needs backend</span></div>
+        </div>
+        <p class="integ-desc">Two-way sync with NetSuite, QuickBooks, Sage Intacct, and SAP. Vendors ↔ subscriptions, POs ↔ contracts, AP invoices ↔ invoice log. Here's the mapping we'd use:</p>
+        <div class="mapping-wrap">
+          <table class="mapping-table"><thead><tr><th>SaaS Spend Track</th><th>Direction</th><th>ERP</th></tr></thead><tbody>
+            <tr><td>Subscription</td><td>↔</td><td>Vendor + recurring PO</td></tr>
+            <tr><td>Invoice</td><td>→</td><td>AP invoice draft</td></tr>
+            <tr><td>Team</td><td>→</td><td>Cost center / department</td></tr>
+            <tr><td>Contract renewal date</td><td>→</td><td>PO expiration + reminder</td></tr>
+            <tr><td>Price-cap %</td><td>→</td><td>Vendor terms note</td></tr>
+          </tbody></table>
+        </div>
+        <div class="integ-logos">
+          <span class="logo-chip">NetSuite</span>
+          <span class="logo-chip">QuickBooks</span>
+          <span class="logo-chip">Sage Intacct</span>
+          <span class="logo-chip">SAP</span>
+        </div>
+        <div class="integ-actions">
+          <button id="erp-request" class="primary">Request Enterprise access</button>
+          <button id="erp-csv" class="icon-btn">Meanwhile: export ERP-ready CSV</button>
+          <span id="erp-status" class="integ-status"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="pricing" class="view">
+    <div class="section-head"><h2>Plans</h2></div>
+
+    <div class="billing-toggle" role="tablist" aria-label="Billing cycle">
+      <button type="button" class="bt-opt" data-bill="monthly" role="tab" aria-selected="false">Monthly</button>
+      <button type="button" class="bt-opt active" data-bill="annual" role="tab" aria-selected="true">Annual <span class="bt-save">Save 17%</span></button>
+    </div>
+
+    <div class="pricing-grid">
+      <div class="pricing-card" data-plan="free">
+        <div class="pricing-head">
+          <div class="pricing-tier">FREE</div>
+          <div class="pricing-price"><span class="pricing-currency">$</span><span class="pricing-amount">0</span></div>
+          <p class="pricing-cycle">Forever</p>
+        </div>
+        <div class="pricing-tagline pricing-tagline-free">Unlimited vendors</div>
+        <ul class="pricing-list">
+          <li>Unlimited vendors &amp; contracts</li>
+          <li>Unlimited users</li>
+          <li>Renewal &amp; notice date tracking</li>
+          <li>Notice-window countdown</li>
+          <li>Email alerts at 90/60/30 days</li>
+        </ul>
+        <a class="pricing-cta" href="https://saasspendtrack.com/#pricing" target="_blank" rel="noopener" data-plan-cta="free">Start tracking free</a>
+      </div>
+
+      <div class="pricing-card featured" data-plan="pro">
+        <div class="pricing-featured-tag">Most popular</div>
+        <div class="pricing-head">
+          <div class="pricing-tier">PRO</div>
+          <div class="pricing-price">
+            <span class="pricing-currency">$</span>
+            <span class="pricing-amount" data-price-monthly="49" data-price-annual="499">499</span>
+            <span class="pricing-suffix" data-suffix-monthly="/mo" data-suffix-annual="/yr">/yr</span>
+          </div>
+          <p class="pricing-cycle" data-cycle-monthly="Billed monthly" data-cycle-annual="~$41/mo · no budget approval needed">~$41/mo · no budget approval needed</p>
+        </div>
+        <div class="pricing-tagline pricing-tagline-pro">For teams that negotiate</div>
+        <ul class="pricing-list">
+          <li>Everything in Free</li>
+          <li>Automatic clause extraction</li>
+          <li>Slack alerts + escalation paths</li>
+          <li>Renewal prep briefs</li>
+          <li>Invoice &amp; spend tracking</li>
+          <li>Multi-department access</li>
+        </ul>
+        <a class="pricing-cta primary" href="https://saasspendtrack.com/#pricing" target="_blank" rel="noopener" data-plan-cta="pro">Get started →</a>
+      </div>
+
+      <div class="pricing-card" data-plan="enterprise">
+        <div class="pricing-head">
+          <div class="pricing-tier">ENTERPRISE</div>
+          <div class="pricing-price">
+            <span class="pricing-currency">$</span>
+            <span class="pricing-amount" data-price-monthly="149" data-price-annual="1,499">1,499</span>
+            <span class="pricing-suffix" data-suffix-monthly="/mo" data-suffix-annual="/yr">/yr</span>
+          </div>
+          <p class="pricing-cycle" data-cycle-monthly="Billed monthly" data-cycle-annual="~$125/mo · easy corporate card purchase">~$125/mo · easy corporate card purchase</p>
+        </div>
+        <div class="pricing-tagline pricing-tagline-ent">For complex vendor stacks</div>
+        <ul class="pricing-list">
+          <li>Everything in Pro</li>
+          <li>Price benchmarking at renewal</li>
+          <li>Automated contract risk scoring</li>
+          <li>SSO + ERP integrations</li>
+          <li>Custom approval workflows</li>
+          <li>Priority support</li>
+        </ul>
+        <a class="pricing-cta" href="https://saasspendtrack.com/#pricing" target="_blank" rel="noopener" data-plan-cta="enterprise">Get started →</a>
+      </div>
+    </div>
+
+    <p class="contract-lede" style="margin-top:20px">
+      <b>Hosting.</b> Free is a single-page app you can self-host (drop <code>index.html</code>, <code>styles.css</code>, <code>app.js</code> on any static host: Netlify, Vercel, Cloudflare Pages, GitHub Pages, S3). Pro and Enterprise run on the SaaS Spend Track cloud: a managed Node / Postgres backend (Fly.io / Render for compute, Neon Postgres for storage, Cloudflare for CDN and WAF, S3-compatible object storage for contract files). Enterprise offers single-tenant deployments in your VPC on request.
+    </p>
+  </section>
+
+  <!-- Insights -->
+  <section id="insights" class="view">
+    <div class="section-head"><h2>Insights</h2></div>
+    <div class="panel-grid">
+      <div class="panel">
+        <h2>Most expensive</h2>
+        <ul id="top-spend" class="upcoming-list"></ul>
+      </div>
+      <div class="panel">
+        <h2>By billing cycle</h2>
+        <div id="cycle-chart" class="chart"></div>
+      </div>
+      <div class="panel span-2">
+        <h2>Recommendations</h2>
+        <ul id="recos" class="reco-list"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal">
+    <h2 id="modal-title">Add subscription</h2>
+    <form id="sub-form">
+      <input type="hidden" id="f-id" />
+      <label>Name<input type="text" id="f-name" required placeholder="Figma" /></label>
+      <div class="row">
+        <label>Cost (USD)<input type="number" id="f-cost" min="0" step="0.01" required placeholder="12.00" /></label>
+        <label>Billing cycle
+          <select id="f-cycle">
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="weekly">Weekly</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label>Category
+          <input type="text" id="f-category" list="cat-list" placeholder="Design" />
+          <datalist id="cat-list">
+            <option value="Design"></option>
+            <option value="Development"></option>
+            <option value="Productivity"></option>
+            <option value="Marketing"></option>
+            <option value="Sales"></option>
+            <option value="Analytics"></option>
+            <option value="Communication"></option>
+            <option value="Storage"></option>
+            <option value="Entertainment"></option>
+            <option value="AI / LLM"></option>
+          </datalist>
+        </label>
+        <label>Next renewal<input type="date" id="f-renewal" /></label>
+      </div>
+      <div class="row">
+        <label>Team / owner
+          <input type="text" id="f-team" list="team-list" placeholder="Engineering" />
+          <datalist id="team-list">
+            <option value="Engineering"></option>
+            <option value="Design"></option>
+            <option value="Marketing"></option>
+            <option value="Sales"></option>
+            <option value="Finance"></option>
+            <option value="Ops"></option>
+            <option value="People"></option>
+            <option value="Support"></option>
+            <option value="Product"></option>
+            <option value="Leadership"></option>
+          </datalist>
+        </label>
+        <label>Vendor URL<input type="url" id="f-url" placeholder="https://…" /></label>
+      </div>
+      <fieldset class="form-fieldset">
+        <legend>Licenses / seats</legend>
+        <div class="row triple">
+          <label>Total<input type="number" id="f-lic-total" min="0" step="1" placeholder="25" /></label>
+          <label>Assigned<input type="number" id="f-lic-assigned" min="0" step="1" placeholder="18" /></label>
+          <label>Utilized (last 30d)<input type="number" id="f-lic-utilized" min="0" step="1" placeholder="12" /></label>
+        </div>
+      </fieldset>
+      <div class="row">
+        <label>Owner name<input type="text" id="f-owner-name" placeholder="Priya Rao" /></label>
+        <label>Owner email<input type="email" id="f-owner-email" placeholder="priya@company.com" /></label>
+      </div>
+      <div class="row">
+        <label>Manager name<input type="text" id="f-manager-name" placeholder="Alex Kim" /></label>
+        <label>Manager email<input type="email" id="f-manager-email" placeholder="alex@company.com" /></label>
+      </div>
+      <label>Notes<textarea id="f-notes" rows="2" placeholder="Team plan, 5 seats…"></textarea></label>
+      <label class="check"><input type="checkbox" id="f-active" checked /> Active</label>
+      <div class="actions">
+        <button type="button" id="cancel-btn">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
   </div>
 </div>
 
-<main class="shell">
+<footer>
+  <span>Data lives in your browser (localStorage). Nothing is uploaded.</span>
+  <span>
+    <button id="seed-btn" class="link">Load sample data</button> ·
+    <button id="export-btn" class="link">Export JSON</button> ·
+    <button id="csv-subs-btn" class="link">CSV: subscriptions</button> ·
+    <button id="csv-invs-btn" class="link">CSV: invoices</button> ·
+    <button id="import-btn" class="link">Import</button> ·
+    <button id="clear-btn" class="link danger">Clear all</button>
+  </span>
+</footer>
+<input type="file" id="import-file" accept="application/json" hidden />
+<div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- ============ VENDORS ============ -->
-  <section class="view is-active" id="view-vendors">
-    <div class="view-head">
-      <div>
-        <h1>Vendors</h1>
-        <p>For each vendor, record what the contract says and what you were actually billed. The checks run on the difference.</p>
+<!-- Invoice modal -->
+<div class="modal-backdrop" id="inv-modal" hidden>
+  <div class="modal">
+    <h2 id="inv-modal-title">Add invoice</h2>
+    <form id="inv-form">
+      <input type="hidden" id="inv-id" />
+      <label>Vendor
+        <select id="inv-sub" required></select>
+      </label>
+      <div class="row">
+        <label>Amount (USD)<input type="number" id="inv-amount" min="0" step="0.01" required /></label>
+        <label>Invoice #<input type="text" id="inv-number" placeholder="INV-2026-042" /></label>
       </div>
-    </div>
-    <div id="vendorList"></div>
-  </section>
-
-  <!-- ============ FINDINGS ============ -->
-  <section class="view" id="view-findings">
-    <div class="view-head">
-      <div>
-        <h1>Findings</h1>
-        <p>Every charge that doesn't reconcile with the terms you entered, with the clause it contradicts.</p>
+      <div class="row">
+        <label>Issue date<input type="date" id="inv-issue" /></label>
+        <label>Due date<input type="date" id="inv-due" required /></label>
       </div>
-    </div>
-
-    <div class="totals" id="totals"></div>
-    <div id="findingList"></div>
-
-    <div class="handoff" id="handoff" hidden>
-      <div>
-        <h3 id="handoffTitle">Found money you can still claim</h3>
-        <p>Recovering it means writing the dispute, sending it to the right billing contact and chasing the credit note. We do that on contingency — 25% of what lands, nothing if nothing does.</p>
+      <label>Paid date <span style="color:var(--text-dim)">(leave blank if unpaid)</span><input type="date" id="inv-paid" /></label>
+      <label>Notes<textarea id="inv-notes" rows="2"></textarea></label>
+      <div class="actions">
+        <button type="button" id="inv-cancel">Cancel</button>
+        <button type="submit" class="primary">Save</button>
       </div>
-      <a class="btn btn-primary" id="handoffCta" href="mailto:audit@saasspendtrack.com?subject=Audit%20slot%20request">Claim an audit slot →</a>
-    </div>
-  </section>
-
-  <!-- ============ RENEWALS ============ -->
-  <section class="view" id="view-renewals">
-    <div class="view-head">
-      <div>
-        <h1>Renewals</h1>
-        <p>Not the renewal date — the date you must give notice by, counted back from each contract's own notice period.</p>
-      </div>
-    </div>
-    <div id="renewalList"></div>
-  </section>
-
-  <!-- ============ DATA ============ -->
-  <section class="view" id="view-data">
-    <div class="view-head">
-      <div>
-        <h1>Data</h1>
-        <p>Everything lives in this browser's local storage. Nothing is uploaded, and there's no account. Export to move it or back it up.</p>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h3>Export</h3>
-      <p class="muted">A JSON file with every vendor and the findings as calculated right now.</p>
-      <div class="btn-row">
-        <button class="btn btn-ghost" id="btnExport">Export JSON</button>
-        <button class="btn btn-ghost" id="btnLetters" disabled>Download dispute letters</button>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h3>Import</h3>
-      <p class="muted">Replaces everything currently stored. Export first if you want a copy.</p>
-      <div class="btn-row">
-        <label class="btn btn-ghost" for="fileImport">Choose JSON file</label>
-        <input type="file" id="fileImport" accept="application/json" hidden>
-        <span class="muted" id="importMsg"></span>
-      </div>
-    </div>
-
-    <div class="panel danger">
-      <h3>Delete everything</h3>
-      <p class="muted">Clears all vendors from this browser. This can't be undone.</p>
-      <button class="btn btn-danger" id="btnWipe">Delete all data</button>
-    </div>
-  </section>
-
-</main>
-
-<!-- ============ VENDOR EDITOR ============ -->
-<div class="drawer-scrim" id="scrim" hidden></div>
-<aside class="drawer" id="drawer" hidden aria-label="Vendor editor">
-  <div class="drawer-top">
-    <h2 id="drawerTitle">Add vendor</h2>
-    <button class="iconbtn" id="btnCloseDrawer" aria-label="Close">✕</button>
+    </form>
   </div>
-
-  <div class="drawer-body">
-
-    <div class="field">
-      <label for="f_name">Vendor</label>
-      <input type="text" id="f_name" placeholder="Salesforce" autocomplete="off">
-    </div>
-
-    <div class="split">
-      <div class="col contracted">
-        <div class="col-head">
-          <span class="col-tag">What the contract says</span>
-          <p class="col-note">From the order form or MSA. Add a clause reference so findings can cite it.</p>
-        </div>
-
-        <div class="field"><label for="f_cPrice">Unit price per seat, per month</label>
-          <input type="number" id="f_cPrice" step="0.01" min="0" placeholder="18.00"></div>
-
-        <div class="field"><label for="f_cSeats">Licensed seats</label>
-          <input type="number" id="f_cSeats" min="0" placeholder="142"></div>
-
-        <div class="field"><label for="f_cTier">Tier or plan name</label>
-          <input type="text" id="f_cTier" placeholder="Business" autocomplete="off"></div>
-
-        <div class="field"><label for="f_cCap">Annual uplift cap (%)</label>
-          <input type="number" id="f_cCap" step="0.1" min="0" placeholder="5">
-          <span class="hint">Leave blank if your contract has no cap.</span></div>
-
-        <div class="field"><label for="f_cIncluded">Included at no extra charge</label>
-          <input type="text" id="f_cIncluded" placeholder="Premium support, sandbox" autocomplete="off">
-          <span class="hint">Comma separated. Things the fee already covers.</span></div>
-
-        <div class="field"><label for="f_cWindow">Invoice dispute window (days)</label>
-          <input type="number" id="f_cWindow" min="0" placeholder="90">
-          <span class="hint">Many contracts limit billing disputes to 30–90 days. Blank means no stated limit.</span></div>
-
-        <div class="field"><label for="f_cRef">Clause reference</label>
-          <input type="text" id="f_cRef" placeholder="MSA §7.2, Order Form Exhibit A" autocomplete="off"></div>
-      </div>
-
-      <div class="col billed">
-        <div class="col-head">
-          <span class="col-tag charge">What you were billed</span>
-          <p class="col-note">From the most recent invoice, and the one before this term started.</p>
-        </div>
-
-        <div class="field"><label for="f_bPrice">Unit price charged per seat, per month</label>
-          <input type="number" id="f_bPrice" step="0.01" min="0" placeholder="18.00"></div>
-
-        <div class="field"><label for="f_bSeats">Seats billed</label>
-          <input type="number" id="f_bSeats" min="0" placeholder="190"></div>
-
-        <div class="field"><label for="f_bTier">Tier charged</label>
-          <input type="text" id="f_bTier" placeholder="Enterprise" autocomplete="off"></div>
-
-        <div class="field"><label for="f_bPrevAnnual">Previous term's annual total</label>
-          <input type="number" id="f_bPrevAnnual" step="0.01" min="0" placeholder="30672">
-          <span class="hint">Used with the current total to test the uplift cap.</span></div>
-
-        <div class="field"><label for="f_bThisAnnual">This term's annual total</label>
-          <input type="number" id="f_bThisAnnual" step="0.01" min="0" placeholder="34168"></div>
-
-        <div class="field"><label for="f_bExtras">Separately billed line items</label>
-          <input type="text" id="f_bExtras" placeholder="Premium support: 11720" autocomplete="off">
-          <span class="hint">Format: name: amount. Comma separated.</span></div>
-
-        <div class="field"><label for="f_bLastInvoice">Date of most recent invoice</label>
-          <input type="date" id="f_bLastInvoice"></div>
-
-        <div class="field"><label for="f_bMonths">Months billed at these figures</label>
-          <input type="number" id="f_bMonths" min="1" max="120" placeholder="11">
-          <span class="hint">How long the discrepancy has been running.</span></div>
-      </div>
-    </div>
-
-    <div class="col-head" style="margin-top:1.6rem">
-      <span class="col-tag">Renewal</span>
-      <p class="col-note">Used to work out the last day you can give notice.</p>
-    </div>
-
-    <div class="split narrow">
-      <div class="field"><label for="f_renewDate">Renewal date</label>
-        <input type="date" id="f_renewDate"></div>
-      <div class="field"><label for="f_notice">Notice period (days)</label>
-        <input type="number" id="f_notice" min="0" placeholder="60"></div>
-    </div>
-
-    <div class="field">
-      <label for="f_cancelled">Cancelled on (optional)</label>
-      <input type="date" id="f_cancelled">
-      <span class="hint">If you're still being billed after this date, that's a finding.</span>
-    </div>
-
-  </div>
-
-  <div class="drawer-foot">
-    <button class="btn btn-ghost" id="btnDelete" hidden>Delete vendor</button>
-    <div class="spacer"></div>
-    <button class="btn btn-ghost" id="btnCancel">Cancel</button>
-    <button class="btn btn-primary" id="btnSave">Save vendor</button>
-  </div>
-</aside>
-
-<div class="toast" id="toast" hidden></div>
+</div>
 
 <script src="app.js"></script>
 </body>
