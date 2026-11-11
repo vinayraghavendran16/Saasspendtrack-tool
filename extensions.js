@@ -886,3 +886,279 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial render of new views (in case they're the hash target)
   setTimeout(() => { try { renderAll(); } catch (_) {} }, 50);
 });
+
+/* ================================================================
+   Team: expanded HRMS connectors + non-PII datasheet template
+   ================================================================ */
+
+const HRMS_CONNECTORS = [
+  // Global enterprise + mid-market
+  { name: 'Rippling',    status: 'planned', region: 'Global',  tier: 'Mid-market → Enterprise', colour: '#ffc800', bg: '#000', note: 'HRIS + payroll + device management; two-way sync of employees, departments, offboarding' },
+  { name: 'Workday HCM', status: 'planned', region: 'Global',  tier: 'Enterprise',              colour: '#0875e1', bg: '#0875e1', note: 'Enterprise HCM; bulk sync via Workday RaaS' },
+  { name: 'BambooHR',    status: 'planned', region: 'Global',  tier: 'Mid-market',              colour: '#589e39', bg: '#589e39', note: 'SMB / mid-market HRIS; webhook on hire + leave' },
+  { name: 'Gusto',       status: 'planned', region: 'US',      tier: 'SMB',                     colour: '#f45d22', bg: '#f45d22', note: 'US payroll + HR; employee + department sync' },
+  { name: 'ADP Workforce Now', status: 'planned', region: 'Global',  tier: 'Mid-market → Enterprise', colour: '#d40024', bg: '#d40024', note: 'Payroll + directory; SCIM via marketplace' },
+  { name: 'Personio',    status: 'planned', region: 'Europe',  tier: 'Mid-market',              colour: '#000',    bg: '#000',    note: 'European HRIS; REST API' },
+  { name: 'HiBob',       status: 'planned', region: 'Global',  tier: 'Mid-market',              colour: '#ff5a5f', bg: '#ff5a5f', note: 'Modern HRIS; GraphQL API' },
+  { name: 'Namely',      status: 'planned', region: 'US',      tier: 'Mid-market',              colour: '#6c38a2', bg: '#6c38a2', note: 'US mid-market HR' },
+  { name: 'UKG (Ultimate Kronos)', status: 'planned', region: 'Global', tier: 'Enterprise',     colour: '#005386', bg: '#005386', note: 'Workforce management' },
+  { name: 'Paylocity',   status: 'planned', region: 'US',      tier: 'Mid-market',              colour: '#0068b5', bg: '#0068b5', note: 'US payroll + HR' },
+  { name: 'SAP SuccessFactors', status: 'planned', region: 'Global', tier: 'Enterprise',        colour: '#0070c0', bg: '#0070c0', note: 'Enterprise HCM in the SAP stack' },
+  { name: 'Oracle HCM Cloud', status: 'planned', region: 'Global', tier: 'Enterprise',          colour: '#c74634', bg: '#c74634', note: 'Oracle Fusion HCM' },
+
+  // India-first HRMS (priority for the target market)
+  { name: 'Darwinbox',   status: 'planned', region: 'India / APAC', tier: 'Mid-market → Enterprise', colour: '#2b2b2b', bg: '#2b2b2b', note: 'Indian / APAC enterprise HR; REST API' },
+  { name: 'KekaHR',      status: 'planned', region: 'India',   tier: 'SMB → Mid-market',        colour: '#0f8af8', bg: '#0f8af8', note: 'Popular Indian SMB HR; REST API' },
+  { name: 'Zoho People', status: 'planned', region: 'Global / India', tier: 'SMB',              colour: '#e42527', bg: '#e42527', note: 'Part of the Zoho stack; works well for mid-market India' },
+  { name: 'greytHR',     status: 'planned', region: 'India',   tier: 'SMB',                     colour: '#e74c3c', bg: '#e74c3c', note: 'Payroll-first HR for Indian SMBs' },
+  { name: 'HROne',       status: 'planned', region: 'India',   tier: 'SMB → Mid-market',        colour: '#ff6d00', bg: '#ff6d00', note: 'Indian HR SaaS' },
+  { name: 'sumHR',       status: 'planned', region: 'India',   tier: 'SMB',                     colour: '#2d4ba0', bg: '#2d4ba0', note: 'Indian SMB HR' },
+  { name: 'Factohr',     status: 'planned', region: 'India',   tier: 'SMB',                     colour: '#0072c6', bg: '#0072c6', note: 'Indian HR + payroll' },
+  { name: 'Spine HRMS',  status: 'planned', region: 'India',   tier: 'SMB → Mid-market',        colour: '#00598d', bg: '#00598d', note: 'Indian HR' },
+  { name: 'Pocket HRMS', status: 'planned', region: 'India',   tier: 'SMB',                     colour: '#f4b912', bg: '#f4b912', note: 'Indian HR' },
+  { name: 'Qandle',      status: 'planned', region: 'India',   tier: 'SMB → Mid-market',        colour: '#7000d1', bg: '#7000d1', note: 'Modern Indian HR' },
+  { name: 'Freshteam',   status: 'planned', region: 'Global',  tier: 'SMB',                     colour: '#27a844', bg: '#27a844', note: 'Freshworks suite; ATS + HRIS' },
+
+  // Workforce / directory bridges
+  { name: 'Okta Workforce Directory', status: 'planned', region: 'Global', tier: 'Mid-market → Enterprise', colour: '#007dc1', bg: '#007dc1', note: 'If your source of truth for employees sits in Okta' },
+  { name: 'Microsoft Entra ID',       status: 'planned', region: 'Global', tier: 'Mid-market → Enterprise', colour: '#0078d4', bg: '#0078d4', note: 'Azure AD user and group sync via SCIM' },
+  { name: 'Google Workspace Directory',status: 'planned', region: 'Global', tier: 'SMB → Mid-market',       colour: '#4285f4', bg: '#4285f4', note: 'Users + org units' },
+  { name: 'Finch Universal API',      status: 'planned', region: 'Global', tier: 'All tiers',              colour: '#111',    bg: '#111',    note: 'Single API across 200+ HR / payroll systems' },
+  { name: 'Merge.dev HRIS',           status: 'planned', region: 'Global', tier: 'All tiers',              colour: '#111',    bg: '#111',    note: 'Single API across major HRIS systems' },
+  { name: 'Kombo.dev',                status: 'planned', region: 'Europe', tier: 'All tiers',              colour: '#111',    bg: '#111',    note: 'European-focused HRIS unified API' },
+];
+
+function initialsOf(name) {
+  return name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function renderHrmsGrid() {
+  const host = document.getElementById('hrms-grid'); if (!host) return;
+  const req = state.settings.hrmsRequested || {};
+  host.innerHTML = HRMS_CONNECTORS.map(c => {
+    const asked = !!req[c.name];
+    return `<div class="hrms-card">
+      <div class="hrms-icon" style="background:${c.bg}">${initialsOf(c.name)}</div>
+      <div style="flex:1;min-width:0">
+        <h3 style="margin:0">${escapeHtml(c.name)}</h3>
+        <div style="font-size:11px;color:var(--text-dim)">${escapeHtml(c.region)} · ${escapeHtml(c.tier)}</div>
+        <div style="font-size:11.5px;color:var(--text-dim);margin-top:4px;line-height:1.4">${escapeHtml(c.note)}</div>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span class="integ-plan ${c.status === 'live' ? 'ok' : 'gated'}">${c.status}</span>
+          <button class="icon-btn" data-hrms-connect="${encodeURIComponent(c.name)}" ${asked ? 'disabled' : ''}>${asked ? '✓ Requested' : 'Connect / request'}</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  host.querySelectorAll('[data-hrms-connect]').forEach(btn => btn.onclick = () => {
+    const name = decodeURIComponent(btn.dataset.hrmsConnect);
+    state.settings.hrmsRequested = state.settings.hrmsRequested || {};
+    state.settings.hrmsRequested[name] = new Date().toISOString();
+    save();
+    const status = document.getElementById('hrms-status');
+    if (status) { status.textContent = `${name} added to the roadmap. We'll contact you when it enters build.`; status.className = 'integ-status ok'; }
+    renderHrmsGrid();
+  });
+}
+
+/* --------------- Non-PII template --------------- */
+const TPL_PER_EMPLOYEE_HEADERS = ['employee_code', 'department', 'role_band', 'cost_center', 'location_region', 'start_month', 'is_active'];
+const TPL_AGGREGATED_HEADERS  = ['department', 'role_band', 'headcount', 'cost_center', 'location_region'];
+const PII_COLUMN_HINTS = /\b(name|first[_\s-]?name|last[_\s-]?name|full[_\s-]?name|email|e-?mail|phone|mobile|address|street|zip|postal|dob|date[_\s-]?of[_\s-]?birth|pan|aadhaar|ssn|passport|national[_\s-]?id|employee[_\s-]?name)\b/i;
+const PII_VALUE_HINTS = {
+  email:   /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i,
+  phone:   /(?:\+?\d{1,3}[\s-]?)?\(?\d{3,4}\)?[\s-]?\d{3}[\s-]?\d{4}/,
+};
+
+function buildPerEmployeeTemplate() {
+  const header = TPL_PER_EMPLOYEE_HEADERS.join(',');
+  const sample = [
+    ['E-1001','Engineering','IC4','CC-ENG-01','Bengaluru','2024-06','TRUE'],
+    ['E-1002','Engineering','IC3','CC-ENG-01','Bengaluru','2025-01','TRUE'],
+    ['E-1003','Marketing','IC4','CC-MKT-02','Mumbai','2023-03','TRUE'],
+    ['E-1004','Sales','IC5','CC-SAL-01','Delhi NCR','2022-11','TRUE'],
+    ['E-1005','Ops','IC3','CC-OPS-01','Remote (India)','2025-04','TRUE'],
+    ['E-1006','Finance','M1','CC-FIN-01','Bengaluru','2021-09','TRUE'],
+  ].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const notes = [
+    '# SaaS Spend Track — Non-PII employee template (per-employee shape)',
+    '# One row per person. Carries NO names, emails or phone numbers.',
+    '# Columns:',
+    '#   employee_code    Opaque identifier of your choice. Not the real HR system ID; can be a random code.',
+    '#   department       Must match the Team field on your subscriptions (used for rollup).',
+    '#   role_band        Level or band such as IC1-IC6, M1-M5, L1-L8. No titles.',
+    '#   cost_center      Optional. Finance code.',
+    '#   location_region  City or region. Do not put street addresses.',
+    '#   start_month      YYYY-MM. Not the exact date.',
+    '#   is_active        TRUE or FALSE.',
+    '# Remove these lines before upload if your parser complains.',
+  ].join('\n');
+  return notes + '\n' + header + '\n' + sample + '\n';
+}
+function buildAggregatedTemplate() {
+  const header = TPL_AGGREGATED_HEADERS.join(',');
+  const sample = [
+    ['Engineering','IC1-IC3','34','CC-ENG-01','Bengaluru'],
+    ['Engineering','IC4-IC6','18','CC-ENG-01','Bengaluru'],
+    ['Engineering','M1-M3','6','CC-ENG-01','Bengaluru'],
+    ['Marketing','IC1-IC4','9','CC-MKT-02','Mumbai'],
+    ['Sales','IC4-IC6','12','CC-SAL-01','Delhi NCR'],
+    ['Customer Success','IC2-IC4','8','CC-CS-01','Remote (India)'],
+    ['Ops','IC2-IC4','6','CC-OPS-01','Bengaluru'],
+    ['Finance','M1-M3','4','CC-FIN-01','Bengaluru'],
+    ['People','IC3-M2','3','CC-HR-01','Bengaluru'],
+    ['IT','IC3-IC4','5','CC-IT-01','Bengaluru'],
+  ].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const notes = [
+    '# SaaS Spend Track — Non-PII employee template (aggregated shape)',
+    '# One row per department+band. Just a headcount — no individual rows.',
+    '# Columns:',
+    '#   department       Must match the Team field on your subscriptions.',
+    '#   role_band        Range like IC1-IC3, M1-M3. No titles.',
+    '#   headcount        Integer.',
+    '#   cost_center      Optional.',
+    '#   location_region  Optional.',
+  ].join('\n');
+  return notes + '\n' + header + '\n' + sample + '\n';
+}
+
+function parseTemplate(text) {
+  // Strip comment lines beginning with '#'
+  const lines = text.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith('#'));
+  if (!lines.length) return { ok: false, error: 'File is empty' };
+  const delim = detectDelimiter(lines.slice(0, 5).join('\n'));
+  const rows = parseDelimited(lines.join('\n'), delim);
+  if (!rows.length || !rows[0].length) return { ok: false, error: 'Could not parse rows' };
+  const headers = rows[0].map(h => h.trim().toLowerCase());
+
+  // PII refusal
+  const piiCols = headers.filter(h => PII_COLUMN_HINTS.test(h));
+  if (piiCols.length) {
+    return { ok: false, error: `Refused: the template is meant to be non-PII but the file contains column(s) that look like personal data: ${piiCols.join(', ')}. Remove these columns and re-upload.` };
+  }
+
+  // Detect shape
+  let shape;
+  if (headers.includes('employee_code')) shape = 'per_employee';
+  else if (headers.includes('headcount')) shape = 'aggregated';
+  else return { ok: false, error: `Headers don't match either template. Expected either 'employee_code' (per-employee) or 'department' + 'headcount' (aggregated). Got: ${headers.join(', ')}` };
+
+  const idx = (name) => headers.indexOf(name);
+  const body = rows.slice(1).filter(r => r.some(c => c && c.trim()));
+
+  // Value-level PII scan on first ~20 rows
+  const sample = body.slice(0, 20).flat();
+  for (const v of sample) {
+    if (!v) continue;
+    if (PII_VALUE_HINTS.email.test(v)) return { ok: false, error: `Refused: an email address was detected in the data ("${v}"). The non-PII template must not contain emails.` };
+    if (PII_VALUE_HINTS.phone.test(v) && v.replace(/\D/g, '').length >= 10) return { ok: false, error: `Refused: a phone-number pattern was detected ("${v}").` };
+  }
+
+  // Build employee records
+  const employees = [];
+  if (shape === 'per_employee') {
+    body.forEach(r => {
+      const dep = (r[idx('department')] || '').trim();
+      if (!dep) return;
+      employees.push({
+        id: crypto.randomUUID(),
+        employeeId: (r[idx('employee_code')] || '').trim() || null,
+        email: null, name: null,
+        title: (r[idx('role_band')] || '').trim() || null,
+        department: dep,
+        costCenter: idx('cost_center') >= 0 ? (r[idx('cost_center')] || '').trim() || null : null,
+        region: idx('location_region') >= 0 ? (r[idx('location_region')] || '').trim() || null : null,
+        startMonth: idx('start_month') >= 0 ? (r[idx('start_month')] || '').trim() || null : null,
+        anonymised: true,
+      });
+    });
+  } else {
+    body.forEach((r, ri) => {
+      const dep = (r[idx('department')] || '').trim();
+      const band = idx('role_band') >= 0 ? (r[idx('role_band')] || '').trim() : '';
+      const hc = parseInt(r[idx('headcount')] || '0', 10);
+      if (!dep || !hc) return;
+      for (let i = 0; i < hc; i++) {
+        employees.push({
+          id: crypto.randomUUID(),
+          employeeId: `AGG-${ri + 1}-${String(i + 1).padStart(3, '0')}`,
+          email: null, name: null,
+          title: band || null,
+          department: dep,
+          costCenter: idx('cost_center') >= 0 ? (r[idx('cost_center')] || '').trim() || null : null,
+          region: idx('location_region') >= 0 ? (r[idx('location_region')] || '').trim() || null : null,
+          anonymised: true, aggregated: true,
+        });
+      }
+    });
+  }
+  return { ok: true, employees, shape };
+}
+
+async function fetchFromDriveLink(url) {
+  // Google Sheets: convert /edit URL to CSV export
+  let fetchUrl = url;
+  const m = url.match(/docs\.google\.com\/spreadsheets\/d\/([^/]+)/);
+  if (m) {
+    const gid = (url.match(/[?&#]gid=(\d+)/) || [])[1] || '0';
+    fetchUrl = `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv&gid=${gid}`;
+  }
+  const res = await fetch(fetchUrl, { mode: 'cors' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}. The sheet may not be public; set sharing to "Anyone with the link".`);
+  return await res.text();
+}
+
+function applyTemplateImport(text) {
+  const status = document.getElementById('tpl-status');
+  const r = parseTemplate(text);
+  if (!r.ok) { if (status) { status.textContent = r.error; status.className = 'integ-status err'; } toast(r.error, 'error'); return; }
+  state.employees = r.employees;
+  save(); renderAll();
+  const msg = `Imported ${r.employees.length} anonymised record${r.employees.length === 1 ? '' : 's'} (${r.shape.replace('_', ' ')} shape). Rollup updated.`;
+  if (status) { status.textContent = msg; status.className = 'integ-status ok'; }
+  toast(msg, 'success');
+}
+
+function wireTemplatePanel() {
+  const by = (id) => document.getElementById(id);
+  if (!by('tpl-dl-per-emp')) return;
+  by('tpl-dl-per-emp').onclick = () => downloadFile('team-template-per-employee.csv', buildPerEmployeeTemplate(), 'text/csv');
+  by('tpl-dl-aggregated').onclick = () => downloadFile('team-template-aggregated.csv', buildAggregatedTemplate(), 'text/csv');
+  by('tpl-view-schema').onclick = () => {
+    const el = by('tpl-schema');
+    el.hidden = !el.hidden;
+    if (!el.hidden && !el.textContent) {
+      el.textContent = 'PER-EMPLOYEE SHAPE\n' + TPL_PER_EMPLOYEE_HEADERS.join(', ') + '\n\nAGGREGATED SHAPE\n' + TPL_AGGREGATED_HEADERS.join(', ') + '\n\nREFUSED FIELDS (if present we reject the file)\nname, first_name, last_name, email, phone, mobile, address, dob, date_of_birth, pan, aadhaar, ssn, passport, national_id';
+    }
+  };
+  const _tplFile = by('tpl-file'); if (_tplFile) _tplFile.addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const text = await f.text();
+    applyTemplateImport(text);
+    e.target.value = '';
+  });
+  const drop = by('tpl-drop');
+  if (drop) {
+    drop.addEventListener('dragover', ev => { ev.preventDefault(); drop.classList.add('dragover'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+    drop.addEventListener('drop', async ev => {
+      ev.preventDefault(); drop.classList.remove('dragover');
+      const f = ev.dataTransfer.files[0]; if (!f) return;
+      const text = await f.text(); applyTemplateImport(text);
+    });
+  }
+  by('tpl-fetch').onclick = async () => {
+    const url = by('tpl-url').value.trim(); const status = by('tpl-status');
+    if (!url) { status.textContent = 'Paste a Drive or Sheets link first.'; status.className = 'integ-status err'; return; }
+    status.textContent = 'Fetching…'; status.className = 'integ-status';
+    try { const text = await fetchFromDriveLink(url); applyTemplateImport(text); }
+    catch (e) { status.textContent = e.message + ' If CORS blocks it, download the sheet as CSV and upload the file instead.'; status.className = 'integ-status err'; }
+  };
+}
+
+/* Hook the HRMS grid + template panel into every render */
+const _prev = typeof renderAll === 'function' ? renderAll : null;
+if (_prev) {
+  window.renderAll = function () { _prev(); try { renderHrmsGrid(); } catch (e) { console.warn(e); } };
+}
+document.addEventListener('DOMContentLoaded', () => { renderHrmsGrid(); wireTemplatePanel(); });

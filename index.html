@@ -307,39 +307,42 @@
       </div>
     </div>
 
-    <div class="section-head" style="margin-top:24px"><h2>HRMS connectors</h2></div>
-    <p class="contract-lede">Sync directory changes automatically from your HRMS. Each connector needs OAuth server-side, so these unlock on Enterprise.</p>
-    <div class="hrms-grid">
-      <div class="hrms-card">
-        <div class="hrms-icon" style="background:#0e79c8">R</div>
-        <div><h3>Rippling</h3><span class="integ-plan gated">Enterprise</span></div>
-      </div>
-      <div class="hrms-card">
-        <div class="hrms-icon" style="background:#f45d22">G</div>
-        <div><h3>Gusto</h3><span class="integ-plan gated">Enterprise</span></div>
-      </div>
-      <div class="hrms-card">
-        <div class="hrms-icon" style="background:#589e39">B</div>
-        <div><h3>BambooHR</h3><span class="integ-plan gated">Enterprise</span></div>
-      </div>
-      <div class="hrms-card">
-        <div class="hrms-icon" style="background:#0075a9">W</div>
-        <div><h3>Workday</h3><span class="integ-plan gated">Enterprise</span></div>
-      </div>
-      <div class="hrms-card">
-        <div class="hrms-icon" style="background:#d40024">A</div>
-        <div><h3>ADP</h3><span class="integ-plan gated">Enterprise</span></div>
-      </div>
-      <div class="hrms-card">
-        <div class="hrms-icon" style="background:#111">P</div>
-        <div><h3>Personio</h3><span class="integ-plan gated">Enterprise</span></div>
-      </div>
-    </div>
+    <div class="section-head" style="margin-top:24px"><div><h2>Connect your HRMS</h2><p class="page-sub">Keep the directory in sync automatically. Pick a system to request a connection; we'll prioritise it in the integration roadmap.</p></div></div>
+    <div class="hrms-grid" id="hrms-grid"></div>
     <div class="integ-actions" style="margin-top:14px">
-      <button id="hrms-request" class="primary">Request Enterprise access</button>
       <span id="hrms-status" class="integ-status"></span>
     </div>
-  </section>
+
+    <div class="section-head" style="margin-top:28px"><div><h2>Alternative: non-PII datasheet</h2><p class="page-sub">Prefer not to share employee names or emails? Use the template below. It carries only the fields the rollup needs: opaque employee code, department, role band, cost centre, region.</p></div></div>
+    <div class="panel-grid" style="grid-template-columns:1fr 1fr">
+      <div class="panel">
+        <h2>1. Download the template</h2>
+        <p class="panel-sub">Two shapes supported. Either records one anonymised row per person, or an aggregated row per department. Both skip names, emails, phone numbers and other PII.</p>
+        <div class="integ-actions" style="flex-direction:column;align-items:stretch;gap:8px">
+          <button class="primary" id="tpl-dl-per-emp">Download per-employee template (.csv)</button>
+          <button class="icon-btn" id="tpl-dl-aggregated">Download aggregated template (.csv)</button>
+          <button class="icon-btn" id="tpl-view-schema">View the schema</button>
+        </div>
+        <div id="tpl-schema" hidden style="margin-top:12px;padding:10px 12px;background:var(--panel-2);border-radius:var(--radius-sm);border:1px solid var(--border);font-family:var(--mono);font-size:11.5px;line-height:1.6"></div>
+      </div>
+      <div class="panel">
+        <h2>2. Upload or link the datasheet</h2>
+        <p class="panel-sub">Upload the completed template as .csv, .tsv or .xlsx; or paste a Google Drive / Google Sheets / OneDrive link. We'll read it, validate the headers, and refuse to import anything that looks like PII.</p>
+        <label>Drive / Sheets link
+          <input type="url" id="tpl-url" placeholder="https://docs.google.com/spreadsheets/d/..." style="width:100%;height:34px;padding:0 10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--panel);font-size:13px;margin-bottom:8px" />
+        </label>
+        <div class="dropzone" id="tpl-drop" style="padding:14px">
+          <input type="file" id="tpl-file" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/plain" hidden />
+          <p><b>Drop the completed template here</b> or <button class="link" type="button" onclick="document.getElementById(&apos;tpl-file&apos;).click()">pick a file</button></p>
+        </div>
+        <div class="integ-actions" style="margin-top:10px">
+          <button class="primary" id="tpl-fetch">Fetch from link</button>
+          <span id="tpl-status" class="integ-status"></span>
+        </div>
+      </div>
+    </div>
+
+    <p class="contract-lede" style="margin-top:14px"><b>Privacy stance.</b> The non-PII datasheet is designed to preserve the department rollup and seat-waste signals without carrying individual identifiers. When the file is parsed, any column that looks like a name, email, phone number, address, or government ID is rejected with an inline error. The tool keeps only the fields the rollup needs.</p></section>
 
   <!-- Alerts -->
   <section id="alerts" class="view">
