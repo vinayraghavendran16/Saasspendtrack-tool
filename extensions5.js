@@ -297,6 +297,8 @@ function ensureRenewalCenterNavLink() {
 
 /* Extend VIEWS at runtime */
 function registerRenewalCenterInViews() {
+  // Expose the renewal-center in the global PAGE_TITLES (now on window)
+  if (window.PAGE_TITLES && !window.PAGE_TITLES['renewal-center']) window.PAGE_TITLES['renewal-center'] = 'Renewal Command Center';
   // VIEWS is a const in app.js scope; we can't mutate it. Instead wrap switchView to accept our view id.
   if (window._rcSwitchPatched) return;
   const _orig = window.switchView;

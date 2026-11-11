@@ -213,7 +213,8 @@ function evaluatePlaybook(sub) {
       const num = typeof actual === 'number' ? actual : parseFloat(String(actual).match(/\d+(?:\.\d+)?/)?.[0] || 'NaN');
       if (!isNaN(num) && num < rule.limit) return { id: it.id, label: it.label, state: 'deviation', severity: rule.severity || 'warn', expected: `≥ ${rule.limit}`, actual: String(actual) };
     }
-    if (rule.op === 'contains' && rule.phrase) {
+    // Phrase check fires on any rule that specifies a phrase (op is optional)
+    if (rule.phrase) {
       if (!new RegExp(rule.phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(String(actual))) {
         return { id: it.id, label: it.label, state: 'deviation', severity: rule.severity || 'warn', expected: `contains "${rule.phrase}"`, actual: String(actual) };
       }
