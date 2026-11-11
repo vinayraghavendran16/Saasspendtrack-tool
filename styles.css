@@ -834,3 +834,71 @@ footer .link { font-size: 12px; }
 .sc-action-sel { min-width: 180px; }
 .sc-pct { }
 .sc-merge { min-width: 180px; }
+
+/* ================================================================ Phase 7: Owner inbox (mobile-first) */
+.ow-wrap { max-width: 560px; margin: 0 auto; padding: 8px 0 32px; }
+.ow-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.ow-greet .ow-hi { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+.ow-greet .ow-sub { font-size: 14px; color: var(--text-dim); margin-top: 2px; }
+.ow-switch { height: 32px; padding: 0 12px; font-size: 12px; }
+
+.ow-kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.ow-kpi { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; box-shadow: var(--shadow-sm); }
+.ow-kpi-value { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ow-kpi-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-top: 6px; }
+
+.ow-cards { display: flex; flex-direction: column; gap: 12px; }
+.ow-card { background: var(--panel); border: 1px solid var(--border); border-left-width: 3px; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm); }
+.ow-card.status-escalated { border-left-color: var(--danger); }
+.ow-card.status-sent, .ow-card.status-due { border-left-color: var(--warning); }
+.ow-card.status-scheduled { border-left-color: var(--accent); }
+.ow-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.ow-vendor { font-weight: 650; font-size: 15px; color: var(--text); }
+.ow-meta { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+.ow-urgency { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.ow-urgency.danger { background: var(--danger-soft); color: var(--danger-text); }
+.ow-urgency.warn { background: var(--warning-soft); color: var(--warning-text); }
+.ow-urgency.info { background: var(--info-soft); color: var(--info-text); }
+.ow-fact-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--panel-2); border-radius: var(--radius-sm); padding: 10px; margin-bottom: 10px; }
+.ow-fact-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.ow-fact-value { font-size: 15px; font-weight: 650; color: var(--text); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.ow-fact-value.urgent { color: var(--danger-text); }
+.ow-fact-sub { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
+.ow-devs { padding: 8px 10px; background: var(--danger-soft); border-radius: var(--radius-sm); color: var(--danger-text); font-size: 11.5px; margin-bottom: 10px; }
+.ow-devs b { font-weight: 700; margin-right: 4px; }
+
+.ow-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 12px; }
+.ow-btn { height: 40px; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid; transition: all 0.1s ease; }
+.ow-btn-ack { background: var(--success-soft); color: var(--success-text); border-color: var(--success); }
+.ow-btn-ack:hover { background: var(--success); color: #fff; }
+.ow-btn-reneg { background: var(--panel); color: var(--text); border-color: var(--border-strong); }
+.ow-btn-reneg:hover { background: var(--bg-2); }
+.ow-btn-cancel { background: var(--panel); color: var(--danger-text); border-color: var(--danger-soft); }
+.ow-btn-cancel:hover { background: var(--danger-soft); border-color: var(--danger); }
+
+.ow-more { margin-top: 10px; }
+.ow-more summary { font-size: 12.5px; color: var(--text-dim); cursor: pointer; padding: 4px 0; }
+.ow-more summary:hover { color: var(--text); }
+.ow-detail { padding: 10px 12px; background: var(--panel-2); border-radius: var(--radius-sm); font-size: 12.5px; color: var(--text-2); margin-top: 6px; }
+.ow-detail > div { margin-bottom: 4px; }
+.ow-detail > div:last-child { margin-bottom: 0; }
+
+.ow-done { text-align: center; padding: 60px 20px; }
+.ow-done-icon { font-size: 48px; width: 64px; height: 64px; border-radius: 50%; background: var(--success-soft); color: var(--success); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; margin-bottom: 16px; }
+.ow-done h3 { font-size: 22px; margin-bottom: 6px; }
+.ow-done p { color: var(--text-dim); font-size: 14px; }
+
+.ow-empty { text-align: center; padding: 40px 20px; }
+.ow-empty h3 { font-size: 20px; margin-bottom: 8px; }
+.ow-empty p { color: var(--text-dim); font-size: 14px; margin-bottom: 20px; }
+
+.ow-foot { margin-top: 20px; padding: 12px 14px; background: var(--panel-2); border-radius: var(--radius-sm); font-size: 11.5px; color: var(--text-dim); line-height: 1.5; }
+
+/* Owner-only mode (loaded via ?owner=email). Hides shell chrome for phones. */
+html.owner-only .sidebar, html.owner-only .topbar, html.owner-only .mobile-nav, html.owner-only footer { display: none !important; }
+html.owner-only .main-area { max-width: 640px; margin: 0 auto; }
+html.owner-only main { padding: 16px; }
+html.owner-only .section-head { margin-bottom: 8px; }
+html.owner-only .section-head h2 { font-size: 15px; color: var(--text-dim); font-weight: 600; }
+html.owner-only .section-head .page-sub { display: none; }
+html.owner-only #owner { display: block !important; }
