@@ -40,13 +40,8 @@ function setPlan(p) {
   renderPricing();
   renderAll();
 }
-function renderPlanBadge() {
-  const p = currentPlan();
-  const badge = document.getElementById('plan-badge');
-  badge.className = `plan-badge ${p}`;
-  document.getElementById('plan-label').textContent = PLANS[p].label;
-}
-function renderPricing() {
+function renderPlanBadge() { /* plan tiers removed; see Plans view */ }
+function renderPricing() { return; /* pricing is static now */
   const p = currentPlan();
   document.querySelectorAll('.pricing-card').forEach(card => {
     const isCurrent = card.dataset.plan === p;
@@ -2065,8 +2060,8 @@ function clearAll() {
 }
 
 // -------- wiring --------
-const PAGE_TITLES = { dashboard: 'Dashboard', subscriptions: 'Subscriptions', invoices: 'Invoices', consumption: 'Licence usage', team: 'Team directory', alerts: 'Alerts', renewals: 'Renewals', contracts: 'Contract terms', risk: 'Risk analytics', integrations: 'Integrations', roadmap: 'Integration roadmap', backlog: 'Product backlog', insights: 'Insights', pricing: 'Plans' };
-const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'consumption', 'team', 'alerts', 'renewals', 'contracts', 'risk', 'integrations', 'roadmap', 'backlog', 'insights', 'pricing'];
+const PAGE_TITLES = { dashboard: 'Dashboard', subscriptions: 'Subscriptions', invoices: 'Invoices', consumption: 'Licence usage', team: 'Team directory', alerts: 'Alerts', renewals: 'Renewals', contracts: 'Contract terms', risk: 'Risk analytics', playbook: 'Clause playbook', integrations: 'Integrations', roadmap: 'Integration roadmap', backlog: 'Product backlog', insights: 'Insights', analytics: 'Analytics', pricing: 'Plans' };
+const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'consumption', 'team', 'alerts', 'renewals', 'contracts', 'risk', 'playbook', 'integrations', 'roadmap', 'backlog', 'insights', 'analytics', 'pricing'];
 function switchView(name, opts = {}) {
   if (!VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));

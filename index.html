@@ -29,6 +29,7 @@
     <div class="nav-group"><div class="nav-label">Overview</div>
       <button class="tab active" data-view="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Dashboard</span><span class="nav-count" id="nav-count-dashboard" hidden></span></button>
       <button class="tab" data-view="insights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-5 4 3 5-7"/></svg><span>Insights</span><span class="nav-count" id="nav-count-insights" hidden></span></button>
+      <button class="tab" data-view="analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V9M13 17v-6M18 17v-3"/></svg><span>Analytics</span></button>
     </div>
     <div class="nav-group"><div class="nav-label">Spend</div>
       <button class="tab" data-view="subscriptions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg><span>Subscriptions</span><span class="nav-count" id="nav-count-subscriptions" hidden></span></button>
@@ -40,6 +41,7 @@
       <button class="tab" data-view="renewals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span>Renewals</span><span class="nav-count" id="nav-count-renewals" hidden></span></button>
       <button class="tab" data-view="alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg><span>Alerts</span><span class="nav-count" id="nav-count-alerts" hidden></span></button>
       <button class="tab" data-view="risk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 22h20z"/><path d="M12 10v5M12 18h.01"/></svg><span>Risk analytics</span><span class="nav-count" id="nav-count-risk" hidden></span></button>
+      <button class="tab" data-view="playbook"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Clause playbook</span></button>
     </div>
     <div class="nav-group"><div class="nav-label">People</div>
       <button class="tab" data-view="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5a5 5 0 0 1 6 4.5"/></svg><span>Team directory</span><span class="nav-count" id="nav-count-team" hidden></span></button>
@@ -51,10 +53,9 @@
       <button class="tab" data-view="pricing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 15.6 6.7 18.5l1.1-6L3.4 8.3l6-.8z"/></svg><span>Plans</span><span class="nav-count" id="nav-count-pricing" hidden></span></button>
     </div>
     <div class="sidebar-foot">
-      <button type="button" class="plan-badge free" id="plan-badge" title="Current plan. Click to change">
-        <span class="plan-left"><span class="plan-dot"></span><span><span id="plan-label">Free</span> plan</span></span>
-        <span class="plan-cta">Upgrade</span>
-      </button>
+      <div class="plan-badge" id="plan-badge" title="Full feature access">
+        <span class="plan-left"><span class="plan-dot" style="background:var(--success)"></span><span>All features unlocked</span></span>
+      </div>
       <p class="data-note">Data stays in this browser. Nothing is uploaded.</p>
     </div>
   </aside>
@@ -82,6 +83,8 @@
       <button class="tab" data-view="renewals">Renewals</button>
       <button class="tab" data-view="alerts">Alerts</button>
       <button class="tab" data-view="risk">Risk</button>
+      <button class="tab" data-view="playbook">Playbook</button>
+      <button class="tab" data-view="analytics">Analytics</button>
       <button class="tab" data-view="roadmap">Roadmap</button>
       <button class="tab" data-view="team">Team</button>
       <button class="tab" data-view="insights">Insights</button>
@@ -480,7 +483,7 @@
       <div class="panel integ-card">
         <div class="integ-head">
           <div class="integ-icon" style="background:#111">✦</div>
-          <div><h3>SSO</h3><span class="integ-plan gated">Enterprise · needs backend</span></div>
+          <div><h3>SSO</h3><span class="integ-plan ok">On the roadmap</span></div>
         </div>
         <p class="integ-desc">SAML / OIDC via Okta, Azure AD, or Google Workspace. Provisioning through SCIM. Handled by a small server component; the browser can't do this alone.</p>
         <div class="integ-logos">
@@ -499,7 +502,7 @@
       <div class="panel integ-card">
         <div class="integ-head">
           <div class="integ-icon" style="background:#0f766e">⇄</div>
-          <div><h3>ERP sync</h3><span class="integ-plan gated">Enterprise · needs backend</span></div>
+          <div><h3>ERP sync</h3><span class="integ-plan ok">On the roadmap</span></div>
         </div>
         <p class="integ-desc">Two-way sync with NetSuite, QuickBooks, Sage Intacct, and SAP. Vendors ↔ subscriptions, POs ↔ contracts, AP invoices ↔ invoice log. Here's the mapping we'd use:</p>
         <div class="mapping-wrap">
@@ -528,80 +531,26 @@
 
   <!-- Pricing -->
   <section id="pricing" class="view">
-    <div class="section-head"><div><h2>Plans</h2><p class="page-sub">Pick the tier that matches your vendor stack.</p></div></div>
-
-    <div class="billing-toggle" role="tablist" aria-label="Billing cycle">
-      <button type="button" class="bt-opt" data-bill="monthly" role="tab" aria-selected="false">Monthly</button>
-      <button type="button" class="bt-opt active" data-bill="annual" role="tab" aria-selected="true">Annual <span class="bt-save">Save 17%</span></button>
-    </div>
-
-    <div class="pricing-grid">
-      <div class="pricing-card" data-plan="free">
-        <div class="pricing-head">
-          <div class="pricing-tier">FREE</div>
-          <div class="pricing-price"><span class="pricing-currency">$</span><span class="pricing-amount">0</span></div>
-          <p class="pricing-cycle">Forever</p>
-        </div>
-        <div class="pricing-tagline pricing-tagline-free">Unlimited vendors</div>
-        <ul class="pricing-list">
-          <li>Unlimited vendors &amp; contracts</li>
-          <li>Unlimited users</li>
-          <li>Renewal &amp; notice date tracking</li>
-          <li>Notice-window countdown</li>
-          <li>Email alerts at 90/60/30 days</li>
-        </ul>
-        <a class="pricing-cta" href="https://saasspendtrack.com/#pricing" target="_blank" rel="noopener" data-plan-cta="free">Start tracking free</a>
-      </div>
-
-      <div class="pricing-card featured" data-plan="pro">
-        <div class="pricing-featured-tag">Most popular</div>
-        <div class="pricing-head">
-          <div class="pricing-tier">PRO</div>
-          <div class="pricing-price">
-            <span class="pricing-currency">$</span>
-            <span class="pricing-amount" data-price-monthly="49" data-price-annual="499">499</span>
-            <span class="pricing-suffix" data-suffix-monthly="/mo" data-suffix-annual="/yr">/yr</span>
-          </div>
-          <p class="pricing-cycle" data-cycle-monthly="Billed monthly" data-cycle-annual="~$41/mo · no budget approval needed">~$41/mo · no budget approval needed</p>
-        </div>
-        <div class="pricing-tagline pricing-tagline-pro">For teams that negotiate</div>
-        <ul class="pricing-list">
-          <li>Everything in Free</li>
-          <li>Automatic clause extraction</li>
-          <li>Slack alerts + escalation paths</li>
-          <li>Renewal prep briefs</li>
-          <li>Invoice &amp; spend tracking</li>
-          <li>Multi-department access</li>
-        </ul>
-        <a class="pricing-cta primary" href="https://saasspendtrack.com/#pricing" target="_blank" rel="noopener" data-plan-cta="pro">Get started →</a>
-      </div>
-
-      <div class="pricing-card" data-plan="enterprise">
-        <div class="pricing-head">
-          <div class="pricing-tier">ENTERPRISE</div>
-          <div class="pricing-price">
-            <span class="pricing-currency">$</span>
-            <span class="pricing-amount" data-price-monthly="149" data-price-annual="1,499">1,499</span>
-            <span class="pricing-suffix" data-suffix-monthly="/mo" data-suffix-annual="/yr">/yr</span>
-          </div>
-          <p class="pricing-cycle" data-cycle-monthly="Billed monthly" data-cycle-annual="~$125/mo · easy corporate card purchase">~$125/mo · easy corporate card purchase</p>
-        </div>
-        <div class="pricing-tagline pricing-tagline-ent">For complex vendor stacks</div>
-        <ul class="pricing-list">
-          <li>Everything in Pro</li>
-          <li>Price benchmarking at renewal</li>
-          <li>Automated contract risk scoring</li>
-          <li>SSO + ERP integrations</li>
-          <li>Custom approval workflows</li>
-          <li>Priority support</li>
-        </ul>
-        <a class="pricing-cta" href="https://saasspendtrack.com/#pricing" target="_blank" rel="noopener" data-plan-cta="enterprise">Get started →</a>
+    <div class="section-head"><div><h2>Plans</h2><p class="page-sub">Everything in the product is available in one tier while we iterate with design-partner customers.</p></div></div>
+    <div class="panel" style="max-width:720px;padding:28px">
+      <div class="pricing-tier" style="font-size:11px;letter-spacing:0.08em;font-weight:700;color:var(--text-dim)">EARLY ACCESS</div>
+      <h2 style="font-size:24px;letter-spacing:-0.02em;margin-top:6px;margin-bottom:14px">All of SaaS Spend Track, one tier</h2>
+      <p style="color:var(--text-dim);font-size:14px;line-height:1.6;max-width:620px">Every feature on this page is included: unlimited vendors and contracts, bulk contract ingestion with OCR, the full risk engine across eight dimensions, the clause playbook, every integration we ship, and on-premise deployment for customers who need it. Pricing tiers will be introduced later once the design-partner cohort closes.</p>
+      <ul class="pricing-list" style="margin-top:20px;font-size:13px">
+        <li>Unlimited vendors, contracts, invoices and users</li>
+        <li>Bulk contract ingestion with OCR for scanned PDFs and images</li>
+        <li>18-clause taxonomy and portfolio risk analytics</li>
+        <li>Clause playbook with deviation scoring</li>
+        <li>Renewal and notice-window alerts with escalation</li>
+        <li>Department rollups, non-PII datasheet template, HRMS connectors on request</li>
+        <li>Cloud or on-premise deployment</li>
+      </ul>
+      <div style="margin-top:22px;display:flex;gap:10px">
+        <button class="primary" onclick="switchView('contracts')">Ingest your first contract</button>
+        <button class="icon-btn" onclick="switchView('integrations')">See integrations</button>
       </div>
     </div>
-
-    <p class="contract-lede" style="margin-top:20px">
-      <b>Hosting.</b> Free is a single-page app you can self-host (drop <code>index.html</code>, <code>styles.css</code>, <code>app.js</code> on any static host: Netlify, Vercel, Cloudflare Pages, GitHub Pages, S3). Pro and Enterprise run on the SaaS Spend Track cloud: a managed Node / Postgres backend (Fly.io / Render for compute, Neon Postgres for storage, Cloudflare for CDN and WAF, S3-compatible object storage for contract files). Enterprise offers single-tenant deployments in your VPC on request.
-    </p>
+    <p class="contract-lede" style="margin-top:18px;max-width:720px">Design partners get white-glove onboarding, on-premise install support where needed, and a direct line to the product team for roadmap input. If you want to be one, reach out via the product page.</p>
   </section>
 
   <!-- Insights -->
@@ -621,6 +570,19 @@
         <ul id="recos" class="reco-list"></ul>
       </div>
     </div>
+  </section>
+
+  
+  <!-- Analytics -->
+  <section id="analytics" class="view">
+    <div class="section-head"><div><h2>Analytics</h2><p class="page-sub">Snapshots across the whole stack. Filter by department, category or tool and every panel updates.</p></div></div>
+    <div id="analytics-body"></div>
+  </section>
+
+  <!-- Playbook -->
+  <section id="playbook" class="view">
+    <div class="section-head"><div><h2>Clause playbook</h2><p class="page-sub">Define the terms your legal team will accept. Every contract is scored against them; deviations are flagged with the severity you set.</p></div></div>
+    <div id="playbook-body"></div>
   </section>
 
   <!-- Risk analytics -->
@@ -800,5 +762,6 @@
 </div>
 <script src="app.js"></script>
 <script src="extensions.js"></script>
+<script src="extensions2.js"></script>
 </body>
 </html>
