@@ -105,9 +105,11 @@ function renderAnalytics() {
   const tvMax = Math.max(1, ...topVendors.map(v => monthlyCost(v)));
   const tvChart = topVendors.map(s => `<div class="chart-row"><span class="chart-label"><a href="#" class="link" data-vendor-nav="${s.id}">${escapeHtml(s.name)}</a></span><div class="chart-bar"><div class="chart-bar-fill" style="--w:${(monthlyCost(s) / tvMax * 100).toFixed(1)}%"></div></div><span class="chart-value">${formatMoney(monthlyCost(s))}</span></div>`).join('');
 
-  // Invoice trend — monthly paid totals for last 12 months
+  // Invoice trend — monthly paid totals for the chosen range (defaults to 12 months)
+  const r = (typeof rangeToDates === 'function') ? rangeToDates(state.settings.analyticsRange || { preset: '12m' }) : { from: null, to: new Date() };
   const now = new Date(); const trend = [];
-  for (let i = 11; i >= 0; i--) {
+  const monthsBack = r.from ? Math.max(1, Math.min(24, Math.round((now - r.from) / (86400000 * 30)))) : 12;
+  for (let i = monthsBack - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
     const total = state.invoices.filter(iv => {
