@@ -713,3 +713,59 @@ footer .link { font-size: 12px; }
 .dept-risk-row { display: grid; grid-template-columns: 130px 1fr 150px; gap: 10px; align-items: center; font-size: 12.5px; padding: 6px 0; border-top: 1px solid var(--border); }
 .dept-risk-row:first-child { border-top: none; padding-top: 0; }
 @media (max-width: 1200px) { .dept-risk-grid { grid-template-columns: 1fr; } }
+
+/* ================================================================ Phase 4: Renewal Command Center */
+.rc-filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 16px; }
+.rc-select { height: 32px; padding: 0 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--panel); color: var(--text); font-size: 12.5px; font-family: inherit; }
+.rc-select:focus { outline: none; border-color: var(--accent); }
+
+.rc-lane { margin-top: 24px; }
+.rc-lane-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.rc-lane-head h3 { font-size: 14px; font-weight: 650; display: flex; align-items: center; gap: 8px; color: var(--text); }
+.rc-lane-head p { font-size: 12.5px; color: var(--text-dim); margin: 2px 0 0; }
+.rc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+
+.rc-card { background: var(--panel); border: 1px solid var(--border); border-left-width: 3px; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm); transition: box-shadow 0.15s ease; display: flex; flex-direction: column; gap: 12px; }
+.rc-card:hover { box-shadow: var(--shadow-md); }
+.rc-card.lane-overdue, .rc-card.lane-critical, .rc-card.lane-cancel { border-left-color: var(--danger); }
+.rc-card.lane-soon, .rc-card.lane-downgrade { border-left-color: var(--warning); }
+.rc-card.lane-upcoming, .rc-card.lane-renegotiate { border-left-color: var(--accent); }
+.rc-card.lane-renew { border-left-color: var(--success); }
+
+.rc-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.rc-vendor { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.rc-vendor .avatar { width: 32px; height: 32px; border-radius: 7px; font-size: 11.5px; }
+.rc-name { font-weight: 650; font-size: 14px; color: var(--text); }
+.rc-name a { color: inherit; }
+.rc-meta { font-size: 11.5px; color: var(--text-dim); margin-top: 1px; }
+.rc-cost { text-align: right; white-space: nowrap; }
+.rc-cost-main { font-weight: 700; font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+.rc-cost-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+
+.rc-timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 8px 10px; background: var(--panel-2); border-radius: var(--radius-sm); font-size: 11.5px; }
+.rc-time-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 2px; }
+.rc-time-value { font-size: 12.5px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.rc-time-value.urgent { color: var(--warning-text); }
+.rc-time-value.overdue { color: var(--danger-text); }
+.rc-time-sub { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; line-height: 1.3; }
+
+.rc-signals { display: flex; flex-wrap: wrap; gap: 6px; }
+.rc-signal { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+.rc-signal.risk-cell { min-width: 0; padding: 2px 10px; }
+.rc-signal.risk-cell b { margin-right: 3px; }
+.rc-signal-muted { background: var(--bg-2); color: var(--text-faint); }
+
+.rc-deviations { padding: 8px 12px; background: var(--danger-soft); border-radius: var(--radius-sm); color: var(--danger-text); font-size: 12px; }
+.rc-dev-head { font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; margin-bottom: 4px; }
+.rc-deviations ul { margin: 0; padding-left: 16px; }
+.rc-deviations li { margin-bottom: 2px; line-height: 1.4; }
+.rc-deviations li b { font-weight: 600; }
+.rc-dev-more { opacity: 0.65; }
+
+.rc-foot { display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rc-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.rc-act { height: 28px; padding: 0 10px; font-size: 11.5px; }
+.rc-act-primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.rc-act-primary:hover { background: var(--ink-hover); color: #fff; border-color: var(--ink-hover); }
+.rc-decision { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%; padding: 6px 10px; background: var(--panel-2); border-radius: var(--radius-sm); font-size: 12px; }
+.rc-decision-note { color: var(--text-dim); flex: 1; min-width: 0; font-style: italic; }
