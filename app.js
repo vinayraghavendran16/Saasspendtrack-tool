@@ -2258,5 +2258,5 @@ document.addEventListener('DOMContentLoaded', () => {
       toast('Import failed: ' + err.message, 'error');
     }
   });
-  document.getElementById('hrms-request').addEventListener('click', () => requestEnterprise('HRMS sync', document.getElementById('hrms-status')));
+  const _hrmsReq = document.getElementById('hrms-request'); if (_hrmsReq) _hrmsReq.addEventListener('click', () => requestEnterprise('HRMS sync', document.getElementById('hrms-status')));
 });

@@ -707,3 +707,9 @@ footer .link { font-size: 12px; }
 .filter-group .ms-item span { font-size: 13px; font-weight: 500; color: var(--text); text-transform: none; }
 /* Make sure the ms-list items never pick up table-header casing */
 .ms-list .ms-item, .ms-list .ms-item span { text-transform: none !important; letter-spacing: 0 !important; }
+
+/* Dept-weighted risk panel */
+.dept-risk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.dept-risk-row { display: grid; grid-template-columns: 130px 1fr 150px; gap: 10px; align-items: center; font-size: 12.5px; padding: 6px 0; border-top: 1px solid var(--border); }
+.dept-risk-row:first-child { border-top: none; padding-top: 0; }
+@media (max-width: 1200px) { .dept-risk-grid { grid-template-columns: 1fr; } }
