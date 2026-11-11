@@ -39,12 +39,15 @@
       <button class="tab" data-view="contracts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 13l2 2 4-4"/></svg><span>Contract terms</span><span class="nav-count" id="nav-count-contracts" hidden></span></button>
       <button class="tab" data-view="renewals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span>Renewals</span><span class="nav-count" id="nav-count-renewals" hidden></span></button>
       <button class="tab" data-view="alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg><span>Alerts</span><span class="nav-count" id="nav-count-alerts" hidden></span></button>
+      <button class="tab" data-view="risk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 22h20z"/><path d="M12 10v5M12 18h.01"/></svg><span>Risk analytics</span><span class="nav-count" id="nav-count-risk" hidden></span></button>
     </div>
     <div class="nav-group"><div class="nav-label">People</div>
       <button class="tab" data-view="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5a5 5 0 0 1 6 4.5"/></svg><span>Team directory</span><span class="nav-count" id="nav-count-team" hidden></span></button>
     </div>
     <div class="nav-group"><div class="nav-label">Workspace</div>
       <button class="tab" data-view="integrations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v5"/></svg><span>Integrations</span><span class="nav-count" id="nav-count-integrations" hidden></span></button>
+      <button class="tab" data-view="roadmap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h18M3 6h18M3 18h12"/></svg><span>Integration roadmap</span></button>
+      <button class="tab" data-owner-only data-view="backlog" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Product backlog</span><span class="badge warn" style="margin-left:6px;font-size:9px">Owner</span></button>
       <button class="tab" data-view="pricing"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 15.6 6.7 18.5l1.1-6L3.4 8.3l6-.8z"/></svg><span>Plans</span><span class="nav-count" id="nav-count-pricing" hidden></span></button>
     </div>
     <div class="sidebar-foot">
@@ -63,6 +66,7 @@
         <div class="urgency-strip" id="urgency-strip"></div>
       </div>
       <div class="topbar-right">
+        <button type="button" class="icon-only" id="settings-btn" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         <button type="button" class="icon-only" id="theme-toggle" title="Toggle light / dark">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         </button>
@@ -77,6 +81,8 @@
       <button class="tab" data-view="contracts">Contracts</button>
       <button class="tab" data-view="renewals">Renewals</button>
       <button class="tab" data-view="alerts">Alerts</button>
+      <button class="tab" data-view="risk">Risk</button>
+      <button class="tab" data-view="roadmap">Roadmap</button>
       <button class="tab" data-view="team">Team</button>
       <button class="tab" data-view="insights">Insights</button>
       <button class="tab" data-view="integrations">Integrations</button>
@@ -383,19 +389,31 @@
   <!-- Contracts -->
   <section id="contracts" class="view">
     <div class="section-head">
-      <div><h2>Contract terms</h2><p class="page-sub">Pull renewal type, notice period, term length and price caps out of an MSA.</p></div>
+      <div><h2>Contract terms</h2><p class="page-sub">Ingest from any source: single paste, upload, or bulk drop. OCR fires automatically on scanned PDFs and images.</p></div>
       <div class="controls">
-        <button id="sample-contract" class="icon-btn">Load sample contract</button>
+        <button id="sample-contract" class="icon-btn">Load sample</button>
         <label class="icon-btn" for="contract-file" style="cursor:pointer">Upload .pdf / .txt</label>
         <input type="file" id="contract-file" accept=".txt,.pdf,text/plain,application/pdf" hidden />
       </div>
     </div>
-    <p class="contract-lede">Paste text, or upload a PDF and we'll pull the text out for you. We scan for renewal type, notice period, term length, and any price-escalation cap — so you skip the Ctrl-F through a 40-page MSA. Scanned/image-only PDFs need OCR first.</p>
 
+    <div class="panel" style="margin-bottom:12px">
+      <h2>Bulk ingestion</h2>
+      <p class="panel-sub">Drop many contracts at once. Text PDFs extract instantly; scanned PDFs and images trigger OCR (engine loads on first use, ~2 MB). Each contract becomes a draft subscription with every clause the engine can find already populated.</p>
+      <div class="dropzone" id="bulk-drop">
+        <input type="file" id="bulk-upload" accept=".txt,.md,.pdf,.png,.jpg,.jpeg,image/*,application/pdf,text/plain" multiple hidden />
+        <p><b>Drop PDFs, scans or images here</b> or <button class="link" type="button" onclick="document.getElementById(&apos;bulk-upload&apos;).click()">click to select</button>. We parse each one, run OCR if needed, and extract every clause from the taxonomy.</p>
+      </div>
+      <div id="bulk-ocr-status" style="margin-top:10px;max-height:160px;overflow:auto;font-family:var(--mono)"></div>
+    </div>
+
+    <div id="contracts-v2"></div>
+
+    <div class="section-head" style="margin-top:28px"><div><h2>Paste or upload a single contract</h2><p class="page-sub">Useful for ad-hoc review before you push it into the register.</p></div></div>
     <div class="contract-grid">
       <div class="panel">
         <h2>Contract text</h2>
-        <textarea id="contract-text" placeholder="Paste your MSA, order form, or subscription agreement here…"></textarea>
+        <textarea id="contract-text" placeholder="Paste your MSA, order form, or subscription agreement here&hellip;"></textarea>
         <div class="contract-actions">
           <button id="extract-btn" class="primary">Extract clauses</button>
           <button id="clear-contract" class="icon-btn">Clear</button>
@@ -407,7 +425,7 @@
           <p class="empty" style="padding:20px 0;font-size:13px">Paste text and click <b>Extract clauses</b>.</p>
         </div>
         <div id="attach-row" class="attach-row" hidden>
-          <select id="attach-sub"><option value="">Attach to subscription…</option></select>
+          <select id="attach-sub"><option value="">Attach to subscription&hellip;</option></select>
           <button id="attach-btn" class="primary">Save to subscription</button>
         </div>
       </div>
@@ -601,6 +619,25 @@
       </div>
     </div>
   </section>
+
+  <!-- Risk analytics -->
+  <section id="risk" class="view">
+    <div class="section-head"><div><h2>Risk analytics</h2><p class="page-sub">Portfolio risk across financial, legal, operational, functional, usage, data, compliance and vendor-concentration dimensions.</p></div></div>
+    <div id="risk-analytics-body"></div>
+  </section>
+
+  <!-- Integration roadmap -->
+  <section id="roadmap" class="view">
+    <div class="section-head"><div><h2>Integration roadmap</h2><p class="page-sub">Every third-party system we plan to connect to, grouped by category with status and target phase.</p></div></div>
+    <div id="roadmap-body"></div>
+  </section>
+
+  <!-- Owner backlog -->
+  <section id="backlog" class="view">
+    <div class="section-head"><div><h2>Product backlog</h2><p class="page-sub">Known limitations, bugs and planned improvements. Owner-only.</p></div></div>
+    <div id="backlog-body"></div>
+  </section>
+
 </main>
 <footer>
   <span>Data lives in your browser (localStorage). Nothing is uploaded.</span>
@@ -727,6 +764,38 @@
   </div>
 </div>
 
+
+<!-- Settings modal -->
+<div class="modal-backdrop" id="settings-modal" hidden>
+  <div class="modal" style="max-width:480px">
+    <h2>Settings</h2>
+    <form onsubmit="event.preventDefault()">
+      <label>Industry
+        <select id="f-industry">
+          <option value="generic">Generic / Horizontal</option>
+          <option value="bfsi">Banking, Financial Services &amp; Insurance</option>
+          <option value="healthcare">Healthcare / Life Sciences</option>
+          <option value="saas">B2B SaaS</option>
+          <option value="manufacturing">Manufacturing / Supply Chain</option>
+          <option value="public">Public Sector / Government</option>
+          <option value="retail">Retail / E-commerce</option>
+        </select>
+      </label>
+      <p style="font-size:12px;color:var(--text-dim);margin:-6px 0 6px">Industry affects which clauses are weighted higher in the risk engine (for example, HIPAA references matter more for Healthcare; audit rights matter more for BFSI).</p>
+      <label class="check"><input type="checkbox" id="f-owner-mode" /> Owner mode &mdash; show the Product Backlog and internal tooling in the sidebar</label>
+      <div class="actions">
+        <button type="button" id="settings-cancel">Cancel</button>
+        <button type="button" class="primary" id="settings-save">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Contract review modal -->
+<div class="modal-backdrop" id="contract-detail-modal" hidden onclick="if(event.target.id===&apos;contract-detail-modal&apos;)this.hidden=true">
+  <div class="modal" style="max-width:860px"></div>
+</div>
 <script src="app.js"></script>
+<script src="extensions.js"></script>
 </body>
 </html>
