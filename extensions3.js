@@ -244,14 +244,21 @@ async function exportToPdf(elementId, title) {
   document.body.appendChild(wrapper);
   wrapper.style.position = 'absolute'; wrapper.style.left = '-99999px'; wrapper.style.top = '0'; wrapper.style.width = '1240px';
   try {
-    await lib().set({
+    const filename = `${title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${now.toISOString().slice(0,10)}.pdf`;
+    const worker = lib().set({
       margin: 10,
-      filename: `${title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${now.toISOString().slice(0,10)}.pdf`,
+      filename,
       html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] },
-    }).from(wrapper).save();
-    toast('PDF downloaded.', 'success');
+    }).from(wrapper);
+    if (typeof window.saveFileUniversal === 'function') {
+      const blob = await worker.outputPdf('blob');
+      await window.saveFileUniversal(filename, blob, 'application/pdf');
+    } else {
+      await worker.save();
+      toast('PDF downloaded.', 'success');
+    }
   } catch (e) {
     toast('PDF export failed: ' + e.message, 'error');
   } finally {

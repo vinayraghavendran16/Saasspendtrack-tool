@@ -271,14 +271,21 @@ async function exportPlaybookReview() {
   wrapper.innerHTML = cover + summary + breakdown + details + compliantList + footer;
   document.body.appendChild(wrapper);
   try {
-    await lib().set({
+    const filename = `playbook-legal-review-${now.toISOString().slice(0, 10)}.pdf`;
+    const worker = lib().set({
       margin: 0,
-      filename: `playbook-legal-review-${now.toISOString().slice(0, 10)}.pdf`,
+      filename,
       html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'], avoid: '.break-avoid' },
-    }).from(wrapper).save();
-    toast('Legal review PDF downloaded.', 'success');
+    }).from(wrapper);
+    if (typeof window.saveFileUniversal === 'function') {
+      const blob = await worker.outputPdf('blob');
+      await window.saveFileUniversal(filename, blob, 'application/pdf');
+    } else {
+      await worker.save();
+      toast('Legal review PDF downloaded.', 'success');
+    }
   } catch (e) {
     toast('PDF export failed: ' + e.message, 'error');
   } finally {
