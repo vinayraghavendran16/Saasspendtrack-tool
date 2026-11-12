@@ -1,0 +1,8 @@
+# Files in this list are present in the repo but NOT uploaded to Cloudflare.
+# https://developers.cloudflare.com/workers/static-assets/direct-upload/#ignoring-files
+README.md
+README-hosting.md
+wrangler.toml
+.assetsignore
+.gitignore
+*.bak

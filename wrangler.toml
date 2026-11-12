@@ -1,0 +1,16 @@
+# Cloudflare Workers with Static Assets config
+# Serves the single-page tool from the edge, no server code.
+# Docs: https://developers.cloudflare.com/workers/static-assets/
+
+name = "saasspendtrack"
+compatibility_date = "2026-01-01"
+
+[assets]
+directory = "./"
+not_found_handling = "single-page-application"
+
+# Nothing is uploaded that starts with a dot (so .git, .wranglerignore, etc.
+# are safe), and the files we explicitly don't want served are listed below.
+
+[observability]
+enabled = true
