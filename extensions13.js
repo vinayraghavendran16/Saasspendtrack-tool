@@ -25,15 +25,22 @@
 
 /* ---------- Intent catalogue (what the router can answer) ---------- */
 const CHAT_INTENTS = [
+  /* Dept+vendor must come AFTER spend_on_vendor and REQUIRE an explicit
+     dept keyword — otherwise "what is the total spend on hotspot this year"
+     wrongly matches with "total"=dept, "hotspot"=vendor, "year"=qtr. */
   { id: 'spend_by_dept_vendor', desc: 'How much is <department> spending on <vendor> <timeframe>?',
-    tests: [/(?:how much|what('?s)?)\s+(?:is|are|does)?\s*(?:the\s+)?(.+?)\s+(?:team|dept|department)?\s*(?:spending|paying|pay)\s+on\s+(.+?)(?:\s+this\s+(quarter|month|year)|\s+last\s+(\d+)\s+(?:days?|months?))?/i,
-            /(.+?)\s+spend\s+on\s+(.+?)(?:\s+this\s+(quarter|month|year))?$/i] },
+    tests: [/(?:how much|what('?s)?)\s+(?:is|are|does)?\s*(?:the\s+)?(.+?)\s+(?:team|dept|department)\s+(?:spending|paying|pay|spend)\s+on\s+(.+?)(?:\s+this\s+(quarter|month|year)|\s+last\s+(\d+)\s+(?:days?|months?))?$/i,
+            /(.+?)\s+(?:team|dept|department)\s+spend\s+on\s+(.+?)(?:\s+this\s+(quarter|month|year))?$/i] },
   { id: 'licence_demand',       desc: 'How many <vendor> licences do I need <timeframe>?',
     tests: [/how\s+many\s+(.+?)\s+(?:licenses?|licences?|seats?)\s+(?:do\s+(?:i|we)\s+need|should\s+(?:i|we)\s+(?:buy|have))(?:\s+next\s+(quarter|month|year))?/i,
             /(?:forecast|project|plan)\s+(.+?)\s+(?:licenses?|licences?|seats?)/i] },
   { id: 'spend_on_vendor',      desc: 'What are we spending on <vendor>?',
-    tests: [/(?:what('?s)?|how much)\s+(?:are\s+we|do\s+we|is\s+the\s+company)?\s*(?:spending|paying|pay|costs?)\s+(?:on|for|to)\s+(.+?)(?:\s+(?:this|last|next)\s+(quarter|month|year))?\??$/i,
-            /total\s+spend\s+(?:on|for)\s+(.+)/i] },
+    tests: [
+      /(?:what('?s)?|how much)\s+(?:is\s+)?(?:the\s+)?(?:total\s+)?spend\s+(?:on|for)\s+(.+?)(?:\s+(?:this|last|next)\s+(?:quarter|month|year))?\??$/i,
+      /(?:what('?s)?|how much)\s+(?:are\s+we|do\s+we|is\s+the\s+company)?\s*(?:spending|paying|pay|costs?)\s+(?:on|for|to)\s+(.+?)(?:\s+(?:this|last|next)\s+(?:quarter|month|year))?\??$/i,
+      /total\s+spend\s+(?:on|for)\s+(.+?)(?:\s+(?:this|last|next)\s+(?:quarter|month|year))?\??$/i,
+      /^spend\s+on\s+(.+?)(?:\s+(?:this|last|next)\s+(?:quarter|month|year))?\??$/i,
+    ] },
   { id: 'total_spend',          desc: 'What is total SaaS spend <timeframe>?',
     tests: [/(?:what('?s)?|how much)\s+(?:is\s+)?(?:our|the|total|all)\s+(?:total\s+)?(?:saas\s+)?spend(?:\s+(?:this|last)\s+(quarter|month|year|30\s*days))?/i,
             /annual\s+(?:run.?rate|spend)/i] },
@@ -96,19 +103,59 @@ function _vendors() { return (state.subscriptions || []).map(s => s); }
 function _invoices() { return (state.invoices || []); }
 function _emps() { return (state.employees || []); }
 
+/* Simple Levenshtein to help voice-recognition near-misses
+   ("hotspot" → "HubSpot", "sells force" → "Salesforce") */
+function _lev(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const prev = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) prev[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    let cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    for (let j = 0; j <= b.length; j++) prev[j] = cur[j];
+  }
+  return prev[b.length];
+}
 function findVendor(q) {
-  if (!q) return null; const t = q.toLowerCase().trim();
+  if (!q) return null;
+  // Strip trailing timeframe words voice sometimes bakes in
+  const t = q.toLowerCase().trim().replace(/\s+(this|last|next)\s+(quarter|month|year|week)\s*$/,'').replace(/\?+$/, '').trim();
   const vs = _vendors();
+  if (!vs.length) return null;
   // exact
   let hit = vs.find(v => v.name.toLowerCase() === t); if (hit) return hit;
   // startsWith
   hit = vs.find(v => v.name.toLowerCase().startsWith(t)); if (hit) return hit;
-  // contains
+  // contains either way
   hit = vs.find(v => v.name.toLowerCase().includes(t) || t.includes(v.name.toLowerCase())); if (hit) return hit;
-  // token overlap
+  // token overlap (any 3+ char token hits a vendor name)
   const toks = t.split(/\s+/).filter(x => x.length > 2);
-  if (toks.length) hit = vs.find(v => toks.some(tok => v.name.toLowerCase().includes(tok)));
-  return hit || null;
+  if (toks.length) {
+    hit = vs.find(v => toks.some(tok => v.name.toLowerCase().includes(tok)));
+    if (hit) return hit;
+  }
+  // Fuzzy — Levenshtein against each vendor name (and tokens inside it)
+  // Accept distance up to 2 for short names, 3 for longer. Scores ties by
+  // shorter distance then name length.
+  const candidates = [];
+  for (const v of vs) {
+    const name = v.name.toLowerCase();
+    const maxDist = name.length <= 6 ? 2 : 3;
+    const d1 = _lev(t, name);
+    if (d1 <= maxDist) { candidates.push({ v, d: d1 }); continue; }
+    // Try first token of vendor name (e.g. "HubSpot Marketing Hub" → "hubspot")
+    const firstTok = name.split(/\s+/)[0];
+    if (firstTok.length >= 4) {
+      const d2 = _lev(t, firstTok);
+      if (d2 <= 2) candidates.push({ v, d: d2 });
+    }
+  }
+  candidates.sort((a, b) => a.d - b.d);
+  return candidates[0]?.v || null;
 }
 function findDept(q) {
   if (!q) return null; const t = q.toLowerCase().trim();
@@ -200,8 +247,19 @@ const _ANSWERERS = {
     };
   },
   spend_on_vendor(p) {
-    const vend = findVendor(p.match[2] || p.match[1]);
-    if (!vend) return { headline: "I couldn't find that vendor.", body: `Searched for <b>${escapeHtml(p.match[2] || p.match[1] || '')}</b>.`, trace: 'no vendor match' };
+    const raw = p.match[2] || p.match[1] || '';
+    const vend = findVendor(raw);
+    if (!vend) {
+      // Offer close matches as clickable chips so voice near-misses are easy to recover
+      const similar = _vendors().map(v => ({ v, d: _lev(raw.toLowerCase().trim(), v.name.toLowerCase()) })).sort((a, b) => a.d - b.d).slice(0, 5);
+      return {
+        headline: `I couldn't find a vendor matching "${escapeHtml(raw)}".`,
+        body: `<div class="dim" style="margin-bottom:8px;font-size:12px">Did you mean one of these?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${similar.map(s => `<button class="chip" data-chip-q="spend on ${escapeHtml(s.v.name)}">${escapeHtml(s.v.name)}</button>`).join('')}</div>
+          <div class="dim" style="margin-top:10px;font-size:11px">Or type <b>list all vendors</b> to see every vendor in your portfolio.</div>`,
+        trace: `intent=spend_on_vendor no_vendor_match raw="${escapeHtml(raw)}"`,
+      };
+    }
     const sp = spendForVendor(vend, p.timeframe);
     const inv = _invoices().filter(i => i.subscriptionId === vend.id || (i.vendor || '').toLowerCase() === vend.name.toLowerCase());
     const paid = inv.filter(i => i.status === 'paid').reduce((a, i) => a + (+i.amount || 0), 0);
@@ -825,6 +883,9 @@ function ensureChatModal() {
     );
   };
 }
+function _modalEscHandler(e) {
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeChatModal(); }
+}
 function openChatModal() {
   ensureChatModal();
   const m = document.getElementById('ai-modal');
@@ -832,14 +893,20 @@ function openChatModal() {
   const input = m.querySelector('#ai-modal-input');
   setTimeout(() => input.focus(), 50);
   renderModalSuggestions(input.value);
+  // Global Esc — bind at document capture phase so it works regardless of focus
+  document.addEventListener('keydown', _modalEscHandler, true);
 }
 function closeChatModal() {
   const m = document.getElementById('ai-modal');
   if (!m) return;
   m.classList.remove('open');
+  document.removeEventListener('keydown', _modalEscHandler, true);
   // Return focus to the topbar bar if present (accessibility)
   const topbar = document.getElementById('ai-topbar-search');
   topbar?.focus();
+  // Also stop any speech that's playing so closing silences the voice
+  try { speechSynthesis?.cancel(); } catch (_) {}
+  try { stopVoice(); } catch (_) {}
 }
 function runModalQuery(q) {
   const body = document.getElementById('ai-modal-body');

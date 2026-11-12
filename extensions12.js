@@ -10,6 +10,14 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 20', title: 'Intent fixes: fuzzy vendor match + reliable Esc close', kind: 'fix', items: [
+    'Fuzzy vendor matching with Levenshtein distance — voice near-misses like "hotspot" now resolve to HubSpot, "sells force" to Salesforce. Threshold: 2 chars for short names, 3 for longer',
+    'Reordered intent router so simple "spend on X" is checked before the multi-slot "dept spending on vendor" pattern — fixes "total spend on hotspot" grabbing "total" as department and "year" as vendor',
+    'The dept+vendor intent now requires an explicit team/dept/department keyword, so generic questions never match it',
+    'When a vendor still cannot be matched, the response now shows the 5 closest vendor names as clickable chips — recover from a near-miss in one tap',
+    'Esc key now closes the modal from anywhere inside it (previously only worked if the input had focus)',
+    'Closing the modal also cancels any in-flight speech and recording — no more voice playing after dismiss',
+  ]},
   { date: '2026-11-12', phase: 'Phase 19', title: 'Live on app.saasspendtrack.com + voice language picker', kind: 'feature', items: [
     'Hosted on Cloudflare Pages (saasspendtrack project) with custom domain app.saasspendtrack.com',
     'Auto-deploy on every push to main branch via GitHub integration',
