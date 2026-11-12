@@ -10,6 +10,15 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 23', title: 'Trial expiry enforcement', kind: 'feature', items: [
+    'Full-screen expiry gate blocks the app when the 14-day trial ends — three actions: Upgrade (mailto), mark as paid, or view data read-only',
+    'Grace mode banner at the top when ≤3 days remain, orange warn style with inline Upgrade CTA',
+    'Read-only mode blurs spend figures with a lock icon so the data is preserved but hidden until upgrade',
+    'switchView intercepts navigation on expired trials and keeps the Plans view accessible for self-service upgrade',
+    'Owner-only dev controls on the Plans view: reset to fresh trial, force-expire for demos, mark as paid/revert',
+    'Fresh-trial button resets the clock cleanly so the distributor can re-demo with the next prospect',
+    'window.AskTrackTrial exposes state/reset/expire for console use',
+  ]},
   { date: '2026-11-12', phase: 'Phase 22', title: 'Distributor one-pager (branded A4 PDF)', kind: 'feature', items: [
     'New Distributor one-pager view under Workspace',
     'Branded A4 single-page leave-behind rendered inline for preview',
