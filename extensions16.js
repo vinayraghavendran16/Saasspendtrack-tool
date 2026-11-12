@@ -84,9 +84,13 @@ function renderOnepager() {
   document.getElementById('op-print').onclick = () => {
     // Open a clean print window with just the page
     const w = window.open('', '_blank', 'width=900,height=1100');
+    // Build the print snippet via concatenation so no literal end-script
+    // tag appears in this file's own text. HTML parsers close any script
+    // block on the first end-script tag they see, regardless of context.
+    const printSnippet = '<' + 'script>setTimeout(()=>window.print(),500);</' + 'script>';
     w.document.write(`<!doctype html><html><head><title>SaaS Spend Track — ${escapeHtml(s.prospectName || 'One-pager')}</title>
       <style>${getOnepagerPrintCss()}</style>
-      </head><body>${document.getElementById('op-page').outerHTML}<script>setTimeout(()=>window.print(),500);</script></body></html>`);
+      </head><body>${document.getElementById('op-page').outerHTML}${printSnippet}</body></html>`);
     w.document.close();
   };
 }

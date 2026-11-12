@@ -179,14 +179,7 @@ function parseTimeframe(q) {
 }
 
 /* ---------- Spend math ---------- */
-function monthlyCost(s) {
-  const c = +s.cost || 0;
-  const cycle = (s.billingCycle || s.cycle || 'monthly').toLowerCase();
-  if (cycle === 'annual' || cycle === 'yearly' || cycle === 'annually') return c / 12;
-  if (cycle === 'quarterly') return c / 3;
-  if (cycle === 'weekly') return c * 4.33;
-  return c;
-}
+// monthlyCost comes from app.js. annualCost isn't there, so define it here.
 function annualCost(s) { return monthlyCost(s) * 12; }
 
 function spendForVendor(v, tf) {
@@ -547,6 +540,10 @@ const VOICE_LANGS = [
   { code: 'pa-IN', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
 ];
 function voiceSettings() {
+  // Defensive: state may not be fully initialised when this is called from
+  // the speechSynthesis onvoiceschanged timers that fire during script load.
+  if (typeof state === 'undefined' || !state) return { ttsLang: 'en-US', sttLang: 'en-IN', ttsVoiceName: null, speakOn: true };
+  if (!state.settings) state.settings = {};
   state.settings.voice = state.settings.voice || {};
   if (!state.settings.voice.ttsLang) state.settings.voice.ttsLang = 'en-US';   // default English, NOT Hindi
   if (!state.settings.voice.sttLang) state.settings.voice.sttLang = 'en-IN';   // STT default en-IN works best for Indian English speakers

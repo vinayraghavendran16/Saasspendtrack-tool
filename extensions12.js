@@ -10,6 +10,15 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 26', title: 'Full cycle: QA expansion, UAT scenarios, docs refresh', kind: 'feature', items: [
+    'QA harness expanded to 124 tests covering Phases 22-25 (one-pager, trial gate, demo presets, vendor contacts, voice settings, Ask Track intents, fuzzy vendor matching, download bridge)',
+    'Headless test runner (run_qa.js) using Puppeteer + Chromium — runs the full suite in ~5 seconds and reports pass/fail/skip',
+    'Current status: 116 pass / 0 fail / 8 skip (skips need a real backend)',
+    'Three real bugs caught by the expansion and fixed: (1) a literal end-script tag inside a template literal broke the HTML bundle; (2) voiceSettings() crashed on load before state was initialised; (3) monthlyCost shadow collision in extensions13 duplicated the function with wrong weekly constant (4.33 vs 4.345)',
+    'New UAT.md: 10 scenario sections, 70+ test steps for manual pre-release walk-through, covering fresh-install, distributor demo cycle, trial gate, one-pager, contact book, Ask Track (text + voice), download audit, mobile, dark mode, marketing site',
+    'README.md refreshed to reflect Phases 1-25 (architecture, feature list, hosting, extensions table, pricing, running locally, bundling)',
+    'Smoke-test shortcut documented: run_qa.js + 6 manual steps for a 2-minute go/no-go after any push',
+  ]},
   { date: '2026-11-12', phase: 'Phase 25', title: 'Vendor contact book', kind: 'feature', items: [
     'New Vendor contacts view: AE/CSM name, email, phone, LinkedIn, last/next outreach, notes per vendor',
     'Four KPIs: vendors with contact, missing contact, stale (>60d since touch), portfolio value',
