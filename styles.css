@@ -1285,3 +1285,11 @@ html.owner-only #owner { display: block !important; }
 @media (min-width: 721px) {
   .ai-drawer { display: none !important; }
 }
+
+/* ===== Chat voice settings pane ===== */
+.chat-voice-pane { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+.vp-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: end; }
+.vp-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--ink-dim); }
+.vp-grid select { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px; }
+.vp-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding-top: 4px; border-top: 1px dashed var(--border); margin-top: 4px; }
+@media (max-width: 700px) { .vp-grid { grid-template-columns: 1fr; } }

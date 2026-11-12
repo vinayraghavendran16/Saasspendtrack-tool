@@ -473,6 +473,29 @@ function pushChat(role, content, meta) {
   save();
 }
 
+/* ---------- Voice settings (language picker) ---------- */
+const VOICE_LANGS = [
+  { code: 'en-US', label: 'English (US)', native: 'English' },
+  { code: 'en-IN', label: 'English (India)', native: 'English' },
+  { code: 'en-GB', label: 'English (UK)', native: 'English' },
+  { code: 'hi-IN', label: 'Hindi', native: 'हिन्दी' },
+  { code: 'ta-IN', label: 'Tamil', native: 'தமிழ்' },
+  { code: 'te-IN', label: 'Telugu', native: 'తెలుగు' },
+  { code: 'bn-IN', label: 'Bengali', native: 'বাংলা' },
+  { code: 'mr-IN', label: 'Marathi', native: 'मराठी' },
+  { code: 'gu-IN', label: 'Gujarati', native: 'ગુજરાતી' },
+  { code: 'kn-IN', label: 'Kannada', native: 'ಕನ್ನಡ' },
+  { code: 'ml-IN', label: 'Malayalam', native: 'മലയാളം' },
+  { code: 'pa-IN', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
+];
+function voiceSettings() {
+  state.settings.voice = state.settings.voice || {};
+  if (!state.settings.voice.ttsLang) state.settings.voice.ttsLang = 'en-US';   // default English, NOT Hindi
+  if (!state.settings.voice.sttLang) state.settings.voice.sttLang = 'en-IN';   // STT default en-IN works best for Indian English speakers
+  if (state.settings.voice.ttsVoiceName === undefined) state.settings.voice.ttsVoiceName = null; // null = auto-pick best for ttsLang
+  return state.settings.voice;
+}
+
 /* ---------- Voice input (Web Speech API) ----------
    Inside the Claude artifact iframe the parent typically doesn't grant
    `microphone` permissions-policy, so SpeechRecognition fires an
@@ -495,7 +518,7 @@ function startVoice(onResult, onEnd) {
   }
   if (_rec && _recOn) return false;
   _rec = new Rec();
-  _rec.lang = 'en-IN';
+  _rec.lang = voiceSettings().sttLang || 'en-IN';
   _rec.interimResults = true;
   _rec.continuous = false;
   let finalText = '';
@@ -534,51 +557,85 @@ function stopVoice() { try { _rec && _rec.stop(); } catch (_) {} _recOn = false;
    gracefully if none installed on this platform. Voices load async
    in Chrome — refresh the selected voice once voiceschanged fires. */
 let _preferredVoice = null;
-/* Score every available voice; higher is less robotic.
-   The big win in browser TTS comes from preferring "Natural" / "Neural" /
-   "Online" voices (Microsoft Edge's Natural voices and Google Chrome's
-   high-quality voices sound dramatically better than system voices like
-   Veena, which are early-2000s formant synth). */
-function _scoreVoice(v) {
+
+/* Score voices, but ONLY within the requested language family.
+   The scorer never crosses language families — if user picks English,
+   it will never fall back to a Hindi voice (and vice versa). */
+function _scoreVoiceForLang(v, targetLangStem) {
   const n = (v.name || '').toLowerCase();
   const l = (v.lang || '').toLowerCase();
+  // Hard filter: must match target language family (e.g. "en" or "hi")
+  if (!l.startsWith(targetLangStem.toLowerCase())) return -1;
   let s = 0;
-  // Quality tier — the biggest lever
-  if (/neural|natural/i.test(n)) s += 100;           // Microsoft Edge Natural voices (best in browser)
-  if (/online/i.test(n)) s += 80;                    // Edge Online voices
+  // Quality tier — biggest lever
+  if (/neural|natural/i.test(n)) s += 100;           // Microsoft Edge Natural (best in browser)
+  if (/online/i.test(n)) s += 80;                    // Edge Online
   if (/wavenet|studio|news|polyglot/i.test(n)) s += 70;  // Google premium
-  if (/enhanced|premium/i.test(n)) s += 50;          // macOS Enhanced voices
-  if (/google/i.test(n)) s += 30;                    // Google voices generally better than system
+  if (/enhanced|premium/i.test(n)) s += 50;          // macOS Enhanced
+  if (/google/i.test(n)) s += 30;
   if (/microsoft/i.test(n) && !/desktop/i.test(n)) s += 20;
-  if (/desktop/i.test(n)) s -= 20;                   // Microsoft Desktop voices are old formant
-  // Accent preference — prefer Indian English, then UK, then US
-  if (/en[-_]in/i.test(l)) s += 15;
-  if (/en[-_]gb/i.test(l)) s += 10;
-  if (/en[-_]us/i.test(l)) s += 5;
-  if (/en[-_]au/i.test(l)) s += 5;
-  // Gender preference — soothing female
-  if (/female|aria|jenny|neerja|prabhat|swara|sneha|ananya|kajal|isha|libby|sonia|heera|veena|priya|aditi|karen|samantha|ava|zira|hazel|google.*female/i.test(n)) s += 25;
-  if (/male/i.test(n) && !/female/i.test(n)) s -= 10;
-  // Language stem must be English (or Hindi which still reads English)
-  if (!/^en|^hi/i.test(l)) s -= 50;
+  if (/desktop/i.test(n)) s -= 20;                   // Old formant voices
+  // Exact locale bonus (e.g. "en-IN" matches "en-IN" tighter than "en-US")
   return s;
 }
-function pickIndianFemaleVoice() {
+/* Pick the best voice for the user's chosen TTS language.
+   Respects an explicit ttsVoiceName override first.
+   Prefers female voices via a mild boost (not a filter) so a soothing
+   voice is picked when available but we never end up with no voice. */
+function pickVoiceForLang(langCode) {
   if (!('speechSynthesis' in window)) return null;
   const voices = speechSynthesis.getVoices() || [];
   if (!voices.length) return null;
-  // Rank every voice; pick the top
-  const scored = voices.map(v => ({ v, s: _scoreVoice(v) })).sort((a, b) => b.s - a.s);
-  return scored[0]?.v || null;
+  const vs = voiceSettings();
+  // Explicit override
+  if (vs.ttsVoiceName) {
+    const hit = voices.find(v => v.name === vs.ttsVoiceName);
+    if (hit) return hit;
+  }
+  // Prefer exact locale (en-IN), then same stem (en-*), then fall back to default
+  const stem = (langCode || 'en-US').split('-')[0];
+  const exact = voices.filter(v => (v.lang || '').toLowerCase() === langCode.toLowerCase());
+  const stemMatch = voices.filter(v => (v.lang || '').toLowerCase().startsWith(stem.toLowerCase() + '-') || (v.lang || '').toLowerCase() === stem.toLowerCase());
+  const pool = exact.length ? exact : stemMatch;
+  if (!pool.length) {
+    // Absolute last resort: platform default (don't cross language)
+    return null;
+  }
+  const scored = pool.map(v => {
+    let s = _scoreVoiceForLang(v, stem);
+    const n = (v.name || '').toLowerCase();
+    // Mild female preference within the chosen language (not a hard filter)
+    if (/female|aria|jenny|neerja|swara|sneha|ananya|kajal|isha|libby|sonia|heera|veena|priya|aditi|karen|samantha|ava|zira|hazel|kate|serena/i.test(n)) s += 15;
+    if (/male/i.test(n) && !/female/i.test(n)) s -= 5;
+    return { v, s };
+  }).sort((a, b) => b.s - a.s);
+  return scored[0]?.v || pool[0];
 }
+/* Kept name for backward compat elsewhere in the file */
+function pickIndianFemaleVoice() { return pickVoiceForLang(voiceSettings().ttsLang || 'en-US'); }
+
 /* Debug helper so you can see what's installed and what won */
 function _listVoicesDebug() {
   if (!('speechSynthesis' in window)) return [];
   const voices = speechSynthesis.getVoices() || [];
-  return voices.map(v => ({ name: v.name, lang: v.lang, score: _scoreVoice(v), default: v.default }))
+  const target = (voiceSettings().ttsLang || 'en-US').split('-')[0];
+  return voices.map(v => ({ name: v.name, lang: v.lang, score: _scoreVoiceForLang(v, target), default: v.default }))
     .sort((a, b) => b.score - a.score);
 }
-function _refreshVoice() { _preferredVoice = pickIndianFemaleVoice(); }
+
+/* Return available voices for the UI picker, grouped by language stem */
+function listVoicesForPicker() {
+  if (!('speechSynthesis' in window)) return {};
+  const voices = speechSynthesis.getVoices() || [];
+  const grouped = {};
+  voices.forEach(v => {
+    const stem = (v.lang || 'en').split('-')[0];
+    (grouped[stem] ||= []).push({ name: v.name, lang: v.lang });
+  });
+  return grouped;
+}
+function _refreshVoice() { _preferredVoice = pickVoiceForLang(voiceSettings().ttsLang || 'en-US'); }
+window.refreshAskTrackVoice = _refreshVoice;
 if ('speechSynthesis' in window) {
   _refreshVoice();
   speechSynthesis.onvoiceschanged = _refreshVoice;
@@ -626,9 +683,10 @@ function _splitSentences(t) {
 
 function _speakChunk(chunk, isFirst, isLast) {
   const u = new SpeechSynthesisUtterance(chunk);
-  if (!_preferredVoice) _refreshVoice();
+  const vs = voiceSettings();
+  if (!_preferredVoice || (_preferredVoice.lang || '').split('-')[0] !== (vs.ttsLang || 'en-US').split('-')[0]) _refreshVoice();
   if (_preferredVoice) { u.voice = _preferredVoice; u.lang = _preferredVoice.lang; }
-  else { u.lang = 'en-IN'; }
+  else { u.lang = vs.ttsLang || 'en-US'; }
   // Vary prosody slightly per chunk to avoid a flat monotone
   u.rate = 0.95 + (Math.random() * 0.06 - 0.03);     // 0.92 - 0.98
   u.pitch = 1.0 + (Math.random() * 0.08 - 0.04);     // 0.96 - 1.04
@@ -645,14 +703,18 @@ function speak(text) {
   chunks.forEach((c, i) => _speakChunk(c, i === 0, i === chunks.length - 1));
 }
 
-/* Expose for debugging/preference pane later */
+/* Expose for debugging + used by the picker UI */
 window.AskTrackVoice = {
-  pickIndianFemaleVoice, speak,
+  pickIndianFemaleVoice, pickVoiceForLang, speak,
   get preferred() { return _preferredVoice; },
   listVoices: _listVoicesDebug,
+  listVoicesForPicker,
+  settings: voiceSettings,
+  setLang(lang) { voiceSettings().ttsLang = lang; voiceSettings().ttsVoiceName = null; _refreshVoice(); save(); return _preferredVoice?.name; },
+  setSttLang(lang) { voiceSettings().sttLang = lang; save(); return lang; },
   setVoiceByName(name) {
     const v = (speechSynthesis.getVoices() || []).find(x => x.name && x.name.toLowerCase().includes(name.toLowerCase()));
-    if (v) { _preferredVoice = v; return v.name; }
+    if (v) { _preferredVoice = v; voiceSettings().ttsVoiceName = v.name; save(); return v.name; }
     return null;
   },
 };
@@ -891,8 +953,26 @@ function ensureChatView() {
         <h2>Ask Track</h2>
         <p class="page-sub">Natural-language questions over every subscription, contract, invoice, licence and clause in your workspace. Voice input + voice replies supported.</p>
       </div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="icon-btn" id="chat-voice-settings" title="Voice settings">🎙 Voice</button>
         <button class="icon-btn" id="chat-clear">Clear chat</button>
+      </div>
+    </div>
+    <div id="chat-voice-pane" class="chat-voice-pane" hidden>
+      <div class="vp-grid">
+        <label>Reply voice language
+          <select id="vp-tts-lang"></select>
+        </label>
+        <label>Reply voice
+          <select id="vp-tts-voice"></select>
+        </label>
+        <label>Mic input language
+          <select id="vp-stt-lang"></select>
+        </label>
+        <div class="vp-actions">
+          <button class="icon-btn" id="vp-test">Test voice</button>
+          <span class="dim" style="font-size:11px">Voice preferences save automatically. Mic input will use the chosen language next time you press the mic.</span>
+        </div>
       </div>
     </div>
     <div class="ai-view">
@@ -935,6 +1015,11 @@ function ensureChatView() {
   section.querySelector('#ai-intents').innerHTML = CHAT_INTENTS.map(i => `<li>${escapeHtml(i.desc)}</li>`).join('');
 
   section.querySelector('#chat-clear').onclick = () => { if (!confirm('Clear chat history?')) return; state.settings.chatLog = []; save(); renderChatMessages('full'); renderChatMessages('drawer'); };
+  section.querySelector('#chat-voice-settings').onclick = () => {
+    const pane = section.querySelector('#chat-voice-pane');
+    pane.hidden = !pane.hidden;
+    if (!pane.hidden) renderVoicePane(section);
+  };
   section.querySelector('#ai-form-full').onsubmit = (e) => { e.preventDefault(); const i = section.querySelector('#ai-input-full'); const q = i.value.trim(); if (!q) return; i.value = ''; handleQuery(q, 'full'); };
   section.querySelector('#ai-mic-full').onclick = () => {
     if (_recOn) { stopVoice(); return; }
@@ -1050,3 +1135,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Register page title + make sure switchView knows it
 if (window.PAGE_TITLES) { window.PAGE_TITLES.chat = 'Ask Track'; window.PAGE_TITLES.forecast = 'Licence forecast'; }
+
+/* ---------- Voice settings pane renderer ---------- */
+function renderVoicePane(section) {
+  const vs = voiceSettings();
+  const ttsLangSel = section.querySelector('#vp-tts-lang');
+  const ttsVoiceSel = section.querySelector('#vp-tts-voice');
+  const sttLangSel = section.querySelector('#vp-stt-lang');
+
+  // Language options (same list for TTS and STT)
+  const opts = VOICE_LANGS.map(l => `<option value="${l.code}">${escapeHtml(l.label)}${l.native !== l.label.split(' ')[0] ? ' — ' + escapeHtml(l.native) : ''}</option>`).join('');
+  ttsLangSel.innerHTML = opts;
+  sttLangSel.innerHTML = opts;
+  ttsLangSel.value = vs.ttsLang;
+  sttLangSel.value = vs.sttLang;
+
+  const populateVoiceSelect = () => {
+    const grouped = listVoicesForPicker();
+    const stem = (vs.ttsLang || 'en-US').split('-')[0];
+    const available = grouped[stem] || [];
+    if (!available.length) {
+      ttsVoiceSel.innerHTML = `<option value="">No voices installed on this device for ${escapeHtml(vs.ttsLang)}</option>`;
+      ttsVoiceSel.disabled = true;
+    } else {
+      ttsVoiceSel.disabled = false;
+      ttsVoiceSel.innerHTML = '<option value="">Auto (best available)</option>' + available
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(v => `<option value="${encodeURIComponent(v.name)}">${escapeHtml(v.name)} <small>(${escapeHtml(v.lang)})</small></option>`).join('');
+      ttsVoiceSel.value = vs.ttsVoiceName ? encodeURIComponent(vs.ttsVoiceName) : '';
+    }
+  };
+  populateVoiceSelect();
+
+  ttsLangSel.onchange = () => { vs.ttsLang = ttsLangSel.value; vs.ttsVoiceName = null; _refreshVoice(); save(); populateVoiceSelect(); };
+  ttsVoiceSel.onchange = () => { vs.ttsVoiceName = ttsVoiceSel.value ? decodeURIComponent(ttsVoiceSel.value) : null; _refreshVoice(); save(); };
+  sttLangSel.onchange = () => { vs.sttLang = sttLangSel.value; save(); toast('Mic will use ' + sttLangSel.options[sttLangSel.selectedIndex].text + ' next time', 'info'); };
+
+  section.querySelector('#vp-test').onclick = () => {
+    const samples = {
+      en: 'This is a test. Ask Track is ready to answer questions about your SaaS portfolio.',
+      hi: 'यह एक परीक्षण है। आस्क ट्रैक आपके सास पोर्टफोलियो के बारे में प्रश्नों के उत्तर देने के लिए तैयार है।',
+      ta: 'இது ஒரு சோதனை. ஆஸ்க் டிராக் உங்கள் சாஸ் போர்ட்ஃபோலியோ குறித்த கேள்விகளுக்கு பதிலளிக்க தயாராக உள்ளது.',
+      te: 'ఇది ఒక పరీక్ష. ఆస్క్ ట్రాక్ మీ శాస్ పోర్ట్ఫోలియో గురించి ప్రశ్నలకు సమాధానం చెప్పడానికి సిద్ధంగా ఉంది.',
+      bn: 'এটি একটি পরীক্ষা। আস্ক ট্র্যাক আপনার সাস পোর্টফোলিও সম্পর্কে প্রশ্নের উত্তর দিতে প্রস্তুত।',
+      mr: 'ही एक चाचणी आहे. आस्क ट्रॅक तुमच्या सास पोर्टफोलिओबद्दल प्रश्नांची उत्तरे देण्यास तयार आहे.',
+      gu: 'આ એક પરીક્ષણ છે. આસ્ક ટ્રેક તમારા સાસ પોર્ટફોલિયો વિશેના પ્રશ્નોના જવાબ આપવા માટે તૈયાર છે.',
+      kn: 'ಇದು ಒಂದು ಪರೀಕ್ಷೆ. ಆಸ್ಕ್ ಟ್ರ್ಯಾಕ್ ನಿಮ್ಮ ಸಾಸ್ ಪೋರ್ಟ್ಫೋಲಿಯೊ ಬಗ್ಗೆ ಪ್ರಶ್ನೆಗಳಿಗೆ ಉತ್ತರಿಸಲು ಸಿದ್ಧವಾಗಿದೆ.',
+      ml: 'ഇതൊരു പരീക്ഷണമാണ്. നിങ്ങളുടെ സാസ് പോർട്ട്ഫോളിയോയെക്കുറിച്ചുള്ള ചോദ്യങ്ങൾക്ക് ഉത്തരം നൽകാൻ ആസ്ക് ട്രാക്ക് തയ്യാറാണ്.',
+      pa: 'ਇਹ ਇੱਕ ਟੈਸਟ ਹੈ। ਆਸਕ ਟ੍ਰੈਕ ਤੁਹਾਡੇ ਸਾਸ ਪੋਰਟਫੋਲੀਓ ਬਾਰੇ ਸਵਾਲਾਂ ਦੇ ਜਵਾਬ ਦੇਣ ਲਈ ਤਿਆਰ ਹੈ।',
+    };
+    const stem = (vs.ttsLang || 'en-US').split('-')[0];
+    speak(samples[stem] || samples.en);
+  };
+}

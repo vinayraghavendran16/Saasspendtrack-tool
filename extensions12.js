@@ -10,6 +10,17 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 19', title: 'Live on app.saasspendtrack.com + voice language picker', kind: 'feature', items: [
+    'Hosted on Cloudflare Pages (saasspendtrack project) with custom domain app.saasspendtrack.com',
+    'Auto-deploy on every push to main branch via GitHub integration',
+    'wrangler.toml + _headers + _redirects shipped: single-page-application fallback, mic Permissions-Policy allowed, 1h cache on JS/CSS, no-cache on HTML for instant deploy rollout',
+    'TTS reply language now defaults to English — no more Hindi default',
+    'Voice settings pane in the Ask Track view: reply voice language, reply voice picker, mic input language',
+    '12 languages supported for both TTS and STT: English (US/India/UK), Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi',
+    'Scorer never crosses language families — picking English will never fall back to a Hindi voice (fixes the previous Hindi default)',
+    'Test voice button speaks a sample sentence in the chosen language — useful for confirming the voice is installed on this device',
+    'Mic input language takes effect on next press',
+  ]},
   { date: '2026-11-12', phase: 'Phase 18', title: 'Less robotic voice: prefer Natural/Neural, chunk at sentences', kind: 'feature', items: [
     'Voice picker now scores every installed voice — Natural/Neural voices (Microsoft Edge\'s Natural voices, Google WaveNet) win decisively over system voices (Veena, Microsoft Desktop)',
     'Scoring also weights Indian English accent, female gender, and down-weights obvious formant voices',
