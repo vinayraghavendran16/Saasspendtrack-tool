@@ -10,6 +10,26 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 13', title: 'Licence Forecasting (capacity planning)', kind: 'feature', items: [
+    'New Licence Forecast view under Operations',
+    'Per-vendor quarterly demand projection: Q+1 to Q+4',
+    'Model: demand(q) = active × (1 + headcount_growth)^q × (1 + adoption_growth)^q × utilisation_buffer × confidence_buffer',
+    'Capacity plan controls: org growth %, target utilisation, horizon, confidence',
+    'Per-department overrides: either growth % per quarter or target headcount at horizon',
+    'Recommendation per vendor: Add seats / Hold / Reclaim — with annual $ impact',
+    'Portfolio seat-demand curve chart (today vs. Q+1 through horizon)',
+    'All forecast settings persist to state and export to PDF',
+  ]},
+  { date: '2026-11-12', phase: 'Phase 12', title: 'AI Chat on the contract corpus (text + voice)', kind: 'feature', items: [
+    'New Ask the Corpus view and a floating Ask pill on every screen',
+    'Natural-language Q&A over vendors, contracts, invoices, licences, departments, risk, renewals, clauses, approvals, employees',
+    '14 intent patterns including: "How much is marketing spending on Salesforce this quarter?", "How many Figma licences do I need next quarter?", "Which contracts have the highest risk?", "Which tools are underused?", "Cost per user for Slack"',
+    'Voice input via the Web Speech API (SpeechRecognition) with recording state',
+    'Voice reply via SpeechSynthesis (toggle per surface)',
+    'Grounded answers only: every number sourced from state, with a why-this-answer trace per reply, and clickable sources back to the contract review modal',
+    'Chat history persists per workspace; clear control included',
+    'No external AI call — runs entirely in the browser',
+  ]},
   { date: '2026-11-12', phase: 'Phase 11', title: 'Changelog & Roadmap view', kind: 'feature', items: [
     'New in-product changelog documenting every release with the date, phase and user-facing change',
     'Themed roadmap view with upvote counter so the product team can prioritise from one surface',
@@ -145,9 +165,12 @@ const DEFAULT_ROADMAP = [
   { id: 'rm-09', theme: 'Product depth', status: 'planned', title: 'Price benchmarking across the cohort',
     body: '"What others pay" benchmarks for each vendor. Needs opt-in anonymised data sharing across the design-partner base.',
     scope: ['Opt-in benchmark participation', 'Anonymised quarterly medians per vendor', 'Benchmark line on contract review'], upvotes: 9 },
-  { id: 'rm-10', theme: 'Product depth', status: 'exploring', title: 'AI chat on the whole contract corpus',
-    body: 'Ask "which contracts auto-renew in Q1 without a price cap?" and get the answer. Embeddings + the on-premise LLM already in the architecture.',
-    scope: ['Vector index of every ingested contract', 'Chat UI with citations back to the source clause', 'Role-aware answers (Finance sees spend, Legal sees terms)'], upvotes: 11 },
+  { id: 'rm-10', theme: 'Product depth', status: 'shipped', title: 'AI chat on the whole contract corpus',
+    body: 'Shipped in Phase 12 — text and voice Q&A grounded in your own data, 14 intent patterns, clickable source trail. Next: semantic search across full contract text via embeddings when the server tier ships.',
+    scope: ['Shipped: 14 intents, text + voice, grounded citations, chat history', 'Next: embeddings over ingested contract PDFs', 'Next: role-aware answers (Finance sees spend, Legal sees terms)'], upvotes: 15 },
+  { id: 'rm-17', theme: 'Product depth', status: 'shipped', title: 'Licence forecasting (capacity planning)',
+    body: 'Shipped in Phase 13 — quarterly demand model per vendor with org/dept growth, utilisation target and confidence buffer.',
+    scope: ['Shipped: per-vendor Q+1 to Q+4 demand, cost impact, portfolio curve', 'Next: Rippling / BambooHR hooks to pull live headcount into the capacity plan', 'Next: confidence intervals, not single-point estimates'], upvotes: 10 },
   { id: 'rm-11', theme: 'Product depth', status: 'exploring', title: 'Cancellation letter generator',
     body: 'Pre-drafted cancellation notices per vendor jurisdiction, formatted for delivery (email, courier, in-app). Vendor-specific signing requirements captured.',
     scope: ['Template library per vendor', 'Jurisdiction-specific legal language', 'DocuSign send integration'], upvotes: 3 },
