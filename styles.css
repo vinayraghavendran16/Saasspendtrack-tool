@@ -953,3 +953,34 @@ html.owner-only #owner { display: block !important; }
 .qa-row.qa-fail td:nth-child(4) { color: var(--danger-text) !important; font-family: var(--mono); font-size: 11.5px !important; }
 .qa-row.qa-skipped { opacity: 0.6; }
 .qa-row.qa-not-run td { color: var(--text-dim); font-style: italic; }
+
+/* ================================================================ Phase 10: Data Sources */
+.ds-phase { margin-top: 24px; }
+.ds-phase-head { margin-bottom: 12px; }
+.ds-phase-head h3 { font-size: 14px; font-weight: 650; display: flex; align-items: center; gap: 8px; }
+.ds-phase-head p { font-size: 12.5px; color: var(--text-dim); margin: 3px 0 0; }
+.ds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.ds-tile { background: var(--panel); border: 1px solid var(--border); border-left-width: 3px; border-left-color: var(--border-strong); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 10px; }
+.ds-tile.connected { border-left-color: var(--success); background: color-mix(in srgb, var(--success-soft) 25%, var(--panel)); }
+.ds-tile-head { display: flex; align-items: flex-start; gap: 10px; }
+.ds-logo { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; flex: 0 0 32px; }
+.ds-tile-head b { font-size: 13.5px; color: var(--text); font-weight: 600; display: block; }
+.ds-tile-meta { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+.ds-desc { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; margin: 0; }
+.ds-data-types { display: flex; flex-wrap: wrap; gap: 4px; }
+.ds-chip { font-size: 10.5px; padding: 2px 7px; background: var(--bg-2); border-radius: 999px; color: var(--text-2); font-weight: 500; text-transform: capitalize; }
+.ds-tile-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.ds-sync { font-size: 11.5px; color: var(--text-dim); }
+.ds-sync b { color: var(--text); font-weight: 600; }
+.ds-tile-actions { display: flex; gap: 4px; }
+.ds-tile-actions .icon-btn { height: 28px; padding: 0 10px; font-size: 11.5px; }
+
+.ds-oauth-mock { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--panel-2); border-radius: var(--radius-sm); margin: 10px 0 14px; }
+.ds-scope-list { list-style: none; margin: 0 0 0 4px; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--text-2); }
+.ds-scope-list li { display: flex; align-items: center; gap: 8px; }
+.ds-scope-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.ds-match-list { list-style: none; margin: 0; padding: 0; max-height: 180px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.ds-match-list li { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12.5px; display: flex; justify-content: space-between; align-items: center; }
+.ds-match-list li:last-child { border-bottom: none; }
+.ds-match-list li b { color: var(--text); font-weight: 600; }
+.ds-match-list li span { color: var(--text-dim); font-size: 11.5px; }
