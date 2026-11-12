@@ -75,8 +75,26 @@
   --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
   --shadow-lg: 0 20px 48px rgba(0,0,0,0.6);
 }
-[data-theme="dark"] .btn-primary, [data-theme="dark"] button.primary, [data-theme="dark"] .modal .actions button.primary, [data-theme="dark"] .pricing-cta.primary {
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] button.primary,
+[data-theme="dark"] .modal .actions button.primary,
+[data-theme="dark"] .pricing-cta.primary,
+[data-theme="dark"] .rc-act-primary,
+[data-theme="dark"] .rc-act-primary:hover,
+[data-theme="dark"] .ow-btn-ack:hover,
+[data-theme="dark"] .pricing-featured-tag,
+[data-theme="dark"] .toast {
+  color: #0b0e14 !important;
+}
+/* Default ink-based buttons use white-on-ink in light mode; in dark mode .cta-band and marketing-site buttons also need dark text */
+[data-theme="dark"] .ms-foot .ms-close.primary,
+[data-theme="dark"] .appr-banner .icon-btn {
   color: #0b0e14;
+}
+/* Ensure the "primary" ghost buttons in modals have readable text in dark mode */
+[data-theme="dark"] .modal .actions button.primary svg,
+[data-theme="dark"] button.primary svg {
+  color: inherit;
 }
 
 /* ---------- reset ---------- */
