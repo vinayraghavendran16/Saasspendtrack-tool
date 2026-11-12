@@ -1,0 +1,3 @@
+# Cloudflare Pages redirects
+# Everything else serves index.html (hash routing handles the rest)
+/*  /index.html  200
