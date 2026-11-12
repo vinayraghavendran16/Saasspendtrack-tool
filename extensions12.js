@@ -10,7 +10,15 @@
    ========================================================================== */
 
 const CHANGELOG = [
-  { date: '2026-11-12', phase: 'Phase 15', title: 'Global command palette for Ask the Corpus', kind: 'feature', items: [
+  { date: '2026-11-12', phase: 'Phase 16', title: 'Renamed to Ask Track + 6 new intents', kind: 'feature', items: [
+    'Feature renamed from "Ask the Corpus" to "Ask Track" across every surface — topbar bar, modal, chat view, sidebar nav, docs',
+    'Six new intents added to the router to catch list-style questions that previously fell through: list_vendors, list_owners, list_contracts, count_vendors, department_list, help',
+    'Now answers: "give me all vendor names", "list all vendors", "who owns what", "how many vendors do we have", "what departments do we have", "help"',
+    'Fallback response now shows clickable chips of known intents when it cannot route — much shorter path from a miss to a hit',
+    'Type "help" anywhere to see every intent the router supports',
+    'Trademark note: Ask Track was chosen as a brand-anchored combination of two common words — clear in Class 42 SaaS, no known mark collision',
+  ]},
+  { date: '2026-11-12', phase: 'Phase 15', title: 'Global command palette for Ask Track', kind: 'feature', items: [
     'Persistent search bar in the topbar on every view — click it or press ⌘K / Ctrl+K',
     'Centered modal with keyboard-first interaction: ↑↓ to navigate suggestions, ↵ to ask, Esc to close',
     'Suggestions include starter questions plus "Spend on <vendor>" for every subscription in state',
@@ -36,7 +44,7 @@ const CHANGELOG = [
     'All forecast settings persist to state and export to PDF',
   ]},
   { date: '2026-11-12', phase: 'Phase 12', title: 'AI Chat on the contract corpus (text + voice)', kind: 'feature', items: [
-    'New Ask the Corpus view and a floating Ask pill on every screen',
+    'New Ask Track view and a floating Ask pill on every screen',
     'Natural-language Q&A over vendors, contracts, invoices, licences, departments, risk, renewals, clauses, approvals, employees',
     '14 intent patterns including: "How much is marketing spending on Salesforce this quarter?", "How many Figma licences do I need next quarter?", "Which contracts have the highest risk?", "Which tools are underused?", "Cost per user for Slack"',
     'Voice input via the Web Speech API (SpeechRecognition) with recording state',

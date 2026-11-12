@@ -67,6 +67,28 @@ const CHAT_INTENTS = [
   { id: 'per_user_cost',        desc: 'Cost per user for <vendor>',
     tests: [/cost\s+per\s+(?:user|seat|licen[cs]e)\s+(?:for|of)\s+(.+)/i,
             /(.+?)\s+cost\s+per\s+user/i] },
+  { id: 'list_vendors',         desc: 'List all vendors / give me all vendor names',
+    tests: [/(?:list|give\s+me|show\s+me|show)\s+(?:all\s+)?(?:the\s+)?(?:vendor|subscription|tool|app)\s*(?:name)?s?/i,
+            /(?:what|which)\s+(?:vendor|tool|app|subscription)s?\s+(?:do\s+(?:i|we)\s+have|are\s+we\s+(?:using|on)|in\s+(?:my|our)\s+(?:stack|portfolio))/i,
+            /all\s+(?:vendor|tool|app|subscription)s?/i,
+            /(?:my|our)\s+(?:stack|portfolio|tools|vendors)/i,
+            /vendor\s+(?:list|names?)/i] },
+  { id: 'list_owners',          desc: 'List all owners / who owns what',
+    tests: [/(?:list|show)\s+(?:all\s+)?owners?/i,
+            /who\s+owns\s+what/i,
+            /owner\s+(?:list|map)/i,
+            /(?:who\s+(?:are\s+)?the\s+)?(?:vendor|tool|contract|subscription)\s+owners?/i] },
+  { id: 'list_contracts',       desc: 'List all contracts',
+    tests: [/(?:list|show|all)\s+(?:all\s+)?contracts?/i,
+            /contract\s+list/i] },
+  { id: 'count_vendors',        desc: 'How many vendors / tools / subscriptions do we have?',
+    tests: [/how\s+many\s+(?:vendor|tool|app|subscription|contract)s?\s+(?:do\s+(?:i|we)\s+have|are\s+(?:there|we\s+on))/i,
+            /(?:total|count)\s+(?:of\s+)?(?:vendor|tool|subscription)s?/i] },
+  { id: 'department_list',      desc: 'What departments do we have?',
+    tests: [/(?:list|show|what)\s+(?:are\s+(?:the|our)\s+|all\s+)?(?:department|team)s?/i,
+            /department\s+(?:list|names?|breakdown)/i] },
+  { id: 'help',                 desc: 'What can you answer?',
+    tests: [/^(?:help|what\s+can\s+(?:you|i)\s+(?:do|ask|answer)|examples?|how\s+(?:does\s+this|do\s+i\s+use))\b/i] },
 ];
 
 /* ---------- Helpers: NL entity extraction ---------- */
@@ -351,14 +373,89 @@ const _ANSWERERS = {
       trace: `intent=per_user_cost vendor=${v.name}`,
     };
   },
+  list_vendors(p) {
+    const vs = _vendors().filter(v => v.status !== 'cancelled').sort((a, b) => annualCost(b) - annualCost(a));
+    return {
+      headline: `<b>${vs.length}</b> vendors in your portfolio`,
+      body: vs.map(v => `<div class="ai-grid-row" data-nav-vendor="${v.id}" style="cursor:pointer"><span>${escapeHtml(v.name)}</span><span class="dim">${escapeHtml(v.department || '—')} · ${escapeHtml(v.category || '—')}</span><b>${formatMoney(annualCost(v))}/yr</b></div>`).join(''),
+      trace: `intent=list_vendors n=${vs.length}`,
+    };
+  },
+  list_owners(p) {
+    const byOwner = {};
+    _vendors().filter(v => v.status !== 'cancelled').forEach(v => {
+      const o = v.owner || v.ownerEmail || 'Unassigned';
+      (byOwner[o] ||= []).push(v);
+    });
+    const rows = Object.entries(byOwner).sort((a, b) => b[1].length - a[1].length);
+    return {
+      headline: `<b>${rows.length}</b> owners · ${_vendors().length} vendors`,
+      body: rows.map(([o, list]) => `<div class="ai-grid-row"><span>${escapeHtml(o)}</span><span class="dim">${list.map(v => escapeHtml(v.name)).join(', ').slice(0, 120)}${list.map(v=>v.name).join(', ').length > 120 ? '…' : ''}</span><b>${list.length}</b></div>`).join(''),
+      trace: `intent=list_owners owners=${rows.length}`,
+    };
+  },
+  list_contracts(p) {
+    const vs = _vendors().filter(v => v.status !== 'cancelled' && v.renewal).sort((a, b) => new Date(a.renewal) - new Date(b.renewal));
+    return {
+      headline: `<b>${vs.length}</b> active contracts`,
+      body: vs.slice(0, 30).map(v => `<div class="ai-grid-row" data-nav-vendor="${v.id}" style="cursor:pointer"><span>${escapeHtml(v.name)}</span><span class="dim">renews ${v.renewal}</span><b>${formatMoney(annualCost(v))}/yr</b></div>`).join(''),
+      trace: `intent=list_contracts n=${vs.length}`,
+    };
+  },
+  count_vendors(p) {
+    const all = _vendors();
+    const active = all.filter(v => v.status !== 'cancelled').length;
+    const cancelled = all.length - active;
+    const depts = new Set(all.map(v => v.department).filter(Boolean)).size;
+    const cats = new Set(all.map(v => v.category).filter(Boolean)).size;
+    return {
+      headline: `<b>${active}</b> active vendors${cancelled ? `, ${cancelled} cancelled` : ''}`,
+      body: `<div class="ai-grid-row"><span>Departments</span><b>${depts}</b></div>
+             <div class="ai-grid-row"><span>Categories</span><b>${cats}</b></div>
+             <div class="ai-grid-row"><span>Total invoices</span><b>${_invoices().length}</b></div>
+             <div class="ai-grid-row"><span>Employees</span><b>${_emps().length}</b></div>`,
+      trace: `intent=count_vendors active=${active}`,
+    };
+  },
+  department_list(p) {
+    const byDept = {};
+    _vendors().filter(v => v.status !== 'cancelled').forEach(v => { (byDept[v.department || 'Unassigned'] = byDept[v.department || 'Unassigned'] || { vendors: 0, spend: 0 }); byDept[v.department || 'Unassigned'].vendors++; byDept[v.department || 'Unassigned'].spend += annualCost(v); });
+    const rows = Object.entries(byDept).sort((a, b) => b[1].spend - a[1].spend);
+    return {
+      headline: `<b>${rows.length}</b> departments`,
+      body: rows.map(([d, x]) => `<div class="ai-grid-row"><span>${escapeHtml(d)}</span><span class="dim">${x.vendors} vendor${x.vendors === 1 ? '' : 's'}</span><b>${formatMoney(x.spend)}/yr</b></div>`).join(''),
+      trace: `intent=department_list n=${rows.length}`,
+    };
+  },
+  help(p) {
+    return {
+      headline: `Here's what I can answer`,
+      body: CHAT_INTENTS.map(i => `<div class="ai-grid-row"><span>${escapeHtml(i.desc)}</span></div>`).join(''),
+      trace: `intent=help`,
+    };
+  },
   search(p) {
     const q = p.raw.toLowerCase();
     const vendors = _vendors().filter(v => v.name.toLowerCase().includes(q) || (v.department || '').toLowerCase().includes(q) || (v.category || '').toLowerCase().includes(q));
-    if (!vendors.length) return {
-      headline: "I'm not sure how to answer that.",
-      body: `Try: "spend on Salesforce", "renewals next 60 days", "top risk", "unused seats", "forecast Figma licences", "cost per user for Slack", or ask by department.`,
-      trace: `intent=search_fallthrough query="${escapeHtml(p.raw)}"`,
-    };
+    if (!vendors.length) {
+      // Richer fallback: offer clickable chips of known intents
+      const chips = [
+        'Total SaaS spend this year',
+        'Top risk contracts',
+        'Renewals next 60 days',
+        'Which tools are underused',
+        'Spend by department',
+        'List all vendors',
+        'How many vendors do we have',
+        'Cost per user for Slack',
+      ];
+      return {
+        headline: `Not sure how to answer "${escapeHtml(p.raw)}" yet.`,
+        body: `<div class="dim" style="margin-bottom:10px;font-size:12px">I didn't catch an intent in that question. Try one of these, or type <b>help</b> to see everything I can answer:</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${chips.map(c => `<button class="chip" data-chip-q="${encodeURIComponent(c)}">${escapeHtml(c)}</button>`).join('')}</div>`,
+        trace: `intent=search_fallthrough query="${escapeHtml(p.raw)}"`,
+      };
+    }
     return {
       headline: `Found ${vendors.length} matches`,
       body: vendors.slice(0, 10).map(v => `<div class="ai-grid-row" data-nav-vendor="${v.id}" style="cursor:pointer"><span>${escapeHtml(v.name)}</span><span class="dim">${escapeHtml(v.department || '—')}</span><b>${formatMoney(annualCost(v))}/yr</b></div>`).join(''),
@@ -428,7 +525,7 @@ function ensureChatLauncher() {
     wrap.className = 'ai-topbar-search';
     wrap.innerHTML = `
       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <span class="ai-topbar-placeholder">Ask your portfolio anything…</span>
+      <span class="ai-topbar-placeholder">Ask Track…</span>
       <span class="ai-kbd">${/Mac/i.test(navigator.platform) ? '⌘' : 'Ctrl'} K</span>
     `;
     wrap.onclick = openChatModal;
@@ -440,7 +537,7 @@ function ensureChatLauncher() {
     const btn = document.createElement('button');
     btn.id = 'ai-launcher';
     btn.className = 'ai-launcher ai-launcher-mobile-only';
-    btn.title = 'Ask the corpus';
+    btn.title = 'Ask Track';
     btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
     btn.onclick = openChatModal;
     document.body.appendChild(btn);
@@ -467,13 +564,13 @@ function ensureChatModal() {
   modal.className = 'ai-modal';
   modal.setAttribute('role', 'dialog');
   modal.setAttribute('aria-modal', 'true');
-  modal.setAttribute('aria-label', 'Ask the corpus');
+  modal.setAttribute('aria-label', 'Ask Track');
   modal.innerHTML = `
     <div class="ai-modal-backdrop" data-close></div>
     <div class="ai-modal-panel">
       <form class="ai-modal-form" id="ai-modal-form">
         <svg class="ai-modal-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="ai-modal-input" placeholder="How much is marketing spending on Salesforce this quarter?" autocomplete="off" spellcheck="false"/>
+        <input id="ai-modal-input" placeholder="Ask Track — e.g. how much is marketing spending on Salesforce this quarter?" autocomplete="off" spellcheck="false"/>
         <button type="button" class="ai-mic ai-mic-modal" id="ai-mic-modal" title="Voice input">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
         </button>
@@ -552,6 +649,7 @@ function runModalQuery(q) {
     `;
     body.querySelectorAll('[data-nav-src]').forEach(a => a.onclick = (e) => { e.preventDefault(); const [view, id] = a.dataset.navSrc.split(':'); closeChatModal(); switchView(view); if (typeof openContractDetail === 'function') openContractDetail(id); });
     body.querySelectorAll('[data-nav-vendor]').forEach(r => r.onclick = () => { closeChatModal(); if (typeof openContractDetail === 'function') openContractDetail(r.dataset.navVendor); });
+    body.querySelectorAll('[data-chip-q]').forEach(c => c.onclick = () => { const q2 = decodeURIComponent(c.dataset.chipQ); document.getElementById('ai-modal-input').value = q2; runModalQuery(q2); });
   }, 20);
 }
 function renderModalSuggestions(q) {
@@ -593,7 +691,7 @@ function ensureChatDrawer() {
   div.className = 'ai-drawer';
   div.innerHTML = `
     <header class="ai-head">
-      <div><b>Ask the corpus</b><div class="dim" style="font-size:11px">Grounded answers from your own data</div></div>
+      <div><b>Ask Track</b><div class="dim" style="font-size:11px">Grounded answers from your own data</div></div>
       <div style="display:flex;gap:4px">
         <button class="icon-btn" id="ai-full" title="Open full">⤢</button>
         <button class="icon-btn" id="ai-close" title="Close">×</button>
@@ -642,7 +740,7 @@ function ensureChatView() {
   section.innerHTML = `
     <div class="section-head">
       <div>
-        <h2>Ask the corpus</h2>
+        <h2>Ask Track</h2>
         <p class="page-sub">Natural-language questions over every subscription, contract, invoice, licence and clause in your workspace. Voice input + voice replies supported.</p>
       </div>
       <div style="display:flex;gap:8px">
@@ -663,7 +761,7 @@ function ensureChatView() {
           <button type="button" class="ai-mic" id="ai-mic-full">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
           </button>
-          <input id="ai-input-full" placeholder="Ask anything about your SaaS portfolio…" autocomplete="off"/>
+          <input id="ai-input-full" placeholder="Ask Track — anything about your SaaS portfolio…" autocomplete="off"/>
           <label class="ai-voice-toggle"><input type="checkbox" id="ai-voice-reply-full"/> <span>🔊 Speak</span></label>
           <button type="submit" class="btn-primary">Send</button>
         </form>
@@ -709,7 +807,7 @@ function ensureChatNav() {
   const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
   const btn = document.createElement('button');
   btn.className = 'tab'; btn.dataset.view = 'chat';
-  btn.innerHTML = `${svg}<span>Ask the corpus</span><span class="badge" style="margin-left:auto;background:var(--accent);color:#fff;font-size:9px">AI</span>`;
+  btn.innerHTML = `${svg}<span>Ask Track</span><span class="badge" style="margin-left:auto;background:var(--accent);color:#fff;font-size:9px">AI</span>`;
   g.appendChild(btn);
   btn.addEventListener('click', () => switchView('chat'));
 }
@@ -722,7 +820,7 @@ function patchSwitchViewForChat() {
       document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === name));
       window.scrollTo({ top: 0 });
       const crumb = document.getElementById('page-crumb');
-      if (crumb) crumb.textContent = name === 'chat' ? 'Ask the corpus' : 'Licence forecast';
+      if (crumb) crumb.textContent = name === 'chat' ? 'Ask Track' : 'Licence forecast';
       if (!opts.replaceHistory) {
         const target = '#' + name;
         if (location.hash !== target) history.pushState({ view: name }, '', target);
@@ -756,7 +854,7 @@ function renderChatMessages(surface) {
   const log = chatLog();
   if (!log.length) {
     host.innerHTML = `<div class="ai-welcome">
-      <h3>Ask about your SaaS portfolio.</h3>
+      <h3>Ask Track anything about your SaaS portfolio.</h3>
       <p class="dim">Grounded answers with a source trail. Nothing is sent to a third party — everything runs locally on your workspace.</p>
       <div class="ai-quick-chips">
         <button class="chip" data-chip="Total SaaS spend this year">Total spend this year</button>
@@ -785,6 +883,7 @@ function renderChatMessages(surface) {
   host.querySelectorAll('[data-nav-src]').forEach(a => a.onclick = (e) => { e.preventDefault(); const [view, id] = a.dataset.navSrc.split(':'); switchView(view); if (typeof openContractDetail === 'function') openContractDetail(id); });
   host.querySelectorAll('[data-nav-vendor]').forEach(r => r.onclick = () => { if (typeof openContractDetail === 'function') openContractDetail(r.dataset.navVendor); });
   host.querySelectorAll('[data-nav]').forEach(a => a.onclick = (e) => { e.preventDefault(); switchView(a.dataset.nav); });
+  host.querySelectorAll('[data-chip-q]').forEach(c => c.onclick = () => handleQuery(decodeURIComponent(c.dataset.chipQ), surface));
   // Scroll to bottom
   host.scrollTop = host.scrollHeight;
 }
@@ -802,4 +901,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Register page title + make sure switchView knows it
-if (window.PAGE_TITLES) { window.PAGE_TITLES.chat = 'Ask the corpus'; window.PAGE_TITLES.forecast = 'Licence forecast'; }
+if (window.PAGE_TITLES) { window.PAGE_TITLES.chat = 'Ask Track'; window.PAGE_TITLES.forecast = 'Licence forecast'; }
