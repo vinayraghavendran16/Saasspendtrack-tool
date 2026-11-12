@@ -10,6 +10,16 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 25', title: 'Vendor contact book', kind: 'feature', items: [
+    'New Vendor contacts view: AE/CSM name, email, phone, LinkedIn, last/next outreach, notes per vendor',
+    'Four KPIs: vendors with contact, missing contact, stale (>60d since touch), portfolio value',
+    'Stale rows (no touch in 60+ days) highlighted red; 30-60 days aging highlighted amber',
+    'Contact pane also injected inline into the contract review modal so editing is one click from every vendor row',
+    'Draft renewal email button: pre-fills a mailto with subject + personalised body using the vendor name, annual commit, seat utilisation, and renewal date',
+    'Clicking draft automatically records today as the last-outreach date',
+    'Contact book persists per-vendor on the subscription record, survives preset swaps',
+    'PDF export supported',
+  ]},
   { date: '2026-11-12', phase: 'Phase 24', title: 'Demo seed-data switcher (3 industry presets)', kind: 'feature', items: [
     'New Demo presets view with three industry-tailored seed datasets plus the Acme Corp default',
     'Indian SaaS startup: Series B, 80 people, Bengaluru. 25 vendors weighted to engineering and PLG tools, INR costs',
