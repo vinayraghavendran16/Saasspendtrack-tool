@@ -10,6 +10,15 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 24', title: 'Demo seed-data switcher (3 industry presets)', kind: 'feature', items: [
+    'New Demo presets view with three industry-tailored seed datasets plus the Acme Corp default',
+    'Indian SaaS startup: Series B, 80 people, Bengaluru. 25 vendors weighted to engineering and PLG tools, INR costs',
+    'Mid-market BFSI: 420 people, Mumbai. 26 vendors weighted to security, risk, compliance, legal — matches the on-prem pitch',
+    'Manufacturing: 250 people, Chennai. 25 vendors weighted to ERP, CAD/PLM, supply chain, MES, shop-floor',
+    'One-click Load replaces current subscriptions / employees / invoices and clears chat history for a clean slate',
+    'Workspace / trial status is preserved so the dev controls on the Plans view still work between loads',
+    'Current preset is marked with a badge so the distributor knows which flavour is live before the next demo',
+  ]},
   { date: '2026-11-12', phase: 'Phase 23', title: 'Trial expiry enforcement', kind: 'feature', items: [
     'Full-screen expiry gate blocks the app when the 14-day trial ends — three actions: Upgrade (mailto), mark as paid, or view data read-only',
     'Grace mode banner at the top when ≤3 days remain, orange warn style with inline Upgrade CTA',
