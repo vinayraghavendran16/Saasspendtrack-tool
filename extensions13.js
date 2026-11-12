@@ -534,32 +534,49 @@ function stopVoice() { try { _rec && _rec.stop(); } catch (_) {} _recOn = false;
    gracefully if none installed on this platform. Voices load async
    in Chrome — refresh the selected voice once voiceschanged fires. */
 let _preferredVoice = null;
+/* Score every available voice; higher is less robotic.
+   The big win in browser TTS comes from preferring "Natural" / "Neural" /
+   "Online" voices (Microsoft Edge's Natural voices and Google Chrome's
+   high-quality voices sound dramatically better than system voices like
+   Veena, which are early-2000s formant synth). */
+function _scoreVoice(v) {
+  const n = (v.name || '').toLowerCase();
+  const l = (v.lang || '').toLowerCase();
+  let s = 0;
+  // Quality tier — the biggest lever
+  if (/neural|natural/i.test(n)) s += 100;           // Microsoft Edge Natural voices (best in browser)
+  if (/online/i.test(n)) s += 80;                    // Edge Online voices
+  if (/wavenet|studio|news|polyglot/i.test(n)) s += 70;  // Google premium
+  if (/enhanced|premium/i.test(n)) s += 50;          // macOS Enhanced voices
+  if (/google/i.test(n)) s += 30;                    // Google voices generally better than system
+  if (/microsoft/i.test(n) && !/desktop/i.test(n)) s += 20;
+  if (/desktop/i.test(n)) s -= 20;                   // Microsoft Desktop voices are old formant
+  // Accent preference — prefer Indian English, then UK, then US
+  if (/en[-_]in/i.test(l)) s += 15;
+  if (/en[-_]gb/i.test(l)) s += 10;
+  if (/en[-_]us/i.test(l)) s += 5;
+  if (/en[-_]au/i.test(l)) s += 5;
+  // Gender preference — soothing female
+  if (/female|aria|jenny|neerja|prabhat|swara|sneha|ananya|kajal|isha|libby|sonia|heera|veena|priya|aditi|karen|samantha|ava|zira|hazel|google.*female/i.test(n)) s += 25;
+  if (/male/i.test(n) && !/female/i.test(n)) s -= 10;
+  // Language stem must be English (or Hindi which still reads English)
+  if (!/^en|^hi/i.test(l)) s -= 50;
+  return s;
+}
 function pickIndianFemaleVoice() {
   if (!('speechSynthesis' in window)) return null;
   const voices = speechSynthesis.getVoices() || [];
   if (!voices.length) return null;
-  // Priority order:
-  //   1. Named Indian female voices on known platforms
-  //      macOS/iOS: "Veena"; Windows: "Microsoft Heera"; Chrome on Android/CrOS: Indian Google voice
-  //   2. Any en-IN voice marked female
-  //   3. Any en-IN voice
-  //   4. en-GB female (closest soothing neutral accent for Indian ears)
-  //   5. Default
-  const named = ['Veena', 'Heera', 'Priya', 'Aditi', 'Kiran', 'Monika', 'Lekha'];
-  for (const n of named) {
-    const v = voices.find(x => x.name && x.name.toLowerCase().includes(n.toLowerCase()));
-    if (v) return v;
-  }
-  const inFem = voices.find(v => (v.lang || '').toLowerCase().startsWith('en-in') && /female/i.test(v.name || ''));
-  if (inFem) return inFem;
-  const inAny = voices.find(v => (v.lang || '').toLowerCase().startsWith('en-in'));
-  if (inAny) return inAny;
-  const gbFem = voices.find(v => (v.lang || '').toLowerCase().startsWith('en-gb') && /female|kate|serena|karen|moira|susan|hazel|libby/i.test(v.name || ''));
-  if (gbFem) return gbFem;
-  // Chrome often ships a "Google हिन्दी" voice that reads English with an Indian accent — use as last Indian-leaning fallback
-  const googleHi = voices.find(v => (v.lang || '').startsWith('hi') && /google/i.test(v.name || ''));
-  if (googleHi) return googleHi;
-  return null;
+  // Rank every voice; pick the top
+  const scored = voices.map(v => ({ v, s: _scoreVoice(v) })).sort((a, b) => b.s - a.s);
+  return scored[0]?.v || null;
+}
+/* Debug helper so you can see what's installed and what won */
+function _listVoicesDebug() {
+  if (!('speechSynthesis' in window)) return [];
+  const voices = speechSynthesis.getVoices() || [];
+  return voices.map(v => ({ name: v.name, lang: v.lang, score: _scoreVoice(v), default: v.default }))
+    .sort((a, b) => b.score - a.score);
 }
 function _refreshVoice() { _preferredVoice = pickIndianFemaleVoice(); }
 if ('speechSynthesis' in window) {
@@ -569,24 +586,76 @@ if ('speechSynthesis' in window) {
   setTimeout(_refreshVoice, 500);
   setTimeout(_refreshVoice, 2000);
 }
-function speak(text) {
-  if (!('speechSynthesis' in window)) return;
-  const plain = (text || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  if (!plain) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(plain.slice(0, 500));
+/* Convert numbers and currency into spoken form so Veena doesn't read
+   "$12,500" as "dollar one two comma five zero zero" */
+function _humanizeForSpeech(t) {
+  return t
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/\$\s?([\d,]+(?:\.\d+)?)/g, (_, n) => _numberToWords(n) + ' dollars')
+    .replace(/₹\s?([\d,]+(?:\.\d+)?)/g, (_, n) => _numberToWords(n) + ' rupees')
+    .replace(/([\d,]+(?:\.\d+)?)\s*%/g, (_, n) => _numberToWords(n) + ' percent')
+    .replace(/\bQ(\d)\b/g, 'Q $1')  // break "Q4" into "Q 4" for better reading
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function _numberToWords(ns) {
+  // Keep compact: strip commas, keep as digit groups the engine can read naturally
+  const clean = String(ns).replace(/,/g, '');
+  const n = parseFloat(clean);
+  if (isNaN(n)) return ns;
+  // For round large numbers, say them readably
+  if (n >= 1e7) return (n / 1e7).toFixed(1).replace(/\.0$/, '') + ' crore';
+  if (n >= 1e5) return (n / 1e5).toFixed(1).replace(/\.0$/, '') + ' lakh';
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + ' thousand';
+  return String(n);
+}
+
+function _splitSentences(t) {
+  // Split on sentence-ending punctuation but keep phrases that are too short bundled
+  const parts = t.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const out = []; let buf = '';
+  for (const p of parts) {
+    if ((buf + ' ' + p).trim().length < 60) buf = (buf ? buf + ' ' : '') + p;
+    else { if (buf) out.push(buf); buf = p; }
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
+function _speakChunk(chunk, isFirst, isLast) {
+  const u = new SpeechSynthesisUtterance(chunk);
   if (!_preferredVoice) _refreshVoice();
   if (_preferredVoice) { u.voice = _preferredVoice; u.lang = _preferredVoice.lang; }
   else { u.lang = 'en-IN'; }
-  // Soothing: slower rate, slightly lower pitch, moderate volume
-  u.rate = 0.92;
-  u.pitch = 0.95;
+  // Vary prosody slightly per chunk to avoid a flat monotone
+  u.rate = 0.95 + (Math.random() * 0.06 - 0.03);     // 0.92 - 0.98
+  u.pitch = 1.0 + (Math.random() * 0.08 - 0.04);     // 0.96 - 1.04
   u.volume = 0.95;
   speechSynthesis.speak(u);
 }
 
+function speak(text) {
+  if (!('speechSynthesis' in window)) return;
+  const plain = _humanizeForSpeech(text || '');
+  if (!plain) return;
+  speechSynthesis.cancel();
+  const chunks = _splitSentences(plain.slice(0, 600));
+  chunks.forEach((c, i) => _speakChunk(c, i === 0, i === chunks.length - 1));
+}
+
 /* Expose for debugging/preference pane later */
-window.AskTrackVoice = { pickIndianFemaleVoice, speak, get preferred() { return _preferredVoice; } };
+window.AskTrackVoice = {
+  pickIndianFemaleVoice, speak,
+  get preferred() { return _preferredVoice; },
+  listVoices: _listVoicesDebug,
+  setVoiceByName(name) {
+    const v = (speechSynthesis.getVoices() || []).find(x => x.name && x.name.toLowerCase().includes(name.toLowerCase()));
+    if (v) { _preferredVoice = v; return v.name; }
+    return null;
+  },
+};
 
 /* ---------- UI: topbar search bar + command-palette modal ----------
    Primary pattern: Cmd/Ctrl+K opens a centered modal with the same input

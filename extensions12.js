@@ -10,6 +10,15 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 18', title: 'Less robotic voice: prefer Natural/Neural, chunk at sentences', kind: 'feature', items: [
+    'Voice picker now scores every installed voice — Natural/Neural voices (Microsoft Edge\'s Natural voices, Google WaveNet) win decisively over system voices (Veena, Microsoft Desktop)',
+    'Scoring also weights Indian English accent, female gender, and down-weights obvious formant voices',
+    'Text is split at sentence boundaries and spoken as separate utterances with light prosody variation per chunk — kills the monotone flatness',
+    'Currency ($12,500 / ₹5 lakh) and percentages read as natural language, not digit-by-digit',
+    'Lakh/crore conversion for Indian currency amounts over ₹1,00,000',
+    'Debug helpers: window.AskTrackVoice.listVoices() shows every voice and its score; setVoiceByName("name") to override',
+    'Open your browser console and run AskTrackVoice.listVoices() to see which voices are installed on this device',
+  ]},
   { date: '2026-11-12', phase: 'Phase 17', title: 'Voice: Indian female voice + clearer mic errors', kind: 'feature', items: [
     'Ask Track replies now use an Indian English female voice when installed on the device (Veena on macOS/iOS, Microsoft Heera on Windows, system Indian voice on Chrome/Android)',
     'Softer cadence: rate 0.92, pitch 0.95 for a more soothing read-aloud',
@@ -199,6 +208,9 @@ const DEFAULT_ROADMAP = [
   { id: 'rm-10', theme: 'Product depth', status: 'shipped', title: 'AI chat on the whole contract corpus',
     body: 'Shipped in Phase 12 — text and voice Q&A grounded in your own data, 14 intent patterns, clickable source trail. Next: semantic search across full contract text via embeddings when the server tier ships.',
     scope: ['Shipped: 14 intents, text + voice, grounded citations, chat history', 'Next: embeddings over ingested contract PDFs', 'Next: role-aware answers (Finance sees spend, Legal sees terms)'], upvotes: 15 },
+  { id: 'rm-18', theme: 'Product depth', status: 'planned', title: 'ElevenLabs voice (BYOK) for multilingual soothing replies',
+    body: 'Ask Track replies through ElevenLabs Multilingual v2 — 29+ languages including 9 Indian languages, far less robotic than browser Web Speech. BYOK pattern so each workspace uses their own free tier (10k chars/month). Full managed experience ships once the server tier lands and we can proxy the API without exposing keys.',
+    scope: ['Settings → Voice pane: API key input, voice picker from the user\'s ElevenLabs library, language selector', 'Streaming audio for low-latency playback', 'Keep browser native SpeechRecognition for STT (already multilingual + free)', 'Test voice button', 'Fall back to current Web Speech when no key is set', 'Post-backend: proxy all requests through server, one managed voice service for all workspaces, GST-billed as part of the plan'], upvotes: 8 },
   { id: 'rm-17', theme: 'Product depth', status: 'shipped', title: 'Licence forecasting (capacity planning)',
     body: 'Shipped in Phase 13 — quarterly demand model per vendor with org/dept growth, utilisation target and confidence buffer.',
     scope: ['Shipped: per-vendor Q+1 to Q+4 demand, cost impact, portfolio curve', 'Next: Rippling / BambooHR hooks to pull live headcount into the capacity plan', 'Next: confidence intervals, not single-point estimates'], upvotes: 10 },
