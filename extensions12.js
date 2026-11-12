@@ -10,6 +10,20 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 22', title: 'Distributor one-pager (branded A4 PDF)', kind: 'feature', items: [
+    'New Distributor one-pager view under Workspace',
+    'Branded A4 single-page leave-behind rendered inline for preview',
+    'Personalisation: prospect name, distributor name, email, phone — all baked into the PDF',
+    'Four bands: hero + value prop, three-pillar problem/solution, pricing + differentiator, CTA with QR code to saasspendtrack.com and distributor contact',
+    'Download PDF button routes through the universal download bridge',
+    'Print button opens a clean print-ready window',
+    'QR code auto-generated via qrserver.com; encodes a prospect-tagged URL for simple attribution',
+    'Settings persist in state so the same inputs come back next time',
+  ]},
+  { date: '2026-11-12', phase: 'Phase 21', title: 'Speak replies ON by default', kind: 'feature', items: [
+    'TTS voice reply now defaults to ON and persists across sessions in state.settings.voice.speakOn',
+    'Modal (Cmd+K) answers also speak the headline, not just the drawer and full chat view',
+  ]},
   { date: '2026-11-12', phase: 'Phase 20', title: 'Intent fixes: fuzzy vendor match + reliable Esc close', kind: 'fix', items: [
     'Fuzzy vendor matching with Levenshtein distance — voice near-misses like "hotspot" now resolve to HubSpot, "sells force" to Salesforce. Threshold: 2 chars for short names, 3 for longer',
     'Reordered intent router so simple "spend on X" is checked before the multi-slot "dept spending on vendor" pattern — fixes "total spend on hotspot" grabbing "total" as department and "year" as vendor',
