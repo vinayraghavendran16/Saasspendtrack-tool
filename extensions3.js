@@ -320,7 +320,7 @@ function bugSweep() {
     window._escBound = true;
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        ['settings-modal', 'contract-detail-modal'].forEach(id => {
+        ['settings-modal', 'contract-detail-modal', 'ws-invite-modal', 'ds-connect-modal', 'accept-invite-modal'].forEach(id => {
           const m = document.getElementById(id); if (m && !m.hidden) m.hidden = true;
         });
       }
