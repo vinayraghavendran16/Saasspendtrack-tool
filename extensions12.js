@@ -10,8 +10,17 @@
    ========================================================================== */
 
 const CHANGELOG = [
-  { date: '2026-11-12', phase: 'Phase 27', title: 'Pricing updated to $3,199/year (India excluding GST)', kind: 'feature', items: [
-    'Annual price updated from $3,000 to $3,199 across every surface — marketing site, one-pager PDF, trial expiry gate, trial banner, README, UAT',
+  { date: '2026-11-13', phase: 'Phase 28', title: 'Repositioning: global teams + $3,499/yr + live FX + animated preview + Razorpay', kind: 'feature', items: [
+    'Positioning updated from "Indian and APAC mid-market" to "global teams" across every surface. US and UK buyers get the same message as Indian prospects, with India-specific features (lakh/crore, INR invoicing, GST) kept as capabilities not positioning',
+    'Price updated from $3,199 to $3,499/year',
+    'INR conversion on the marketing site is now LIVE via frankfurter.app (free, ECB daily rate, no auth) with 18% GST included, Indian lakh-style formatting (₹3,44,000), and the exchange rate + date shown inline',
+    'Static fallback shown first so the price never blanks out; live rate replaces it within a second',
+    'New Live dashboard preview section on the marketing site: faux browser chrome with 5 rotating scenes from the actual tool — Dashboard KPIs ticking, Ask Track typing + answer, Renewal Center lanes, Licence Forecast chart drawing, Risk analytics bars',
+    'Upgrade CTA across the tool (trial banner + expiry gate) now points to a Razorpay payment page (placeholder URL: pages.razorpay.com/saasspendtrack-annual — user to set up)',
+    'Marketing site pricing CTAs now include "Pay & activate" button pointing to Razorpay alongside "Try it live" and "Book a demo"',
+  ]},
+  { date: '2026-11-12', phase: 'Phase 27', title: 'Pricing updated to $3,499/year (India excluding GST)', kind: 'feature', items: [
+    'Annual price updated from $3,000 to $3,499 across every surface — marketing site, one-pager PDF, trial expiry gate, trial banner, README, UAT',
     'For India: pricing shown as approximately ₹2,65,000 per year with explicit "excluding 18% GST" note so Indian prospects see the final-invoice number',
     'Extra-contracts pricing unchanged at $100/year per additional 50 contracts above 250',
     'schema.org Product price metadata updated to 3199 USD so Google and search engines see the right value',

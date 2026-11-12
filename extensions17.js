@@ -57,14 +57,14 @@ function ensureExpiryGate() {
               <div class="eg-plan-name">SaaS Spend Track</div>
               <div class="eg-plan-tag">The full platform. Every feature. Every user.</div>
             </div>
-            <div class="eg-plan-price"><span class="eg-price-main">$3,199</span><span class="eg-price-period">/year</span></div>
+            <div class="eg-plan-price"><span class="eg-price-main">$3,499</span><span class="eg-price-period">/year</span></div>
           </div>
-          <div class="eg-plan-inr">≈ ₹2,65,000 per year · For India: excluding 18% GST · Includes 250 active contracts</div>
+          <div class="eg-plan-inr">≈ ₹3,44,000 per year · For India: GST included (live rate applied) · Includes 250 active contracts</div>
           <div class="eg-plan-small">$100/year per 50 additional contracts above 250. Everything else stays flat.</div>
         </div>
 
         <div class="eg-actions">
-          <a href="mailto:vinay@saasspendtrack.com?subject=Upgrade%20request%20-%20SaaS%20Spend%20Track" class="btn-primary btn-lg">Upgrade now</a>
+          <a href="https://pages.razorpay.com/saasspendtrack-annual" class="btn-primary btn-lg">Upgrade now</a>
           <button class="btn-link" id="eg-paid">I've already paid — mark as active</button>
         </div>
 
@@ -129,7 +129,7 @@ function ensureTrialBanner() {
       <b>${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'}</b> left in your trial
       ${t.inGrace ? ' — upgrade now to keep access' : ''}
     </span>
-    <a href="mailto:vinay@saasspendtrack.com?subject=Upgrade%20request%20-%20SaaS%20Spend%20Track" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade $3,199/yr'}</a>
+    <a href="https://pages.razorpay.com/saasspendtrack-annual" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade $3,499/yr'}</a>
   `;
 }
 
