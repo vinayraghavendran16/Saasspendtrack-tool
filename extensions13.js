@@ -412,16 +412,179 @@ function speak(text) {
   speechSynthesis.speak(u);
 }
 
-/* ---------- UI: floating pill + drawer + full view ---------- */
+/* ---------- UI: topbar search bar + command-palette modal ----------
+   Primary pattern: Cmd/Ctrl+K opens a centered modal with the same input
+   and the same answer renderer. Topbar bar is the always-visible entry.
+   The floating pill remains ONLY on mobile where the topbar is cramped.
+   The dedicated #chat view keeps persistent history and voice reply. */
+
 function ensureChatLauncher() {
-  if (document.getElementById('ai-launcher')) return;
-  const btn = document.createElement('button');
-  btn.id = 'ai-launcher';
-  btn.className = 'ai-launcher';
-  btn.title = 'Ask the corpus';
-  btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Ask`;
-  btn.onclick = () => toggleChatDrawer();
-  document.body.appendChild(btn);
+  // Topbar search bar (desktop + tablet)
+  const topRight = document.querySelector('.topbar-right');
+  if (topRight && !document.getElementById('ai-topbar-search')) {
+    const wrap = document.createElement('button');
+    wrap.type = 'button';
+    wrap.id = 'ai-topbar-search';
+    wrap.className = 'ai-topbar-search';
+    wrap.innerHTML = `
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span class="ai-topbar-placeholder">Ask your portfolio anything…</span>
+      <span class="ai-kbd">${/Mac/i.test(navigator.platform) ? '⌘' : 'Ctrl'} K</span>
+    `;
+    wrap.onclick = openChatModal;
+    topRight.insertBefore(wrap, topRight.firstChild);
+  }
+
+  // Mobile-only floating pill (topbar search hides below 700px)
+  if (!document.getElementById('ai-launcher')) {
+    const btn = document.createElement('button');
+    btn.id = 'ai-launcher';
+    btn.className = 'ai-launcher ai-launcher-mobile-only';
+    btn.title = 'Ask the corpus';
+    btn.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+    btn.onclick = openChatModal;
+    document.body.appendChild(btn);
+  }
+
+  // Global keyboard shortcut (Cmd/Ctrl+K)
+  if (!window._aiCmdKWired) {
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (document.getElementById('ai-modal')?.classList.contains('open')) closeChatModal();
+        else openChatModal();
+      }
+    });
+    window._aiCmdKWired = true;
+  }
+}
+
+/* ---------- Command-palette modal ---------- */
+function ensureChatModal() {
+  if (document.getElementById('ai-modal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'ai-modal';
+  modal.className = 'ai-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-label', 'Ask the corpus');
+  modal.innerHTML = `
+    <div class="ai-modal-backdrop" data-close></div>
+    <div class="ai-modal-panel">
+      <form class="ai-modal-form" id="ai-modal-form">
+        <svg class="ai-modal-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="ai-modal-input" placeholder="How much is marketing spending on Salesforce this quarter?" autocomplete="off" spellcheck="false"/>
+        <button type="button" class="ai-mic ai-mic-modal" id="ai-mic-modal" title="Voice input">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+        </button>
+        <span class="ai-kbd ai-kbd-esc">Esc</span>
+      </form>
+      <div class="ai-modal-body" id="ai-modal-body"></div>
+      <footer class="ai-modal-foot">
+        <span class="dim">Press <span class="ai-kbd">↵</span> to ask · <span class="ai-kbd">↑↓</span> suggestions · <span class="ai-kbd">Esc</span> close</span>
+        <a href="#chat" id="ai-modal-full" class="dim">Open full view →</a>
+      </footer>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const input = modal.querySelector('#ai-modal-input');
+  const body = modal.querySelector('#ai-modal-body');
+
+  modal.querySelector('#ai-modal-form').onsubmit = (e) => { e.preventDefault(); const q = input.value.trim(); if (q) runModalQuery(q); };
+  modal.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', closeChatModal));
+  modal.querySelector('#ai-modal-full').onclick = (e) => { e.preventDefault(); closeChatModal(); switchView('chat'); };
+
+  input.addEventListener('input', () => renderModalSuggestions(input.value));
+  input.addEventListener('keydown', (e) => {
+    const items = modal.querySelectorAll('.ai-sugg-item');
+    const current = modal.querySelector('.ai-sugg-item.active');
+    let idx = [...items].indexOf(current);
+    if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(items.length - 1, idx + 1); items.forEach(i => i.classList.remove('active')); items[idx]?.classList.add('active'); items[idx]?.scrollIntoView({ block: 'nearest' }); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(0, idx - 1); items.forEach(i => i.classList.remove('active')); items[idx]?.classList.add('active'); items[idx]?.scrollIntoView({ block: 'nearest' }); }
+    else if (e.key === 'Enter' && current) { e.preventDefault(); input.value = current.dataset.q; runModalQuery(current.dataset.q); }
+    else if (e.key === 'Escape') { closeChatModal(); }
+  });
+
+  modal.querySelector('#ai-mic-modal').onclick = () => {
+    if (_recOn) { stopVoice(); return; }
+    const mic = modal.querySelector('#ai-mic-modal');
+    mic.classList.add('recording');
+    startVoice(
+      (text) => { input.value = text; renderModalSuggestions(text); },
+      (finalText) => {
+        mic.classList.remove('recording');
+        if (finalText) runModalQuery(finalText);
+      }
+    );
+  };
+}
+function openChatModal() {
+  ensureChatModal();
+  const m = document.getElementById('ai-modal');
+  m.classList.add('open');
+  const input = m.querySelector('#ai-modal-input');
+  setTimeout(() => input.focus(), 50);
+  renderModalSuggestions(input.value);
+}
+function closeChatModal() {
+  const m = document.getElementById('ai-modal');
+  if (!m) return;
+  m.classList.remove('open');
+  // Return focus to the topbar bar if present (accessibility)
+  const topbar = document.getElementById('ai-topbar-search');
+  topbar?.focus();
+}
+function runModalQuery(q) {
+  const body = document.getElementById('ai-modal-body');
+  body.innerHTML = `<div class="ai-modal-loading">Thinking…</div>`;
+  setTimeout(() => {
+    const parsed = routeChatQuery(q);
+    const ans = answerChat(parsed);
+    pushChat('user', q);
+    pushChat('assistant', ans, { intent: parsed.intent });
+    body.innerHTML = `
+      <div class="ai-modal-answer">
+        <div class="ai-headline">${ans.headline || ''}</div>
+        <div class="ai-body">${ans.body || ''}</div>
+        ${ans.sources?.length ? `<div class="ai-sources"><span class="dim">Sources:</span> ${ans.sources.map(s => `<a href="#" data-nav-src="${s.view}:${s.id}">${escapeHtml(s.label)}</a>`).join(', ')}</div>` : ''}
+        <details class="ai-trace"><summary class="dim">why this answer</summary><code>${escapeHtml(ans.trace || '')}</code></details>
+      </div>
+    `;
+    body.querySelectorAll('[data-nav-src]').forEach(a => a.onclick = (e) => { e.preventDefault(); const [view, id] = a.dataset.navSrc.split(':'); closeChatModal(); switchView(view); if (typeof openContractDetail === 'function') openContractDetail(id); });
+    body.querySelectorAll('[data-nav-vendor]').forEach(r => r.onclick = () => { closeChatModal(); if (typeof openContractDetail === 'function') openContractDetail(r.dataset.navVendor); });
+  }, 20);
+}
+function renderModalSuggestions(q) {
+  const body = document.getElementById('ai-modal-body');
+  if (!body) return;
+  const seed = [
+    'Total SaaS spend this year',
+    'Top risk contracts',
+    'Renewals next 60 days',
+    'Which tools are underused',
+    'Spend by department',
+    'Which contracts are missing a DPA',
+    'Any invoices overdue?',
+    'Cost per user for Slack',
+    'How many Figma licences do I need next quarter',
+    'Who owns HubSpot',
+  ];
+  const vendors = (state.subscriptions || []).slice(0, 25).map(v => `Spend on ${v.name}`);
+  const pool = [...seed, ...vendors];
+  const qt = (q || '').toLowerCase().trim();
+  const items = (qt ? pool.filter(x => x.toLowerCase().includes(qt)) : pool).slice(0, 8);
+  if (!items.length && qt) {
+    body.innerHTML = `<div class="ai-modal-hint dim">Press ↵ to ask: <b>"${escapeHtml(q)}"</b></div>`;
+    return;
+  }
+  body.innerHTML = `
+    <div class="ai-sugg-list">
+      ${items.map((x, i) => `<button type="button" class="ai-sugg-item ${i === 0 ? 'active' : ''}" data-q="${encodeURIComponent(x)}">${escapeHtml(x)}</button>`).join('')}
+    </div>`;
+  body.querySelectorAll('.ai-sugg-item').forEach(b => {
+    b.onmouseenter = () => { body.querySelectorAll('.ai-sugg-item').forEach(x => x.classList.remove('active')); b.classList.add('active'); };
+    b.onclick = () => { const q = decodeURIComponent(b.dataset.q); document.getElementById('ai-modal-input').value = q; runModalQuery(q); };
+  });
 }
 function ensureChatDrawer() {
   if (document.getElementById('ai-drawer')) return;
@@ -631,11 +794,11 @@ const _prevAll13 = typeof renderAll === 'function' ? renderAll : null;
 if (_prevAll13) {
   window.renderAll = function () {
     _prevAll13();
-    try { ensureChatView(); ensureChatNav(); patchSwitchViewForChat(); ensureChatLauncher(); ensureChatDrawer(); } catch (e) { console.warn(e); }
+    try { ensureChatView(); ensureChatNav(); patchSwitchViewForChat(); ensureChatLauncher(); ensureChatModal(); ensureChatDrawer(); } catch (e) { console.warn(e); }
   };
 }
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => { try { ensureChatView(); ensureChatNav(); patchSwitchViewForChat(); ensureChatLauncher(); ensureChatDrawer(); } catch (_) {} }, 600);
+  setTimeout(() => { try { ensureChatView(); ensureChatNav(); patchSwitchViewForChat(); ensureChatLauncher(); ensureChatModal(); ensureChatDrawer(); } catch (_) {} }, 600);
 });
 
 // Register page title + make sure switchView knows it

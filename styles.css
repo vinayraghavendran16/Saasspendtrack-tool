@@ -1177,3 +1177,111 @@ html.owner-only #owner { display: block !important; }
   .fc-grid { grid-template-columns: 1fr; }
   .fc-controls { max-height: none; }
 }
+
+/* ===== AI Topbar search + Command-palette modal ===== */
+.ai-topbar-search {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--surface-2); color: var(--ink-dim);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; font-size: 12px; cursor: pointer;
+  min-width: 300px; max-width: 360px;
+  margin-right: 8px;
+  transition: border-color .15s, color .15s;
+}
+.ai-topbar-search:hover { border-color: var(--accent); color: var(--ink); }
+.ai-topbar-placeholder { flex: 1; text-align: left; }
+.ai-kbd {
+  display: inline-flex; align-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1px 6px;
+  font-size: 10.5px; color: var(--ink-dim); font-family: inherit;
+  letter-spacing: 0.03em;
+}
+.ai-launcher-mobile-only { display: none !important; }
+@media (max-width: 720px) {
+  .ai-topbar-search { display: none; }
+  .ai-launcher-mobile-only { display: inline-flex !important; }
+}
+
+/* Modal */
+.ai-modal { position: fixed; inset: 0; z-index: 400; display: none; }
+.ai-modal.open { display: block; }
+.ai-modal-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.48); backdrop-filter: blur(4px); }
+.ai-modal-panel {
+  position: absolute; top: 15vh; left: 50%; transform: translateX(-50%);
+  width: min(680px, calc(100vw - 32px));
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; box-shadow: 0 32px 64px rgba(0, 0, 0, 0.4);
+  overflow: hidden; display: flex; flex-direction: column;
+  max-height: 70vh;
+  animation: ai-modal-pop .14s ease-out;
+}
+@keyframes ai-modal-pop {
+  from { transform: translate(-50%, 6px); opacity: 0; }
+  to   { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.ai-modal-form {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.ai-modal-icon { color: var(--ink-dim); flex-shrink: 0; }
+.ai-modal-form input {
+  flex: 1; background: transparent; border: 0; outline: none;
+  color: var(--ink); font-size: 16px; padding: 2px 0;
+  font-family: inherit;
+}
+.ai-modal-form input::placeholder { color: var(--ink-dim); }
+.ai-kbd-esc { flex-shrink: 0; }
+.ai-mic-modal { width: 28px; height: 28px; }
+
+.ai-modal-body {
+  flex: 1; overflow-y: auto;
+  padding: 10px 8px;
+}
+.ai-modal-loading {
+  padding: 24px; text-align: center; color: var(--ink-dim); font-size: 13px;
+}
+.ai-modal-hint { padding: 20px; font-size: 13px; }
+
+.ai-sugg-list {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.ai-sugg-item {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: 0;
+  color: var(--ink); padding: 10px 14px;
+  border-radius: 8px; cursor: pointer;
+  font-size: 13px;
+}
+.ai-sugg-item:hover, .ai-sugg-item.active {
+  background: var(--surface-2);
+}
+.ai-sugg-item.active { color: var(--accent); }
+
+.ai-modal-answer {
+  padding: 14px 16px;
+}
+.ai-modal-answer .ai-headline {
+  font-size: 15px; margin-bottom: 10px;
+}
+
+.ai-modal-foot {
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface-2);
+  font-size: 11px;
+}
+.ai-modal-foot .dim { color: var(--ink-dim); }
+.ai-modal-foot a { color: var(--accent); text-decoration: none; }
+
+@media (max-width: 700px) {
+  .ai-modal-panel { top: 6vh; width: calc(100vw - 16px); max-height: 85vh; }
+  .ai-modal-foot { font-size: 10.5px; }
+}
+
+/* Hide the old drawer on desktop — modal is primary */
+@media (min-width: 721px) {
+  .ai-drawer { display: none !important; }
+}

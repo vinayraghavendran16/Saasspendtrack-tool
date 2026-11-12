@@ -10,6 +10,21 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 15', title: 'Global command palette for Ask the Corpus', kind: 'feature', items: [
+    'Persistent search bar in the topbar on every view — click it or press ⌘K / Ctrl+K',
+    'Centered modal with keyboard-first interaction: ↑↓ to navigate suggestions, ↵ to ask, Esc to close',
+    'Suggestions include starter questions plus "Spend on <vendor>" for every subscription in state',
+    'Voice input button inside the modal, same engine as the full view',
+    'Dedicated #chat view retained for persistent history and voice-reply',
+    'Floating pill now mobile-only (topbar bar collapses below 720px, pill takes over)',
+    'All in-browser: query → answer round trip under 20ms, no network call',
+  ]},
+  { date: '2026-11-12', phase: 'Phase 14', title: 'Universal download bridge (artifact-safe)', kind: 'fix', items: [
+    'Every download button now routes through one bridge: claude.use("downloads") when inside the Claude artifact viewer, classic anchor+blob everywhere else',
+    'Fixes silent download failures inside the artifact preview (PDF exports, CSV exports, JSON exports, ICS calendar, all template downloads)',
+    'Downloads capability declared on the artifact so the viewer prompts for save confirmation',
+    'Works natively with zero prompts on any hosted copy (Cloudflare Pages, Vercel, self-host)',
+  ]},
   { date: '2026-11-12', phase: 'Phase 13', title: 'Licence Forecasting (capacity planning)', kind: 'feature', items: [
     'New Licence Forecast view under Operations',
     'Per-vendor quarterly demand projection: Q+1 to Q+4',
