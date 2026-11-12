@@ -10,6 +10,13 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-13', phase: 'Phase 30', title: 'Removed static dashboard mock + simplified pricing to match Razorpay', kind: 'fix', items: [
+    'Removed the old static dashboard mock section from the marketing site (lines 413-468 of index.html) — the new animated Live Preview section built in Phase 28 is now the only dashboard preview on the page',
+    '"See the dashboard" hero CTA now routes to https://app.saasspendtrack.com (was an in-page #demo anchor)',
+    'Simplified pricing display to match what Razorpay actually collects: ₹3,00,000/year flat, with "GST extra for Indian customers, invoice provided" as a footnote rather than adding "+ GST" to the headline or showing ₹3,54,000 as the total',
+    'Consistency: Razorpay collects ₹3,00,000, GST invoice issued separately via Zoho Books for Indian B2B buyers',
+    'schema.org, OG tags, FAQ, pricing card, comparison, and tool trial banners all updated to the simpler format',
+  ]},
   { date: '2026-11-13', phase: 'Phase 29', title: 'INR-anchored pricing + vinayraghavendran16@gmail.com + phone + company name fix', kind: 'feature', items: [
     'Pricing anchor shifted to ₹3,00,000 INR excluding 18% GST (total payable ₹3,54,000 for India)',
     'USD equivalent now derived live from the INR anchor via frankfurter.app — approx $3,600 USD at today\'s rate',
@@ -21,14 +28,14 @@ const CHANGELOG = [
   ]},
   { date: '2026-11-13', phase: 'Phase 28', title: 'Repositioning: global teams + live FX + animated preview + Razorpay', kind: 'feature', items: [
     'Positioning updated from "Indian and APAC mid-market" to "global teams" across every surface. US and UK buyers get the same message as Indian prospects, with India-specific features (lakh/crore, INR invoicing, GST) kept as capabilities not positioning',
-    'Price updated from $3,199 to ₹3,00,000/year + GST',
+    'Price updated from $3,199 to ₹3,00,000/year',
     'INR conversion on the marketing site is now LIVE via frankfurter.app (free, ECB daily rate, no auth) with 18% GST included, Indian lakh-style formatting (₹3,44,000), and the exchange rate + date shown inline',
     'Static fallback shown first so the price never blanks out; live rate replaces it within a second',
     'New Live dashboard preview section on the marketing site: faux browser chrome with 5 rotating scenes from the actual tool — Dashboard KPIs ticking, Ask Track typing + answer, Renewal Center lanes, Licence Forecast chart drawing, Risk analytics bars',
     'Upgrade CTA across the tool (trial banner + expiry gate) now points to a Razorpay payment page (live URL: rzp.io/rzp/NCGW9GyD)',
     'Marketing site pricing CTAs now include "Pay & activate" button pointing to Razorpay alongside "Try it live" and "Book a demo"',
   ]},
-  { date: '2026-11-12', phase: 'Phase 27', title: 'Pricing updated to ₹3,00,000/year + GST (India excluding GST)', kind: 'feature', items: [
+  { date: '2026-11-12', phase: 'Phase 27', title: 'Pricing updated to ₹3,00,000/year (India excluding GST)', kind: 'feature', items: [
     'Annual price updated from $3,000 to ₹3,00,000 across every surface — marketing site, one-pager PDF, trial expiry gate, trial banner, README, UAT',
     'For India: pricing shown as approximately ₹2,65,000 per year with explicit "excluding 18% GST" note so Indian prospects see the final-invoice number',
     'Extra-contracts pricing unchanged at $100/year per additional 50 contracts above 250',

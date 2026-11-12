@@ -57,7 +57,7 @@ Browser-only app, no backend, state in localStorage. On-prem available for BFSI,
 
 ## Pricing
 
-**₹3,00,000/year excluding 18% GST** (total ₹3,54,000 for India). Approximately **$3,600 USD** at today's rate for global customers, billed in INR. Includes 250 active contracts, unlimited users, every feature. $100/year per 50 additional contracts above 250. On-prem deployment available at the same price.
+**₹3,00,000/year** flat. For Indian customers, 18% GST is added at invoice time. Approximately **$3,600 USD** at today's rate for global customers, billed in INR. Includes 250 active contracts, unlimited users, every feature. $100/year per 50 additional contracts above 250. On-prem deployment available at the same price.
 
 ## Architecture
 

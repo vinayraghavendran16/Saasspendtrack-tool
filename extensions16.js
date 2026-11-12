@@ -147,7 +147,7 @@ function onepagerHtml(s) {
       <div class="op-pricing">
         <div class="op-price-head">One plan. Everything included.</div>
         <div class="op-price-main">₹3,00,000<span>/year</span></div>
-        <div class="op-price-inr">+ 18% GST for India (total ₹3,54,000) · approx $3,600 USD at today's rate, billed in INR · Includes 250 active contracts · $100/yr per 50 additional</div>
+        <div class="op-price-inr">GST extra for Indian customers · approx $3,600 USD at today's rate, billed in INR · Includes 250 active contracts · $100/yr per 50 additional</div>
         <div class="op-price-list">Unlimited users · Unlimited departments · Every feature · Trial free, no credit card</div>
       </div>
       <div class="op-diff">
