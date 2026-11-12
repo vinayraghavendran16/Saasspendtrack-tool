@@ -10,6 +10,12 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 27', title: 'Pricing updated to $3,199/year (India excluding GST)', kind: 'feature', items: [
+    'Annual price updated from $3,000 to $3,199 across every surface — marketing site, one-pager PDF, trial expiry gate, trial banner, README, UAT',
+    'For India: pricing shown as approximately ₹2,65,000 per year with explicit "excluding 18% GST" note so Indian prospects see the final-invoice number',
+    'Extra-contracts pricing unchanged at $100/year per additional 50 contracts above 250',
+    'schema.org Product price metadata updated to 3199 USD so Google and search engines see the right value',
+  ]},
   { date: '2026-11-12', phase: 'Phase 26', title: 'Full cycle: QA expansion, UAT scenarios, docs refresh', kind: 'feature', items: [
     'QA harness expanded to 124 tests covering Phases 22-25 (one-pager, trial gate, demo presets, vendor contacts, voice settings, Ask Track intents, fuzzy vendor matching, download bridge)',
     'Headless test runner (run_qa.js) using Puppeteer + Chromium — runs the full suite in ~5 seconds and reports pass/fail/skip',

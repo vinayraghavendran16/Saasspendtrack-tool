@@ -146,8 +146,8 @@ function onepagerHtml(s) {
     <div class="op-section op-pricing-band">
       <div class="op-pricing">
         <div class="op-price-head">One plan. Everything included.</div>
-        <div class="op-price-main">$3,000<span>/year</span></div>
-        <div class="op-price-inr">≈ ₹2,50,000 per year · Includes 250 active contracts · $100/yr per 50 additional</div>
+        <div class="op-price-main">$3,199<span>/year</span></div>
+        <div class="op-price-inr">≈ ₹2,65,000 per year · For India: excluding 18% GST · Includes 250 active contracts · $100/yr per 50 additional</div>
         <div class="op-price-list">Unlimited users · Unlimited departments · Every feature · Trial free, no credit card</div>
       </div>
       <div class="op-diff">

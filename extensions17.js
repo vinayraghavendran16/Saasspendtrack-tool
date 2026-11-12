@@ -57,9 +57,9 @@ function ensureExpiryGate() {
               <div class="eg-plan-name">SaaS Spend Track</div>
               <div class="eg-plan-tag">The full platform. Every feature. Every user.</div>
             </div>
-            <div class="eg-plan-price"><span class="eg-price-main">$3,000</span><span class="eg-price-period">/year</span></div>
+            <div class="eg-plan-price"><span class="eg-price-main">$3,199</span><span class="eg-price-period">/year</span></div>
           </div>
-          <div class="eg-plan-inr">≈ ₹2,50,000 per year · Includes 250 active contracts</div>
+          <div class="eg-plan-inr">≈ ₹2,65,000 per year · For India: excluding 18% GST · Includes 250 active contracts</div>
           <div class="eg-plan-small">$100/year per 50 additional contracts above 250. Everything else stays flat.</div>
         </div>
 
@@ -129,7 +129,7 @@ function ensureTrialBanner() {
       <b>${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'}</b> left in your trial
       ${t.inGrace ? ' — upgrade now to keep access' : ''}
     </span>
-    <a href="mailto:vinay@saasspendtrack.com?subject=Upgrade%20request%20-%20SaaS%20Spend%20Track" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade $3,000/yr'}</a>
+    <a href="mailto:vinay@saasspendtrack.com?subject=Upgrade%20request%20-%20SaaS%20Spend%20Track" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade $3,199/yr'}</a>
   `;
 }
 

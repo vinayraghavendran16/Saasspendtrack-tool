@@ -57,7 +57,7 @@ Browser-only app, no backend, state in localStorage. On-prem available for BFSI,
 
 ## Pricing
 
-**$3,000/year** flat. Includes 250 active contracts, unlimited users, every feature. $100/year per 50 additional contracts above 250. On-prem deployment available at the same price.
+**$3,199/year** flat. Includes 250 active contracts, unlimited users, every feature. $100/year per 50 additional contracts above 250. On-prem deployment available at the same price.
 
 ## Architecture
 
