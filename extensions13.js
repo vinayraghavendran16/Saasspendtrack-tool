@@ -551,7 +551,18 @@ function voiceSettings() {
   if (!state.settings.voice.ttsLang) state.settings.voice.ttsLang = 'en-US';   // default English, NOT Hindi
   if (!state.settings.voice.sttLang) state.settings.voice.sttLang = 'en-IN';   // STT default en-IN works best for Indian English speakers
   if (state.settings.voice.ttsVoiceName === undefined) state.settings.voice.ttsVoiceName = null; // null = auto-pick best for ttsLang
+  if (state.settings.voice.speakOn === undefined) state.settings.voice.speakOn = true; // Speak defaults ON
   return state.settings.voice;
+}
+function _wireSpeakToggle(el) {
+  if (!el) return;
+  const vs = voiceSettings();
+  el.checked = !!vs.speakOn;
+  el.onchange = () => { vs.speakOn = el.checked; save(); syncSpeakToggles(); };
+}
+function syncSpeakToggles() {
+  const vs = voiceSettings();
+  document.querySelectorAll('[data-voice-pref]').forEach(el => { el.checked = !!vs.speakOn; });
 }
 
 /* ---------- Voice input (Web Speech API) ----------
@@ -927,6 +938,8 @@ function runModalQuery(q) {
     body.querySelectorAll('[data-nav-src]').forEach(a => a.onclick = (e) => { e.preventDefault(); const [view, id] = a.dataset.navSrc.split(':'); closeChatModal(); switchView(view); if (typeof openContractDetail === 'function') openContractDetail(id); });
     body.querySelectorAll('[data-nav-vendor]').forEach(r => r.onclick = () => { closeChatModal(); if (typeof openContractDetail === 'function') openContractDetail(r.dataset.navVendor); });
     body.querySelectorAll('[data-chip-q]').forEach(c => c.onclick = () => { const q2 = decodeURIComponent(c.dataset.chipQ); document.getElementById('ai-modal-input').value = q2; runModalQuery(q2); });
+    // Speak the headline if voice reply is on (default)
+    if (voiceSettings().speakOn) speak(ans.headline);
   }, 20);
 }
 function renderModalSuggestions(q) {
@@ -981,11 +994,12 @@ function ensureChatDrawer() {
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
       </button>
       <input id="ai-input" placeholder="How much did marketing spend on Salesforce this quarter?" autocomplete="off"/>
-      <label class="ai-voice-toggle" title="Speak replies"><input type="checkbox" id="ai-voice-reply"/> <span>🔊</span></label>
+      <label class="ai-voice-toggle" title="Speak replies"><input type="checkbox" id="ai-voice-reply" data-voice-pref="drawer"/> <span>🔊</span></label>
       <button type="submit" class="btn-primary">Send</button>
     </form>`;
   document.body.appendChild(div);
   div.querySelector('#ai-close').onclick = toggleChatDrawer;
+  _wireSpeakToggle(div.querySelector('#ai-voice-reply'));
   div.querySelector('#ai-full').onclick = () => { div.classList.remove('open'); switchView('chat'); };
   div.querySelector('#ai-form').onsubmit = (e) => { e.preventDefault(); const i = document.getElementById('ai-input'); const q = i.value.trim(); if (!q) return; i.value = ''; handleQuery(q, 'drawer'); };
   div.querySelector('#ai-mic').onclick = () => {
@@ -1057,7 +1071,7 @@ function ensureChatView() {
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
           </button>
           <input id="ai-input-full" placeholder="Ask Track — anything about your SaaS portfolio…" autocomplete="off"/>
-          <label class="ai-voice-toggle"><input type="checkbox" id="ai-voice-reply-full"/> <span>🔊 Speak</span></label>
+          <label class="ai-voice-toggle"><input type="checkbox" id="ai-voice-reply-full" data-voice-pref="full"/> <span>🔊 Speak</span></label>
           <button type="submit" class="btn-primary">Send</button>
         </form>
       </div>
@@ -1082,6 +1096,7 @@ function ensureChatView() {
   section.querySelector('#ai-intents').innerHTML = CHAT_INTENTS.map(i => `<li>${escapeHtml(i.desc)}</li>`).join('');
 
   section.querySelector('#chat-clear').onclick = () => { if (!confirm('Clear chat history?')) return; state.settings.chatLog = []; save(); renderChatMessages('full'); renderChatMessages('drawer'); };
+  _wireSpeakToggle(section.querySelector('#ai-voice-reply-full'));
   section.querySelector('#chat-voice-settings').onclick = () => {
     const pane = section.querySelector('#chat-voice-pane');
     pane.hidden = !pane.hidden;
@@ -1143,8 +1158,8 @@ function handleQuery(q, surface) {
     pushChat('assistant', ans, { intent: parsed.intent });
     renderChatMessages(surface);
     // Voice reply?
-    const chk = document.getElementById(surface === 'full' ? 'ai-voice-reply-full' : 'ai-voice-reply');
-    if (chk && chk.checked) speak(ans.headline);
+    // Use the persisted preference as the source of truth; checkbox mirrors it
+    if (voiceSettings().speakOn) speak(ans.headline);
   }, 60);
 }
 
