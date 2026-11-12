@@ -21,9 +21,9 @@
 function onepagerSettings() {
   state.settings.onepager = state.settings.onepager || {
     prospectName: '',
-    distributorName: '',
-    distributorEmail: '',
-    distributorPhone: '',
+    distributorName: 'Vinay Raghavendran',
+    distributorEmail: 'vinayraghavendran16@gmail.com',
+    distributorPhone: '+91 91684 81989',
     accentColor: '#0f2a5e',
   };
   return state.settings.onepager;
@@ -146,8 +146,8 @@ function onepagerHtml(s) {
     <div class="op-section op-pricing-band">
       <div class="op-pricing">
         <div class="op-price-head">One plan. Everything included.</div>
-        <div class="op-price-main">$3,499<span>/year</span></div>
-        <div class="op-price-inr">≈ ₹3,44,000 per year · For India: GST included (live rate applied) · Includes 250 active contracts · $100/yr per 50 additional</div>
+        <div class="op-price-main">₹3,00,000<span>/year</span></div>
+        <div class="op-price-inr">+ 18% GST for India (total ₹3,54,000) · approx $3,600 USD at today's rate, billed in INR · Includes 250 active contracts · $100/yr per 50 additional</div>
         <div class="op-price-list">Unlimited users · Unlimited departments · Every feature · Trial free, no credit card</div>
       </div>
       <div class="op-diff">
@@ -184,7 +184,7 @@ function onepagerHtml(s) {
 
     <!-- Footer -->
     <div class="op-footer">
-      <span>Whizzlead Solutions (OPC) Private Limited · HSR Layout, Bengaluru 560102</span>
+      <span>Whizzlead Solutions OPC Private Limited · HSR Layout, Bengaluru 560102</span>
       <span>${yearCount} · One-pager v1</span>
     </div>
   `;

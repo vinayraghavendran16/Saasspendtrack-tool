@@ -57,9 +57,9 @@ function ensureExpiryGate() {
               <div class="eg-plan-name">SaaS Spend Track</div>
               <div class="eg-plan-tag">The full platform. Every feature. Every user.</div>
             </div>
-            <div class="eg-plan-price"><span class="eg-price-main">$3,499</span><span class="eg-price-period">/year</span></div>
+            <div class="eg-plan-price"><span class="eg-price-main">₹3,00,000</span><span class="eg-price-period">/year</span></div>
           </div>
-          <div class="eg-plan-inr">≈ ₹3,44,000 per year · For India: GST included (live rate applied) · Includes 250 active contracts</div>
+          <div class="eg-plan-inr">+ 18% GST for India (total payable ₹3,54,000) · approx $3,600 USD at today's rate, billed in INR · Includes 250 active contracts</div>
           <div class="eg-plan-small">$100/year per 50 additional contracts above 250. Everything else stays flat.</div>
         </div>
 
@@ -129,7 +129,7 @@ function ensureTrialBanner() {
       <b>${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'}</b> left in your trial
       ${t.inGrace ? ' — upgrade now to keep access' : ''}
     </span>
-    <a href="https://rzp.io/rzp/NCGW9GyD" target="_blank" rel="noopener" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade $3,499/yr'}</a>
+    <a href="https://rzp.io/rzp/NCGW9GyD" target="_blank" rel="noopener" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade ₹3,00,000/yr + GST'}</a>
   `;
 }
 

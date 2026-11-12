@@ -57,7 +57,7 @@ Browser-only app, no backend, state in localStorage. On-prem available for BFSI,
 
 ## Pricing
 
-**$3,499/year** flat. Includes 250 active contracts, unlimited users, every feature. $100/year per 50 additional contracts above 250. On-prem deployment available at the same price.
+**₹3,00,000/year excluding 18% GST** (total ₹3,54,000 for India). Approximately **$3,600 USD** at today's rate for global customers, billed in INR. Includes 250 active contracts, unlimited users, every feature. $100/year per 50 additional contracts above 250. On-prem deployment available at the same price.
 
 ## Architecture
 
@@ -140,6 +140,6 @@ Phase 25 shipped 12 Nov 2026. See the in-app **Changelog** view for the full his
 
 ## Who's building this
 
-Whizzlead Solutions (OPC) Private Limited, HSR Layout, Bengaluru. Director: Raghavendran Vittal. Product and GTM: Vinay Raghavendran.
+Whizzlead Solutions OPC Private Limited, HSR Layout, Bengaluru. Director: Raghavendran Vittal. Product and GTM: Vinay Raghavendran.
 
-Contact: vinay@saasspendtrack.com
+Contact: vinayraghavendran16@gmail.com · +91 91684 81989 · HSR Layout, Bengaluru 560102
