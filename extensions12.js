@@ -10,6 +10,14 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-12', phase: 'Phase 17', title: 'Voice: Indian female voice + clearer mic errors', kind: 'feature', items: [
+    'Ask Track replies now use an Indian English female voice when installed on the device (Veena on macOS/iOS, Microsoft Heera on Windows, system Indian voice on Chrome/Android)',
+    'Softer cadence: rate 0.92, pitch 0.95 for a more soothing read-aloud',
+    'Graceful fallback chain if no Indian voice is installed: en-IN female → any en-IN → en-GB female → platform default',
+    'Mic errors now explain the cause: inside the Claude artifact preview the parent iframe does not grant microphone permissions-policy, so voice input is blocked there — works natively on any hosted copy',
+    'Browser-blocked mic errors now tell you how to unblock in one line (click the lock icon in the address bar)',
+    'no-speech / no-mic / network errors each have their own clear message',
+  ]},
   { date: '2026-11-12', phase: 'Phase 16', title: 'Renamed to Ask Track + 6 new intents', kind: 'feature', items: [
     'Feature renamed from "Ask the Corpus" to "Ask Track" across every surface — topbar bar, modal, chat view, sidebar nav, docs',
     'Six new intents added to the router to catch list-style questions that previously fell through: list_vendors, list_owners, list_contracts, count_vendors, department_list, help',

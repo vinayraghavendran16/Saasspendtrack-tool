@@ -473,14 +473,29 @@ function pushChat(role, content, meta) {
   save();
 }
 
-/* ---------- Voice ---------- */
+/* ---------- Voice input (Web Speech API) ----------
+   Inside the Claude artifact iframe the parent typically doesn't grant
+   `microphone` permissions-policy, so SpeechRecognition fires an
+   `not-allowed` error on start. We detect this and message clearly.
+   On a hosted copy (saasspendtrack.com) the browser-native permission
+   prompt appears and it just works. */
 let _rec = null; let _recOn = false;
+function _inArtifactIframe() {
+  try {
+    if (window.location.hostname.endsWith('claudeusercontent.com')) return true;
+    if (window.parent !== window && document.referrer && /claude\.ai/i.test(document.referrer)) return true;
+  } catch (_) {}
+  return false;
+}
 function startVoice(onResult, onEnd) {
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!Rec) { toast('Voice input not supported in this browser.', 'warn'); return false; }
+  if (!Rec) {
+    toast('Voice input not supported in this browser. Chrome, Edge or Safari give you the mic button.', 'warn');
+    return false;
+  }
   if (_rec && _recOn) return false;
   _rec = new Rec();
-  _rec.lang = navigator.language || 'en-IN';
+  _rec.lang = 'en-IN';
   _rec.interimResults = true;
   _rec.continuous = false;
   let finalText = '';
@@ -493,21 +508,85 @@ function startVoice(onResult, onEnd) {
     onResult && onResult(finalText + interim, !!finalText);
   };
   _rec.onend = () => { _recOn = false; onEnd && onEnd(finalText); };
-  _rec.onerror = (e) => { _recOn = false; toast('Voice: ' + (e.error || 'error'), 'warn'); onEnd && onEnd(''); };
-  _rec.start(); _recOn = true;
-  return true;
+  _rec.onerror = (e) => {
+    _recOn = false;
+    const code = e.error || 'error';
+    let msg = 'Voice input: ' + code;
+    if (code === 'not-allowed' || code === 'service-not-allowed') {
+      if (_inArtifactIframe()) {
+        msg = 'Microphone is blocked inside the Claude artifact preview. Open Ask Track on your own domain (app.saasspendtrack.com when hosted) and voice will work. Text input works everywhere.';
+      } else {
+        msg = 'Microphone blocked. Click the lock icon in the address bar and allow the mic for this site, then try again.';
+      }
+    } else if (code === 'no-speech') { msg = "I didn't catch anything. Try again."; }
+    else if (code === 'audio-capture') { msg = 'No microphone detected on this device.'; }
+    else if (code === 'network') { msg = 'Voice recognition needs internet (it uses the browser\'s speech service). Check your connection.'; }
+    toast(msg, 'warn');
+    onEnd && onEnd('');
+  };
+  try { _rec.start(); _recOn = true; return true; }
+  catch (e) { _recOn = false; toast('Could not start the mic: ' + (e?.message || e), 'warn'); return false; }
 }
 function stopVoice() { try { _rec && _rec.stop(); } catch (_) {} _recOn = false; }
+
+/* ---------- Voice output (SpeechSynthesis) ----------
+   Prefer an Indian English female voice, soft cadence. Fall back
+   gracefully if none installed on this platform. Voices load async
+   in Chrome — refresh the selected voice once voiceschanged fires. */
+let _preferredVoice = null;
+function pickIndianFemaleVoice() {
+  if (!('speechSynthesis' in window)) return null;
+  const voices = speechSynthesis.getVoices() || [];
+  if (!voices.length) return null;
+  // Priority order:
+  //   1. Named Indian female voices on known platforms
+  //      macOS/iOS: "Veena"; Windows: "Microsoft Heera"; Chrome on Android/CrOS: Indian Google voice
+  //   2. Any en-IN voice marked female
+  //   3. Any en-IN voice
+  //   4. en-GB female (closest soothing neutral accent for Indian ears)
+  //   5. Default
+  const named = ['Veena', 'Heera', 'Priya', 'Aditi', 'Kiran', 'Monika', 'Lekha'];
+  for (const n of named) {
+    const v = voices.find(x => x.name && x.name.toLowerCase().includes(n.toLowerCase()));
+    if (v) return v;
+  }
+  const inFem = voices.find(v => (v.lang || '').toLowerCase().startsWith('en-in') && /female/i.test(v.name || ''));
+  if (inFem) return inFem;
+  const inAny = voices.find(v => (v.lang || '').toLowerCase().startsWith('en-in'));
+  if (inAny) return inAny;
+  const gbFem = voices.find(v => (v.lang || '').toLowerCase().startsWith('en-gb') && /female|kate|serena|karen|moira|susan|hazel|libby/i.test(v.name || ''));
+  if (gbFem) return gbFem;
+  // Chrome often ships a "Google हिन्दी" voice that reads English with an Indian accent — use as last Indian-leaning fallback
+  const googleHi = voices.find(v => (v.lang || '').startsWith('hi') && /google/i.test(v.name || ''));
+  if (googleHi) return googleHi;
+  return null;
+}
+function _refreshVoice() { _preferredVoice = pickIndianFemaleVoice(); }
+if ('speechSynthesis' in window) {
+  _refreshVoice();
+  speechSynthesis.onvoiceschanged = _refreshVoice;
+  // Chrome bug: sometimes needs a second tick
+  setTimeout(_refreshVoice, 500);
+  setTimeout(_refreshVoice, 2000);
+}
 function speak(text) {
   if (!('speechSynthesis' in window)) return;
   const plain = (text || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   if (!plain) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(plain.slice(0, 500));
-  u.lang = navigator.language || 'en-IN';
-  u.rate = 1.03;
+  if (!_preferredVoice) _refreshVoice();
+  if (_preferredVoice) { u.voice = _preferredVoice; u.lang = _preferredVoice.lang; }
+  else { u.lang = 'en-IN'; }
+  // Soothing: slower rate, slightly lower pitch, moderate volume
+  u.rate = 0.92;
+  u.pitch = 0.95;
+  u.volume = 0.95;
   speechSynthesis.speak(u);
 }
+
+/* Expose for debugging/preference pane later */
+window.AskTrackVoice = { pickIndianFemaleVoice, speak, get preferred() { return _preferredVoice; } };
 
 /* ---------- UI: topbar search bar + command-palette modal ----------
    Primary pattern: Cmd/Ctrl+K opens a centered modal with the same input
