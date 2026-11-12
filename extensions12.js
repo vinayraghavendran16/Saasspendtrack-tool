@@ -16,7 +16,7 @@ const CHANGELOG = [
     'INR conversion on the marketing site is now LIVE via frankfurter.app (free, ECB daily rate, no auth) with 18% GST included, Indian lakh-style formatting (₹3,44,000), and the exchange rate + date shown inline',
     'Static fallback shown first so the price never blanks out; live rate replaces it within a second',
     'New Live dashboard preview section on the marketing site: faux browser chrome with 5 rotating scenes from the actual tool — Dashboard KPIs ticking, Ask Track typing + answer, Renewal Center lanes, Licence Forecast chart drawing, Risk analytics bars',
-    'Upgrade CTA across the tool (trial banner + expiry gate) now points to a Razorpay payment page (placeholder URL: pages.razorpay.com/saasspendtrack-annual — user to set up)',
+    'Upgrade CTA across the tool (trial banner + expiry gate) now points to a Razorpay payment page (live URL: rzp.io/rzp/NCGW9GyD)',
     'Marketing site pricing CTAs now include "Pay & activate" button pointing to Razorpay alongside "Try it live" and "Book a demo"',
   ]},
   { date: '2026-11-12', phase: 'Phase 27', title: 'Pricing updated to $3,499/year (India excluding GST)', kind: 'feature', items: [

@@ -64,7 +64,7 @@ function ensureExpiryGate() {
         </div>
 
         <div class="eg-actions">
-          <a href="https://pages.razorpay.com/saasspendtrack-annual" class="btn-primary btn-lg">Upgrade now</a>
+          <a href="https://rzp.io/rzp/NCGW9GyD" target="_blank" rel="noopener" class="btn-primary btn-lg">Upgrade now</a>
           <button class="btn-link" id="eg-paid">I've already paid — mark as active</button>
         </div>
 
@@ -129,7 +129,7 @@ function ensureTrialBanner() {
       <b>${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'}</b> left in your trial
       ${t.inGrace ? ' — upgrade now to keep access' : ''}
     </span>
-    <a href="https://pages.razorpay.com/saasspendtrack-annual" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade $3,499/yr'}</a>
+    <a href="https://rzp.io/rzp/NCGW9GyD" target="_blank" rel="noopener" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade $3,499/yr'}</a>
   `;
 }
 
