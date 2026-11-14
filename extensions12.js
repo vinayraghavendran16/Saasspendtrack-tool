@@ -10,6 +10,16 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-14', phase: 'Phase 33', title: 'USD-only display + geo-routed Razorpay (clean one-currency UX)', kind: 'feature', items: [
+    'Pricing display is now USD-only everywhere: $3,499/year headline on marketing site, tool trial banner, trial expiry gate, one-pager',
+    'Sub-line clarifier: "Billed annually · Indian customers: 18% GST added at checkout · Includes 250 active contracts"',
+    'Geo toggle UI removed from both the marketing pricing card and the expiry gate — one currency, no confusion',
+    'Geo detection stays but is now used only to route the Upgrade/Pay button to the right Razorpay page: Indian IP goes to the India page (collects INR + GST), non-Indian IP goes to the International page (USD, placeholder URL set to rzp.io/rzp/INTERNATIONAL-PLACEHOLDER until Razorpay International Payments activates)',
+    'Pay button href resolved on load; if the ipapi.co lookup updates the geo preference, mounted pay links refresh via data-pay-geo hook',
+    'One-pager region dropdown removed (not needed for single-currency display)',
+    'Action for you: activate Razorpay International Payments, create the $3,499 USD page, send me the new URL to replace INTERNATIONAL-PLACEHOLDER',
+    'Action for you: file LUT on gst.gov.in for FY 2026-27 to zero-rate exports',
+  ]},
   { date: '2026-11-14', phase: 'Phase 32', title: 'Clean single-currency per geo view (no cross-reference clutter)', kind: 'fix', items: [
     'Global view now shows only $3,499/year with "Billed annually via Razorpay" sub-line — no mention of INR',
     'India view now shows only ₹3,00,000/year with "+ 18% GST, invoiced separately" sub-line — no mention of USD',

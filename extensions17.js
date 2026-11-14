@@ -16,28 +16,30 @@
       trial" control, so the distributor can re-demo cleanly.
    ========================================================================== */
 
-/* ---------- Geo + price display ----------
-   Mirrors the marketing site: USD primary for global visitors,
-   INR primary for Indian visitors. Preference stored in
-   localStorage under 'sst-geo' so it survives between the
-   marketing site and the tool. */
+/* ---------- Geo detection (for Razorpay routing only) ----------
+   Pricing display is USD-only everywhere. Geo state is kept so the
+   Upgrade button can route to the right Razorpay page:
+     Indian visitors → India page (INR + GST on the page)
+     Everyone else   → International page (USD)
+   Preference saved in localStorage 'sst-geo', shared with site. */
+const RAZORPAY_INDIA  = 'https://rzp.io/rzp/NCGW9GyD';
+const RAZORPAY_GLOBAL = 'https://rzp.io/rzp/INTERNATIONAL-PLACEHOLDER';
 function geoGet() {
   try {
     const v = localStorage.getItem('sst-geo');
     if (v === 'india' || v === 'global') return v;
   } catch (_) {}
-  // Fast language hint
   const lang = (navigator.language || '').toLowerCase();
   if (lang.includes('-in') || lang.startsWith('hi') || lang.startsWith('ta') || lang.startsWith('te') || lang.startsWith('bn') || lang.startsWith('mr') || lang.startsWith('gu') || lang.startsWith('kn') || lang.startsWith('ml') || lang.startsWith('pa')) return 'india';
   return 'global';
 }
 function geoSet(g) {
   try { localStorage.setItem('sst-geo', g); } catch (_) {}
-  // Re-render anything that cares
   try { ensureTrialBanner(); } catch (_) {}
-  try { if (document.getElementById('expiry-gate')?.classList.contains('open')) { const g2 = ensureExpiryGate(); } } catch (_) {}
 }
-// IP confirmation on first load (one-time) if the user has NEVER explicitly chosen
+function payUrl() { return geoGet() === 'india' ? RAZORPAY_INDIA : RAZORPAY_GLOBAL; }
+
+// IP confirmation on first load — used only to set the right Razorpay URL
 (function geoIpBackfill() {
   let has = false;
   try { has = !!localStorage.getItem('sst-geo'); } catch (_) {}
@@ -46,33 +48,26 @@ function geoSet(g) {
     fetch('https://ipapi.co/json/')
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(d => {
-        if (d && d.country_code) {
-          const next = d.country_code === 'IN' ? 'india' : 'global';
-          try {
-            // Only set if still unset (user may have toggled in the meantime)
-            if (!localStorage.getItem('sst-geo')) {
-              localStorage.setItem('sst-geo', next);
-              ensureTrialBanner();
-            }
-          } catch (_) {}
-        }
+        if (!d || !d.country_code) return;
+        const next = d.country_code === 'IN' ? 'india' : 'global';
+        try {
+          if (!localStorage.getItem('sst-geo')) {
+            localStorage.setItem('sst-geo', next);
+            // Refresh any mounted Upgrade links
+            document.querySelectorAll('[data-pay-geo]').forEach(a => a.href = payUrl());
+            ensureTrialBanner();
+          }
+        } catch (_) {}
       })
       .catch(() => {});
   }, 1200);
 })();
 window.AskTrackGeo = { get: geoGet, set: geoSet };
 
-function priceHeadline() {
-  return geoGet() === 'india' ? '₹3,00,000' : '$3,499';
-}
-function priceWithPeriod() {
-  return geoGet() === 'india' ? '₹3,00,000/yr' : '$3,499/yr';
-}
-function priceSubline() {
-  return geoGet() === 'india'
-    ? '+ 18% GST, invoiced separately · Includes 250 active contracts'
-    : 'Billed annually via Razorpay · Includes 250 active contracts';
-}
+// Display is always USD. Only one headline, one sub-line, one price.
+function priceHeadline()   { return '$3,499'; }
+function priceWithPeriod() { return '$3,499/yr'; }
+function priceSubline()    { return 'Billed annually · Indian customers: 18% GST added at checkout · Includes 250 active contracts'; }
 
 /* ---------- Helpers ---------- */
 function trialState() {
@@ -115,18 +110,14 @@ function ensureExpiryGate() {
               <div class="eg-plan-name">SaaS Spend Track</div>
               <div class="eg-plan-tag">The full platform. Every feature. Every user.</div>
             </div>
-            <div class="eg-plan-price"><span class="eg-price-main" id="eg-price-main">${priceHeadline()}</span><span class="eg-price-period">/year</span></div>
+            <div class="eg-plan-price"><span class="eg-price-main">${priceHeadline()}</span><span class="eg-price-period">/year</span></div>
           </div>
-          <div class="eg-plan-inr" id="eg-plan-inr">${priceSubline()}</div>
+          <div class="eg-plan-inr">${priceSubline()}</div>
           <div class="eg-plan-small">$100/year per 50 additional contracts above 250. Everything else stays flat.</div>
-          <div class="eg-geo-toggle" role="group" aria-label="Pricing currency">
-            <button type="button" class="eg-geo-btn ${geoGet()==='global'?'active':''}" data-geo="global">🌐 Show in USD</button>
-            <button type="button" class="eg-geo-btn ${geoGet()==='india'?'active':''}" data-geo="india">🇮🇳 Show in INR</button>
-          </div>
         </div>
 
         <div class="eg-actions">
-          <a href="https://rzp.io/rzp/NCGW9GyD" target="_blank" rel="noopener" class="btn-primary btn-lg">Upgrade now</a>
+          <a href="${payUrl()}" data-pay-geo="1" target="_blank" rel="noopener" class="btn-primary btn-lg">Upgrade now</a>
           <button class="btn-link" id="eg-paid">I've already paid — mark as active</button>
         </div>
 
@@ -142,13 +133,6 @@ function ensureExpiryGate() {
   const openGate = () => { g.classList.add('open'); };
   const closeGate = () => { g.classList.remove('open'); };
 
-  g.querySelectorAll('.eg-geo-btn').forEach(b => b.onclick = () => {
-    geoSet(b.dataset.geo);
-    // Live-update the card without reopening
-    const m = g.querySelector('#eg-price-main'); if (m) m.textContent = priceHeadline();
-    const s = g.querySelector('#eg-plan-inr'); if (s) s.textContent = priceSubline();
-    g.querySelectorAll('.eg-geo-btn').forEach(x => x.classList.toggle('active', x.dataset.geo === b.dataset.geo));
-  });
   g.querySelector('#eg-paid').onclick = () => {
     if (!confirm('Mark this workspace as a paid customer? You should only do this after a real purchase.')) return;
     workspace().plan = 'paid';
@@ -198,7 +182,7 @@ function ensureTrialBanner() {
       <b>${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'}</b> left in your trial
       ${t.inGrace ? ' — upgrade now to keep access' : ''}
     </span>
-    <a href="https://rzp.io/rzp/NCGW9GyD" target="_blank" rel="noopener" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade ' + priceWithPeriod()}</a>
+    <a href="${payUrl()}" data-pay-geo="1" target="_blank" rel="noopener" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade ' + priceWithPeriod()}</a>
   `;
 }
 

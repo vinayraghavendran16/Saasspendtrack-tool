@@ -25,7 +25,7 @@
     const html = onepagerHtml({ prospectName: '', distributorName: '', distributorEmail: '', distributorPhone: '', accentColor: '#0f2a5e' });
     assert(typeof html === 'string', 'onepagerHtml should return string');
     assert(html.includes('SaaS Spend Track'), 'should include product name');
-    assert(html.includes('₹3,00,000'), 'should include price');
+    assert(html.includes('$3,499'), 'should include USD price');
     assert(html.includes('250 active contracts'), 'should include contract limit');
     assert(html.includes('qrserver.com'), 'should include QR code');
   });

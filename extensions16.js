@@ -25,7 +25,6 @@ function onepagerSettings() {
     distributorEmail: 'vinayraghavendran16@gmail.com',
     distributorPhone: '+91 91684 81989',
     accentColor: '#0f2a5e',
-    prospectRegion: 'india',   // 'india' or 'global' — swaps currency on the pricing block
   };
   return state.settings.onepager;
 }
@@ -43,12 +42,6 @@ function renderOnepager() {
         <label>Distributor name <input id="op-distributor" value="${escapeHtml(s.distributorName)}" placeholder="Your name"/></label>
         <label>Distributor email <input id="op-dist-email" value="${escapeHtml(s.distributorEmail)}" placeholder="you@firm.com"/></label>
         <label>Distributor phone <input id="op-dist-phone" value="${escapeHtml(s.distributorPhone)}" placeholder="+91 ..."/></label>
-        <label>Prospect region
-          <select id="op-region">
-            <option value="india" ${s.prospectRegion==='india'?'selected':''}>🇮🇳 India (INR primary)</option>
-            <option value="global" ${s.prospectRegion==='global'?'selected':''}>🌐 Global (USD primary)</option>
-          </select>
-        </label>
       </div>
       <div class="op-ctrl-row" style="margin-top:8px">
         <button class="btn-primary" id="op-download">Download PDF</button>
@@ -70,7 +63,6 @@ function renderOnepager() {
     s.distributorName = document.getElementById('op-distributor').value;
     s.distributorEmail = document.getElementById('op-dist-email').value;
     s.distributorPhone = document.getElementById('op-dist-phone').value;
-    s.prospectRegion = document.getElementById('op-region').value;
     save();
     document.getElementById('op-page').innerHTML = onepagerHtml(s);
   };
@@ -78,7 +70,6 @@ function renderOnepager() {
     const el = document.getElementById(id);
     el.oninput = sync;
   });
-  document.getElementById('op-region').onchange = sync;
 
   document.getElementById('op-download').onclick = async () => {
     const page = document.getElementById('op-page');
@@ -155,13 +146,8 @@ function onepagerHtml(s) {
     <div class="op-section op-pricing-band">
       <div class="op-pricing">
         <div class="op-price-head">One plan. Everything included.</div>
-        ${s.prospectRegion === 'global' ? `
-          <div class="op-price-main">$3,499<span>/year</span></div>
-          <div class="op-price-inr">Billed annually via Razorpay · Includes 250 active contracts · $100/yr per 50 additional</div>
-        ` : `
-          <div class="op-price-main">₹3,00,000<span>/year</span></div>
-          <div class="op-price-inr">+ 18% GST, invoiced separately · Includes 250 active contracts · $100/yr per 50 additional</div>
-        `}
+        <div class="op-price-main">$3,499<span>/year</span></div>
+        <div class="op-price-inr">Billed annually · Indian customers: 18% GST added at checkout · Includes 250 active contracts · $100/yr per 50 additional</div>
         <div class="op-price-list">Unlimited users · Unlimited departments · Every feature · Trial free, no credit card</div>
       </div>
       <div class="op-diff">
