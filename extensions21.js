@@ -22,8 +22,44 @@
    under state.settings.pendingSignups for later retry.
    ========================================================================== */
 
-// Replace this with your Apps Script deployment URL (ends in /exec)
-const SIGNUP_ENDPOINT_DEFAULT = 'https://script.google.com/macros/s/PASTE-YOUR-DEPLOYMENT-ID/exec';
+// Google Apps Script Web App deployment URL (ends in /exec)
+const SIGNUP_ENDPOINT_DEFAULT = 'https://script.google.com/macros/s/AKfycbyaZnzM7Qq22uRyAcQ_PEQuXpZNRkdFhJuz2PZ2Csn_bt7LN2HXa6F-CbAmkh684kA/exec';
+
+// Personal / disposable email domains the signup modal rejects.
+// Users must submit a work email so we know which company they're from.
+const PERSONAL_EMAIL_DOMAINS = new Set([
+  // Major personal providers
+  'gmail.com', 'googlemail.com',
+  'yahoo.com', 'yahoo.co.uk', 'yahoo.co.in', 'yahoo.in', 'yahoo.ca', 'yahoo.com.au', 'yahoo.fr', 'yahoo.de',
+  'ymail.com', 'rocketmail.com',
+  'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'outlook.in', 'hotmail.co.uk', 'hotmail.co.in',
+  'icloud.com', 'me.com', 'mac.com',
+  'aol.com',
+  'protonmail.com', 'proton.me', 'pm.me',
+  'rediffmail.com',
+  'mail.com',
+  'gmx.com', 'gmx.net', 'gmx.de',
+  'yandex.com', 'yandex.ru',
+  'qq.com', '163.com', '126.com', 'sina.com', 'foxmail.com',
+  'zoho.com',
+  'fastmail.com', 'fastmail.fm',
+  'tutanota.com',
+  // Disposable / temp
+  'mailinator.com', 'guerrillamail.com', 'tempmail.com', 'temp-mail.org',
+  '10minutemail.com', 'yopmail.com', 'trashmail.com', 'getnada.com',
+  'sharklasers.com', 'throwawaymail.com', 'maildrop.cc', 'dispostable.com',
+]);
+
+function isPersonalEmail(email) {
+  const domain = (email || '').toLowerCase().split('@')[1] || '';
+  if (!domain) return false;
+  if (PERSONAL_EMAIL_DOMAINS.has(domain)) return true;
+  // Catch subdomains of blocked providers (e.g. "foo.gmail.com" edge case)
+  for (const d of PERSONAL_EMAIL_DOMAINS) {
+    if (domain.endsWith('.' + d)) return true;
+  }
+  return false;
+}
 
 function signupEndpoint() {
   return (state.settings.signupEndpoint && state.settings.signupEndpoint.startsWith('http'))
@@ -156,10 +192,10 @@ function ensureSignupModal(mode = 'initial') {
           <div class="sm-brand-tag">${isChange ? 'Change your email' : 'Start your 14-day trial'}</div>
         </div>
       </div>
-      <h2>${isChange ? 'Use a different email' : 'One field. No credit card.'}</h2>
+      <h2>${isChange ? 'Use a different email' : 'Work email only. No credit card.'}</h2>
       <p class="sm-sub">${isChange
-        ? 'Switching the email we have on file for this workspace. We\'ll log the change in our records so follow-up goes to the right address.'
-        : 'Your workspace runs entirely in your browser. We just need your work email so we can send your login link when you want to open the tool on another device, and so you don\'t lose your data.'}</p>
+        ? 'Switching the email we have on file for this workspace. We\'ll log the change in our records so follow-up goes to the right address. Must be a work email (gmail, yahoo etc not accepted).'
+        : 'Your workspace runs entirely in your browser. We just need your <b>work email</b> (gmail, yahoo etc not accepted) so we can send your login link when you open the tool on another device, and handle GST invoicing for Indian customers.'}</p>
       <form id="signup-form" class="sm-form">
         <label>Work email *
           <input type="email" id="signup-email" value="${escapeHtml(currentEmail)}" placeholder="you@yourcompany.com" required autocomplete="email" autofocus/>
@@ -204,7 +240,15 @@ function ensureSignupModal(mode = 'initial') {
     const email = emailEl.value.trim().toLowerCase();
     const company = companyEl.value.trim();
     if (!/.+@.+\..+/.test(email)) {
-      errEl.textContent = 'Please enter a valid work email.'; errEl.hidden = false; return;
+      errEl.textContent = 'Please enter a valid email address.'; errEl.hidden = false; return;
+    }
+    if (isPersonalEmail(email)) {
+      const domain = email.split('@')[1] || '';
+      errEl.innerHTML = `<b>${escapeHtml(domain)}</b> looks like a personal email. Please use your work email so we can match your trial to your company for follow-up and GST invoicing.`;
+      errEl.hidden = false;
+      btn.disabled = false;
+      btn.textContent = isChange ? 'Update email →' : 'Start my 14-day trial →';
+      return;
     }
     if (isChange && email === currentEmail && company === currentCompany) {
       m.remove(); return; // nothing changed

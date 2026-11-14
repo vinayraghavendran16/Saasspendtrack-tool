@@ -10,6 +10,15 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-14', phase: 'Phase 38', title: 'Signup: work-email only (reject personal domains), live Apps Script URL wired', kind: 'feature', items: [
+    'Signup modal now rejects personal email domains with a clear inline message naming the domain: "gmail.com looks like a personal email. Please use your work email so we can match your trial to your company for follow-up and GST invoicing."',
+    'Block list: gmail, googlemail, yahoo (all country TLDs), outlook, hotmail, live, msn, icloud, me, mac, aol, protonmail, rediffmail, mail.com, gmx, yandex, qq, 163, 126, foxmail, zoho, fastmail, tutanota',
+    'Also blocks disposable email domains: mailinator, guerrillamail, tempmail, 10minutemail, yopmail, trashmail, maildrop, dispostable, sharklasers, throwawaymail',
+    'Subdomain-aware: foo.gmail.com also blocked',
+    'Pre-emptive language added to the modal: "Work email only" in the heading, and "gmail, yahoo etc not accepted" in the description so users do not even try',
+    'Apps Script endpoint URL wired in: https://script.google.com/macros/s/AKfycbyaZnzM7Qq22uRyAcQ_PEQuXpZNRkdFhJuz2PZ2Csn_bt7LN2HXa6F-CbAmkh684kA/exec',
+    'Submissions should land in the tracking Sheet within 1-2 seconds now that the live URL is in place',
+  ]},
   { date: '2026-11-14', phase: 'Phase 37', title: 'Fix: CSS variable mismatch made signup modal (and other new views) unreadable in dark mode', kind: 'fix', items: [
     'The signup modal rendered with transparent background and inherited text color because the CSS I wrote referenced var(--surface) / var(--ink-dim) which don\'t exist in the tool\'s theme (the tool uses var(--panel) / var(--text-dim))',
     'Same mismatch hit the Licence forecast view, One-pager controls, Demo presets cards, and Vendor contacts table',
