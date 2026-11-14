@@ -1363,3 +1363,35 @@ body.readonly-mode .kpi-value::after {
 .eg-geo-btn { background: var(--surface-2); color: var(--ink-dim); border: 1px solid var(--border); padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer; }
 .eg-geo-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .eg-geo-btn:hover { color: var(--ink); }
+
+/* Signup capture modal */
+.signup-modal { position: fixed; inset: 0; z-index: 600; display: block; }
+.signup-modal.sm-done { opacity: 0; transition: opacity .3s ease; pointer-events: none; }
+.sm-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(8px); }
+.sm-card {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(460px, calc(100vw - 24px));
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 30px 32px 20px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  color: var(--ink);
+  max-height: 92vh; overflow-y: auto;
+}
+.sm-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.sm-logo { width: 42px; height: 42px; background: #0f2a5e; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; border-radius: 8px; letter-spacing: -0.02em; }
+.sm-brand-name { font-size: 15px; font-weight: 700; }
+.sm-brand-tag { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+.sm-card h2 { font-size: 24px; margin: 0 0 8px; font-weight: 700; letter-spacing: -0.01em; }
+.sm-sub { color: var(--ink-dim); font-size: 13px; line-height: 1.55; margin: 0 0 20px; }
+.sm-form label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 12px; color: var(--ink-dim); font-weight: 500; }
+.sm-form input { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; }
+.sm-form input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+.sm-optional { font-weight: 400; color: var(--ink-dim); margin-left: 4px; font-size: 11px; }
+.sm-error { background: rgba(239,68,68,0.12); color: #fca5a5; padding: 8px 12px; border-radius: 6px; font-size: 12.5px; margin-bottom: 10px; border: 1px solid rgba(239,68,68,0.3); }
+.sm-primary { width: 100%; background: var(--accent); color: #fff; border: 0; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; margin-top: 4px; }
+.sm-primary:hover { opacity: 0.95; }
+.sm-primary:disabled { opacity: 0.6; cursor: wait; }
+.sm-fine { text-align: center; margin-top: 16px; font-size: 12px; color: var(--ink-dim); }
+.sm-fine a { color: var(--accent); text-decoration: none; }
+.sm-foot { text-align: center; font-size: 10.5px; color: var(--ink-dim); padding-top: 14px; margin-top: 14px; border-top: 1px dashed var(--border); line-height: 1.5; }
+.sm-foot a { color: var(--ink-dim); text-decoration: underline; }

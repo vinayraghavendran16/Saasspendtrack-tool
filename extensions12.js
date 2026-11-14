@@ -10,6 +10,18 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-14', phase: 'Phase 35', title: 'Trial signup capture → Google Sheet dashboard', kind: 'feature', items: [
+    'New first-visit modal captures work email + optional company before the app renders',
+    'Submission POSTs to a Google Apps Script endpoint that appends a row to your tracking Sheet',
+    'Columns captured: timestamp, email, company, country (via ipapi.co), locale, referrer, UTM params, workspace_id, user_agent',
+    'Captured workspace never shows the modal again. Marked as paid when user clicks "I\'ve already paid, skip this"',
+    'Offline/misconfigured endpoint: signup queued in localStorage under pendingSignups, retried on next page load — no lost signups',
+    'UTM params from the URL (?utm_source=distributor-jp&utm_campaign=cohort-1) captured for attribution per distributor',
+    'Setup docs: trial-tracking/TRIAL-TRACKING-SETUP.md + signup-endpoint.gs (Apps Script)',
+    'Looker Studio dashboard recipe included for charts over the Sheet',
+    'Console helpers: AskTrackSignup.setEndpoint(url) to configure at runtime without redeploy, AskTrackSignup.reset() to re-trigger the modal in your own browser for testing',
+    'Hidden in the Claude artifact preview to keep demos clean',
+  ]},
   { date: '2026-11-14', phase: 'Phase 34', title: 'Tool surfaces fully synced to USD-only (Plans view, README, UAT)', kind: 'fix', items: [
     'Added a proper USD price block to the Plans view in the tool, matching the marketing site and trial banner: $3,499/year, GST sub-line for India, feature list, Pay & activate button',
     'Plans view Pay button carries data-pay-geo attribute so it geo-routes to the right Razorpay URL',
