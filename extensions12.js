@@ -10,6 +10,14 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-14', phase: 'Phase 37', title: 'Fix: CSS variable mismatch made signup modal (and other new views) unreadable in dark mode', kind: 'fix', items: [
+    'The signup modal rendered with transparent background and inherited text color because the CSS I wrote referenced var(--surface) / var(--ink-dim) which don\'t exist in the tool\'s theme (the tool uses var(--panel) / var(--text-dim))',
+    'Same mismatch hit the Licence forecast view, One-pager controls, Demo presets cards, and Vendor contacts table',
+    '97 bad var references in styles.css fixed with a global replace: --surface → --panel, --surface-2 → --panel-2, --ink-dim → --text-dim',
+    'Same fix applied to inline <style> blocks in extensions14, 16, 18, 19',
+    'Root cause: I built the marketing site first (which uses --surface/--ink) then pasted similar CSS into tool extensions without checking the tool\'s theme system',
+    'Lesson: tool theme vars are --panel / --panel-2 / --text / --text-dim / --border / --accent. Future extensions should use these, not the marketing-site names',
+  ]},
   { date: '2026-11-14', phase: 'Phase 36', title: 'Signup UX: confirm the email, allow change later, identity chip in sidebar', kind: 'feature', items: [
     'Welcome toast now displays the full email the user registered with ("Welcome. Confirmation sent to name@company.com") instead of just the first part, so they can confirm they typed it correctly',
     'Sidebar footer badge replaced with an identity chip showing "Signed in as name@company.com" plus a Change button',

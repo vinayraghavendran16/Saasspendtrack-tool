@@ -195,7 +195,7 @@ function renderForecast() {
                   <td style="text-align:right ${r.util < 60 ? 'style=\"color:#f59e0b\"' : ''}">${r.util}%</td>
                   ${r.quarters.map(q => `<td style="text-align:right">${q.demand}</td>`).join('')}
                   <td style="text-align:right"><b>${r.terminal}</b></td>
-                  <td style="text-align:right;color:${r.delta > 0 ? 'var(--accent)' : r.delta < 0 ? '#10b981' : 'var(--ink-dim)'}">${r.delta > 0 ? '+' : ''}${r.delta}</td>
+                  <td style="text-align:right;color:${r.delta > 0 ? 'var(--accent)' : r.delta < 0 ? '#10b981' : 'var(--text-dim)'}">${r.delta > 0 ? '+' : ''}${r.delta}</td>
                   <td style="text-align:right">${impact ? (impact >= 0 ? '+' : '') + formatMoney(impact) : '—'}</td>
                   <td><span class="badge badge-rec-${r.rec}">${r.rec === 'add' ? 'Add seats' : r.rec === 'downgrade' ? 'Reclaim' : 'Hold'}</span></td>
                 </tr>`;
@@ -231,11 +231,11 @@ function renderForecastChart(rows, horizons) {
       const x = pad + i * ((W - pad * 2) / totals.length);
       const h = (t.value / max) * (H - pad * 2);
       const y = H - pad - h;
-      const color = i === 0 ? 'var(--ink-dim)' : 'var(--accent)';
+      const color = i === 0 ? 'var(--text-dim)' : 'var(--accent)';
       return `
         <rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="4" fill="${color}" opacity="${i === 0 ? 0.4 : 0.85}"/>
         <text x="${x + bw / 2}" y="${y - 6}" text-anchor="middle" font-size="11" fill="var(--ink)" font-weight="600">${t.value}</text>
-        <text x="${x + bw / 2}" y="${H - pad + 16}" text-anchor="middle" font-size="11" fill="var(--ink-dim)">${t.label}</text>
+        <text x="${x + bw / 2}" y="${H - pad + 16}" text-anchor="middle" font-size="11" fill="var(--text-dim)">${t.label}</text>
       `;
     }).join('')}
     <line x1="${pad}" y1="${H - pad}" x2="${W - pad}" y2="${H - pad}" stroke="var(--border)"/>

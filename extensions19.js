@@ -199,22 +199,22 @@ function ensureContactBookView() {
     <div id="cb-body"></div>
     <style>
       .cb-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px; }
-      .cb-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; overflow-x: auto; }
+      .cb-table-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 4px; overflow-x: auto; }
       .cb-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-      .cb-table th { position: sticky; top: 0; background: var(--surface-2); color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em; font-size: 10.5px; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+      .cb-table th { position: sticky; top: 0; background: var(--panel-2); color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; font-size: 10.5px; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
       .cb-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
       .cb-table tr.cb-stale td { background: rgba(239,68,68,0.04); }
       .cb-table tr.cb-aging td { background: rgba(245,158,11,0.04); }
-      .cb-edit { width: 100%; background: var(--surface-2); color: var(--ink); border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; font-size: 11.5px; }
-      .cb-edit:focus { border-color: var(--accent); background: var(--surface); outline: none; }
+      .cb-edit { width: 100%; background: var(--panel-2); color: var(--ink); border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; font-size: 11.5px; }
+      .cb-edit:focus { border-color: var(--accent); background: var(--panel); outline: none; }
       .cb-notes { font-size: 11px; }
       .cb-draft { background: var(--accent); color: #fff; border: 0; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
       /* Contact pane inside the contract modal */
-      .cb-pane { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-top: 14px; }
-      .cb-pane h4 { margin: 0 0 10px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); }
+      .cb-pane { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-top: 14px; }
+      .cb-pane h4 { margin: 0 0 10px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
       .cb-pane-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-      .cb-pane label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--ink-dim); }
-      .cb-pane input, .cb-pane textarea { background: var(--surface); color: var(--ink); border: 1px solid var(--border); border-radius: 5px; padding: 5px 7px; font-size: 12px; font-family: inherit; }
+      .cb-pane label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--text-dim); }
+      .cb-pane input, .cb-pane textarea { background: var(--panel); color: var(--ink); border: 1px solid var(--border); border-radius: 5px; padding: 5px 7px; font-size: 12px; font-family: inherit; }
       .cb-pane-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
       .cb-pane-draft { background: var(--accent); color: #fff; border: 0; padding: 7px 14px; border-radius: 6px; cursor: pointer; }
       @media (max-width: 760px) { .cb-pane-grid { grid-template-columns: 1fr; } }

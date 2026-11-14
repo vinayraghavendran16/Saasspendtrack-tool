@@ -278,10 +278,10 @@ function ensureOnepagerView() {
     </div>
     <div id="op-body"></div>
     <style>${getOnepagerCss()}
-      .op-controls { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+      .op-controls { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
       .op-ctrl-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-      .op-ctrl-row label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--ink-dim); flex: 1; min-width: 180px; }
-      .op-ctrl-row input, .op-ctrl-row select { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+      .op-ctrl-row label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--text-dim); flex: 1; min-width: 180px; }
+      .op-ctrl-row input, .op-ctrl-row select { background: var(--panel-2); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
       .op-page-wrap { display: flex; justify-content: center; overflow-x: auto; padding: 20px 0; background: #e5e7eb; border-radius: 12px; }
       .op-page { box-shadow: 0 8px 32px rgba(0,0,0,0.15); transform-origin: top center; }
       @media (max-width: 900px) { .op-page { transform: scale(0.65); margin: -140px 0; } }

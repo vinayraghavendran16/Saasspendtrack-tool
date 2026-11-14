@@ -270,17 +270,17 @@ function ensureDemoView() {
     <div id="dp-body"></div>
     <style>
       .dp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
-      .dp-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
-      .dp-card.dp-current { border-color: var(--accent); background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--accent) 5%, var(--surface)) 100%); }
+      .dp-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+      .dp-card.dp-current { border-color: var(--accent); background: linear-gradient(180deg, var(--panel) 0%, color-mix(in srgb, var(--accent) 5%, var(--panel)) 100%); }
       .dp-head { display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
       .dp-current-tag { background: var(--accent); color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 10.5px; font-weight: 600; }
-      .dp-sub { font-size: 12px; color: var(--ink-dim); font-weight: 600; }
+      .dp-sub { font-size: 12px; color: var(--text-dim); font-weight: 600; }
       .dp-desc { font-size: 12.5px; line-height: 1.5; color: var(--ink); min-height: 50px; }
-      .dp-stats { display: flex; gap: 6px; font-size: 11px; color: var(--ink-dim); flex-wrap: wrap; }
-      .dp-stats span { background: var(--surface-2); padding: 2px 8px; border-radius: 10px; }
+      .dp-stats { display: flex; gap: 6px; font-size: 11px; color: var(--text-dim); flex-wrap: wrap; }
+      .dp-stats span { background: var(--panel-2); padding: 2px 8px; border-radius: 10px; }
       .dp-load { align-self: flex-start; background: var(--accent); color: #fff; border: 0; padding: 7px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
       .dp-load:hover { opacity: 0.9; }
-      .dp-note { margin-top: 14px; padding: 10px 12px; background: var(--surface-2); border-left: 3px solid var(--accent); font-size: 12px; color: var(--ink-dim); border-radius: 0 8px 8px 0; }
+      .dp-note { margin-top: 14px; padding: 10px 12px; background: var(--panel-2); border-left: 3px solid var(--accent); font-size: 12px; color: var(--text-dim); border-radius: 0 8px 8px 0; }
     </style>
   `;
   main.appendChild(section);
