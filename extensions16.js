@@ -157,10 +157,10 @@ function onepagerHtml(s) {
         <div class="op-price-head">One plan. Everything included.</div>
         ${s.prospectRegion === 'global' ? `
           <div class="op-price-main">$3,499<span>/year</span></div>
-          <div class="op-price-inr">Or ₹3,00,000/year for Indian customers (GST extra) · Billed in INR via Razorpay · Includes 250 active contracts · $100/yr per 50 additional</div>
+          <div class="op-price-inr">Billed annually via Razorpay · Includes 250 active contracts · $100/yr per 50 additional</div>
         ` : `
           <div class="op-price-main">₹3,00,000<span>/year</span></div>
-          <div class="op-price-inr">GST extra for Indian customers, invoice provided · Approx $3,499 USD for global customers · Includes 250 active contracts · $100/yr per 50 additional</div>
+          <div class="op-price-inr">+ 18% GST, invoiced separately · Includes 250 active contracts · $100/yr per 50 additional</div>
         `}
         <div class="op-price-list">Unlimited users · Unlimited departments · Every feature · Trial free, no credit card</div>
       </div>

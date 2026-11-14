@@ -70,8 +70,8 @@ function priceWithPeriod() {
 }
 function priceSubline() {
   return geoGet() === 'india'
-    ? 'GST extra for Indian customers, invoice provided · approx $3,499 USD at today\'s rate · Includes 250 active contracts'
-    : 'Or ₹3,00,000/year for Indian customers (GST extra, invoice provided) · Billed in INR via Razorpay · Includes 250 active contracts';
+    ? '+ 18% GST, invoiced separately · Includes 250 active contracts'
+    : 'Billed annually via Razorpay · Includes 250 active contracts';
 }
 
 /* ---------- Helpers ---------- */

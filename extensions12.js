@@ -10,6 +10,15 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-14', phase: 'Phase 32', title: 'Clean single-currency per geo view (no cross-reference clutter)', kind: 'fix', items: [
+    'Global view now shows only $3,499/year with "Billed annually via Razorpay" sub-line — no mention of INR',
+    'India view now shows only ₹3,00,000/year with "+ 18% GST, invoiced separately" sub-line — no mention of USD',
+    'Toggle at top of the pricing card (🌐 Global / 🇮🇳 India) is the only acknowledgement that the other currency exists',
+    'FAQ answers for Zluri-comparison and on-prem questions no longer mention both currencies',
+    'Pricing FAQ keeps the full single-sentence breakdown ($3,499/year, ₹3,00,000 + GST for India) since it is directly answering the price question',
+    'Tool side (trial banner, expiry gate, one-pager) also cleaned: each shows only the active currency',
+    'Removed the dead live-FX code path (no longer needed since no view mentions the other currency)',
+  ]},
   { date: '2026-11-14', phase: 'Phase 31', title: 'Geo-switched pricing: $3,499 USD default globally, ₹3,00,000 for India', kind: 'feature', items: [
     'Marketing site now defaults to $3,499 USD/year as the headline price (follows the Freshworks / Zoho / Postman pattern for Indian SaaS going global)',
     'Indian visitors see ₹3,00,000/year as headline instead, with USD shown as secondary',
