@@ -38,6 +38,12 @@ function geoSet(g) {
   try { ensureTrialBanner(); } catch (_) {}
 }
 function payUrl() { return geoGet() === 'india' ? RAZORPAY_INDIA : RAZORPAY_GLOBAL; }
+/* Sync any static [data-pay-geo] links in the DOM (e.g. the Plans view
+   button in index.html) to the current geo's Razorpay URL on load. */
+function refreshPayGeoLinks() {
+  document.querySelectorAll('[data-pay-geo]').forEach(a => { a.href = payUrl(); });
+}
+document.addEventListener('DOMContentLoaded', () => setTimeout(refreshPayGeoLinks, 50));
 
 // IP confirmation on first load — used only to set the right Razorpay URL
 (function geoIpBackfill() {
@@ -54,7 +60,7 @@ function payUrl() { return geoGet() === 'india' ? RAZORPAY_INDIA : RAZORPAY_GLOB
           if (!localStorage.getItem('sst-geo')) {
             localStorage.setItem('sst-geo', next);
             // Refresh any mounted Upgrade links
-            document.querySelectorAll('[data-pay-geo]').forEach(a => a.href = payUrl());
+            refreshPayGeoLinks();
             ensureTrialBanner();
           }
         } catch (_) {}

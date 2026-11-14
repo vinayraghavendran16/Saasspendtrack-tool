@@ -10,6 +10,15 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-14', phase: 'Phase 34', title: 'Tool surfaces fully synced to USD-only (Plans view, README, UAT)', kind: 'fix', items: [
+    'Added a proper USD price block to the Plans view in the tool, matching the marketing site and trial banner: $3,499/year, GST sub-line for India, feature list, Pay & activate button',
+    'Plans view Pay button carries data-pay-geo attribute so it geo-routes to the right Razorpay URL',
+    'Added refreshPayGeoLinks() helper + DOMContentLoaded init so static Pay links in index.html get the right URL on first render (previously only JS-injected links did)',
+    'README.md pricing section updated to USD-only',
+    'UAT.md pricing scenarios updated to check for $3,499/year, not ₹3,00,000',
+    'QA still green: 116 pass / 0 fail / 8 skip',
+    'Historical changelog entries kept as-is (they record the pricing journey)',
+  ]},
   { date: '2026-11-14', phase: 'Phase 33', title: 'USD-only display + geo-routed Razorpay (clean one-currency UX)', kind: 'feature', items: [
     'Pricing display is now USD-only everywhere: $3,499/year headline on marketing site, tool trial banner, trial expiry gate, one-pager',
     'Sub-line clarifier: "Billed annually · Indian customers: 18% GST added at checkout · Includes 250 active contracts"',

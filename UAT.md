@@ -146,10 +146,10 @@ Open https://saasspendtrack.com in a fresh window.
 |---|------|----------|-----|
 | 10.1 | Hero loads | New headline about "Indian and APAC mid-market" |  |
 | 10.2 | Hero CTA "Try it live, free" → opens app.saasspendtrack.com in new tab | Tool loads cleanly |  |
-| 10.3 | Scroll to **Pricing** section | Single dark card with ₹3,00,000/year, 250 contracts, $100/50 extra |  |
+| 10.3 | Scroll to **Pricing** section | Single dark card with $3,499/year, 250 contracts, $100/50 extra, "Indian customers: 18% GST" sub-line |  |
 | 10.4 | Dual CTAs: "Try it live" and "Book a 30-min demo" | Both buttons visible and clickable |  |
 | 10.5 | "Book a demo" → opens mailto to vinayraghavendran16@gmail.com | Mail client opens |  |
-| 10.6 | Scroll to FAQ | Updated answers mention ₹3,00,000/yr, 250 contracts, on-prem option |  |
+| 10.6 | Scroll to FAQ | Updated answers mention $3,499/yr, 250 contracts, on-prem option |  |
 | 10.7 | Mobile responsive (375px) | Pricing card stacks, feature columns go to 1-up |  |
 | 10.8 | OG preview (paste URL in LinkedIn/Twitter) | Preview shows updated copy |  |
 
