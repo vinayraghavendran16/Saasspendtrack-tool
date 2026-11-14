@@ -1364,49 +1364,41 @@ body.readonly-mode .kpi-value::after {
 .eg-geo-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .eg-geo-btn:hover { color: var(--ink); }
 
-/* Signup capture modal ------------------------------------------------
-   Always dark / white regardless of the tool's light/dark theme.
-   This is a focus modal; keeping it on one visual track (dark brand
-   surface + white text) avoids the light-theme "navy ink reads as
-   blue" problem. */
-.signup-modal { position: fixed; inset: 0; z-index: 600; display: block; }
-.signup-modal.sm-done { opacity: 0; transition: opacity .3s ease; pointer-events: none; }
-.sm-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.82); backdrop-filter: blur(8px); }
-.sm-card {
-  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: min(460px, calc(100vw - 24px));
-  background: #0f1829;                     /* brand dark navy */
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 20px; padding: 30px 32px 20px;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
-  color: #ffffff;                          /* force white text */
-  max-height: 92vh; overflow-y: auto;
-}
-.sm-card * { color: inherit; }
-.sm-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-.sm-logo { width: 42px; height: 42px; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; border-radius: 8px; letter-spacing: -0.02em; }
-.sm-brand-name { font-size: 15px; font-weight: 700; color: #ffffff; }
-.sm-brand-tag { font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 2px; }
-.sm-card h2 { font-size: 24px; margin: 0 0 8px; font-weight: 700; letter-spacing: -0.01em; color: #ffffff; }
-.sm-sub { color: rgba(255,255,255,0.75); font-size: 13px; line-height: 1.55; margin: 0 0 20px; }
-.sm-sub b { color: #ffffff; font-weight: 600; }
-.sm-form label { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 12px; color: rgba(255,255,255,0.75); font-weight: 500; }
-.sm-form input { background: rgba(255,255,255,0.06); color: #ffffff; border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit; }
-.sm-form input::placeholder { color: rgba(255,255,255,0.35); }
-.sm-form input:focus { border-color: #5b8def; outline: none; box-shadow: 0 0 0 3px rgba(91,141,239,0.25); background: rgba(255,255,255,0.09); }
-.sm-optional { font-weight: 400; color: rgba(255,255,255,0.5); margin-left: 4px; font-size: 11px; }
-.sm-error { background: rgba(239,68,68,0.15); color: #fca5a5; padding: 10px 12px; border-radius: 6px; font-size: 12.5px; margin-bottom: 10px; border: 1px solid rgba(239,68,68,0.35); line-height: 1.5; }
-.sm-error b { color: #fecaca; }
-.sm-primary { width: 100%; background: #2563eb; color: #ffffff; border: 0; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; margin-top: 4px; }
-.sm-primary:hover { background: #1d4ed8; }
-.sm-primary:disabled { opacity: 0.6; cursor: wait; }
-.sm-fine { text-align: center; margin-top: 16px; font-size: 12px; color: rgba(255,255,255,0.65); }
-.sm-fine a { color: #7aa3f5; text-decoration: none; }
-.sm-fine a:hover { text-decoration: underline; }
-.sm-foot { text-align: center; font-size: 10.5px; color: rgba(255,255,255,0.5); padding-top: 14px; margin-top: 14px; border-top: 1px dashed rgba(255,255,255,0.1); line-height: 1.5; }
-.sm-foot a { color: rgba(255,255,255,0.7); text-decoration: underline; }
-.sm-close { position: absolute; top: 14px; right: 16px; background: transparent; border: 0; color: rgba(255,255,255,0.5); font-size: 22px; cursor: pointer; line-height: 1; width: 30px; height: 30px; border-radius: 50%; }
-.sm-close:hover { background: rgba(255,255,255,0.08); color: #ffffff; }
+/* Signup takeover ------------------------------------------------------
+   Full-screen solid opaque takeover. No card, no transparency, no
+   theme vars anywhere. One visual track: solid dark navy with white
+   text, impossible to misread in either theme. */
+.signup-modal#signup-modal { position: fixed !important; inset: 0 !important; z-index: 2147483000 !important; display: flex !important; align-items: center !important; justify-content: center !important; background: #0b1120 !important; color: #ffffff !important; overflow-y: auto !important; padding: 24px !important; }
+.signup-modal#signup-modal.sm-done { opacity: 0 !important; transition: opacity .3s ease !important; pointer-events: none !important; }
+.signup-modal#signup-modal .sm-backdrop { display: none !important; }
+.signup-modal#signup-modal .sm-card { position: static !important; transform: none !important; background: transparent !important; border: 0 !important; box-shadow: none !important; width: 100% !important; max-width: 480px !important; max-height: none !important; padding: 0 !important; color: #ffffff !important; }
+.signup-modal#signup-modal * { color: #ffffff !important; }
+.signup-modal#signup-modal .sm-brand { display: flex !important; align-items: center !important; gap: 14px !important; margin-bottom: 28px !important; }
+.signup-modal#signup-modal .sm-logo { width: 48px !important; height: 48px !important; background: #2563eb !important; display: flex !important; align-items: center !important; justify-content: center !important; font-weight: 800 !important; font-size: 17px !important; border-radius: 10px !important; letter-spacing: -0.02em !important; color: #ffffff !important; }
+.signup-modal#signup-modal .sm-brand-name { font-size: 16px !important; font-weight: 700 !important; }
+.signup-modal#signup-modal .sm-brand-tag { font-size: 13px !important; color: #94a3b8 !important; margin-top: 2px !important; }
+.signup-modal#signup-modal h2 { font-size: 30px !important; margin: 0 0 12px !important; font-weight: 700 !important; letter-spacing: -0.01em !important; line-height: 1.2 !important; }
+.signup-modal#signup-modal .sm-sub { color: #cbd5e1 !important; font-size: 14px !important; line-height: 1.6 !important; margin: 0 0 28px !important; }
+.signup-modal#signup-modal .sm-sub b { font-weight: 600 !important; }
+.signup-modal#signup-modal .sm-form label { display: flex !important; flex-direction: column !important; gap: 8px !important; margin-bottom: 18px !important; font-size: 13px !important; color: #cbd5e1 !important; font-weight: 500 !important; }
+.signup-modal#signup-modal .sm-form input { background: #1a2238 !important; color: #ffffff !important; border: 1px solid #334155 !important; border-radius: 10px !important; padding: 13px 14px !important; font-size: 15px !important; font-family: inherit !important; }
+.signup-modal#signup-modal .sm-form input::placeholder { color: #64748b !important; }
+.signup-modal#signup-modal .sm-form input:focus { border-color: #5b8def !important; outline: none !important; box-shadow: 0 0 0 3px rgba(91,141,239,0.3) !important; background: #1e2947 !important; }
+.signup-modal#signup-modal .sm-optional { font-weight: 400 !important; color: #64748b !important; margin-left: 4px !important; font-size: 12px !important; }
+.signup-modal#signup-modal .sm-error { background: rgba(239,68,68,0.15) !important; color: #fecaca !important; padding: 12px 14px !important; border-radius: 8px !important; font-size: 13px !important; margin-bottom: 14px !important; border: 1px solid rgba(239,68,68,0.35) !important; line-height: 1.5 !important; }
+.signup-modal#signup-modal .sm-error * { color: #fecaca !important; }
+.signup-modal#signup-modal .sm-primary { width: 100% !important; background: #2563eb !important; color: #ffffff !important; border: 0 !important; padding: 14px !important; border-radius: 10px !important; font-weight: 600 !important; font-size: 15px !important; cursor: pointer !important; margin-top: 6px !important; }
+.signup-modal#signup-modal .sm-primary:hover { background: #1d4ed8 !important; }
+.signup-modal#signup-modal .sm-primary:disabled { opacity: 0.6 !important; cursor: wait !important; }
+.signup-modal#signup-modal .sm-fine { text-align: center !important; margin-top: 20px !important; font-size: 13px !important; color: #94a3b8 !important; }
+.signup-modal#signup-modal .sm-fine a { color: #7aa3f5 !important; text-decoration: none !important; }
+.signup-modal#signup-modal .sm-fine a:hover { text-decoration: underline !important; }
+.signup-modal#signup-modal .sm-foot { text-align: center !important; font-size: 12px !important; color: #64748b !important; padding-top: 18px !important; margin-top: 20px !important; border-top: 1px dashed #334155 !important; line-height: 1.55 !important; }
+.signup-modal#signup-modal .sm-foot a { color: #94a3b8 !important; text-decoration: underline !important; }
+.signup-modal#signup-modal .sm-close { position: fixed !important; top: 20px !important; right: 24px !important; background: transparent !important; border: 0 !important; color: #64748b !important; font-size: 28px !important; cursor: pointer !important; line-height: 1 !important; width: 40px !important; height: 40px !important; border-radius: 50% !important; }
+.signup-modal#signup-modal .sm-close:hover { background: #1a2238 !important; color: #ffffff !important; }
+/* Belt-and-suspenders: also catch the change-email variant backdrop */
+.signup-modal#signup-modal.sm-change { background: #0b1120 !important; }
 
 /* Identity chip in sidebar footer (replaces generic "All features unlocked") */
 .identity-chip { display: flex; align-items: center; gap: 8px; width: 100%; }
