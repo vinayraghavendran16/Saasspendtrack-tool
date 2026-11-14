@@ -124,42 +124,62 @@ async function captureContext() {
   };
 }
 
-/* ---------- The modal ---------- */
-function ensureSignupModal() {
-  if (document.getElementById('signup-modal')) return;
+/* ---------- The modal ----------
+   Two modes:
+     mode='initial'  - first-time capture, non-dismissable (no email yet)
+     mode='change'   - change email after capture, dismissable, prefilled
+*/
+function ensureSignupModal(mode = 'initial') {
+  // Remove any existing modal (so changing from initial → change is clean)
+  const existing = document.getElementById('signup-modal');
+  if (existing) existing.remove();
+
+  const w = workspace();
+  const isChange = mode === 'change';
+  const currentEmail = (w.ownerEmail || '').toLowerCase();
+  const currentCompany = w.companyName || '';
+
   const m = document.createElement('div');
   m.id = 'signup-modal';
-  m.className = 'signup-modal';
+  m.className = 'signup-modal' + (isChange ? ' sm-change' : '');
   m.setAttribute('role', 'dialog');
   m.setAttribute('aria-modal', 'true');
-  m.setAttribute('aria-label', 'Start your free trial');
+  m.setAttribute('aria-label', isChange ? 'Change your email' : 'Start your free trial');
   m.innerHTML = `
-    <div class="sm-backdrop"></div>
+    <div class="sm-backdrop" ${isChange ? 'data-close' : ''}></div>
     <div class="sm-card">
+      ${isChange ? '<button type="button" class="sm-close" data-close aria-label="Close">×</button>' : ''}
       <div class="sm-brand">
         <div class="sm-logo">SST</div>
         <div>
           <div class="sm-brand-name">SaaS Spend Track</div>
-          <div class="sm-brand-tag">Start your 14-day trial</div>
+          <div class="sm-brand-tag">${isChange ? 'Change your email' : 'Start your 14-day trial'}</div>
         </div>
       </div>
-      <h2>One field. No credit card.</h2>
-      <p class="sm-sub">Your workspace runs entirely in your browser. We just need your work email so we can send your login link when you want to open the tool on another device, and so you don't lose your data.</p>
+      <h2>${isChange ? 'Use a different email' : 'One field. No credit card.'}</h2>
+      <p class="sm-sub">${isChange
+        ? 'Switching the email we have on file for this workspace. We\'ll log the change in our records so follow-up goes to the right address.'
+        : 'Your workspace runs entirely in your browser. We just need your work email so we can send your login link when you want to open the tool on another device, and so you don\'t lose your data.'}</p>
       <form id="signup-form" class="sm-form">
         <label>Work email *
-          <input type="email" id="signup-email" placeholder="you@yourcompany.com" required autocomplete="email" autofocus/>
+          <input type="email" id="signup-email" value="${escapeHtml(currentEmail)}" placeholder="you@yourcompany.com" required autocomplete="email" autofocus/>
         </label>
         <label>Company <span class="sm-optional">(optional)</span>
-          <input type="text" id="signup-company" placeholder="Your company name" autocomplete="organization"/>
+          <input type="text" id="signup-company" value="${escapeHtml(currentCompany)}" placeholder="Your company name" autocomplete="organization"/>
         </label>
         <div class="sm-error" id="signup-error" hidden></div>
-        <button type="submit" class="sm-primary" id="signup-submit">Start my 14-day trial →</button>
+        <button type="submit" class="sm-primary" id="signup-submit">${isChange ? 'Update email →' : 'Start my 14-day trial →'}</button>
       </form>
-      <div class="sm-fine">
-        <span>Already a customer? <a href="#" id="signup-paid">I've already paid, skip this</a></span>
-      </div>
+      ${!isChange ? `
+        <div class="sm-fine">
+          <span>Already a customer? <a href="#" id="signup-paid">I've already paid, skip this</a></span>
+        </div>
+      ` : ''}
       <div class="sm-foot">
-        Your email is stored locally and in our tracking sheet so we can follow up. Nothing from your contracts or vendor data ever leaves your browser. <a href="https://saasspendtrack.com/privacy.html" target="_blank" rel="noopener">Privacy</a>.
+        ${isChange
+          ? 'The previous email stays in our records for history. The new email becomes the one we\'ll use going forward.'
+          : 'Your email is stored locally and in our tracking sheet so we can follow up. Nothing from your contracts or vendor data ever leaves your browser.'}
+        <a href="https://saasspendtrack.com/privacy.html" target="_blank" rel="noopener">Privacy</a>.
       </div>
     </div>
   `;
@@ -171,6 +191,14 @@ function ensureSignupModal() {
   const errEl = m.querySelector('#signup-error');
   const btn = m.querySelector('#signup-submit');
 
+  // Close handlers (change mode only)
+  if (isChange) {
+    m.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', () => m.remove()));
+    document.addEventListener('keydown', function esc(ev) {
+      if (ev.key === 'Escape') { m.remove(); document.removeEventListener('keydown', esc, true); }
+    }, true);
+  }
+
   form.onsubmit = async (e) => {
     e.preventDefault();
     const email = emailEl.value.trim().toLowerCase();
@@ -178,24 +206,35 @@ function ensureSignupModal() {
     if (!/.+@.+\..+/.test(email)) {
       errEl.textContent = 'Please enter a valid work email.'; errEl.hidden = false; return;
     }
+    if (isChange && email === currentEmail && company === currentCompany) {
+      m.remove(); return; // nothing changed
+    }
     errEl.hidden = true;
-    btn.disabled = true; btn.textContent = 'Starting your trial…';
+    btn.disabled = true; btn.textContent = isChange ? 'Updating…' : 'Starting your trial…';
     const ctx = await captureContext();
-    const payload = { email, company, ...ctx };
+    const payload = isChange
+      ? { email, company, previous_email: currentEmail, event_type: 'email_changed', ...ctx }
+      : { email, company, event_type: 'trial_started', ...ctx };
     await submitSignup(payload);
     markSignupCaptured(email, company);
-    // Close the modal
     m.classList.add('sm-done');
     setTimeout(() => {
       m.remove();
       try { renderAll(); } catch (_) {}
-      try { toast(`Welcome. Your workspace is ready, ${email.split('@')[0]}.`, 'success'); } catch (_) {}
+      try { refreshIdentityChip(); } catch (_) {}
+      try {
+        toast(isChange
+          ? `Updated. Your email is now ${email}.`
+          : `Welcome. Confirmation sent to ${email}.`,
+          'success'
+        );
+      } catch (_) {}
     }, 350);
   };
 
-  m.querySelector('#signup-paid').onclick = (e) => {
+  const paidLink = m.querySelector('#signup-paid');
+  if (paidLink) paidLink.onclick = (e) => {
     e.preventDefault();
-    // They claim to have already paid; prompt for email for record-keeping anyway
     const email = prompt('Great. What email was your purchase under? (so we can mark your workspace as paid)') || '';
     if (!/.+@.+\..+/.test(email)) return;
     markSignupCaptured(email.toLowerCase().trim(), '');
@@ -204,10 +243,36 @@ function ensureSignupModal() {
     save();
     m.remove();
     try { renderAll(); } catch (_) {}
-    try { toast('Marked as paid. Welcome back.', 'success'); } catch (_) {}
-    // Fire-and-forget a note to the sheet so you know a "manual paid" claim happened
-    captureContext().then(ctx => submitSignup({ email, company: '', manual_paid: 'yes', ...ctx }));
+    try { refreshIdentityChip(); } catch (_) {}
+    try { toast(`Marked as paid. Welcome back, ${email}.`, 'success'); } catch (_) {}
+    captureContext().then(ctx => submitSignup({ email, company: '', manual_paid: 'yes', event_type: 'paid_marked', ...ctx }));
   };
+}
+
+/* ---------- Identity chip in the sidebar footer ----------
+   Replaces the plain "All features unlocked" badge once a signup
+   is captured. Shows the email + a Change link. */
+function refreshIdentityChip() {
+  const badge = document.getElementById('plan-badge');
+  if (!badge) return;
+  const w = workspace();
+  if (!w.signupCaptured && (w.ownerEmail || '').toLowerCase().includes('@whizzlead.com')) {
+    // No real email yet, leave default badge alone
+    return;
+  }
+  const email = (w.ownerEmail || '').toLowerCase();
+  badge.innerHTML = `
+    <div class="identity-chip">
+      <span class="plan-dot" style="background:var(--success)"></span>
+      <div class="identity-main">
+        <div class="identity-label">Signed in as</div>
+        <div class="identity-email" title="${escapeHtml(email)}">${escapeHtml(email)}</div>
+      </div>
+      <button type="button" class="identity-change" id="identity-change-btn" title="Change email">Change</button>
+    </div>
+  `;
+  const btn = document.getElementById('identity-change-btn');
+  if (btn) btn.onclick = (e) => { e.stopPropagation(); ensureSignupModal('change'); };
 }
 
 function maybeShowSignupModal() {
@@ -217,7 +282,7 @@ function maybeShowSignupModal() {
     if (location.hostname.endsWith('claudeusercontent.com')) return;
     if (location.protocol === 'file:') return;
   } catch (_) {}
-  ensureSignupModal();
+  ensureSignupModal('initial');
 }
 
 /* ---------- Hook into app lifecycle ---------- */
@@ -225,8 +290,18 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     try { maybeShowSignupModal(); } catch (e) { console.warn(e); }
     try { retryPending(); } catch (_) {}
+    try { refreshIdentityChip(); } catch (_) {}
   }, 300);
 });
+
+// Also refresh the identity chip after renderAll (sidebar rebuilds can wipe it)
+const _prevAll21 = typeof renderAll === 'function' ? renderAll : null;
+if (_prevAll21) {
+  window.renderAll = function () {
+    _prevAll21();
+    try { refreshIdentityChip(); } catch (_) {}
+  };
+}
 
 window.AskTrackSignup = {
   needsCapture: needsSignupCapture,
@@ -234,6 +309,7 @@ window.AskTrackSignup = {
   endpoint: signupEndpoint,
   setEndpoint: (url) => { state.settings.signupEndpoint = url; save(); retryPending(); return url; },
   pending: () => state.settings.pendingSignups || [],
+  changeEmail: () => ensureSignupModal('change'),
   reset: () => {
     // Developer helper: forget the signup so the modal re-appears
     workspace().signupCaptured = false;

@@ -1395,3 +1395,17 @@ body.readonly-mode .kpi-value::after {
 .sm-fine a { color: var(--accent); text-decoration: none; }
 .sm-foot { text-align: center; font-size: 10.5px; color: var(--ink-dim); padding-top: 14px; margin-top: 14px; border-top: 1px dashed var(--border); line-height: 1.5; }
 .sm-foot a { color: var(--ink-dim); text-decoration: underline; }
+
+/* Identity chip in sidebar footer (replaces generic "All features unlocked") */
+.identity-chip { display: flex; align-items: center; gap: 8px; width: 100%; }
+.identity-chip .plan-dot { flex: 0 0 auto; }
+.identity-main { flex: 1; min-width: 0; }
+.identity-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-dim); font-weight: 600; }
+.identity-email { font-size: 12px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.identity-change { background: transparent; border: 1px solid var(--border); color: var(--ink-dim); padding: 3px 8px; font-size: 10.5px; border-radius: 10px; cursor: pointer; flex: 0 0 auto; }
+.identity-change:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Change-email modal close button */
+.sm-close { position: absolute; top: 14px; right: 16px; background: transparent; border: 0; color: var(--ink-dim); font-size: 22px; cursor: pointer; line-height: 1; width: 30px; height: 30px; border-radius: 50%; }
+.sm-close:hover { background: var(--surface-2); color: var(--ink); }
+.signup-modal.sm-change .sm-backdrop { background: rgba(0,0,0,0.5); }

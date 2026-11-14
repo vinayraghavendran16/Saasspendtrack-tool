@@ -10,6 +10,16 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-14', phase: 'Phase 36', title: 'Signup UX: confirm the email, allow change later, identity chip in sidebar', kind: 'feature', items: [
+    'Welcome toast now displays the full email the user registered with ("Welcome. Confirmation sent to name@company.com") instead of just the first part, so they can confirm they typed it correctly',
+    'Sidebar footer badge replaced with an identity chip showing "Signed in as name@company.com" plus a Change button',
+    'Clicking Change opens a dismissable version of the signup modal with the current email prefilled',
+    'Updating the email writes a second row to the tracking Sheet with event_type=email_changed and the previous_email captured so you see the switch',
+    'Change-mode modal supports Esc, backdrop click, and X button to dismiss (initial capture stays non-dismissable so we always get the email)',
+    'Apps Script headers updated: event_type and previous_email columns added so initial signups and email-changes land cleanly in the Sheet',
+    'Welcome toast on "I\'ve already paid" path also shows the email they claimed',
+    'Setup doc updated with event_type examples',
+  ]},
   { date: '2026-11-14', phase: 'Phase 35', title: 'Trial signup capture → Google Sheet dashboard', kind: 'feature', items: [
     'New first-visit modal captures work email + optional company before the app renders',
     'Submission POSTs to a Google Apps Script endpoint that appends a row to your tracking Sheet',

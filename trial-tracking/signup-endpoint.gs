@@ -11,7 +11,8 @@
 
 // Required columns on the Sheet (row 1 as header, in this order):
 const HEADERS = [
-  'timestamp', 'email', 'company', 'country', 'locale', 'referrer',
+  'timestamp', 'event_type', 'email', 'previous_email', 'company',
+  'country', 'locale', 'referrer',
   'utm_source', 'utm_medium', 'utm_campaign', 'ref',
   'workspace_id', 'user_agent', 'manual_paid', 'ip'
 ];

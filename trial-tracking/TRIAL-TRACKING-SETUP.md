@@ -66,9 +66,12 @@ If the endpoint is unreachable (offline, placeholder URL, misconfigured), the si
 
 ## What you'll see in the Sheet
 
-| timestamp | email | company | country | locale | referrer | utm_source | ... |
-|---|---|---|---|---|---|---|---|
-| 2026-11-14T06:12:04 | priya@acmecorp.in | Acme Corp | IN | en-IN | https://saasspendtrack.com/ | distributor-jp | ... |
+| timestamp | event_type | email | previous_email | company | country | locale | referrer | utm_source | ... |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-14T06:12:04 | trial_started | priya@acmecorp.in |  | Acme Corp | IN | en-IN | https://saasspendtrack.com/ | distributor-jp | ... |
+| 2026-11-14T08:45:00 | email_changed | priya.sharma@acmecorp.in | priya@acmecorp.in | Acme Corp | IN | en-IN | direct | | ... |
+
+The `event_type` column distinguishes `trial_started`, `email_changed`, and `paid_marked` events. Users who change their email after signup will appear as a second row with event_type=email_changed and the old email in `previous_email`.
 
 Useful next steps:
 
