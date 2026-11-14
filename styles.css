@@ -1357,3 +1357,9 @@ body.readonly-mode .kpi-value::after {
 .td-label { font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em; }
 .td-val { font-size: 14px; margin-top: 2px; }
 .td-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Expiry gate: geo toggle */
+.eg-geo-toggle { display: flex; gap: 6px; justify-content: center; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.eg-geo-btn { background: var(--surface-2); color: var(--ink-dim); border: 1px solid var(--border); padding: 4px 10px; border-radius: 12px; font-size: 11px; cursor: pointer; }
+.eg-geo-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.eg-geo-btn:hover { color: var(--ink); }

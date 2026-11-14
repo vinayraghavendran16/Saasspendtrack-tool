@@ -10,6 +10,19 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-14', phase: 'Phase 31', title: 'Geo-switched pricing: $3,499 USD default globally, ₹3,00,000 for India', kind: 'feature', items: [
+    'Marketing site now defaults to $3,499 USD/year as the headline price (follows the Freshworks / Zoho / Postman pattern for Indian SaaS going global)',
+    'Indian visitors see ₹3,00,000/year as headline instead, with USD shown as secondary',
+    'Geo detected via 3 signals in order: user override saved in localStorage, browser Accept-Language (fast + offline), then ipapi.co confirmation on first visit',
+    'Manual 🌐 Global / 🇮🇳 India toggle on the pricing card so any visitor can switch',
+    'Preference persists in localStorage key "sst-geo" and is shared between the marketing site and the tool',
+    'Tool side mirrors: trial banner shows "Upgrade $3,499/yr" for global or "Upgrade ₹3,00,000/yr" for India',
+    'Trial expiry gate has the same inline toggle',
+    'One-pager PDF gets a new "Prospect region" dropdown in its controls — distributor picks India (INR primary) or Global (USD primary) per prospect',
+    'Razorpay still collects ₹3,00,000 in INR for everyone (international card buyers pay the INR equivalent at the card issuer rate)',
+    'schema.org Product price reverted to 3499 USD; meta description and OG tags lead with USD',
+    'FAQ answers show both currencies together',
+  ]},
   { date: '2026-11-13', phase: 'Phase 30', title: 'Removed static dashboard mock + simplified pricing to match Razorpay', kind: 'fix', items: [
     'Removed the old static dashboard mock section from the marketing site (lines 413-468 of index.html) — the new animated Live Preview section built in Phase 28 is now the only dashboard preview on the page',
     '"See the dashboard" hero CTA now routes to https://app.saasspendtrack.com (was an in-page #demo anchor)',

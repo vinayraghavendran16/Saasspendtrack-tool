@@ -25,6 +25,7 @@ function onepagerSettings() {
     distributorEmail: 'vinayraghavendran16@gmail.com',
     distributorPhone: '+91 91684 81989',
     accentColor: '#0f2a5e',
+    prospectRegion: 'india',   // 'india' or 'global' — swaps currency on the pricing block
   };
   return state.settings.onepager;
 }
@@ -42,6 +43,12 @@ function renderOnepager() {
         <label>Distributor name <input id="op-distributor" value="${escapeHtml(s.distributorName)}" placeholder="Your name"/></label>
         <label>Distributor email <input id="op-dist-email" value="${escapeHtml(s.distributorEmail)}" placeholder="you@firm.com"/></label>
         <label>Distributor phone <input id="op-dist-phone" value="${escapeHtml(s.distributorPhone)}" placeholder="+91 ..."/></label>
+        <label>Prospect region
+          <select id="op-region">
+            <option value="india" ${s.prospectRegion==='india'?'selected':''}>🇮🇳 India (INR primary)</option>
+            <option value="global" ${s.prospectRegion==='global'?'selected':''}>🌐 Global (USD primary)</option>
+          </select>
+        </label>
       </div>
       <div class="op-ctrl-row" style="margin-top:8px">
         <button class="btn-primary" id="op-download">Download PDF</button>
@@ -63,6 +70,7 @@ function renderOnepager() {
     s.distributorName = document.getElementById('op-distributor').value;
     s.distributorEmail = document.getElementById('op-dist-email').value;
     s.distributorPhone = document.getElementById('op-dist-phone').value;
+    s.prospectRegion = document.getElementById('op-region').value;
     save();
     document.getElementById('op-page').innerHTML = onepagerHtml(s);
   };
@@ -70,6 +78,7 @@ function renderOnepager() {
     const el = document.getElementById(id);
     el.oninput = sync;
   });
+  document.getElementById('op-region').onchange = sync;
 
   document.getElementById('op-download').onclick = async () => {
     const page = document.getElementById('op-page');
@@ -146,8 +155,13 @@ function onepagerHtml(s) {
     <div class="op-section op-pricing-band">
       <div class="op-pricing">
         <div class="op-price-head">One plan. Everything included.</div>
-        <div class="op-price-main">₹3,00,000<span>/year</span></div>
-        <div class="op-price-inr">GST extra for Indian customers · approx $3,600 USD at today's rate, billed in INR · Includes 250 active contracts · $100/yr per 50 additional</div>
+        ${s.prospectRegion === 'global' ? `
+          <div class="op-price-main">$3,499<span>/year</span></div>
+          <div class="op-price-inr">Or ₹3,00,000/year for Indian customers (GST extra) · Billed in INR via Razorpay · Includes 250 active contracts · $100/yr per 50 additional</div>
+        ` : `
+          <div class="op-price-main">₹3,00,000<span>/year</span></div>
+          <div class="op-price-inr">GST extra for Indian customers, invoice provided · Approx $3,499 USD for global customers · Includes 250 active contracts · $100/yr per 50 additional</div>
+        `}
         <div class="op-price-list">Unlimited users · Unlimited departments · Every feature · Trial free, no credit card</div>
       </div>
       <div class="op-diff">
@@ -281,7 +295,7 @@ function ensureOnepagerView() {
       .op-controls { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
       .op-ctrl-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
       .op-ctrl-row label { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--ink-dim); flex: 1; min-width: 180px; }
-      .op-ctrl-row input { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+      .op-ctrl-row input, .op-ctrl-row select { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
       .op-page-wrap { display: flex; justify-content: center; overflow-x: auto; padding: 20px 0; background: #e5e7eb; border-radius: 12px; }
       .op-page { box-shadow: 0 8px 32px rgba(0,0,0,0.15); transform-origin: top center; }
       @media (max-width: 900px) { .op-page { transform: scale(0.65); margin: -140px 0; } }
