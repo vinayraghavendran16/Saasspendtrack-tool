@@ -636,7 +636,12 @@ function openHelpPanel() {
     });
   };
   panel.querySelectorAll('.ob-help-item').forEach(b => {
-    b.onclick = () => { panel.remove(); runFlow(b.dataset.flow); };
+    b.onclick = () => {
+      panel.remove();
+      const f = b.dataset.flow;
+      if (f === '__bulk_import' && window.BulkImport) { window.BulkImport.open(); return; }
+      runFlow(f);
+    };
   });
   postEvent('onboarding_help_opened');
 }
@@ -644,6 +649,7 @@ function openHelpPanel() {
 function helpItems() {
   return [
     { flow: 'tour',              title: 'Replay the welcome tour', sub: '5 steps · 60 seconds' },
+    { flow: '__bulk_import',     title: 'Bulk import from CSV',    sub: 'Paste your existing spreadsheet' },
     { flow: 'upload_contract',   title: 'How to upload a contract', sub: 'Or load a sample' },
     { flow: 'add_vendor',        title: 'How to add a vendor',      sub: 'Ownership + annual spend' },
     { flow: 'ask_track',         title: 'How to use Ask Track',     sub: 'Text or voice' },

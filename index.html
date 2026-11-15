@@ -1653,6 +1653,205 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 .ob-help-foot a { color: #7aa3f5; text-decoration: none; }
 .ob-help-foot a:hover { text-decoration: underline; }
 
+/* ====================================================================
+   Phase 44 — Bulk CSV import
+   ==================================================================== */
+
+/* Launch button in the Subscriptions view */
+.bi-launch {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: #2563eb; color: #ffffff; border: 0;
+  border-radius: 8px; padding: 9px 14px;
+  font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+  margin: 6px 0 14px;
+}
+.bi-launch:hover { background: #1d4ed8; }
+
+/* Modal shell (dark, consistent with signup) */
+.bi-modal {
+  position: fixed; inset: 0; z-index: 650;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.bi-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.78); backdrop-filter: blur(6px);
+}
+.bi-card {
+  position: relative; z-index: 1;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  background: #0f1829; color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 14px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  display: flex; flex-direction: column; overflow: hidden;
+  font-family: inherit;
+}
+.bi-card * { color: inherit; box-sizing: border-box; }
+
+.bi-close {
+  position: absolute; top: 12px; right: 14px; z-index: 2;
+  background: transparent; border: 0; color: rgba(255,255,255,0.5);
+  font-size: 24px; cursor: pointer; line-height: 1;
+  width: 32px; height: 32px; border-radius: 50%; font-family: inherit;
+}
+.bi-close:hover { background: rgba(255,255,255,0.08); color: #ffffff; }
+
+/* Step strip */
+.bi-steps {
+  display: flex; gap: 6px; padding: 16px 24px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 500;
+}
+.bi-step {
+  padding: 6px 12px; border-radius: 999px;
+  background: rgba(255,255,255,0.04);
+}
+.bi-step.is-active { background: #2563eb; color: #ffffff; }
+.bi-step.is-done { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+
+.bi-body { overflow-y: auto; padding: 20px 24px 22px; flex: 1; }
+.bi-step-body { display: flex; flex-direction: column; gap: 14px; }
+.bi-h { font-size: 19px; font-weight: 600; margin: 0 0 2px; color: #ffffff; letter-spacing: -0.01em; }
+.bi-sub { font-size: 13px; color: rgba(255,255,255,0.68); margin: 0; line-height: 1.5; }
+.bi-sub code { background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+/* Step 1 */
+.bi-textarea {
+  width: 100%; min-height: 220px; max-height: 40vh; resize: vertical;
+  background: #1a2238; color: #ffffff; font-family: 'SF Mono', Menlo, monospace;
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+  padding: 12px 14px; font-size: 12.5px; line-height: 1.5;
+}
+.bi-textarea::placeholder { color: rgba(255,255,255,0.3); white-space: pre; }
+.bi-textarea:focus { outline: none; border-color: #5b8def; background: #1e2947; }
+
+.bi-split { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.bi-upload-btn {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  background: rgba(255,255,255,0.06); color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 7px;
+  padding: 8px 14px; font-size: 13px;
+}
+.bi-upload-btn:hover { background: rgba(255,255,255,0.1); }
+.bi-link {
+  background: transparent; border: 0; color: #7aa3f5;
+  font-size: 13px; cursor: pointer; font-family: inherit; text-decoration: underline;
+}
+.bi-link:hover { color: #ffffff; }
+.bi-hint { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+/* Step 2 — mapping grid */
+.bi-map-grid {
+  display: grid; grid-template-columns: 1fr 240px; gap: 10px 20px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px; padding: 14px 16px;
+}
+.bi-map-row { display: contents; }
+.bi-map-label { display: flex; flex-direction: column; gap: 1px; align-self: center; }
+.bi-map-name { font-size: 13px; font-weight: 500; color: #ffffff; }
+.bi-map-row.is-required .bi-map-name { color: #ffd480; }
+.bi-map-hint { font-size: 11.5px; color: rgba(255,255,255,0.5); }
+.bi-map-select {
+  background: #1a2238; color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 6px;
+  padding: 7px 10px; font-size: 13px; font-family: inherit; align-self: center;
+}
+.bi-map-select:focus { outline: none; border-color: #5b8def; }
+
+/* Preview table */
+.bi-preview-table { margin-top: 2px; }
+.bi-preview-table summary { font-size: 12.5px; color: rgba(255,255,255,0.7); cursor: pointer; padding: 6px 0; }
+.bi-preview-table summary:hover { color: #ffffff; }
+.bi-table-wrap { overflow-x: auto; margin-top: 8px; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; }
+.bi-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bi-table-wrap th, .bi-table-wrap td { padding: 7px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.bi-table-wrap th { background: rgba(255,255,255,0.04); font-weight: 600; color: #ffffff; }
+.bi-table-wrap td { color: rgba(255,255,255,0.75); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+
+/* Step 3 — summary + preview rows */
+.bi-summary {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.bi-stat {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.bi-stat b { font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; }
+.bi-stat span { font-size: 11px; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.04em; }
+.bi-stat.ok { border-color: rgba(16,185,129,0.3); }
+.bi-stat.ok b { color: #6ee7b7; }
+.bi-stat.warn { border-color: rgba(245,158,11,0.3); }
+.bi-stat.warn b { color: #fcd34d; }
+.bi-stat.skip { border-color: rgba(100,116,139,0.3); }
+.bi-stat.skip b { color: #94a3b8; }
+.bi-stat.bad { border-color: rgba(239,68,68,0.3); }
+.bi-stat.bad b { color: #fca5a5; }
+
+.bi-dup-controls {
+  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 8px; padding: 10px 14px;
+  display: flex; gap: 20px; font-size: 13px; color: #ffffff;
+}
+.bi-dup-controls label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.bi-dup-controls input { accent-color: #f59e0b; }
+
+.bi-preview-rows {
+  max-height: 260px; overflow-y: auto;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+}
+.bi-prow {
+  display: grid; grid-template-columns: 1fr 1fr auto;
+  gap: 12px; align-items: center; padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12.5px;
+}
+.bi-prow:last-child { border-bottom: 0; }
+.bi-prow-name { color: #ffffff; font-weight: 500; }
+.bi-prow-meta { color: rgba(255,255,255,0.55); font-size: 11.5px; }
+.bi-prow-tag { padding: 3px 9px; border-radius: 4px; font-size: 10.5px; font-weight: 500; }
+.bi-prow-tag-new { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+.bi-prow-tag-warn { background: rgba(245,158,11,0.15); color: #fcd34d; }
+.bi-prow-tag-skip { background: rgba(100,116,139,0.15); color: #94a3b8; }
+.bi-prow-tag-bad { background: rgba(239,68,68,0.15); color: #fca5a5; }
+.bi-prow-more { padding: 10px 14px; font-size: 12px; color: rgba(255,255,255,0.5); text-align: center; }
+
+/* Footer bar */
+.bi-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 6px; padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.bi-primary {
+  background: #2563eb; color: #ffffff; border: 0; border-radius: 8px;
+  padding: 10px 18px; font-size: 13.5px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.bi-primary:hover { background: #1d4ed8; }
+.bi-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Toast */
+.bi-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  z-index: 700; background: #0f1829; color: #ffffff;
+  border: 1px solid rgba(16,185,129,0.4); border-radius: 10px;
+  padding: 11px 18px; font-size: 13px; font-weight: 500;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  animation: bi-toast-in .3s ease-out;
+  max-width: 90vw;
+}
+.bi-toast-out { opacity: 0; transition: opacity .4s ease; }
+@keyframes bi-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .bi-map-grid { grid-template-columns: 1fr; }
+  .bi-summary { grid-template-columns: repeat(2, 1fr); }
+}
+
 </style>
 </head>
 <body>
@@ -9789,6 +9988,22 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 44', title: 'Bulk CSV import for subscriptions (3-step modal with auto-mapping and fuzzy dedup)', kind: 'feature', items: [
+    'New "Bulk import" button on the Subscriptions view header opens a 3-step modal: paste or upload → map columns → preview and commit',
+    'CSV parser handles quoted fields with commas inside them, auto-detects tab vs comma delimiter, strips BOM / CRLF cleanly',
+    'Auto-mapper recognises common header aliases per field: Vendor/Tool/Software/SaaS → name, Annual cost/ACV/Spend → cost, Cycle/Billing/Frequency → cycle, Owner/Manager/Contact → owner, Renewal/Expires/End date → renewal, and 60+ other aliases',
+    'Fields supported: Vendor name (required), Cost (strips $ ₹ € £ commas), Billing cycle (coerced to monthly/yearly/quarterly), Category, Team, Owner email, Renewal date (ISO or natural), Licences, Notes, URL',
+    'Date parser handles ISO, US, Indian (DD/MM/YYYY), and natural formats like "14 May 2026"',
+    'Fuzzy duplicate detection using Levenshtein against existing vendor names: exact matches are always skipped, near matches ("Slack " vs "Slack") can be configured to skip or import anyway',
+    'Preview shows first 50 rows tagged New / Possible dupe / Exact dupe (skip) / Missing name (skip), with per-row cost / cycle / renewal summary',
+    'Summary tiles count New / Possible duplicates / Exact dupes / Missing-name rows before you commit',
+    'Template CSV download: 10 columns, 3 realistic sample rows (Salesforce / Zoom / Figma) to show the expected format',
+    'Post-import: switches to Subscriptions view, toasts "Imported N subscriptions · skipped M duplicates", triggers renderAll so dashboards refresh',
+    'Onboarding integration: bulk_import_completed event posts to the same Apps Script sheet as signup for funnel tracking, and a successful import auto-ticks the "add_vendor" and "upload_contract" checklist items',
+    'Help launcher now lists "Bulk import from CSV" as the second item (after Replay tour) so first-time users discover it from the onboarding panel',
+    'Dark theme matching signup modal, Esc / backdrop click / X all close, responsive down to mobile',
+    'Public handle: window.BulkImport = { open, close, parseCSV, autoMap } for QA and programmatic use',
+  ]},
   { date: '2026-11-15', phase: 'Phase 43', title: 'In-app onboarding: checklist, guided tour, beacons, smart tips, help launcher (Whatfix-style)', kind: 'feature', items: [
     'Onboarding checklist widget bottom-right: 6 first wins (upload contract, add vendor, ask Track, see forecast, see renewals, see risk) with progress ring, auto-ticking as the user completes each, collapsible panel, dismiss with confirm',
     'First-visit guided tour: 5-step spotlight walkthrough of sidebar + dashboard + contracts + Ask Track + trial badge, runs once 1.2s after load, respects Escape and skip',
@@ -14720,7 +14935,12 @@ function openHelpPanel() {
     });
   };
   panel.querySelectorAll('.ob-help-item').forEach(b => {
-    b.onclick = () => { panel.remove(); runFlow(b.dataset.flow); };
+    b.onclick = () => {
+      panel.remove();
+      const f = b.dataset.flow;
+      if (f === '__bulk_import' && window.BulkImport) { window.BulkImport.open(); return; }
+      runFlow(f);
+    };
   });
   postEvent('onboarding_help_opened');
 }
@@ -14728,6 +14948,7 @@ function openHelpPanel() {
 function helpItems() {
   return [
     { flow: 'tour',              title: 'Replay the welcome tour', sub: '5 steps · 60 seconds' },
+    { flow: '__bulk_import',     title: 'Bulk import from CSV',    sub: 'Paste your existing spreadsheet' },
     { flow: 'upload_contract',   title: 'How to upload a contract', sub: 'Or load a sample' },
     { flow: 'add_vendor',        title: 'How to add a vendor',      sub: 'Ownership + annual spend' },
     { flow: 'ask_track',         title: 'How to use Ask Track',     sub: 'Text or voice' },
@@ -14841,6 +15062,620 @@ if (_prevAll22) {
   window.renderAll = function () {
     _prevAll22.apply(this, arguments);
     try { renderBeacons(); initSmartTips(); } catch (_) {}
+  };
+}
+
+})();
+
+</script>
+<script>
+/* ================================================================
+   Phase 44 — Bulk CSV import for subscriptions
+   ================================================================
+   Three-step modal:
+     1. Paste CSV / upload .csv / .tsv file
+     2. Column mapping (auto-detects common header names)
+     3. Preview + dry-run (shows adds / duplicates / errors, commits)
+
+   Fuzzy-matches against existing vendors (Levenshtein from Ask Track)
+   to flag duplicates. Imports create real subscription rows; the
+   user can then open the Subscriptions view and edit.
+
+   Entry points:
+   - "Bulk import" button injected into the Subscriptions view header
+   - window.BulkImport.open() for QA / help launcher
+
+   Also ties into onboarding: a successful import auto-ticks
+   both "add_vendor" and "upload_contract" checklist items.
+   ================================================================ */
+
+(() => {
+
+/* ---------------- Schema we map to ---------------- */
+
+const FIELDS = [
+  { key: 'name',     label: 'Vendor name',       required: true,  hint: 'Salesforce, Zoom, Figma...' },
+  { key: 'cost',     label: 'Cost',              required: false, hint: 'Numeric. $ and commas stripped.' },
+  { key: 'cycle',    label: 'Billing cycle',     required: false, hint: 'monthly / yearly / quarterly' },
+  { key: 'category', label: 'Category',          required: false, hint: 'CRM, Analytics, Design...' },
+  { key: 'team',     label: 'Owning team',       required: false, hint: 'Sales, Marketing, Engineering...' },
+  { key: 'owner',    label: 'Owner email',       required: false, hint: 'The person responsible for this tool' },
+  { key: 'renewal',  label: 'Renewal date',      required: false, hint: 'ISO (2026-05-14) or natural (14 May 2026)' },
+  { key: 'licenses', label: 'Licences purchased',required: false, hint: 'Numeric' },
+  { key: 'notes',    label: 'Notes',             required: false, hint: 'Free text' },
+  { key: 'url',      label: 'URL / website',     required: false, hint: 'https://vendor.com' },
+];
+
+/* Common header aliases → our field keys. Case-insensitive match. */
+const HEADER_ALIASES = {
+  name:     ['vendor', 'vendor name', 'tool', 'software', 'product', 'saas', 'service', 'app', 'application', 'name', 'subscription'],
+  cost:     ['cost', 'price', 'amount', 'annual spend', 'annual cost', 'monthly cost', 'spend', 'yearly cost', 'yearly spend', 'acv', 'arr', 'total', 'subscription cost'],
+  cycle:    ['cycle', 'billing', 'billing cycle', 'billing period', 'period', 'frequency', 'term', 'interval'],
+  category: ['category', 'type', 'segment', 'bucket', 'function', 'use case'],
+  team:     ['team', 'department', 'dept', 'owner team', 'business unit', 'bu', 'division'],
+  owner:    ['owner', 'owner email', 'contact', 'contact email', 'manager', 'point of contact', 'poc', 'responsible', 'primary contact'],
+  renewal:  ['renewal', 'renewal date', 'renews on', 'renews', 'next renewal', 'end date', 'expiration', 'expires', 'contract end', 'renewal due'],
+  licenses: ['licenses', 'licences', 'seats', 'seat count', 'users', 'user count', 'quantity', 'qty'],
+  notes:    ['notes', 'note', 'comment', 'comments', 'description', 'remarks'],
+  url:      ['url', 'website', 'site', 'link', 'web', 'vendor url'],
+};
+
+/* ---------------- CSV parser (vanilla, handles quotes + commas inside quotes) ---------------- */
+
+function parseCSV(text, delimiter) {
+  // Auto-detect delimiter if not given
+  if (!delimiter) {
+    const firstLine = text.split(/\r?\n/)[0] || '';
+    const tabCount = (firstLine.match(/\t/g) || []).length;
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    delimiter = tabCount > commaCount ? '\t' : ',';
+  }
+
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const next = text[i + 1];
+    if (inQuotes) {
+      if (c === '"' && next === '"') { field += '"'; i++; }
+      else if (c === '"') { inQuotes = false; }
+      else { field += c; }
+    } else {
+      if (c === '"') { inQuotes = true; }
+      else if (c === delimiter) { row.push(field); field = ''; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else if (c === '\r') { /* skip */ }
+      else { field += c; }
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(cell => cell && cell.trim().length));
+}
+
+/* ---------------- Field coercion ---------------- */
+
+function coerceCost(raw) {
+  if (raw == null || raw === '') return null;
+  // Strip $ , ₹ € £ and whitespace. Keep decimal point.
+  const cleaned = String(raw).replace(/[,₹$€£\s]/g, '').replace(/^USD|^INR|^EUR|^GBP/i, '').trim();
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+function coerceCycle(raw) {
+  if (!raw) return 'yearly';
+  const s = String(raw).toLowerCase().trim();
+  if (s.startsWith('month') || s === 'm' || s === 'mo' || s === '/mo' || s === 'monthly') return 'monthly';
+  if (s.startsWith('year') || s === 'y' || s === 'yr' || s === 'annual' || s === 'annually') return 'yearly';
+  if (s.startsWith('quarter') || s === 'q' || s === 'qtr' || s === 'quarterly') return 'quarterly';
+  if (s === 'one' || s === 'one-time' || s === 'onetime') return 'one-time';
+  return 'yearly';
+}
+
+function coerceDate(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  // Always format from (y,m,d) components to dodge TZ drift on
+  // toISOString() — 14/05/2026 in IST must stay 2026-05-14, not 2026-05-13.
+  const pad = (n) => String(n).padStart(2, '0');
+  const fmt = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+  // ISO first
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return fmt(+iso[1], +iso[2], +iso[3]);
+  // DD/MM/YYYY or DD-MM-YYYY (prefer DMY — our ICP is India + APAC)
+  const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (dmy) {
+    let dd = +dmy[1], mm = +dmy[2], yy = +dmy[3];
+    if (yy < 100) yy += 2000;
+    // If day > 12, this cannot be MDY so DMY is unambiguous. If month > 12,
+    // it must actually be MDY — swap. Otherwise default to DMY.
+    if (mm > 12 && dd <= 12) { const t = dd; dd = mm; mm = t; }
+    if (dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12) return fmt(yy, mm, dd);
+  }
+  // Natural ("14 May 2026") via native parser, but normalize using UTC components.
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return fmt(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  return null;
+}
+
+function coerceInt(raw) {
+  if (raw == null || raw === '') return null;
+  const n = parseInt(String(raw).replace(/[,\s]/g, ''), 10);
+  return isNaN(n) ? null : n;
+}
+
+/* ---------------- Levenshtein (fallback if ask-track's isn't exposed) ---------------- */
+
+function lev(a, b) {
+  a = (a || '').toLowerCase(); b = (b || '').toLowerCase();
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function findFuzzyDuplicate(name) {
+  if (!name) return null;
+  const lower = name.toLowerCase().trim();
+  const existing = (state.subscriptions || []);
+  // Exact first
+  const exact = existing.find(s => (s.name || '').toLowerCase().trim() === lower);
+  if (exact) return { sub: exact, distance: 0, match: 'exact' };
+  // Then fuzzy within a small distance threshold scaled to length
+  let best = null;
+  for (const s of existing) {
+    const d = lev((s.name || '').toLowerCase().trim(), lower);
+    const threshold = Math.max(2, Math.floor(lower.length / 5));
+    if (d <= threshold && (!best || d < best.distance)) {
+      best = { sub: s, distance: d, match: 'fuzzy' };
+    }
+  }
+  return best;
+}
+
+/* ---------------- Auto header mapping ---------------- */
+
+function autoMap(headers) {
+  const map = {}; // { fieldKey: columnIndex }
+  const used = new Set();
+  const norm = headers.map(h => (h || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim());
+  for (const [key, aliases] of Object.entries(HEADER_ALIASES)) {
+    for (let i = 0; i < norm.length; i++) {
+      if (used.has(i)) continue;
+      if (aliases.includes(norm[i])) { map[key] = i; used.add(i); break; }
+    }
+  }
+  return map;
+}
+
+/* ---------------- State ---------------- */
+
+const biState = {
+  rows: [],       // parsed 2D array including header row
+  headers: [],
+  mapping: {},    // { fieldKey: columnIndex }
+  step: 1,
+};
+
+/* ---------------- UI ---------------- */
+
+function open() {
+  document.getElementById('bi-modal')?.remove();
+  biState.rows = [];
+  biState.headers = [];
+  biState.mapping = {};
+  biState.step = 1;
+
+  const m = document.createElement('div');
+  m.id = 'bi-modal';
+  m.className = 'bi-modal';
+  m.innerHTML = `
+    <div class="bi-backdrop"></div>
+    <div class="bi-card">
+      <button type="button" class="bi-close" id="bi-close" title="Close">×</button>
+      <div class="bi-steps">
+        <span class="bi-step is-active" data-s="1">1 · Paste</span>
+        <span class="bi-step" data-s="2">2 · Map columns</span>
+        <span class="bi-step" data-s="3">3 · Preview &amp; import</span>
+      </div>
+      <div class="bi-body" id="bi-body"></div>
+    </div>
+  `;
+  document.body.appendChild(m);
+  m.querySelector('#bi-close').onclick = close;
+  m.querySelector('.bi-backdrop').onclick = close;
+  document.addEventListener('keydown', escClose);
+  renderStep();
+}
+
+function close() {
+  document.getElementById('bi-modal')?.remove();
+  document.removeEventListener('keydown', escClose);
+}
+
+function escClose(e) { if (e.key === 'Escape') close(); }
+
+function renderStep() {
+  const body = document.getElementById('bi-body');
+  if (!body) return;
+  // Update step indicator
+  document.querySelectorAll('.bi-step').forEach(el => {
+    el.classList.toggle('is-active', parseInt(el.dataset.s, 10) === biState.step);
+    el.classList.toggle('is-done', parseInt(el.dataset.s, 10) < biState.step);
+  });
+  if (biState.step === 1) body.innerHTML = step1Html();
+  if (biState.step === 2) body.innerHTML = step2Html();
+  if (biState.step === 3) body.innerHTML = step3Html();
+  wireStep();
+}
+
+/* ----- Step 1: paste or upload ----- */
+
+function step1Html() {
+  return `
+    <div class="bi-step-body">
+      <h3 class="bi-h">Paste your spreadsheet or upload a CSV</h3>
+      <p class="bi-sub">Copy rows from Google Sheets or Excel (including the header row), or upload a <code>.csv</code> / <code>.tsv</code> file. Everything stays in your browser.</p>
+      <textarea id="bi-paste" class="bi-textarea" placeholder="Vendor,Annual cost,Cycle,Owner,Renewal\nSalesforce,54000,yearly,alex@acme.com,2026-05-14\nZoom,5988,yearly,sam@acme.com,2026-09-30"></textarea>
+      <div class="bi-split">
+        <label class="bi-upload-btn">
+          <input type="file" id="bi-file" accept=".csv,.tsv,.txt" hidden/>
+          <span>Or upload file</span>
+        </label>
+        <button type="button" class="bi-link" id="bi-template">Download template CSV</button>
+      </div>
+      <div class="bi-foot">
+        <span class="bi-hint">We'll auto-detect the columns in the next step.</span>
+        <button type="button" class="bi-primary" id="bi-next-1" disabled>Next →</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ----- Step 2: column mapping ----- */
+
+function step2Html() {
+  const headers = biState.headers;
+  const map = biState.mapping;
+  const unmapped = FIELDS.filter(f => map[f.key] == null);
+  const nameOk = map.name != null;
+  const rowsPreview = biState.rows.slice(1, 4);
+  return `
+    <div class="bi-step-body">
+      <h3 class="bi-h">Match your columns to the fields</h3>
+      <p class="bi-sub">We auto-detected ${Object.keys(map).length} of ${FIELDS.length} fields. Confirm or adjust. Only <b>Vendor name</b> is required.</p>
+      <div class="bi-map-grid">
+        ${FIELDS.map(f => `
+          <div class="bi-map-row ${f.required ? 'is-required' : ''}">
+            <label class="bi-map-label">
+              <span class="bi-map-name">${escapeHtml(f.label)}${f.required ? ' *' : ''}</span>
+              <span class="bi-map-hint">${escapeHtml(f.hint)}</span>
+            </label>
+            <select class="bi-map-select" data-field="${f.key}">
+              <option value="">— skip —</option>
+              ${headers.map((h, i) => `<option value="${i}" ${map[f.key] === i ? 'selected' : ''}>${escapeHtml(h || `Column ${i + 1}`)}</option>`).join('')}
+            </select>
+          </div>
+        `).join('')}
+      </div>
+      <details class="bi-preview-table" open>
+        <summary>Preview: first 3 rows from your file</summary>
+        <div class="bi-table-wrap">
+          <table>
+            <thead><tr>${headers.map(h => `<th>${escapeHtml(h || '')}</th>`).join('')}</tr></thead>
+            <tbody>${rowsPreview.map(r => `<tr>${r.map(c => `<td>${escapeHtml(c || '')}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </details>
+      <div class="bi-foot">
+        <button type="button" class="bi-link" id="bi-back-2">← Back</button>
+        <button type="button" class="bi-primary" id="bi-next-2" ${nameOk ? '' : 'disabled'}>Next →</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ----- Step 3: preview + import ----- */
+
+function buildPreviewRows() {
+  const map = biState.mapping;
+  const dataRows = biState.rows.slice(1);
+  return dataRows.map((r, idx) => {
+    const get = (k) => (map[k] != null ? (r[map[k]] || '').trim() : '');
+    const name = get('name');
+    const sub = {
+      _rowIndex: idx + 2,
+      name,
+      cost: coerceCost(get('cost')),
+      cycle: coerceCycle(get('cycle')),
+      category: get('category') || '',
+      team: get('team') || '',
+      ownerEmail: get('owner') || '',
+      renewal: coerceDate(get('renewal')),
+      licenses: coerceInt(get('licenses')),
+      notes: get('notes') || '',
+      url: get('url') || '',
+    };
+    if (!name) sub._issue = 'missing_name';
+    const dup = findFuzzyDuplicate(name);
+    if (dup) sub._dup = dup;
+    return sub;
+  });
+}
+
+function step3Html() {
+  const rows = buildPreviewRows();
+  biState._previewRows = rows;
+  const total = rows.length;
+  const missing = rows.filter(r => r._issue === 'missing_name').length;
+  const exact = rows.filter(r => r._dup && r._dup.match === 'exact').length;
+  const fuzzy = rows.filter(r => r._dup && r._dup.match === 'fuzzy').length;
+  const newCount = rows.filter(r => !r._issue && !r._dup).length;
+  return `
+    <div class="bi-step-body">
+      <h3 class="bi-h">Review and import</h3>
+      <div class="bi-summary">
+        <div class="bi-stat ok"><b>${newCount}</b><span>New to add</span></div>
+        <div class="bi-stat ${fuzzy ? 'warn' : ''}"><b>${fuzzy}</b><span>Possible duplicates</span></div>
+        <div class="bi-stat ${exact ? 'skip' : ''}"><b>${exact}</b><span>Exact duplicates (will skip)</span></div>
+        <div class="bi-stat ${missing ? 'bad' : ''}"><b>${missing}</b><span>Missing name (will skip)</span></div>
+      </div>
+      <div class="bi-dup-controls" ${fuzzy ? '' : 'hidden'}>
+        <label><input type="radio" name="bi-dup" value="skip" checked/> Skip possible duplicates</label>
+        <label><input type="radio" name="bi-dup" value="add"/> Add anyway (I'll clean up later)</label>
+      </div>
+      <div class="bi-preview-rows">
+        ${rows.slice(0, 50).map(r => {
+          let status = 'new', label = 'New';
+          if (r._issue === 'missing_name') { status = 'bad'; label = 'No name — skip'; }
+          else if (r._dup && r._dup.match === 'exact') { status = 'skip'; label = `Exact dupe: ${escapeHtml(r._dup.sub.name)}`; }
+          else if (r._dup && r._dup.match === 'fuzzy') { status = 'warn'; label = `Possible dupe: ${escapeHtml(r._dup.sub.name)}`; }
+          return `
+            <div class="bi-prow bi-prow-${status}">
+              <span class="bi-prow-name">${escapeHtml(r.name || '(no name)')}</span>
+              <span class="bi-prow-meta">${r.cost != null ? '$' + r.cost.toLocaleString() : '—'} · ${escapeHtml(r.cycle)} ${r.renewal ? ' · renews ' + escapeHtml(r.renewal) : ''}</span>
+              <span class="bi-prow-tag bi-prow-tag-${status}">${label}</span>
+            </div>
+          `;
+        }).join('')}
+        ${rows.length > 50 ? `<div class="bi-prow-more">... and ${rows.length - 50} more</div>` : ''}
+      </div>
+      <div class="bi-foot">
+        <button type="button" class="bi-link" id="bi-back-3">← Back</button>
+        <button type="button" class="bi-primary" id="bi-import">Import ${newCount + (fuzzy || 0)} row${(newCount + fuzzy) === 1 ? '' : 's'}</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ----- Wiring per step ----- */
+
+function wireStep() {
+  const body = document.getElementById('bi-body');
+  if (!body) return;
+
+  if (biState.step === 1) {
+    const paste = body.querySelector('#bi-paste');
+    const file = body.querySelector('#bi-file');
+    const next = body.querySelector('#bi-next-1');
+    const tpl = body.querySelector('#bi-template');
+    const refreshNextEnabled = () => { next.disabled = !(paste.value.trim() || biState.rows.length); };
+    paste.oninput = refreshNextEnabled;
+    paste.onpaste = () => setTimeout(refreshNextEnabled, 30);
+    file.onchange = async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const text = await f.text();
+      paste.value = text;
+      refreshNextEnabled();
+    };
+    tpl.onclick = downloadTemplate;
+    next.onclick = () => {
+      const text = paste.value.trim();
+      if (!text) return;
+      try {
+        const rows = parseCSV(text);
+        if (!rows.length) { alert('Could not parse any rows.'); return; }
+        biState.rows = rows;
+        biState.headers = rows[0].map(h => (h || '').trim());
+        biState.mapping = autoMap(biState.headers);
+        biState.step = 2;
+        renderStep();
+      } catch (err) {
+        alert('Parse failed: ' + err.message);
+      }
+    };
+  }
+
+  if (biState.step === 2) {
+    body.querySelectorAll('.bi-map-select').forEach(sel => {
+      sel.onchange = (e) => {
+        const key = e.target.dataset.field;
+        const val = e.target.value;
+        if (val === '') delete biState.mapping[key];
+        else biState.mapping[key] = parseInt(val, 10);
+        // Recompute "next" enabled state
+        const nameOk = biState.mapping.name != null;
+        body.querySelector('#bi-next-2').disabled = !nameOk;
+      };
+    });
+    body.querySelector('#bi-back-2').onclick = () => { biState.step = 1; renderStep(); };
+    body.querySelector('#bi-next-2').onclick = () => {
+      if (biState.mapping.name == null) return;
+      biState.step = 3;
+      renderStep();
+    };
+  }
+
+  if (biState.step === 3) {
+    body.querySelector('#bi-back-3').onclick = () => { biState.step = 2; renderStep(); };
+    body.querySelector('#bi-import').onclick = commitImport;
+  }
+}
+
+/* ----- Commit ----- */
+
+function commitImport() {
+  const rows = biState._previewRows || buildPreviewRows();
+  const dupPolicy = (document.querySelector('input[name="bi-dup"]:checked') || {}).value || 'skip';
+
+  let added = 0, skipped = 0, dupes = 0;
+  const today = new Date().toISOString();
+
+  rows.forEach(r => {
+    if (r._issue === 'missing_name') { skipped++; return; }
+    if (r._dup && r._dup.match === 'exact') { dupes++; return; }
+    if (r._dup && r._dup.match === 'fuzzy' && dupPolicy === 'skip') { dupes++; return; }
+
+    const sub = {
+      id: crypto.randomUUID(),
+      name: r.name,
+      cost: r.cost != null ? r.cost : 0,
+      cycle: r.cycle,
+      category: r.category,
+      team: r.team,
+      renewal: r.renewal,
+      notes: r.notes,
+      url: r.url,
+      active: true,
+      licenses: r.licenses || null,
+      assigned: null,
+      utilized: null,
+      ownerEmail: r.ownerEmail || null,
+      importedAt: today,
+      importedVia: 'bulk_csv',
+    };
+    state.subscriptions.push(sub);
+    added++;
+  });
+
+  if (typeof save === 'function') save();
+  if (typeof renderAll === 'function') try { renderAll(); } catch (_) {}
+
+  // Fire onboarding events + auto-tick checklist
+  try {
+    if (typeof postOnboardingEvent === 'function') {
+      postOnboardingEvent('bulk_import_completed', { added, dupes, skipped, total: rows.length });
+    }
+    if (window.OnboardHelp) {
+      // trigger a tick so the checklist re-evaluates "add_vendor" and "upload_contract"
+      setTimeout(() => { try { renderAll && renderAll(); } catch (_) {} }, 100);
+    }
+  } catch (_) {}
+
+  close();
+
+  // Navigate to subscriptions so the user sees what landed
+  try { if (typeof switchView === 'function') switchView('subscriptions'); } catch (_) {}
+
+  toast(`Imported ${added} subscription${added === 1 ? '' : 's'}${dupes ? ` · skipped ${dupes} duplicate${dupes === 1 ? '' : 's'}` : ''}${skipped ? ` · skipped ${skipped} invalid` : ''}`);
+}
+
+/* ---------------- Template CSV download ---------------- */
+
+function downloadTemplate() {
+  const header = ['Vendor', 'Annual cost', 'Cycle', 'Category', 'Team', 'Owner email', 'Renewal date', 'Licences', 'Notes', 'URL'];
+  const sample = [
+    ['Salesforce', '54000', 'yearly', 'CRM',       'Sales',       'alex@acme.com', '2026-05-14', '45',  'Enterprise, 7% uplift cap', 'https://salesforce.com'],
+    ['Zoom',       '5988',  'yearly', 'Meetings',  'Sales',       'sam@acme.com',  '2026-09-30', '60',  'Webinar add-on',            'https://zoom.us'],
+    ['Figma',      '2700',  'monthly','Design',    'Design',      'ria@acme.com',  '2026-04-01', '36',  'Org plan',                  'https://figma.com'],
+  ];
+  const csv = [header, ...sample].map(r => r.map(c => {
+    const s = String(c);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }).join(',')).join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'saas-spend-track-template.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ---------------- Toast ---------------- */
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'bi-toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.classList.add('bi-toast-out'); setTimeout(() => t.remove(), 400); }, 3800);
+}
+
+/* ---------------- Bridge to Onboarding telemetry ---------------- */
+
+function postOnboardingEvent(eventType, extra = {}) {
+  try {
+    const url = (typeof signupEndpoint === 'function') ? signupEndpoint() : null;
+    if (!url || url.includes('PASTE-YOUR')) return;
+    const w = (typeof workspace === 'function') ? workspace() : {};
+    const body = new URLSearchParams();
+    body.append('event_type', eventType);
+    body.append('email', w.ownerEmail || '');
+    body.append('company', w.companyName || '');
+    body.append('workspace_id', w.id || '');
+    Object.entries(extra).forEach(([k, v]) => body.append(k, String(v ?? '')));
+    fetch(url, { method: 'POST', mode: 'no-cors', body }).catch(() => {});
+  } catch (_) {}
+}
+
+/* ---------------- Inject "Bulk import" button into the Subscriptions view ---------------- */
+
+function injectImportButton() {
+  // Look for the subscriptions view container; place button at top.
+  const view = document.querySelector('.view[data-view="subscriptions"], #view-subscriptions, [data-view="subscriptions"]');
+  if (!view) return;
+  if (view.querySelector('.bi-launch')) return;
+  // Place at the start of the view so it's visible immediately.
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'bi-launch';
+  btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Bulk import</span>`;
+  btn.onclick = open;
+  // Find a sensible anchor — a heading, a toolbar, otherwise prepend to view.
+  const anchor = view.querySelector('h1, h2, .view-head, .toolbar');
+  if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(btn, anchor.nextSibling);
+  else view.prepend(btn);
+}
+
+/* ---------------- Boot ---------------- */
+
+window.BulkImport = { open, close, parseCSV, autoMap };
+
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(injectImportButton, 500);
+});
+
+// Re-inject after view switches (DOM may rebuild)
+const _prevSwitch23 = typeof switchView === 'function' ? switchView : null;
+if (_prevSwitch23 && !_prevSwitch23._bi23) {
+  window.switchView = function (name, opts) {
+    const r = _prevSwitch23.apply(this, arguments);
+    if (name === 'subscriptions') setTimeout(injectImportButton, 100);
+    return r;
+  };
+  window.switchView._bi23 = true;
+}
+
+const _prevAll23 = typeof renderAll === 'function' ? renderAll : null;
+if (_prevAll23) {
+  window.renderAll = function () {
+    _prevAll23.apply(this, arguments);
+    try { injectImportButton(); } catch (_) {}
   };
 }
 

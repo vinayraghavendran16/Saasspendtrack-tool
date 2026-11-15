@@ -10,6 +10,22 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 44', title: 'Bulk CSV import for subscriptions (3-step modal with auto-mapping and fuzzy dedup)', kind: 'feature', items: [
+    'New "Bulk import" button on the Subscriptions view header opens a 3-step modal: paste or upload → map columns → preview and commit',
+    'CSV parser handles quoted fields with commas inside them, auto-detects tab vs comma delimiter, strips BOM / CRLF cleanly',
+    'Auto-mapper recognises common header aliases per field: Vendor/Tool/Software/SaaS → name, Annual cost/ACV/Spend → cost, Cycle/Billing/Frequency → cycle, Owner/Manager/Contact → owner, Renewal/Expires/End date → renewal, and 60+ other aliases',
+    'Fields supported: Vendor name (required), Cost (strips $ ₹ € £ commas), Billing cycle (coerced to monthly/yearly/quarterly), Category, Team, Owner email, Renewal date (ISO or natural), Licences, Notes, URL',
+    'Date parser handles ISO, US, Indian (DD/MM/YYYY), and natural formats like "14 May 2026"',
+    'Fuzzy duplicate detection using Levenshtein against existing vendor names: exact matches are always skipped, near matches ("Slack " vs "Slack") can be configured to skip or import anyway',
+    'Preview shows first 50 rows tagged New / Possible dupe / Exact dupe (skip) / Missing name (skip), with per-row cost / cycle / renewal summary',
+    'Summary tiles count New / Possible duplicates / Exact dupes / Missing-name rows before you commit',
+    'Template CSV download: 10 columns, 3 realistic sample rows (Salesforce / Zoom / Figma) to show the expected format',
+    'Post-import: switches to Subscriptions view, toasts "Imported N subscriptions · skipped M duplicates", triggers renderAll so dashboards refresh',
+    'Onboarding integration: bulk_import_completed event posts to the same Apps Script sheet as signup for funnel tracking, and a successful import auto-ticks the "add_vendor" and "upload_contract" checklist items',
+    'Help launcher now lists "Bulk import from CSV" as the second item (after Replay tour) so first-time users discover it from the onboarding panel',
+    'Dark theme matching signup modal, Esc / backdrop click / X all close, responsive down to mobile',
+    'Public handle: window.BulkImport = { open, close, parseCSV, autoMap } for QA and programmatic use',
+  ]},
   { date: '2026-11-15', phase: 'Phase 43', title: 'In-app onboarding: checklist, guided tour, beacons, smart tips, help launcher (Whatfix-style)', kind: 'feature', items: [
     'Onboarding checklist widget bottom-right: 6 first wins (upload contract, add vendor, ask Track, see forecast, see renewals, see risk) with progress ring, auto-ticking as the user completes each, collapsible panel, dismiss with confirm',
     'First-visit guided tour: 5-step spotlight walkthrough of sidebar + dashboard + contracts + Ask Track + trial badge, runs once 1.2s after load, respects Escape and skip',
