@@ -97,6 +97,34 @@ once the webhook is configured in Razorpay — ping me when done.
 
 ---
 
+## P1.5 — Discoverability launches (new, website SEO push)
+
+### Listings (one-time, each ~30 min)
+These are where buyers evaluating "SaaS management tools" actually look. Submit once, they appear in comparison searches forever.
+
+- [ ] **G2** — https://www.g2.com/products/new. Need: product name, website, 2-sentence description, category (SaaS Spend Management), 3-5 screenshots, logo. I'll draft the copy; you submit.
+- [ ] **Capterra** — https://www.capterra.com/vendors/sign-up. Same kit. Also lands on GetApp + Software Advice (same owner).
+- [ ] **AlternativeTo.net** — https://alternativeto.net. Submit as alternative to Vendr, Zylo, Spendesk. Free, high SEO value.
+- [ ] **Product Hunt** — https://www.producthunt.com/posts/new. Timed launch (pick a Tuesday morning US time). Draft the launch post together before you go.
+- [ ] **StackShare** — https://stackshare.io/apps/new. Dev-oriented but shows up for enterprise buyer searches.
+- [ ] **Slant.co** — https://www.slant.co. User-driven comparison site; worth submitting.
+
+### Content distribution (recurring, each ~15 min)
+After the comparison pages are live, seed them where buyers hang out.
+
+- [ ] **Show HN post** on Hacker News — "Show HN: SaaS Spend Track — browser-only SaaS management, $3,499 flat". Pick a Tuesday or Wednesday 10am US ET for best traffic. Lead with the architecture differentiator (browser-only, no backend).
+- [ ] **Reddit posts** — r/SaaS, r/startups, r/procurement, r/finance, r/CFO (if permitted; some of these ban promotion but welcome comparison discussion). Not posting your product; posting the comparison content with a disclosure that you built it.
+- [ ] **LinkedIn posts** on your personal account weekly for 4 weeks after launch. Pattern: lead with a procurement / SaaS-spend insight, close with "I built a tool for this; link in comments". Your Whatfix + Proshort audience is exactly the ICP.
+- [ ] **Indian SaaS media** — Inc42, YourStory, Moneycontrol Tech. Pitch the "bootstrapped Indian SaaS management tool challenging US incumbents" story. Your 13y resume gives credibility.
+
+### Marketing site assets I still need from you
+- [ ] **og-image.png** — 1200×630. Design brief in previous TODO. Needed for LinkedIn / Twitter / Slack previews.
+- [ ] **Product screenshots** — 5-6 clean ones for G2 / Capterra / Product Hunt. I can generate from the Claude artifact but your real browser renders are better.
+- [ ] **Founder headshot** — one professional photo for the About page byline + comparison pages author bio.
+- [ ] **One real customer logo + testimonial** — once you have your first paying customer. Massively changes the trust signal on comparison pages.
+
+---
+
 ## P2 — PWA icon pack (new, from Phase 54)
 
 ### Create proper PNG icons for the PWA manifest
