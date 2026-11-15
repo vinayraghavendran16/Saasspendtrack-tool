@@ -10,6 +10,15 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 51', title: 'Expanded test coverage for Phases 43-50 (+22 tests) + UAT checklist', kind: 'quality', items: [
+    'Deliberate pause on new features to strengthen the foundation before building more on top. 8 phases in one sitting with 0 end-to-end user verification is a lot of unverified ground.',
+    'Added 22 new in-browser tests covering Phases 43-50. All API-boundary / handle-exists / monkey-patch-detected tests — no state mutations, no modal opens, no renderAll invocations (those caused the Puppeteer evaluator to hang mid-run).',
+    'Test coverage now 138 PASS / 0 FAIL / 8 SKIP (up from 116 PASS). New groups: phase43.onboarding, phase44.bulk, phase46.reports, phase47.settings, phase48.payment, phase49.cmdpal, phase50.subccy, integration.phase43to50.',
+    'Specific checks: OnboardHelp / BulkImport / Reports / Settings / MarkPaid / CmdPal / SubCurrency handles exist with required methods. formatMoney and monthlyCost are detectably monkey-patched. parseCSV survives quoted commas + tab delimiters. autoMap recognises 10+ common header aliases.',
+    'Idempotency fix: wrapper around defineTests gates on a sentinel (_p51_tests_registered) so our tests do not multiply when the test-report UI calls defineTests repeatedly.',
+    'New file trial-tracking/UAT-PHASE-43-50.md — ~15 minute human walkthrough covering every surface of the 8 new phases. Click-by-click instructions, expected results, cleanup steps. For deeper behavioural verification that the browser-less test runner can\'t do (modal animations, PDF generation, drip emails actually arriving).',
+    'Known skip: Phase 45 drip has no browser-side testable surface; verification is Apps Script side via testDripNow() per DRIP-SETUP.md.',
+  ]},
   { date: '2026-11-15', phase: 'Phase 50', title: 'Per-subscription source currency (closes the "future phase" gap from Phase 47)', kind: 'feature', items: [
     'Every subscription now carries sub.currency (defaults to USD for backward compat with 48 phases of pre-existing data).',
     'monthlyCost() is monkey-patched to normalise each sub through USD using the FX cache from Phase 47 before returning. Dashboards that sum costs now actually convert first instead of adding INR, EUR, USD as if they were the same unit.',
