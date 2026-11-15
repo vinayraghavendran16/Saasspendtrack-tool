@@ -164,6 +164,31 @@ window.defineTests = function () {
     assert(Math.abs(mc - 500 / 12) < 0.01, `expected ~${500/12}, got ${mc}`);
   });
 
+  // ---------- Phase 52: diagnostics ----------
+
+  test('phase52.diag', 'window.Diag public handle exists', () => {
+    assert(typeof window.Diag === 'object', 'Diag missing');
+    ['check', 'runTests', 'errors', 'clear', 'reset', 'open'].forEach(k =>
+      assert(typeof window.Diag[k] === 'function', `Diag.${k} missing`));
+  });
+
+  test('phase52.diag', 'Diag.check returns a complete report', () => {
+    const r = Diag.check();
+    assert(r && typeof r === 'object', 'check returned null');
+    assert(Array.isArray(r.modules), 'modules missing');
+    assert(Array.isArray(r.patches), 'patches missing');
+    assert(Array.isArray(r.errors), 'errors missing');
+    assert(r.summary, 'summary missing');
+    // Should report all 7 modules
+    assert(r.modules.length === 7, `expected 7 modules, got ${r.modules.length}`);
+  });
+
+  test('phase52.diag', 'all 7 modules report healthy', () => {
+    const r = Diag.check();
+    const broken = r.modules.filter(m => m.status !== 'ok');
+    assert(broken.length === 0, 'broken modules: ' + broken.map(m => m.id).join(', '));
+  });
+
   // ---------- Integration ----------
 
   test('integration.phase43to50', 'all monkey-patches stacked without breakage', () => {

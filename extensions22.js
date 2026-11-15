@@ -27,7 +27,15 @@ const CHECKLIST = [
     hint: 'Or paste one in. The parser does the rest.',
     cta: 'Start',
     flow: 'upload_contract',
-    done: () => (Array.isArray(state.contracts) && state.contracts.length > 0),
+    // "Contract" = any subscription with a parsed .contract field. To avoid
+    // pre-completing from the 28 demo contracts, only count ones ADDED since
+    // onboarding began (importedAt timestamp OR not in the original set).
+    done: () => {
+      const subs = state.subscriptions || [];
+      const baseline = ob().baselineContracts || 0;
+      const current = subs.filter(s => s.contract && typeof s.contract === 'object').length;
+      return current > baseline;
+    },
   },
   {
     id: 'add_vendor',
@@ -35,7 +43,13 @@ const CHECKLIST = [
     hint: 'So you can track ownership and spend by vendor.',
     cta: 'Show me',
     flow: 'add_vendor',
-    done: () => (Array.isArray(state.vendors) && state.vendors.length > 0),
+    // "Vendor" = subscription. Demo seed ships ~28 subs, so we baseline
+    // against the count AT onboarding start, then require growth.
+    done: () => {
+      const subs = state.subscriptions || [];
+      const baseline = ob().baselineSubs || 0;
+      return subs.length > baseline;
+    },
   },
   {
     id: 'ask_track',
@@ -195,14 +209,23 @@ const BEACONS = [
 
 function ob() {
   state.settings = state.settings || {};
-  state.settings.onboarding = state.settings.onboarding || {
-    tourSeen: false,
-    completed: {},     // { item_id: iso_timestamp }
-    dismissedBeacons: {},
-    dismissedChecklist: false,
-    panelOpen: false,
-    viewed: {},        // { view_name: iso_timestamp } - for see_* checklist items
-  };
+  if (!state.settings.onboarding) {
+    const subs = state.subscriptions || [];
+    state.settings.onboarding = {
+      tourSeen: false,
+      completed: {},     // { item_id: iso_timestamp }
+      dismissedBeacons: {},
+      dismissedChecklist: false,
+      panelOpen: false,
+      viewed: {},        // { view_name: iso_timestamp } - for see_* checklist items
+      // Baselines set once, when onboarding state is first created. Phase 53:
+      // prevents the "add_vendor" / "upload_contract" items from showing
+      // pre-completed because the demo workspace already has 28 subscriptions.
+      baselineSubs: subs.length,
+      baselineContracts: subs.filter(s => s.contract && typeof s.contract === 'object').length,
+      baselinedAt: new Date().toISOString(),
+    };
+  }
   return state.settings.onboarding;
 }
 

@@ -10,6 +10,22 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 53', title: 'Bug fixes found in self-review: onboarding checklist state-key bug + demo-data pre-completion', kind: 'fix', items: [
+    'FIX: Phase 43 onboarding checklist "Upload your first contract" and "Add a vendor" items referenced state.contracts and state.vendors — neither of which exist in the app. The app stores contracts as subscription.contract and vendors as entries in state.subscriptions. The two items would NEVER auto-complete even after the user did both actions. Found during Phase 52 self-review. Replaced with correct state.subscriptions checks.',
+    'FIX: Even after the above fix, both items would show pre-completed on first load because the demo workspace ships with 28 sample subscriptions (and several of them have .contract set). Added baselineSubs and baselineContracts snapshot captured when onboarding state is first created — the done() checks now require GROWTH beyond that baseline instead of mere presence.',
+    'baselinedAt timestamp stored alongside so future-us can see when the baseline was captured, useful when debugging.',
+    'No API surface change; monkey-patches and public handles unchanged. Existing users with onboarding state already created are grandfathered — baseline will be absent and the check falls back to a count > 0 comparison (undefined > 0 is false, so it still won\'t pre-complete, which is the safer failure mode).',
+  ]},
+  { date: '2026-11-15', phase: 'Phase 52', title: 'Diagnostics view + hardening (Settings → Diagnostics card)', kind: 'feature', items: [
+    'New Diagnostics card in Settings view: at-a-glance health check for every Phase 43-50 module. 4 tiles (modules OK, patches OK, recent errors, state size KB) + verdict line + expandable per-module details with per-module reset buttons.',
+    'Global error catcher: window.error and unhandledrejection events logged to window._diagErrors (rolling buffer of last 50) with timestamp, source, message, 3-line stack. Surfaced in the Diagnostics card.',
+    'Per-module reset without full data loss: 5 reset buttons each target one module (onboarding, currency, payment state, cmdpal recent, per-sub currency) without touching subscriptions / contracts / employees.',
+    '"Run test suite" button in the Diagnostics card: runs the full in-browser test suite (138 tests after Phase 51) inline and shows pass/fail/skip count + a list of failures with error messages. Useful when something looks broken and you want to know whether the API surface is still intact.',
+    '"Export diagnostic report" button downloads a .json with current diagnostic, workspace counts, user-agent, URL — useful for me to debug remotely from a copy-paste.',
+    'Keyboard shortcut: Ctrl+Shift+D (or Cmd+Shift+D) jumps straight to Settings → Diagnostics from anywhere.',
+    'Public handle: window.Diag = { check, runTests, errors, clear, reset, open }',
+    'Rationale: 8 phases shipped in one sitting with 36h until UAT. Instead of adding more surface area that could break, strengthen what\'s there so when the user returns they can SEE the state of every module at a glance, not have to debug blind.',
+  ]},
   { date: '2026-11-15', phase: 'Phase 51', title: 'Expanded test coverage for Phases 43-50 (+22 tests) + UAT checklist', kind: 'quality', items: [
     'Deliberate pause on new features to strengthen the foundation before building more on top. 8 phases in one sitting with 0 end-to-end user verification is a lot of unverified ground.',
     'Added 22 new in-browser tests covering Phases 43-50. All API-boundary / handle-exists / monkey-patch-detected tests — no state mutations, no modal opens, no renderAll invocations (those caused the Puppeteer evaluator to hang mid-run).',
