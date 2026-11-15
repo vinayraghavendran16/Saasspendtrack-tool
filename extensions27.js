@@ -96,6 +96,8 @@ const CMDS = [
     run: () => window.Settings?.setCurrency?.('GBP') },
   { id: 'set.export_json',   title: 'Export workspace as JSON',                group: 'Settings', keys: ['backup', 'download'],
     run: () => { safeSwitch('settings'); setTimeout(() => document.getElementById('st-export-json')?.click(), 400); } },
+  { id: 'set.sub_currency',  title: 'Edit per-subscription currency…',         group: 'Settings', keys: ['inr', 'native price', 'local currency'],
+    run: () => window.SubCurrency?.edit?.() },
   { id: 'set.trial_extend',  title: 'Extend trial by 14 days',                 group: 'Settings', keys: ['more time'],
     run: () => { safeSwitch('settings'); setTimeout(() => document.getElementById('st-trial-extend')?.click(), 400); } },
 

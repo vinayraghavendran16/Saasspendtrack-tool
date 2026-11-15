@@ -2213,3 +2213,55 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
   font-size: 11px; color: rgba(255,255,255,0.55);
 }
 .cp-foot span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ====================================================================
+   Phase 50 — Per-subscription currency editor + row tag
+   ==================================================================== */
+
+/* Tiny currency tag next to subscription names when source != display */
+.ccy-tag {
+  display: inline-flex; align-items: center;
+  margin-left: 6px; padding: 1px 6px; border-radius: 3px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em;
+  background: rgba(245,158,11,0.15); color: #fcd34d;
+  vertical-align: middle;
+}
+
+/* Currency editor modal */
+.ccy-ed { position: fixed; inset: 0; z-index: 810; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.ccy-ed-bd { position: absolute; inset: 0; background: rgba(2,6,23,0.78); backdrop-filter: blur(6px); }
+.ccy-ed-card {
+  position: relative; z-index: 1; width: min(560px, calc(100vw - 32px)); max-height: 80vh;
+  background: #0f1829; color: #ffffff; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6); padding: 22px 24px; display: flex; flex-direction: column;
+  font-family: inherit;
+}
+.ccy-ed-card * { color: inherit; box-sizing: border-box; }
+.ccy-ed-x { position: absolute; top: 10px; right: 14px; background: transparent; border: 0; color: rgba(255,255,255,0.5); font-size: 22px; cursor: pointer; }
+.ccy-ed-x:hover { color: #ffffff; }
+.ccy-ed-card h3 { margin: 0 0 6px; font-size: 15px; }
+.ccy-ed-sub { margin: 0 0 14px; font-size: 12.5px; color: rgba(255,255,255,0.65); line-height: 1.5; }
+
+.ccy-ed-filter {
+  background: rgba(255,255,255,0.05); color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 7px;
+  padding: 7px 11px; font-size: 13px; font-family: inherit;
+  margin-bottom: 10px;
+}
+.ccy-ed-filter:focus { outline: none; border-color: #5b8def; }
+
+.ccy-ed-list { overflow-y: auto; border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; flex: 1; }
+.ccy-ed-row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+  padding: 7px 12px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.ccy-ed-row:last-child { border-bottom: 0; }
+.ccy-ed-name { color: #ffffff; }
+.ccy-ed-cost { color: rgba(255,255,255,0.55); font-size: 11.5px; font-family: 'SF Mono', Menlo, monospace; }
+.ccy-ed-sel {
+  background: #1a2238; color: #ffffff; border: 1px solid rgba(255,255,255,0.12); border-radius: 5px;
+  padding: 3px 6px; font-size: 11.5px; font-family: inherit;
+}
+.ccy-ed-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
+.ccy-ed-save { background: #2563eb; color: #ffffff; border: 0; border-radius: 7px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; }
+.ccy-ed-save:hover { background: #1d4ed8; }

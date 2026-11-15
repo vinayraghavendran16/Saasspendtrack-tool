@@ -10,6 +10,17 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 50', title: 'Per-subscription source currency (closes the "future phase" gap from Phase 47)', kind: 'feature', items: [
+    'Every subscription now carries sub.currency (defaults to USD for backward compat with 48 phases of pre-existing data).',
+    'monthlyCost() is monkey-patched to normalise each sub through USD using the FX cache from Phase 47 before returning. Dashboards that sum costs now actually convert first instead of adding INR, EUR, USD as if they were the same unit.',
+    'Display still routes through Phase 47\'s formatMoney patch so the user sees everything in their chosen display currency.',
+    'Bulk import gets a Currency column in the mapping step. Auto-selects if the headers include "currency", "ccy", or "curr". Per-row currency is applied at commit time via a short-lived Array.prototype.push wrap — new subs get currency set before they land in state.',
+    'Per-cell symbol detection: notes/name containing ₹ / Rs / rupees → INR, € → EUR, £ → GBP, A$ / AUD → AUD, S$ / SGD → SGD, ¥ / JPY → JPY, AED / د.إ → AED, C$ / CAD → CAD. Fallback if no currency column was mapped.',
+    'Per-subscription currency editor: Command Palette → "Edit per-subscription currency…" opens a filtered list with per-row dropdowns and a Save All button. Bulk-edit across the whole book in seconds.',
+    'Subscription rows surface a small amber ccy-tag when the source currency differs from the display currency — power users can see at a glance which vendors are priced natively vs converted.',
+    'Public handle: window.SubCurrency = { edit, get, set } for QA and programmatic use.',
+    'FX fallback: if rates aren\'t cached yet (e.g. first load with non-USD display), subs fall back to USD treatment temporarily rather than showing NaN. Rates fetch in the background and refresh on next renderAll.',
+  ]},
   { date: '2026-11-15', phase: 'Phase 49', title: 'Command palette (⌘K / Ctrl+K) — one-keystroke launcher for every action', kind: 'feature', items: [
     'Keyboard shortcut Cmd+K (Mac) / Ctrl+K (Windows / Linux) opens a fuzzy-matching command palette. Click the compact ⌘K chip in the header as an alternative.',
     'Indexes everything that matters: all 18 views, bulk import, load sample contract, 3 report exports, onboarding tour / help / checklist, currency shortcuts (INR, USD, EUR, GBP), workspace export, trial extension, plans view.',
