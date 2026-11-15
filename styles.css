@@ -1411,3 +1411,234 @@ body.readonly-mode .kpi-value::after {
 
 /* Change-email backdrop a touch lighter (less destructive feel) */
 .signup-modal.sm-change .sm-backdrop { background: rgba(0,0,0,0.6); }
+
+/* ====================================================================
+   Phase 43 — In-app Onboarding (Whatfix-style)
+   ==================================================================== */
+
+/* ---------- Checklist widget (bottom-right) ---------- */
+.ob-checklist {
+  position: fixed; right: 20px; bottom: 20px; z-index: 450;
+  width: 340px; max-width: calc(100vw - 32px);
+  background: #0f1829; color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+  font-family: inherit; overflow: hidden;
+  transition: height .2s ease;
+}
+.ob-checklist.open .ob-chk-body { display: block; }
+.ob-checklist:not(.open) .ob-chk-body { display: none; }
+.ob-checklist:not(.open) .ob-chk-chev { transform: rotate(-90deg); }
+
+.ob-chk-head {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 12px 14px;
+  background: transparent; color: #ffffff; border: 0; cursor: pointer;
+  font-family: inherit;
+}
+.ob-chk-head:hover { background: rgba(255,255,255,0.03); }
+.ob-chk-head-left { display: flex; align-items: center; gap: 12px; }
+.ob-chk-head-txt { display: flex; flex-direction: column; text-align: left; line-height: 1.25; }
+.ob-chk-head-txt b { font-size: 14px; font-weight: 600; color: #ffffff; }
+.ob-chk-head-txt small { font-size: 11.5px; color: rgba(255,255,255,0.6); margin-top: 1px; }
+.ob-chk-chev { color: rgba(255,255,255,0.5); transition: transform .2s ease; flex: 0 0 auto; }
+
+/* Progress ring */
+.ob-chk-ring {
+  position: relative; width: 38px; height: 38px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ob-chk-ring svg { width: 38px; height: 38px; transform: rotate(-90deg); }
+.ob-ring-bg { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 3; }
+.ob-ring-fg { fill: none; stroke: #2563eb; stroke-width: 3; stroke-linecap: round; transition: stroke-dasharray .4s ease; }
+.ob-ring-txt { position: absolute; font-size: 10.5px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; }
+
+/* Body */
+.ob-chk-body {
+  max-height: 60vh; overflow-y: auto; padding: 4px 0 6px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.ob-chk-list { list-style: none; margin: 0; padding: 0; }
+.ob-chk-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background .15s ease;
+}
+.ob-chk-item:last-child { border-bottom: 0; }
+.ob-chk-item:hover { background: rgba(255,255,255,0.02); }
+.ob-chk-tick {
+  flex: 0 0 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.2);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; color: #ffffff; margin-top: 2px;
+  background: transparent;
+}
+.ob-chk-item.is-done .ob-chk-tick {
+  background: #10b981; border-color: #10b981; color: #fff;
+}
+.ob-chk-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ob-chk-label { font-size: 13px; font-weight: 500; color: #ffffff; line-height: 1.35; }
+.ob-chk-item.is-done .ob-chk-label { color: rgba(255,255,255,0.5); text-decoration: line-through; }
+.ob-chk-hint { font-size: 11.5px; color: rgba(255,255,255,0.55); line-height: 1.4; }
+.ob-chk-item.is-done .ob-chk-hint { display: none; }
+.ob-chk-cta {
+  flex: 0 0 auto; background: rgba(37,99,235,0.15); color: #7aa3f5;
+  border: 1px solid rgba(37,99,235,0.3); border-radius: 6px;
+  padding: 5px 10px; font-size: 11.5px; font-weight: 500; cursor: pointer;
+  margin-top: 1px; font-family: inherit;
+}
+.ob-chk-cta:hover { background: rgba(37,99,235,0.25); color: #ffffff; }
+.ob-chk-foot {
+  padding: 8px 14px 10px; border-top: 1px solid rgba(255,255,255,0.05);
+  text-align: center;
+}
+.ob-chk-dismiss {
+  background: transparent; border: 0; color: rgba(255,255,255,0.45);
+  font-size: 11px; cursor: pointer; font-family: inherit;
+  text-decoration: underline;
+}
+.ob-chk-dismiss:hover { color: #ffffff; }
+
+.ob-checklist.ob-chk-celebrate { box-shadow: 0 16px 50px rgba(16,185,129,0.35); border-color: rgba(16,185,129,0.4); }
+.ob-checklist.ob-chk-fading { opacity: 0; transition: opacity 1s ease; pointer-events: none; }
+
+/* ---------- Spotlight tour: overlay + tooltip ---------- */
+.ob-overlay {
+  position: fixed; inset: 0; z-index: 900;
+  pointer-events: none;
+}
+.ob-overlay-svg { position: absolute; inset: 0; }
+.ob-overlay-ring { animation: ob-ring-pulse 1.8s ease-in-out infinite; }
+@keyframes ob-ring-pulse {
+  0%, 100% { stroke-opacity: 1; }
+  50% { stroke-opacity: 0.4; }
+}
+
+.ob-tip {
+  position: fixed; z-index: 1000;
+  width: 320px; max-width: calc(100vw - 32px);
+  background: #0f1829; color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  padding: 16px;
+  font-family: inherit;
+  animation: ob-tip-in .2s ease-out;
+}
+@keyframes ob-tip-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ob-tip-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ob-tip-step { font-size: 11px; color: rgba(255,255,255,0.55); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.ob-tip-x {
+  background: transparent; border: 0; color: rgba(255,255,255,0.5);
+  font-size: 20px; cursor: pointer; line-height: 1; padding: 2px 6px;
+  border-radius: 4px; font-family: inherit;
+}
+.ob-tip-x:hover { background: rgba(255,255,255,0.08); color: #ffffff; }
+.ob-tip-title { font-size: 15px; font-weight: 600; margin: 0 0 6px; color: #ffffff; letter-spacing: -0.01em; }
+.ob-tip-body { font-size: 13px; line-height: 1.55; color: rgba(255,255,255,0.78); margin: 0 0 14px; }
+.ob-tip-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ob-tip-back, .ob-tip-next {
+  border: 0; border-radius: 7px; padding: 8px 14px;
+  font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
+}
+.ob-tip-back {
+  background: transparent; color: rgba(255,255,255,0.65);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.ob-tip-back:hover { background: rgba(255,255,255,0.05); color: #ffffff; }
+.ob-tip-next { background: #2563eb; color: #ffffff; }
+.ob-tip-next:hover { background: #1d4ed8; }
+
+/* ---------- Beacons (pulsing dots) ---------- */
+.ob-beacon {
+  position: absolute; top: 2px; right: 2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #2563eb; cursor: pointer;
+  box-shadow: 0 0 0 0 rgba(37,99,235,0.6);
+  animation: ob-beacon-pulse 1.6s ease-out infinite;
+  z-index: 10;
+}
+.ob-beacon:hover { transform: scale(1.3); }
+@keyframes ob-beacon-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.55); }
+  70% { box-shadow: 0 0 0 10px rgba(37,99,235,0); }
+  100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+}
+
+/* ---------- Smart tips (? icon) ---------- */
+.ob-smart-tip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: rgba(100,116,139,0.18); color: rgba(100,116,139,0.9);
+  font-size: 10px; font-weight: 700; cursor: help;
+  margin-left: 5px; vertical-align: middle;
+}
+.ob-smart-tip:hover { background: rgba(37,99,235,0.2); color: #2563eb; }
+
+/* ---------- Help launcher (bottom-right pill) ---------- */
+.ob-help {
+  position: fixed; right: 20px; bottom: 20px; z-index: 440;
+  display: inline-flex; align-items: center; gap: 7px;
+  background: #0f1829; color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 999px;
+  padding: 9px 16px 9px 11px; font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+.ob-help:hover { border-color: rgba(37,99,235,0.5); color: #ffffff; }
+.ob-help-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #2563eb; color: #ffffff; font-size: 12px; font-weight: 700;
+}
+/* When the checklist is visible, move the Help launcher up to make room. */
+body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
+
+.ob-help-panel {
+  position: fixed; right: 20px; bottom: 80px; z-index: 460;
+  width: 340px; max-width: calc(100vw - 32px); max-height: 70vh;
+  background: #0f1829; color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+  box-shadow: 0 16px 50px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column; overflow: hidden;
+  font-family: inherit;
+  animation: ob-tip-in .2s ease-out;
+}
+.ob-help-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.ob-help-head b { font-size: 14px; font-weight: 600; color: #ffffff; }
+.ob-help-x {
+  background: transparent; border: 0; color: rgba(255,255,255,0.5);
+  font-size: 22px; cursor: pointer; line-height: 1; padding: 0 6px; font-family: inherit;
+}
+.ob-help-x:hover { color: #ffffff; }
+.ob-help-search {
+  margin: 10px 14px; padding: 8px 12px;
+  background: rgba(255,255,255,0.05); color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 7px;
+  font-size: 13px; font-family: inherit;
+}
+.ob-help-search::placeholder { color: rgba(255,255,255,0.4); }
+.ob-help-search:focus { outline: none; border-color: #5b8def; background: rgba(255,255,255,0.08); }
+.ob-help-list { flex: 1; overflow-y: auto; padding: 4px 0 6px; }
+.ob-help-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; padding: 10px 14px;
+  background: transparent; border: 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+.ob-help-item:hover { background: rgba(255,255,255,0.04); }
+.ob-help-item-title { font-size: 13px; font-weight: 500; color: #ffffff; }
+.ob-help-item-sub { font-size: 11.5px; color: rgba(255,255,255,0.55); }
+.ob-help-foot {
+  padding: 10px 14px; border-top: 1px solid rgba(255,255,255,0.05);
+  font-size: 11.5px; color: rgba(255,255,255,0.5); text-align: center;
+}
+.ob-help-foot a { color: #7aa3f5; text-decoration: none; }
+.ob-help-foot a:hover { text-decoration: underline; }

@@ -10,6 +10,20 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 43', title: 'In-app onboarding: checklist, guided tour, beacons, smart tips, help launcher (Whatfix-style)', kind: 'feature', items: [
+    'Onboarding checklist widget bottom-right: 6 first wins (upload contract, add vendor, ask Track, see forecast, see renewals, see risk) with progress ring, auto-ticking as the user completes each, collapsible panel, dismiss with confirm',
+    'First-visit guided tour: 5-step spotlight walkthrough of sidebar + dashboard + contracts + Ask Track + trial badge, runs once 1.2s after load, respects Escape and skip',
+    'Spotlight overlay: SVG mask cutout with pulsing blue ring, tooltip auto-positioned to each step with viewport clamping, Back/Next/Done controls, step counter',
+    'Beacons: pulsing blue dots on the Ask Track mic, Forecast tab, and Risk tab — dismiss on click',
+    'Smart tips: hover-reveal ? icons attached to any element with a data-tip attribute (sprinkle as needed)',
+    'Help launcher: pill button bottom-right that opens a searchable panel with 7 replayable flows plus a mailto for support',
+    'Funnel telemetry: every flow start/complete/skip, checklist item completion, beacon click, and help open POSTs to the same Apps Script endpoint as signup — new event_type values tracked in the Sheet',
+    'All UI hidden on claudeusercontent.com and file:// so artifact previews and local demos stay clean',
+    'All UI hidden until signup capture completes so we never stack two modals',
+    'State persists per workspace under state.settings.onboarding — resetAll helper exposed as window.OnboardHelp.resetAll() for QA',
+    'Fix: index.src.html restored as the canonical source template (Phase 42 accidentally overwrote it with the bundled output, breaking the bundle pipeline)',
+    'bundle.py updated to read index.src.html and write both the artifact copy and saasspendtrack-tool/index.html, so one command produces the deployable Pages bundle',
+  ]},
   { date: '2026-11-14', phase: 'Phase 38', title: 'Signup: work-email only (reject personal domains), live Apps Script URL wired', kind: 'feature', items: [
     'Signup modal now rejects personal email domains with a clear inline message naming the domain: "gmail.com looks like a personal email. Please use your work email so we can match your trial to your company for follow-up and GST invoicing."',
     'Block list: gmail, googlemail, yahoo (all country TLDs), outlook, hotmail, live, msn, icloud, me, mac, aol, protonmail, rediffmail, mail.com, gmx, yandex, qq, 163, 126, foxmail, zoho, fastmail, tutanota',
