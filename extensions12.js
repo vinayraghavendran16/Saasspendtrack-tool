@@ -10,6 +10,19 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 45', title: 'Trial email nurture drip (5 emails over 14 days, Apps Script time-driven)', kind: 'feature', items: [
+    '5-email sequence replacing the "one welcome then silence" gap. Day 2: fastest way to see the tool (sent only to users who haven\'t loaded a contract yet). Day 4: three findings worth looking for (sent only to users who\'ve loaded data). Day 8: what the first 90 days look like (ROI framing). Day 12: trial ends Friday. Day 14: last day.',
+    'Zero new client-side code. Browser already posts onboarding + bulk-import events to the Apps Script endpoint; the drip derives per-user state (signed up when, loaded contract, bulk imported, used Ask Track, paid) from the events sheet and picks the right email per user per day.',
+    'Runs via a daily time-driven trigger (9-10am local time). One email per user per day, max.',
+    'Paid users automatically excluded once any payment_completed / paid_marked / manual_paid cell is seen in their event history.',
+    'Opt-out: any email address in a sheet named "Opt Out" is excluded. Users who reply "stop" get added manually.',
+    'Logs every send back to the events sheet as event_type=drip_<id>_sent so the same email never goes twice.',
+    'Honest copy — no made-up customer logos, no invented testimonials, no fake urgency. Each email offers a concrete next action (open the Risk tab, see pricing, hit reply).',
+    'Branded HTML with blue CTA button + plain-text fallback for mail clients that strip HTML.',
+    'Test from the Apps Script editor via testDripNow() (sends immediately) or previewTrialState() (logs the state table without sending).',
+    'Setup walkthrough in trial-tracking/DRIP-SETUP.md: 3-minute install, trigger config, opt-out, how to add new emails, how to change copy.',
+    'What\'s NOT in this phase: A/B subject-line testing, open/click tracking (requires pixel hosting, often blocked by corp mail anyway), firmographic segmentation (signup only collects email+company), Razorpay webhooks to stop drip instantly on payment (future phase).',
+  ]},
   { date: '2026-11-15', phase: 'Phase 44', title: 'Bulk CSV import for subscriptions (3-step modal with auto-mapping and fuzzy dedup)', kind: 'feature', items: [
     'New "Bulk import" button on the Subscriptions view header opens a 3-step modal: paste or upload → map columns → preview and commit',
     'CSV parser handles quoted fields with commas inside them, auto-detects tab vs comma delimiter, strips BOM / CRLF cleanly',
