@@ -2009,3 +2009,100 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
   from { opacity: 0; transform: translateX(-50%) translateY(12px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* ====================================================================
+   Phase 48 — Payment acknowledgment modal
+   ==================================================================== */
+
+.pay-ack {
+  position: fixed; inset: 0; z-index: 750;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: pa-fade-in .25s ease-out;
+}
+@keyframes pa-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.pay-ack-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(2,6,23,0.82); backdrop-filter: blur(6px);
+}
+
+.pay-ack-card {
+  position: relative; z-index: 1;
+  width: min(520px, calc(100vw - 32px));
+  background: #0f1829; color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  padding: 28px 30px 24px;
+  font-family: inherit;
+  text-align: center;
+  animation: pa-card-in .3s ease-out;
+}
+@keyframes pa-card-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.pay-ack-card * { color: inherit; }
+
+.pay-ack-check {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px; border-radius: 50%;
+  background: #10b981; color: #ffffff;
+  margin: 0 auto 14px;
+  animation: pa-check-pop .5s cubic-bezier(.3,1.4,.4,1);
+}
+@keyframes pa-check-pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+
+.pay-ack-card h2 {
+  margin: 0 0 8px; font-size: 22px; font-weight: 700; letter-spacing: -0.015em;
+}
+.pay-ack-sub {
+  margin: 0 0 16px; font-size: 14px; line-height: 1.5;
+  color: rgba(255,255,255,0.78);
+}
+.pay-ack-ref {
+  display: inline-block;
+  background: rgba(255,255,255,0.06); border-radius: 6px;
+  padding: 6px 12px; font-size: 12px;
+  color: rgba(255,255,255,0.7); margin-bottom: 18px;
+}
+.pay-ack-ref code { font-family: 'SF Mono', Menlo, monospace; color: #ffffff; }
+
+.pay-ack-detail {
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.18);
+  border-radius: 10px; padding: 14px 18px; margin: 10px 0 18px;
+  text-align: left;
+}
+.pay-ack-detail > div { font-size: 12px; font-weight: 600; margin-bottom: 8px; color: #6ee7b7; }
+.pay-ack-detail ul { list-style: none; padding: 0; margin: 0; font-size: 12.5px; }
+.pay-ack-detail li {
+  padding: 4px 0 4px 20px; position: relative; color: rgba(255,255,255,0.8); line-height: 1.45;
+}
+.pay-ack-detail li::before {
+  content: '✓'; position: absolute; left: 0; color: #6ee7b7; font-weight: 700;
+}
+
+.pay-ack-foot {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 11px; color: rgba(255,255,255,0.45); margin-bottom: 14px;
+}
+.pay-ack-link {
+  background: transparent; border: 0;
+  color: rgba(255,255,255,0.55); font-size: 11px;
+  cursor: pointer; text-decoration: underline; font-family: inherit;
+}
+.pay-ack-link:hover { color: #ffffff; }
+
+.pay-ack-primary {
+  width: 100%;
+  background: #2563eb; color: #ffffff; border: 0;
+  padding: 12px; border-radius: 10px;
+  font-weight: 600; font-size: 14px; cursor: pointer;
+  font-family: inherit;
+}
+.pay-ack-primary:hover { background: #1d4ed8; }
+
+/* Paid plan badge override */
+.plan-badge.is-paid, [data-plan-badge].is-paid {
+  background: rgba(16,185,129,0.15) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16,185,129,0.3) !important;
+}

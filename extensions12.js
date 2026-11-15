@@ -10,6 +10,19 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 48', title: 'Payment-return detection: stop the drip + unlock paid state automatically on Razorpay return', kind: 'feature', items: [
+    'Closes the embarrassing case: user pays on day 11, returns to the tool, sees "Trial: 2 days left" and gets a day-12 "trial ends Friday" email anyway.',
+    'Detection triggers (checked on every page load): ?razorpay_payment_id= / ?payment_id= query params (Razorpay default), ?paid=1 / ?status=success URL params, #paid / #payment-success hash, OR a sessionStorage trail dropped when the user clicked a Pay button (fallback for when Razorpay strips query params on return — if the user left 30s-30min ago and came back, inferred as paid).',
+    'Any Pay button (links to rzp.io, elements with data-pay / data-pay-india / data-pay-global attributes) gets instrumented with a click handler that sets sst_pay_pending in sessionStorage — so inference works even if the return URL has no params.',
+    'Celebratory one-shot modal on first detection: green check animation, "Payment received" headline, what-changes list (trial countdown removed, paywalls hidden, data preserved), payment reference echoed if we have it, Undo link for the false-positive case.',
+    'URL is cleaned after detection so a refresh does not re-fire the modal.',
+    'payment_completed event posted to the Apps Script sheet with method / payment_id / inferred flag — the drip\'s runDailyDrip reads this and excludes the user from further emails within 24 hours.',
+    'workspace.plan flips from "trial" to "paid", workspace.paidAt stamped with ISO timestamp.',
+    'Trial-gating UI auto-hidden once paid: trial banners, countdown badges, data-trial-only elements removed. Plan badges change from "Trial" to "Paid plan · Active" with green styling.',
+    'Manual override in Settings: new "I\'ve paid — unlock my workspace" card lets users mark paid by hand for bank transfers / cross-browser payments / cases where auto-detect misses. Takes an optional payment reference.',
+    'Public handle: window.MarkPaid = { manual, isPaid, state, undo } for support and QA.',
+    'Known limitation: without a Razorpay webhook into the Apps Script endpoint, server-side state is 24h behind the browser. Future phase: wire a Razorpay webhook so payment_completed hits the sheet instantly on successful charge, even if the user never returns to the tool.',
+  ]},
   { date: '2026-11-15', phase: 'Phase 47', title: 'Settings view + multi-currency display (USD / INR / EUR / GBP / AUD / SGD / AED / JPY / CAD)', kind: 'feature', items: [
     'New Settings sidebar tab (last position) consolidating workspace + currency + data + trial + danger-zone controls that were previously scattered or missing',
     'Display currency setting with 9 currencies supported. All $ amounts in the tool convert automatically — no refactor of 120+ formatMoney call sites required. The global formatMoney() and formatMoneyShort() are monkey-patched to run every value through live FX before display.',

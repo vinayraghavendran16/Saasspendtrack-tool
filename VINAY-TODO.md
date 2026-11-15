@@ -5,7 +5,7 @@ up to date every phase — anything that only you can do (dashboard
 clicks, OAuth, payment setup, legal filings, copy sign-off) lives
 here. Tick items off by removing them from the list, or ask me to.
 
-Last updated: Phase 45 — 2026-11-15
+Last updated: Phase 48 — 2026-11-15
 
 ---
 
@@ -75,6 +75,25 @@ These control where welcome and drip emails reply-to, and what phone
 number appears in signature lines. Edit directly in the Apps Script
 editor — no deploy needed for welcome email changes; drip picks them
 up on the next scheduled run.
+
+---
+
+## P1.5 — reliability (small but worth doing)
+
+### Wire a Razorpay webhook into the Apps Script endpoint
+Right now payment detection is browser-side (Phase 48): user returns from
+Razorpay → tool detects → event fired to sheet → drip stops within 24h.
+If a user pays but never returns to the tool, we don't know. The drip
+will still send "last day of trial" to a paying customer.
+
+Fix: Razorpay dashboard → Settings → Webhooks → Add webhook:
+- URL: your Apps Script `/exec` endpoint (same as signup)
+- Events: `payment.captured` (and optionally `order.paid`)
+- Secret: generate one and save it
+
+Then I add a `doPost` branch that detects the Razorpay payload shape
+and fires `payment_completed` with the Razorpay payment_id. Takes ~15 min
+once the webhook is configured in Razorpay — ping me when done.
 
 ---
 
