@@ -10,6 +10,19 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 47', title: 'Settings view + multi-currency display (USD / INR / EUR / GBP / AUD / SGD / AED / JPY / CAD)', kind: 'feature', items: [
+    'New Settings sidebar tab (last position) consolidating workspace + currency + data + trial + danger-zone controls that were previously scattered or missing',
+    'Display currency setting with 9 currencies supported. All $ amounts in the tool convert automatically — no refactor of 120+ formatMoney call sites required. The global formatMoney() and formatMoneyShort() are monkey-patched to run every value through live FX before display.',
+    'FX rates fetched from frankfurter.app (free, no API key, business-daily rates from the European Central Bank). Cached in localStorage for 24h to avoid hammering the API. Background refresh on load if user already picked a non-USD currency.',
+    'Workspace editor: company name + owner email, with inline save button that updates state.settings.workspace.',
+    'Data export: download the entire state object as .json (contracts, vendors, invoices, usage, onboarding, FX cache — everything). Routes through the existing downloadFile bridge so it works on both artifact and hosted.',
+    'Data import: restore from a .json export. Confirms before overwriting, reloads the page on success.',
+    'Trial controls: extend by 14 days (for prospects who ask for more time), reset to day 1 (for distributor demos). Both are instant localStorage edits; no server call.',
+    'Danger zone: clear everything. Triple confirm (prompt requires typing DELETE), wipes localStorage, sessionStorage, IndexedDB, then reloads.',
+    'Toast notifications for every action so the user knows the save landed.',
+    'Public handle: window.Settings = { open, setCurrency, refreshFx } for programmatic use and QA.',
+    'Known trade-off: this phase treats all contract costs as USD. For tools priced in local currency originally (e.g. a Rupee-only vendor), the displayed conversion will be nonsense in a different display currency. Future phase can add per-subscription source currency; this one gets the common 95% case right (USD originals, non-USD display).',
+  ]},
   { date: '2026-11-15', phase: 'Phase 46', title: 'Export deliverables: Reports view with monthly spend PDF, renewal roster CSV, savings opportunities PDF', kind: 'feature', items: [
     'New "Reports" tab in the sidebar (between Risk and Playbook) lists three one-click exports, each generated live from current state (never cached — always current).',
     'Monthly Spend Summary PDF: one-page branded report with four headline tiles (monthly spend, annualised, active vendors, renewals in next 90 days), top 10 vendors table, category bar-breakdown, and a highlighted list of renewals due in 90 days. Red-tag on anything under 30 days.',
