@@ -10,6 +10,17 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 49', title: 'Command palette (⌘K / Ctrl+K) — one-keystroke launcher for every action', kind: 'feature', items: [
+    'Keyboard shortcut Cmd+K (Mac) / Ctrl+K (Windows / Linux) opens a fuzzy-matching command palette. Click the compact ⌘K chip in the header as an alternative.',
+    'Indexes everything that matters: all 18 views, bulk import, load sample contract, 3 report exports, onboarding tour / help / checklist, currency shortcuts (INR, USD, EUR, GBP), workspace export, trial extension, plans view.',
+    'Direct Ask Track query: type "ask: how many renewals this quarter" and hit Enter — the palette opens Ask Track with the query pre-populated and submitted.',
+    'Keyboard-first: ↑↓ to move, Enter to run, Esc to close. Mouse hover also updates the selection.',
+    'Fuzzy ranking: exact prefix > word prefix > substring > keyword match > character-interleaved. Scoped to each command\'s title + keywords + group name. Returns top 12.',
+    'Recent actions pinned at the top when the input is empty (last 5 used). Then top navigation items as defaults.',
+    'Grouped output (Navigate / Actions / Reports / Help / Settings / Payment / Ask Track) with subtle group labels.',
+    'Public handle: window.CmdPal = { open, close } for keyboard bindings and testing.',
+    'Hidden on claudeusercontent.com and file:// — same gate as the signup modal and onboarding — so demos stay clean.',
+  ]},
   { date: '2026-11-15', phase: 'Phase 48', title: 'Payment-return detection: stop the drip + unlock paid state automatically on Razorpay return', kind: 'feature', items: [
     'Closes the embarrassing case: user pays on day 11, returns to the tool, sees "Trial: 2 days left" and gets a day-12 "trial ends Friday" email anyway.',
     'Detection triggers (checked on every page load): ?razorpay_payment_id= / ?payment_id= query params (Razorpay default), ?paid=1 / ?status=success URL params, #paid / #payment-success hash, OR a sessionStorage trail dropped when the user clicked a Pay button (fallback for when Razorpay strips query params on return — if the user left 30s-30min ago and came back, inferred as paid).',

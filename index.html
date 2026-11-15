@@ -2117,6 +2117,113 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
   border-color: rgba(16,185,129,0.3) !important;
 }
 
+/* ====================================================================
+   Phase 49 — Command palette (⌘K)
+   ==================================================================== */
+
+/* Trigger chip (in header) */
+.cp-trigger {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.65);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 7px;
+  padding: 5px 10px; font-size: 11.5px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+  margin-right: 10px;
+}
+.cp-trigger:hover { color: #ffffff; border-color: #2563eb; background: rgba(37,99,235,0.1); }
+
+/* Modal shell */
+.cp-modal {
+  position: fixed; inset: 0; z-index: 820;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 10vh 24px 24px;
+  animation: cp-fade .18s ease-out;
+}
+@keyframes cp-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.cp-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(2,6,23,0.78); backdrop-filter: blur(6px);
+}
+
+.cp-card {
+  position: relative; z-index: 1;
+  width: min(640px, calc(100vw - 32px));
+  max-height: 70vh;
+  background: #0f1829; color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  display: flex; flex-direction: column; overflow: hidden;
+  font-family: inherit;
+  animation: cp-in .2s ease-out;
+}
+@keyframes cp-in { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.cp-card * { color: inherit; box-sizing: border-box; }
+
+.cp-input-wrap {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.cp-search-icon { color: rgba(255,255,255,0.4); flex: 0 0 auto; }
+.cp-input {
+  flex: 1; background: transparent; color: #ffffff;
+  border: 0; outline: 0; font-size: 15px; font-family: inherit;
+}
+.cp-input::placeholder { color: rgba(255,255,255,0.35); }
+
+.cp-esc, .cp-foot kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 2px 6px; border-radius: 4px;
+  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.65);
+  font-size: 10.5px; font-family: 'SF Mono', Menlo, monospace;
+  border: 1px solid rgba(255,255,255,0.1);
+  min-width: 18px; line-height: 1.3;
+}
+
+.cp-results {
+  flex: 1; overflow-y: auto; padding: 6px 0;
+}
+.cp-group { padding: 6px 0; }
+.cp-group-label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.4); text-transform: uppercase;
+  padding: 4px 18px 6px;
+}
+.cp-item {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 8px 18px;
+  background: transparent; border: 0; cursor: pointer;
+  text-align: left; font-family: inherit; font-size: 13.5px;
+  color: #ffffff;
+}
+.cp-item.is-selected {
+  background: rgba(37,99,235,0.18);
+}
+.cp-item.is-selected .cp-item-title { color: #ffffff; }
+.cp-item-title { color: rgba(255,255,255,0.88); }
+.cp-item-tag {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.06); padding: 2px 7px; border-radius: 4px;
+  font-weight: 500;
+}
+
+.cp-empty {
+  padding: 24px 18px; color: rgba(255,255,255,0.55);
+  font-size: 13px; text-align: center; line-height: 1.5;
+}
+.cp-empty code {
+  background: rgba(255,255,255,0.08); padding: 1px 6px; border-radius: 4px;
+  font-size: 12px; color: #ffffff;
+}
+
+.cp-foot {
+  display: flex; gap: 14px; justify-content: center;
+  padding: 10px 18px; border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 11px; color: rgba(255,255,255,0.55);
+}
+.cp-foot span { display: inline-flex; align-items: center; gap: 5px; }
+
 </style>
 </head>
 <body>
@@ -10253,6 +10360,17 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 49', title: 'Command palette (⌘K / Ctrl+K) — one-keystroke launcher for every action', kind: 'feature', items: [
+    'Keyboard shortcut Cmd+K (Mac) / Ctrl+K (Windows / Linux) opens a fuzzy-matching command palette. Click the compact ⌘K chip in the header as an alternative.',
+    'Indexes everything that matters: all 18 views, bulk import, load sample contract, 3 report exports, onboarding tour / help / checklist, currency shortcuts (INR, USD, EUR, GBP), workspace export, trial extension, plans view.',
+    'Direct Ask Track query: type "ask: how many renewals this quarter" and hit Enter — the palette opens Ask Track with the query pre-populated and submitted.',
+    'Keyboard-first: ↑↓ to move, Enter to run, Esc to close. Mouse hover also updates the selection.',
+    'Fuzzy ranking: exact prefix > word prefix > substring > keyword match > character-interleaved. Scoped to each command\'s title + keywords + group name. Returns top 12.',
+    'Recent actions pinned at the top when the input is empty (last 5 used). Then top navigation items as defaults.',
+    'Grouped output (Navigate / Actions / Reports / Help / Settings / Payment / Ask Track) with subtle group labels.',
+    'Public handle: window.CmdPal = { open, close } for keyboard bindings and testing.',
+    'Hidden on claudeusercontent.com and file:// — same gate as the signup modal and onboarding — so demos stay clean.',
+  ]},
   { date: '2026-11-15', phase: 'Phase 48', title: 'Payment-return detection: stop the drip + unlock paid state automatically on Razorpay return', kind: 'feature', items: [
     'Closes the embarrassing case: user pays on day 11, returns to the tool, sees "Trial: 2 days left" and gets a day-12 "trial ends Friday" email anyway.',
     'Detection triggers (checked on every page load): ?razorpay_payment_id= / ?payment_id= query params (Razorpay default), ?paid=1 / ?status=success URL params, #paid / #payment-success hash, OR a sessionStorage trail dropped when the user clicked a Pay button (fallback for when Razorpay strips query params on return — if the user left 30s-30min ago and came back, inferred as paid).',
@@ -17356,6 +17474,370 @@ if (_prevSwitch48 && !_prevSwitch48._p48) {
     return r;
   };
   window.switchView._p48 = true;
+}
+
+})();
+
+</script>
+<script>
+/* ================================================================
+   Phase 49 — Command palette (⌘K)
+   ================================================================
+   One-keystroke launcher for every meaningful action in the tool.
+
+   Trigger: Cmd+K on Mac, Ctrl+K on Windows/Linux, or click the
+            small "⌘K" chip in the header.
+
+   What's indexed:
+   - Navigate to any view
+   - Run any report export
+   - Open any onboarding flow
+   - Open settings / bulk import / data export
+   - Direct Ask Track query: type `ask: how many renewals this quarter`
+     and hit Enter — opens Ask Track with the query pre-populated.
+
+   Fuzzy matches on title + keywords. Ranks exact prefix matches
+   highest. Keyboard-first: ↑↓ to move, Enter to run, Esc to close.
+   Remembers last 5 used actions and surfaces them when the input
+   is empty.
+   ================================================================ */
+
+(() => {
+
+/* ---------------- Action catalog ---------------- */
+
+const CMDS = [
+  // Navigation
+  { id: 'nav.dashboard',     title: 'Dashboard',              group: 'Navigate', keys: ['home', 'overview'],
+    run: () => safeSwitch('dashboard') },
+  { id: 'nav.insights',      title: 'Insights',               group: 'Navigate', keys: ['trends'],
+    run: () => safeSwitch('insights') },
+  { id: 'nav.analytics',     title: 'Analytics',              group: 'Navigate', keys: ['charts'],
+    run: () => safeSwitch('analytics') },
+  { id: 'nav.subscriptions', title: 'Subscriptions',          group: 'Navigate', keys: ['vendors', 'tools', 'saas'],
+    run: () => safeSwitch('subscriptions') },
+  { id: 'nav.invoices',      title: 'Invoices',               group: 'Navigate', keys: ['bills', 'receipts'],
+    run: () => safeSwitch('invoices') },
+  { id: 'nav.consumption',   title: 'Licence usage',          group: 'Navigate', keys: ['forecast', 'seats', 'utilization'],
+    run: () => safeSwitch('consumption') },
+  { id: 'nav.contracts',     title: 'Contract terms',         group: 'Navigate', keys: ['upload contract', 'parse', 'msa'],
+    run: () => safeSwitch('contracts') },
+  { id: 'nav.renewals',      title: 'Renewals',               group: 'Navigate', keys: ['calendar', 'upcoming'],
+    run: () => safeSwitch('renewals') },
+  { id: 'nav.alerts',        title: 'Alerts',                 group: 'Navigate', keys: ['notifications'],
+    run: () => safeSwitch('alerts') },
+  { id: 'nav.risk',          title: 'Risk analytics',         group: 'Navigate', keys: ['auto-renew traps', 'orphans', 'shadow saas'],
+    run: () => safeSwitch('risk') },
+  { id: 'nav.playbook',      title: 'Clause playbook',        group: 'Navigate', keys: ['negotiation', 'clauses'],
+    run: () => safeSwitch('playbook') },
+  { id: 'nav.team',          title: 'Team directory',         group: 'Navigate', keys: ['employees', 'people', 'users'],
+    run: () => safeSwitch('team') },
+  { id: 'nav.integrations',  title: 'Integrations',           group: 'Navigate', keys: ['connections', 'apps'],
+    run: () => safeSwitch('integrations') },
+  { id: 'nav.roadmap',       title: 'Integration roadmap',    group: 'Navigate', keys: ['coming soon'],
+    run: () => safeSwitch('roadmap') },
+  { id: 'nav.reports',       title: 'Reports',                group: 'Navigate', keys: ['downloads', 'export', 'pdf', 'csv'],
+    run: () => safeSwitch('reports') },
+  { id: 'nav.pricing',       title: 'Plans & pricing',        group: 'Navigate', keys: ['upgrade', 'pay', 'buy'],
+    run: () => safeSwitch('pricing') },
+  { id: 'nav.chat',          title: 'Ask Track',              group: 'Navigate', keys: ['ai', 'chat', 'question', 'search'],
+    run: () => safeSwitch('chat') },
+  { id: 'nav.settings',      title: 'Settings',               group: 'Navigate', keys: ['preferences', 'workspace', 'currency'],
+    run: () => safeSwitch('settings') },
+
+  // Create / import
+  { id: 'do.bulk_import',    title: 'Bulk import from CSV…',  group: 'Actions', keys: ['upload csv', 'paste spreadsheet', 'import vendors'],
+    run: () => window.BulkImport?.open() },
+  { id: 'do.load_sample',    title: 'Load sample contract',   group: 'Actions', keys: ['demo', 'try'],
+    run: () => { safeSwitch('contracts'); setTimeout(() => document.getElementById('sample-contract')?.click(), 300); } },
+
+  // Reports / exports
+  { id: 'report.spend',      title: 'Download Monthly Spend Summary (PDF)',    group: 'Reports', keys: ['export pdf', 'spend report'],
+    run: () => window.Reports?.spendSummary() },
+  { id: 'report.renewals',   title: 'Download Renewal Roster (CSV)',           group: 'Reports', keys: ['export csv', 'renewal list'],
+    run: () => window.Reports?.renewalRoster() },
+  { id: 'report.savings',    title: 'Download Savings Opportunities (PDF)',    group: 'Reports', keys: ['findings', 'waste'],
+    run: () => window.Reports?.savings() },
+
+  // Onboarding
+  { id: 'ob.tour',           title: 'Replay the welcome tour',                 group: 'Help', keys: ['walkthrough', 'guided'],
+    run: () => window.OnboardHelp?.runFlow?.('tour') },
+  { id: 'ob.help',           title: 'Open the Help panel',                     group: 'Help', keys: ['how-to', 'guides'],
+    run: () => window.OnboardHelp?.open?.() },
+  { id: 'ob.restore_checklist', title: 'Restore the onboarding checklist',     group: 'Help', keys: ['get started', 'bring back'],
+    run: () => window.OnboardHelp?.resetChecklist?.() },
+
+  // Settings + currency shortcuts
+  { id: 'set.currency.inr',  title: 'Show amounts in INR (₹)',                 group: 'Settings', keys: ['india rupee'],
+    run: () => window.Settings?.setCurrency?.('INR') },
+  { id: 'set.currency.usd',  title: 'Show amounts in USD ($)',                 group: 'Settings', keys: ['dollar'],
+    run: () => window.Settings?.setCurrency?.('USD') },
+  { id: 'set.currency.eur',  title: 'Show amounts in EUR (€)',                 group: 'Settings', keys: ['euro'],
+    run: () => window.Settings?.setCurrency?.('EUR') },
+  { id: 'set.currency.gbp',  title: 'Show amounts in GBP (£)',                 group: 'Settings', keys: ['pound', 'british'],
+    run: () => window.Settings?.setCurrency?.('GBP') },
+  { id: 'set.export_json',   title: 'Export workspace as JSON',                group: 'Settings', keys: ['backup', 'download'],
+    run: () => { safeSwitch('settings'); setTimeout(() => document.getElementById('st-export-json')?.click(), 400); } },
+  { id: 'set.trial_extend',  title: 'Extend trial by 14 days',                 group: 'Settings', keys: ['more time'],
+    run: () => { safeSwitch('settings'); setTimeout(() => document.getElementById('st-trial-extend')?.click(), 400); } },
+
+  // Payment shortcut
+  { id: 'pay.open',          title: 'Open Plans & pricing',                    group: 'Payment', keys: ['pay', 'upgrade', 'buy'],
+    run: () => safeSwitch('pricing') },
+];
+
+/* ---------------- State ---------------- */
+
+function cpState() {
+  state.settings = state.settings || {};
+  state.settings.cmdpal = state.settings.cmdpal || { recent: [] };
+  return state.settings.cmdpal;
+}
+
+function rememberRecent(id) {
+  const s = cpState();
+  s.recent = [id, ...(s.recent || []).filter(x => x !== id)].slice(0, 5);
+  if (typeof save === 'function') save();
+}
+
+function safeSwitch(name) {
+  try { if (typeof switchView === 'function') switchView(name); } catch (_) {}
+}
+
+/* ---------------- Fuzzy match ---------------- */
+
+/* Score a command against the query. Higher = better match.
+   - Exact prefix match on title → +100
+   - Any word starts with query → +50
+   - Title contains query substring → +20
+   - Keyword exact → +15, keyword contains → +5
+   - Group name contains → +3
+*/
+function scoreCmd(cmd, q) {
+  if (!q) return 0;
+  const query = q.toLowerCase().trim();
+  const title = cmd.title.toLowerCase();
+  const group = (cmd.group || '').toLowerCase();
+  const keys = (cmd.keys || []).map(k => k.toLowerCase());
+
+  let s = 0;
+  if (title.startsWith(query)) s += 100;
+  const words = title.split(/\W+/);
+  for (const w of words) {
+    if (w.startsWith(query)) { s += 50; break; }
+  }
+  if (title.includes(query)) s += 20;
+  for (const k of keys) {
+    if (k === query) s += 15;
+    else if (k.includes(query)) s += 5;
+  }
+  if (group.includes(query)) s += 3;
+
+  // Character-interleaved fuzzy match (e.g. "ddc" matches "Dashboard contracts")
+  // Only used if no other match hit yet.
+  if (s === 0) {
+    let i = 0;
+    for (const ch of title) {
+      if (ch === query[i]) i++;
+      if (i >= query.length) { s += 2; break; }
+    }
+  }
+  return s;
+}
+
+function filterCmds(query) {
+  // Special-case: "ask: ..." runs a direct Ask Track query
+  if (query.toLowerCase().startsWith('ask:') || query.toLowerCase().startsWith('ask ')) {
+    const q = query.replace(/^ask[: ]\s*/i, '').trim();
+    return [{
+      id: 'ask.query',
+      title: `Ask Track: "${q || '...'}"`,
+      group: 'Ask Track',
+      _askQuery: q,
+      run: () => {
+        safeSwitch('chat');
+        setTimeout(() => {
+          const input = document.querySelector('#ai-input, textarea, input[type="text"]');
+          if (!input) return;
+          input.value = q;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          // Try to submit if there's a form
+          const form = input.closest('form');
+          if (form && q) form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        }, 350);
+      },
+    }];
+  }
+
+  if (!query) {
+    // Empty state: recent + top nav items
+    const s = cpState();
+    const recent = (s.recent || [])
+      .map(id => CMDS.find(c => c.id === id))
+      .filter(Boolean)
+      .map(c => ({ ...c, _recent: true }));
+    const defaults = CMDS.filter(c => c.group === 'Navigate').slice(0, 6);
+    const seen = new Set();
+    return [...recent, ...defaults].filter(c => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id); return true;
+    }).slice(0, 10);
+  }
+  return CMDS
+    .map(c => ({ cmd: c, s: scoreCmd(c, query) }))
+    .filter(x => x.s > 0)
+    .sort((a, b) => b.s - a.s)
+    .slice(0, 12)
+    .map(x => x.cmd);
+}
+
+/* ---------------- UI ---------------- */
+
+let selectedIndex = 0;
+let currentResults = [];
+
+function open() {
+  if (document.getElementById('cp-modal')) return;
+  selectedIndex = 0;
+  currentResults = filterCmds('');
+
+  const m = document.createElement('div');
+  m.id = 'cp-modal';
+  m.className = 'cp-modal';
+  m.innerHTML = `
+    <div class="cp-backdrop" id="cp-backdrop"></div>
+    <div class="cp-card">
+      <div class="cp-input-wrap">
+        <svg class="cp-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="cp-input" class="cp-input" placeholder="Jump to… or type &quot;ask: how many renewals this quarter&quot;" autocomplete="off" autofocus/>
+        <kbd class="cp-esc">esc</kbd>
+      </div>
+      <div class="cp-results" id="cp-results"></div>
+      <div class="cp-foot">
+        <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+        <span><kbd>↵</kbd> run</span>
+        <span><kbd>esc</kbd> close</span>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(m);
+
+  const input = m.querySelector('#cp-input');
+  const backdrop = m.querySelector('#cp-backdrop');
+
+  backdrop.onclick = close;
+  input.oninput = () => {
+    currentResults = filterCmds(input.value);
+    selectedIndex = 0;
+    renderResults();
+  };
+  input.onkeydown = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1); renderResults(); scrollSelectedIntoView(); return; }
+    if (e.key === 'ArrowUp') { e.preventDefault(); selectedIndex = Math.max(selectedIndex - 1, 0); renderResults(); scrollSelectedIntoView(); return; }
+    if (e.key === 'Enter') { e.preventDefault(); runSelected(); return; }
+  };
+  renderResults();
+}
+
+function close() { document.getElementById('cp-modal')?.remove(); }
+
+function renderResults() {
+  const host = document.getElementById('cp-results');
+  if (!host) return;
+
+  if (!currentResults.length) {
+    host.innerHTML = `<div class="cp-empty">No match. Try fewer keywords, or start with <code>ask:</code> to send a question to Ask Track.</div>`;
+    return;
+  }
+
+  // Group results
+  const groups = {};
+  currentResults.forEach((c, i) => {
+    const g = (c._recent ? 'Recent' : (c.group || 'Other'));
+    groups[g] = groups[g] || [];
+    groups[g].push({ cmd: c, idx: i });
+  });
+
+  host.innerHTML = Object.entries(groups).map(([g, items]) => `
+    <div class="cp-group">
+      <div class="cp-group-label">${escapeHtml(g)}</div>
+      ${items.map(({ cmd, idx }) => `
+        <button type="button" class="cp-item ${idx === selectedIndex ? 'is-selected' : ''}" data-idx="${idx}">
+          <span class="cp-item-title">${escapeHtml(cmd.title)}</span>
+          ${cmd._recent ? '<span class="cp-item-tag">recent</span>' : ''}
+        </button>
+      `).join('')}
+    </div>
+  `).join('');
+
+  host.querySelectorAll('.cp-item').forEach(el => {
+    el.onmouseenter = () => { selectedIndex = parseInt(el.dataset.idx, 10); renderResults(); };
+    el.onclick = () => { selectedIndex = parseInt(el.dataset.idx, 10); runSelected(); };
+  });
+}
+
+function scrollSelectedIntoView() {
+  const el = document.querySelector('.cp-item.is-selected');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+}
+
+function runSelected() {
+  const cmd = currentResults[selectedIndex];
+  if (!cmd) return;
+  close();
+  if (cmd.id && !cmd._askQuery) rememberRecent(cmd.id);
+  try { cmd.run(); } catch (e) { console.error('cmd failed', cmd.id, e); }
+}
+
+/* ---------------- Global keyboard listener ---------------- */
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    open();
+  }
+});
+
+/* ---------------- Trigger chip in the header ---------------- */
+
+function injectTriggerChip() {
+  if (document.getElementById('cp-trigger')) return;
+  // Only show when not on an artifact preview (same gate as onboarding)
+  try {
+    if (location.hostname.endsWith('claudeusercontent.com')) return;
+    if (location.protocol === 'file:') return;
+  } catch (_) {}
+  // Anchor to the header/plan badge area
+  const anchor = document.getElementById('plan-badge') || document.querySelector('header .right, header, .app-header');
+  if (!anchor) return;
+  const chip = document.createElement('button');
+  chip.id = 'cp-trigger';
+  chip.type = 'button';
+  chip.className = 'cp-trigger';
+  chip.title = 'Command palette (' + (navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K') + ')';
+  chip.innerHTML = `
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <span>${navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl+K'}</span>
+  `;
+  chip.onclick = open;
+  if (anchor.parentNode) anchor.parentNode.insertBefore(chip, anchor);
+  else document.body.appendChild(chip);
+}
+
+/* ---------------- Public handle ---------------- */
+
+window.CmdPal = { open, close };
+
+/* ---------------- Boot ---------------- */
+
+document.addEventListener('DOMContentLoaded', () => { setTimeout(injectTriggerChip, 400); });
+const _prevAll49 = typeof renderAll === 'function' ? renderAll : null;
+if (_prevAll49) {
+  window.renderAll = function () {
+    _prevAll49.apply(this, arguments);
+    try { injectTriggerChip(); } catch (_) {}
+  };
 }
 
 })();
