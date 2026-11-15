@@ -640,6 +640,7 @@ function openHelpPanel() {
       panel.remove();
       const f = b.dataset.flow;
       if (f === '__bulk_import' && window.BulkImport) { window.BulkImport.open(); return; }
+      if (f === '__reports' && window.Reports) { window.Reports.view(); return; }
       runFlow(f);
     };
   });
@@ -656,6 +657,7 @@ function helpItems() {
     { flow: 'see_forecast',      title: 'See the 12-month forecast', sub: 'Projected spend' },
     { flow: 'see_renewals',      title: 'See upcoming renewals',    sub: 'Calendar view' },
     { flow: 'see_risk',          title: 'Check the risk dashboard', sub: 'Auto-renew, orphans, shadow SaaS' },
+    { flow: '__reports',         title: 'Download a report',       sub: 'Monthly spend PDF · renewal CSV · savings PDF' },
   ];
 }
 

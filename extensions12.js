@@ -10,6 +10,19 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 46', title: 'Export deliverables: Reports view with monthly spend PDF, renewal roster CSV, savings opportunities PDF', kind: 'feature', items: [
+    'New "Reports" tab in the sidebar (between Risk and Playbook) lists three one-click exports, each generated live from current state (never cached — always current).',
+    'Monthly Spend Summary PDF: one-page branded report with four headline tiles (monthly spend, annualised, active vendors, renewals in next 90 days), top 10 vendors table, category bar-breakdown, and a highlighted list of renewals due in 90 days. Red-tag on anything under 30 days.',
+    'Renewal Roster CSV: next 12 months of renewals with vendor, category, team, renewal date, days until, notice date (computed from contract.noticeDays), notice period, auto-renew flag, annual cost, owner email, URL. Opens cleanly in Excel / Sheets / Numbers.',
+    'Savings Opportunities PDF: ranked findings across four categories — Underused licences (seat utilization < 70%), Auto-renew traps (renewing within notice+15 days), Overlapping tools (multiple vendors in the same category), Orphan contracts (no owner). Each finding shows estimated annual saving; total shown in a hero tile at the top.',
+    'All PDFs use html2pdf.js (already loaded on-demand from Phase 3) with a shared branded chrome: SST logo header + workspace name + date, A4 portrait, 2x scale for crisp text, light theme for printability.',
+    'All downloads route through the existing downloadFile() bridge (Phase 15) so they work on both the Claude artifact and the hosted app.',
+    'Telemetry: every report generation posts an event_type=export_<report_id> row to the Apps Script sheet with per-report metrics (vendors counted, total $ savings, renewals exported) — gives you adoption data per report.',
+    'Help launcher gets a new "Download a report" entry so first-time users discover the Reports view from onboarding.',
+    'Public handle: window.Reports = { spendSummary, renewalRoster, savings, view } for QA and for other code to call.',
+    'Empty-state handling: Reports view explains what the user needs to do first (upload a contract or run bulk import) when state.subscriptions is empty. Each card is disabled with "Needs data" button when its specific prerequisites are not met.',
+    'Footer teases scheduled email delivery of these reports as a future phase.',
+  ]},
   { date: '2026-11-15', phase: 'Phase 45', title: 'Trial email nurture drip (5 emails over 14 days, Apps Script time-driven)', kind: 'feature', items: [
     '5-email sequence replacing the "one welcome then silence" gap. Day 2: fastest way to see the tool (sent only to users who haven\'t loaded a contract yet). Day 4: three findings worth looking for (sent only to users who\'ve loaded data). Day 8: what the first 90 days look like (ROI framing). Day 12: trial ends Friday. Day 14: last day.',
     'Zero new client-side code. Browser already posts onboarding + bulk-import events to the Apps Script endpoint; the drip derives per-user state (signed up when, loaded contract, bulk imported, used Ask Track, paid) from the events sheet and picks the right email per user per day.',
