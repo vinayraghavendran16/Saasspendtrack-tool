@@ -10,6 +10,17 @@
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 54', title: 'Mobile layout rescue + PWA (install as app on iOS, Android, desktop)', kind: 'feature', items: [
+    'Mobile fix (triggered by Vinay\'s screenshot showing broken header): topbar on mobile had fixed 56px height but urgency chips wrapped vertically and spilled over the dashboard content. Also plan badge / breadcrumb / mobile nav all competing for the same strip.',
+    'Topbar now grows vertically on mobile (height: auto, flex-wrap). Urgency strip is now horizontally scrollable instead of wrapping — all chips fit in one scrollable row. Mobile nav tighter. Main content padding reduced to claim horizontal space. Stat tiles 2-up on tablet, 1-up on phone.',
+    'All Phase 43-52 modals are mobile-rescued: signup takeover 16px padding, Command Palette slides up from bottom for thumb reach, Bulk Import modal fills viewport, Settings + Reports + Diagnostics all stack full-width. Onboarding checklist and Help launcher repositioned so they don\'t overlap the mobile nav.',
+    'PWA foundation: manifest.webmanifest + sw.js service worker + iOS Safari meta tags. App is now installable on iOS (Share → Add to Home Screen), Android (Chrome auto-prompts), and desktop Chrome/Edge (URL-bar install icon). Runs standalone, works offline after first load.',
+    'New "Install this app" card in Settings with platform-detected instructions. Different copy for iOS Safari vs iOS non-Safari vs Android vs desktop.',
+    'Service worker uses stale-while-revalidate for the app shell, bypasses cross-origin requests (fonts, FX API, Apps Script endpoint) so dynamic data stays fresh.',
+    'Public handle: window.PWA = { canInstall, prompt, platform, isStandalone }',
+    'Shipped alongside: trial-tracking/NATIVE-APP-STRATEGY.md explaining Option A (PWA, shipped now), Option B (Capacitor wrapper to App Store + Play Store), Option C (React Native rebuild, not recommended). Decision framework for when to escalate from PWA to native.',
+    'TODO added to VINAY-TODO.md: create proper PNG icon pack (192×192, 512×512, 512×512 maskable) — current icon.svg works but real PWAs want PNG for all platforms. Design brief included.',
+  ]},
   { date: '2026-11-15', phase: 'Phase 53', title: 'Bug fixes found in self-review: onboarding checklist state-key bug + demo-data pre-completion', kind: 'fix', items: [
     'FIX: Phase 43 onboarding checklist "Upload your first contract" and "Add a vendor" items referenced state.contracts and state.vendors — neither of which exist in the app. The app stores contracts as subscription.contract and vendors as entries in state.subscriptions. The two items would NEVER auto-complete even after the user did both actions. Found during Phase 52 self-review. Replaced with correct state.subscriptions checks.',
     'FIX: Even after the above fix, both items would show pre-completed on first load because the demo workspace ships with 28 sample subscriptions (and several of them have .contract set). Added baselineSubs and baselineContracts snapshot captured when onboarding state is first created — the done() checks now require GROWTH beyond that baseline instead of mere presence.',

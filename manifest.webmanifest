@@ -1,0 +1,58 @@
+{
+  "name": "SaaS Spend Track",
+  "short_name": "SST",
+  "description": "Contract and spend management that runs in your browser. Zero data leaves your device.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1829",
+  "theme_color": "#0f1829",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/#dashboard",
+      "description": "See your monthly spend and renewals at a glance"
+    },
+    {
+      "name": "Upload a contract",
+      "short_name": "Upload",
+      "url": "/#contracts",
+      "description": "Paste or upload a contract — the parser extracts terms"
+    },
+    {
+      "name": "Ask Track",
+      "short_name": "Ask",
+      "url": "/#chat",
+      "description": "Ask natural-language questions about your SaaS spend"
+    }
+  ]
+}

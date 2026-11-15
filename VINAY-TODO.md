@@ -5,7 +5,7 @@ up to date every phase — anything that only you can do (dashboard
 clicks, OAuth, payment setup, legal filings, copy sign-off) lives
 here. Tick items off by removing them from the list, or ask me to.
 
-Last updated: Phase 48 — 2026-11-15
+Last updated: Phase 54 — 2026-11-15
 
 ---
 
@@ -94,6 +94,32 @@ Fix: Razorpay dashboard → Settings → Webhooks → Add webhook:
 Then I add a `doPost` branch that detects the Razorpay payload shape
 and fires `payment_completed` with the Razorpay payment_id. Takes ~15 min
 once the webhook is configured in Razorpay — ping me when done.
+
+---
+
+## P2 — PWA icon pack (new, from Phase 54)
+
+### Create proper PNG icons for the PWA manifest
+Phase 54 ships with an `icon.svg` placeholder. Real PWAs want
+PNG icons at multiple sizes for every platform:
+
+- `/icon-192.png` — 192×192 (Android home screen)
+- `/icon-512.png` — 512×512 (splash screen generation)
+- `/icon-maskable-512.png` — 512×512 with 10% safe-zone padding (Android adaptive icons)
+- `/apple-touch-icon.png` — 180×180 (iOS home screen)
+
+Design brief:
+- Dark navy background `#0f1829`
+- Blue inner square `#2563eb` with 15% padding (becomes 10% padding on maskable)
+- White "SST" text, bold, centred
+- Rounded corners on the icon-192 / icon-512 / apple-touch (iOS adds its own rounding)
+- Maskable: no rounded corners, full square (Android will mask)
+
+Takes 10 minutes in Figma or Canva. Or ping me and I'll generate
+SVG-rendered PNGs from the current icon.svg.
+
+Then: Cloudflare Pages auto-serves whatever is in the repo root,
+so just commit the PNGs to `/public/` or repo root and push.
 
 ---
 

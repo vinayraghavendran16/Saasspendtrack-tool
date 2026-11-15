@@ -2,9 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>SaaS Spend Track</title>
 <meta name="description" content="Track your SaaS subscriptions, monitor monthly and annual spend, and never miss a renewal." />
+
+<!-- PWA: Add to Home Screen / install as an app on iOS, Android, desktop -->
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="theme-color" content="#0f1829" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="SaaS Spend Track" />
+<meta name="mobile-web-app-capable" content="yes" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="icon" type="image/svg+xml" href="/icon.svg" />
+
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
@@ -2360,6 +2371,154 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
   .diag-tiles { grid-template-columns: repeat(2, 1fr); }
   .diag-row { grid-template-columns: 10px 1fr; }
   .diag-row button { grid-column: 2; margin-top: 4px; }
+}
+
+/* ====================================================================
+   Phase 54 — Mobile layout rescue
+   Fixes the topbar collapse (urgency chips overflowing the fixed-height
+   topbar and visually colliding with the view content underneath).
+   Observed on iOS Safari + Chrome on mobile — screenshot sent by Vinay
+   showed the "4 escalated · 1 awaiting · 6 act-by soon · $14,189 wasted"
+   chips stacking over the Dashboard view.
+   ==================================================================== */
+
+@media (max-width: 900px) {
+
+  /* Let the topbar grow vertically instead of forcing 56px */
+  .topbar {
+    height: auto !important;
+    min-height: var(--topbar-h, 56px);
+    padding: 8px 14px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .topbar-left, .topbar-right { flex-wrap: wrap; row-gap: 6px; }
+  .topbar-right { gap: 6px; }
+
+  /* Breadcrumb smaller so it doesn't push the plan badge off-screen */
+  .crumb { font-size: 11.5px; }
+
+  /* Plan badge / upgrade CTA compact on mobile */
+  .plan-badge {
+    font-size: 11px;
+    padding: 5px 10px;
+    max-width: 140px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .plan-badge .plan-cta { font-size: 10.5px; }
+
+  /* Urgency chips: horizontally scrollable strip, not wrapping */
+  .urgency-strip {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    width: 100%;
+    padding-bottom: 2px;
+  }
+  .urgency-strip::-webkit-scrollbar { display: none; }
+  .urgency-chip {
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    font-size: 10.5px;
+  }
+
+  /* Mobile nav strip: already horizontally scrollable, tighten spacing */
+  .mobile-nav {
+    gap: 4px !important;
+    padding: 8px 12px !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-nav::-webkit-scrollbar { display: none; }
+  .mobile-nav .tab {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    gap: 4px;
+  }
+  .mobile-nav .tab svg { width: 14px; height: 14px; }
+
+  /* Main content: tighter padding to claim back horizontal space */
+  main { padding: 14px 12px 60px !important; }
+
+  /* H1s on views: smaller on mobile */
+  .view-head h1 { font-size: 22px !important; }
+
+  /* Report cards + settings cards full-width stacking */
+  .rpt-grid, .st-grid { grid-template-columns: 1fr !important; }
+
+  /* Dashboard stat tiles 2-up on mobile */
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+  .stat-card { padding: 14px 14px !important; }
+  .stat-value { font-size: 22px !important; }
+
+  /* Diagnostics tiles 2x2 */
+  .diag-tiles { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Signup takeover: already full-screen, but tighten padding */
+  .signup-modal#signup-modal { padding: 16px !important; }
+  .signup-modal#signup-modal h2 { font-size: 24px !important; }
+
+  /* Command palette: slide up from bottom on mobile for thumb reach */
+  .cp-modal { padding: 20vh 12px 24px !important; }
+  .cp-card { width: 100% !important; max-height: 70vh; }
+
+  /* Onboarding checklist: narrower + shifted so it doesn't overlap mobile nav */
+  .ob-checklist {
+    width: calc(100vw - 24px) !important;
+    max-width: 340px;
+    right: 12px !important;
+    bottom: 12px !important;
+  }
+  .ob-help {
+    right: 12px !important;
+    bottom: 12px !important;
+    padding: 7px 14px 7px 9px !important;
+    font-size: 12px !important;
+  }
+  body:has(.ob-checklist) .ob-help { bottom: calc(12px + 60px) !important; }
+
+  /* Bulk import modal fits on small screens */
+  .bi-card { width: calc(100vw - 24px) !important; max-height: calc(100vh - 32px) !important; }
+  .bi-steps { padding: 12px 16px 10px !important; font-size: 11px !important; overflow-x: auto; white-space: nowrap; }
+  .bi-step { flex: 0 0 auto; }
+
+  /* Settings cards: full-width content */
+  .st-card { padding: 16px 16px !important; }
+
+  /* Payment ack modal */
+  .pay-ack-card { padding: 22px 20px 20px !important; }
+
+  /* Tables overflow horizontally instead of busting layout */
+  .view table { font-size: 11.5px; }
+  .view table th, .view table td { padding: 6px 8px; }
+
+  /* Any sticky header + sticky mobile-nav combo shouldn't stack past 40% viewport */
+  .topbar + .mobile-nav { top: auto !important; position: static !important; }
+
+  /* Command palette trigger chip: hide on small screens (keyboard shortcut only) */
+  .cp-trigger { display: none !important; }
+}
+
+/* Ultra-narrow (< 420px) — phones in portrait */
+@media (max-width: 420px) {
+  .stat-grid { grid-template-columns: 1fr !important; }
+  .diag-tiles { grid-template-columns: 1fr !important; }
+  .plan-badge { max-width: 110px; }
+  .crumb b { display: none; }  /* just show "Dashboard" not "Acme / Dashboard" */
+}
+
+/* Phase 54 — install card extras */
+.pwa-steps {
+  margin: 10px 0; padding-left: 20px;
+  font-size: 12.5px; color: var(--text, #ffffff);
+  line-height: 1.6;
+}
+.pwa-steps li { margin-bottom: 4px; }
+.pwa-steps b { color: #7aa3f5; }
+.pwa-note {
+  margin-top: 10px; font-size: 11px;
+  color: rgba(255,255,255,0.4); font-style: italic;
 }
 
 </style>
@@ -10498,6 +10657,17 @@ document.addEventListener('DOMContentLoaded', () => {
    ========================================================================== */
 
 const CHANGELOG = [
+  { date: '2026-11-15', phase: 'Phase 54', title: 'Mobile layout rescue + PWA (install as app on iOS, Android, desktop)', kind: 'feature', items: [
+    'Mobile fix (triggered by Vinay\'s screenshot showing broken header): topbar on mobile had fixed 56px height but urgency chips wrapped vertically and spilled over the dashboard content. Also plan badge / breadcrumb / mobile nav all competing for the same strip.',
+    'Topbar now grows vertically on mobile (height: auto, flex-wrap). Urgency strip is now horizontally scrollable instead of wrapping — all chips fit in one scrollable row. Mobile nav tighter. Main content padding reduced to claim horizontal space. Stat tiles 2-up on tablet, 1-up on phone.',
+    'All Phase 43-52 modals are mobile-rescued: signup takeover 16px padding, Command Palette slides up from bottom for thumb reach, Bulk Import modal fills viewport, Settings + Reports + Diagnostics all stack full-width. Onboarding checklist and Help launcher repositioned so they don\'t overlap the mobile nav.',
+    'PWA foundation: manifest.webmanifest + sw.js service worker + iOS Safari meta tags. App is now installable on iOS (Share → Add to Home Screen), Android (Chrome auto-prompts), and desktop Chrome/Edge (URL-bar install icon). Runs standalone, works offline after first load.',
+    'New "Install this app" card in Settings with platform-detected instructions. Different copy for iOS Safari vs iOS non-Safari vs Android vs desktop.',
+    'Service worker uses stale-while-revalidate for the app shell, bypasses cross-origin requests (fonts, FX API, Apps Script endpoint) so dynamic data stays fresh.',
+    'Public handle: window.PWA = { canInstall, prompt, platform, isStandalone }',
+    'Shipped alongside: trial-tracking/NATIVE-APP-STRATEGY.md explaining Option A (PWA, shipped now), Option B (Capacitor wrapper to App Store + Play Store), Option C (React Native rebuild, not recommended). Decision framework for when to escalate from PWA to native.',
+    'TODO added to VINAY-TODO.md: create proper PNG icon pack (192×192, 512×512, 512×512 maskable) — current icon.svg works but real PWAs want PNG for all platforms. Design brief included.',
+  ]},
   { date: '2026-11-15', phase: 'Phase 53', title: 'Bug fixes found in self-review: onboarding checklist state-key bug + demo-data pre-completion', kind: 'fix', items: [
     'FIX: Phase 43 onboarding checklist "Upload your first contract" and "Add a vendor" items referenced state.contracts and state.vendors — neither of which exist in the app. The app stores contracts as subscription.contract and vendors as entries in state.subscriptions. The two items would NEVER auto-complete even after the user did both actions. Found during Phase 52 self-review. Replaced with correct state.subscriptions checks.',
     'FIX: Even after the above fix, both items would show pre-completed on first load because the demo workspace ships with 28 sample subscriptions (and several of them have .contract set). Added baselineSubs and baselineContracts snapshot captured when onboarding state is first created — the done() checks now require GROWTH beyond that baseline instead of mere presence.',
@@ -19042,6 +19212,205 @@ document.addEventListener('keydown', (e) => {
 /* ---------------- Boot ---------------- */
 
 document.addEventListener('DOMContentLoaded', () => { setTimeout(wire, 700); });
+
+})();
+
+</script>
+<script>
+/* ================================================================
+   Phase 54 — PWA install (service worker + Add-to-Home-Screen)
+   ================================================================
+   Makes the browser app installable as a standalone app on:
+   - iOS Safari → Share → Add to Home Screen (user-driven)
+   - Android Chrome / Edge → auto-prompts installation
+   - macOS Chrome / Edge → address bar install icon
+   - Windows Chrome / Edge → install icon
+
+   What this phase adds:
+   - Service worker registration (sw.js) so the app shell is
+     cached + offline-ready after first load
+   - "Install this app" card in Settings on devices that support
+     the beforeinstallprompt event
+   - iOS install hint on Safari (since iOS doesn't fire the prompt)
+
+   PWA installation is NOT the App Store. It's the best bridge
+   between a browser app and a native-feeling home-screen app
+   until you build a real iOS / Android app. Covers 90% of the
+   "I want it on my phone" ask with zero native development.
+   ================================================================ */
+
+(() => {
+
+/* ---------------- Register the service worker ---------------- */
+
+/* Only register on real hosts — not on artifact previews, not on
+   file:// — the SW needs an origin to scope to and isn't meaningful
+   in those contexts. */
+function canRegisterSW() {
+  try {
+    if (!('serviceWorker' in navigator)) return false;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') return false;
+    if (location.hostname.endsWith('claudeusercontent.com')) return false;
+    return true;
+  } catch (_) { return false; }
+}
+
+if (canRegisterSW()) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      // Soft update check once a day
+      setInterval(() => reg.update().catch(() => {}), 24 * 60 * 60 * 1000);
+      console.log('[PWA] service worker registered');
+    }).catch(err => {
+      console.warn('[PWA] service worker registration failed', err);
+    });
+  });
+}
+
+/* ---------------- Capture the install prompt (Chrome / Edge) ---------------- */
+
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  console.log('[PWA] install prompt available');
+  // If the Settings view is open, re-render the install card
+  renderInstallCard();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  console.log('[PWA] app installed');
+  renderInstallCard();
+});
+
+/* ---------------- Platform detection ---------------- */
+
+function platform() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isIPadOS = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;  // iPad masquerading as Mac
+  const isAndroid = /Android/.test(ua);
+  const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS/.test(ua);
+  const isChrome = /Chrome|CriOS/.test(ua);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true;
+  return { isIOS: isIOS || isIPadOS, isAndroid, isSafari, isChrome, isStandalone };
+}
+
+/* ---------------- Install card in Settings ---------------- */
+
+function injectInstallCard() {
+  const settings = document.querySelector('.view[data-view="settings"]');
+  if (!settings || !settings.querySelector('.st-grid')) return;
+  if (settings.querySelector('#pwa-install-card')) return renderInstallCard();
+
+  const card = document.createElement('section');
+  card.id = 'pwa-install-card';
+  card.className = 'st-card';
+  const grid = settings.querySelector('.st-grid');
+  // Place after the Workspace card, before Danger zone
+  const danger = grid.querySelector('.st-card.is-danger');
+  if (danger) grid.insertBefore(card, danger);
+  else grid.appendChild(card);
+  renderInstallCard();
+}
+
+function renderInstallCard() {
+  const card = document.getElementById('pwa-install-card');
+  if (!card) return;
+  const p = platform();
+
+  if (p.isStandalone) {
+    card.innerHTML = `
+      <h3>Installed ✓</h3>
+      <p class="st-note">You're running SaaS Spend Track as an installed app. Nice.</p>
+    `;
+    return;
+  }
+
+  if (p.isIOS && p.isSafari) {
+    card.innerHTML = `
+      <h3>Install on iPhone / iPad</h3>
+      <p class="st-note">Add to Home Screen to use SaaS Spend Track like a real app. Keeps you in full-screen mode, works offline after first load.</p>
+      <ol class="pwa-steps">
+        <li>Tap the <b>Share</b> button in Safari (square with up arrow)</li>
+        <li>Scroll and tap <b>Add to Home Screen</b></li>
+        <li>Name it (default is fine) → <b>Add</b></li>
+      </ol>
+      <p class="pwa-note">Chrome and other browsers on iOS can't install PWAs — Apple restricts it to Safari.</p>
+    `;
+    return;
+  }
+
+  if (p.isIOS && !p.isSafari) {
+    card.innerHTML = `
+      <h3>Install on iPhone / iPad</h3>
+      <p class="st-note">Open this page in <b>Safari</b> first (Apple restricts installs to Safari on iOS). Then Share → Add to Home Screen.</p>
+    `;
+    return;
+  }
+
+  if (deferredInstallPrompt) {
+    card.innerHTML = `
+      <h3>Install this app</h3>
+      <p class="st-note">Install SaaS Spend Track as a standalone app on this device. Launches without the browser chrome, works offline after first load.</p>
+      <button type="button" class="st-save" id="pwa-install-btn">Install app</button>
+    `;
+    card.querySelector('#pwa-install-btn').onclick = async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      console.log('[PWA] user choice:', outcome);
+      deferredInstallPrompt = null;
+      renderInstallCard();
+    };
+    return;
+  }
+
+  if (p.isAndroid) {
+    card.innerHTML = `
+      <h3>Install on Android</h3>
+      <p class="st-note">In Chrome, tap the menu (three dots) → <b>Install app</b> or <b>Add to Home screen</b>.</p>
+    `;
+    return;
+  }
+
+  card.innerHTML = `
+    <h3>Install as an app</h3>
+    <p class="st-note">Your browser should show an install icon in the address bar. On Chrome / Edge it's a small computer-with-arrow icon on the right side of the URL. Click it to install.</p>
+    <p class="pwa-note">On Firefox + Safari (desktop), PWA install isn't available — but the app runs fine in a regular tab.</p>
+  `;
+}
+
+/* Hook into switchView so the card renders when Settings opens */
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const prev = window.switchView;
+    if (typeof prev !== 'function' || prev._p54) return;
+    window.switchView = function (name, opts) {
+      const r = prev.apply(this, arguments);
+      if (name === 'settings') setTimeout(injectInstallCard, 180);
+      return r;
+    };
+    window.switchView._p54 = true;
+  }, 800);
+});
+
+/* Public handle */
+window.PWA = {
+  canInstall: () => !!deferredInstallPrompt,
+  prompt: async () => {
+    if (!deferredInstallPrompt) return 'no-prompt-available';
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    return outcome;
+  },
+  platform,
+  isStandalone: () => platform().isStandalone,
+};
 
 })();
 
