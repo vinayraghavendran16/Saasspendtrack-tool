@@ -111,7 +111,7 @@ const FLOWS = {
       act: () => safeSwitchView('contracts'),
     },
     {
-      selector: '.tab[data-view="chat"], [data-view="chat"]',
+      selector: '.sidebar .tab[data-view="chat"], .tab[data-view="chat"]',
       title: 'Ask Track',
       body: 'Ask natural-language questions about your corpus. "What renews next month" or "show me contracts with auto-renew".',
       placement: 'right',
@@ -419,7 +419,22 @@ function advanceTour() {
   }
 
   // Wait a tick so view switches finish rendering.
-  setTimeout(() => showSpotlight(el, step, tourState.index, tourState.steps.length), 300);
+  // Re-query right before showing: step.act may have switched view and
+  // triggered renderAll(), which rebuilds the sidebar and detaches the
+  // originally-captured el (so its getBoundingClientRect returns a stale
+  // or zeroed rect, landing the tooltip at the top of the sidebar instead
+  // of on the actual target).
+  setTimeout(() => {
+    const freshEl = findFirst(step.selector) || el;
+    if (!freshEl || !freshEl.isConnected || freshEl.offsetParent === null) {
+      // Target was removed or is hidden now — skip this step rather than
+      // pointing at nothing.
+      tourState.index++;
+      advanceTour();
+      return;
+    }
+    showSpotlight(freshEl, step, tourState.index, tourState.steps.length);
+  }, 300);
 }
 
 function findFirst(selector) {
