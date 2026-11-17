@@ -3596,6 +3596,145 @@ function ccSheet() {
   try { toast(u ? "Sheet linked. We'll import and verify against contracts." : 'Sheet link cleared.', u ? 'success' : 'info'); } catch (_) {}
   renderCommandCentre();
 }
+/* ===================== Shadow-IT discovery (expense CSV) =====================
+   Upload a card statement / expense export; we flag recurring charges that
+   match known SaaS vendors and aren't already in the register. No backend. */
+const SAAS_SIGNATURES = [
+  ['Salesforce', /salesforce|sfdc/i], ['Outreach', /outreach/i], ['Salesloft', /salesloft/i],
+  ['Zoom', /zoom\.us|zoomvideo|zoom video|zoom\.com|\bzoom communications\b/i], ['ZoomInfo', /zoominfo/i], ['Slack', /\bslack\b/i],
+  ['HubSpot', /hubspot/i], ['Datadog', /datadog/i], ['Zendesk', /zendesk/i], ['Figma', /figma/i],
+  ['Notion', /notion/i], ['Atlassian', /atlassian|jira|confluence|trello/i], ['GitHub', /github/i], ['GitLab', /gitlab/i],
+  ['Snowflake', /snowflake/i], ['Databricks', /databricks/i],
+  ['Google Workspace', /google\s*(workspace|gsuite|g suite)|goog\s*\*?\s*gsuite|google cloud/i],
+  ['Microsoft 365', /\bmicrosoft\b|\bmsft\b|office\s*365|\bo365\b|microsoft 365|\bazure\b/i],
+  ['AWS', /amazon web services|\baws\b|amazon\s*\*?\s*aws/i], ['Adobe', /adobe/i], ['DocuSign', /docusign/i],
+  ['Dropbox', /dropbox/i], ['Box', /\bbox\.com\b|\bbox inc\b|\bbox\.net\b/i], ['Asana', /asana/i],
+  ['Monday.com', /monday\.com|\bmonday\b/i], ['ClickUp', /clickup/i], ['Airtable', /airtable/i], ['Calendly', /calendly/i],
+  ['Loom', /\bloom\b/i], ['Miro', /\bmiro\b/i], ['Canva', /canva/i], ['Intercom', /intercom/i], ['Twilio', /twilio/i],
+  ['Stripe', /\bstripe\b/i], ['Segment', /segment\.com|segment io/i], ['Mixpanel', /mixpanel/i], ['Amplitude', /amplitude/i],
+  ['PagerDuty', /pagerduty/i], ['New Relic', /new relic|newrelic/i], ['Sentry', /\bsentry\b/i], ['Okta', /\bokta\b/i],
+  ['1Password', /1password|1pass/i], ['LastPass', /lastpass/i], ['Gong', /\bgong\.io\b|\bgong\b/i], ['Clari', /\bclari\b/i],
+  ['Apollo', /apollo\.io/i], ['Lever', /\blever\b/i], ['Greenhouse', /greenhouse/i], ['Rippling', /rippling/i],
+  ['Gusto', /\bgusto\b/i], ['Workday', /workday/i], ['BambooHR', /bamboohr|bamboo hr/i], ['NetSuite', /netsuite/i],
+  ['QuickBooks', /quickbooks|intuit/i], ['Mailchimp', /mailchimp|intuit mailchimp/i], ['SendGrid', /sendgrid/i],
+  ['Marketo', /marketo/i], ['Pardot', /pardot/i], ['Webflow', /webflow/i], ['Vercel', /vercel/i], ['Netlify', /netlify/i],
+  ['Cloudflare', /cloudflare/i], ['Linear', /linear\.app/i], ['Grammarly', /grammarly/i], ['Zapier', /zapier/i],
+  ['Typeform', /typeform/i], ['SurveyMonkey', /surveymonkey|momentive/i], ['Tableau', /tableau/i], ['Looker', /\blooker\b/i],
+  ['LinkedIn', /linkedin/i], ['Dialpad', /dialpad/i], ['RingCentral', /ringcentral/i], ['Airbyte', /airbyte/i],
+  ['Fivetran', /fivetran/i], ['Retool', /retool/i], ['PostHog', /posthog/i], ['Confluent', /confluent/i],
+];
+function detectSaasVendor(desc) {
+  const d = String(desc || '');
+  for (const [name, rx] of SAAS_SIGNATURES) { if (rx.test(d)) return name; }
+  return null;
+}
+function _num(v) { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? Math.abs(n) : null; }
+function parseExpenseRows(text) {
+  const grid = (window.BulkImport && window.BulkImport.parseCSV) ? window.BulkImport.parseCSV(text)
+    : text.split(/\r?\n/).filter(Boolean).map(l => l.split(','));
+  if (!grid.length) return [];
+  const header = grid[0].map(c => String(c).toLowerCase().trim());
+  const headerish = header.some(h => /desc|merchant|name|vendor|payee|narration|amount|debit|charge|date|transaction|detail/.test(h));
+  let descIdx = -1, amtIdx = -1, dateIdx = -1, start = 0;
+  if (headerish) {
+    start = 1;
+    descIdx = header.findIndex(h => /desc|merchant|name|vendor|payee|narration|detail|particular/.test(h));
+    amtIdx = header.findIndex(h => /amount|debit|charge|value|withdrawal/.test(h));
+    dateIdx = header.findIndex(h => /date|posted/.test(h));
+  }
+  const body = grid.slice(start).filter(r => r && r.length);
+  // Heuristic fallback: description = widest text column; amount = most-numeric column.
+  const cols = Math.max(...body.map(r => r.length), 0);
+  if (descIdx < 0 || amtIdx < 0) {
+    let bestText = -1, bestTextLen = -1, bestNum = -1, bestNumCount = -1;
+    for (let ci = 0; ci < cols; ci++) {
+      let textLen = 0, numCount = 0, seen = 0;
+      body.slice(0, 60).forEach(r => { const v = r[ci]; if (v == null) return; seen++; const s = String(v); if (_num(s) != null && /\d/.test(s) && s.replace(/[0-9.,\-\s$₹€£]/g, '') === '') numCount++; else textLen += s.replace(/[^a-z]/gi, '').length; });
+      if (textLen > bestTextLen) { bestTextLen = textLen; bestText = ci; }
+      if (numCount > bestNumCount) { bestNumCount = numCount; bestNum = ci; }
+    }
+    if (descIdx < 0) descIdx = bestText >= 0 ? bestText : 0;
+    if (amtIdx < 0) amtIdx = bestNum >= 0 ? bestNum : (cols > 1 ? 1 : 0);
+  }
+  return body.map(r => ({ desc: String(r[descIdx] != null ? r[descIdx] : '').trim(), amount: _num(r[amtIdx]), date: dateIdx >= 0 ? String(r[dateIdx] || '').trim() : '' }))
+    .filter(r => r.desc);
+}
+function scanForShadowSaas(text) {
+  const rows = parseExpenseRows(text);
+  const byVendor = {};
+  rows.forEach(r => {
+    const name = detectSaasVendor(r.desc);
+    if (!name) return;
+    (byVendor[name] = byVendor[name] || { name, charges: 0, total: 0, amounts: [], sampleDesc: r.desc });
+    byVendor[name].charges++;
+    if (r.amount != null) { byVendor[name].total += r.amount; byVendor[name].amounts.push(r.amount); }
+  });
+  const existing = new Set((state.subscriptions || []).map(s => (s.name || '').toLowerCase()));
+  return Object.values(byVendor).map(v => {
+    const typical = v.amounts.length ? v.amounts.slice().sort((a, b) => a - b)[Math.floor(v.amounts.length / 2)] : null; // median charge
+    return { ...v, typical, inRegister: existing.has(v.name.toLowerCase()) };
+  }).sort((a, b) => b.total - a.total);
+}
+function openShadowDiscovery() {
+  let m = document.getElementById('shadow-modal');
+  if (m) m.remove();
+  m = document.createElement('div');
+  m.id = 'shadow-modal'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:760px">
+      <h2>🕵️ Discover shadow tools</h2>
+      <p class="page-sub" style="margin:4px 0 12px">Export your corporate card or expense statement as CSV and paste it below (or upload the file). We scan it locally — nothing is uploaded — and flag recurring SaaS charges you aren't already tracking.</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <label class="icon-btn" for="shadow-file" style="cursor:pointer">Upload CSV</label>
+        <input type="file" id="shadow-file" accept=".csv,.tsv,text/csv,text/plain" hidden />
+        <button class="icon-btn" id="shadow-scan">Scan</button>
+        <button class="icon-btn" id="shadow-close" style="margin-left:auto">Close</button>
+      </div>
+      <textarea id="shadow-csv" placeholder="Paste CSV rows here — e.g.\nDate,Description,Amount\n2026-03-01,GOOGLE *GSUITE,18.00\n2026-03-02,SLACK.COM,240.00" style="width:100%;min-height:120px;font-family:var(--mono);font-size:12px"></textarea>
+      <div id="shadow-results" style="margin-top:12px"></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#shadow-close').onclick = () => m.remove();
+  m.querySelector('#shadow-scan').onclick = () => runShadowScan();
+  m.querySelector('#shadow-file').onchange = async (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { m.querySelector('#shadow-csv').value = await f.text(); runShadowScan(); } catch (_) {}
+  };
+}
+function runShadowScan() {
+  const m = document.getElementById('shadow-modal'); if (!m) return;
+  const text = m.querySelector('#shadow-csv').value || '';
+  const host = m.querySelector('#shadow-results');
+  if (text.trim().length < 10) { host.innerHTML = `<p class="empty" style="padding:14px 0">Paste some CSV rows first.</p>`; return; }
+  const found = scanForShadowSaas(text);
+  if (!found.length) { host.innerHTML = `<p class="empty" style="padding:14px 0">No known SaaS vendors matched. Check the CSV has a description/merchant column, or add vendors manually.</p>`; return; }
+  const shadow = found.filter(f => !f.inRegister);
+  const known = found.filter(f => f.inRegister);
+  host.innerHTML = `
+    <div style="font-size:13px;margin-bottom:8px"><b>${shadow.length}</b> shadow tool${shadow.length === 1 ? '' : 's'} found · ${known.length} already tracked</div>
+    <div class="table-wrap"><table class="sub-table"><thead><tr><th>Vendor</th><th class="num">Charges</th><th class="num">Typical</th><th class="num">Total seen</th><th>Status</th><th></th></tr></thead>
+    <tbody>${found.map(f => `<tr>
+      <td><b>${escapeHtml(f.name)}</b><div class="dim" style="font-size:11px">${escapeHtml((f.sampleDesc || '').slice(0, 42))}</div></td>
+      <td class="num">${f.charges}</td>
+      <td class="num">${f.typical != null ? formatMoney(f.typical) : '—'}</td>
+      <td class="num">${formatMoney(f.total)}</td>
+      <td>${f.inRegister ? '<span class="badge ok">In register</span>' : '<span class="badge warn">Shadow</span>'}</td>
+      <td class="actions-cell">${f.inRegister ? '' : `<button class="icon-btn" data-add-shadow="${encodeURIComponent(f.name)}" data-amt="${f.typical || 0}">+ Add</button>`}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+  host.querySelectorAll('[data-add-shadow]').forEach(b => b.onclick = () => {
+    const name = decodeURIComponent(b.dataset.addShadow);
+    const amt = parseFloat(b.dataset.amt) || 0;
+    if (state.subscriptions.some(s => s.name.toLowerCase() === name.toLowerCase())) { toast(`${name} is already in your register.`, 'info'); return; }
+    state.subscriptions.push({ id: crypto.randomUUID(), name, cost: Math.round(amt * 12) || 0, cycle: 'yearly', category: '', team: '', renewal: null, notes: 'Added from shadow-IT discovery', url: '', active: true });
+    save(); renderAll();
+    toast(`Added "${name}" to your register. Set its real cost and renewal in Subscriptions.`, 'ok');
+    b.closest('tr').querySelector('td:nth-child(5)').innerHTML = '<span class="badge ok">In register</span>';
+    b.remove();
+  });
+}
+window.openShadowDiscovery = openShadowDiscovery;
+
 function ccSteps() {
   const subs = state.subscriptions || [];
   const req = (state.settings && state.settings.ccRequests) || {};
@@ -3607,7 +3746,7 @@ function ccSteps() {
     { id: 'clm', icon: '🔗', title: 'Connect a CLM (SpotDraft, Ironclad…)', desc: 'Import contracts automatically from your contract-management tool.', cta: req.clm ? 'Requested ✓' : 'Request access', done: !!req.clm, act: () => ccRequest('clm', 'SpotDraft / CLM import') },
     { id: 'sheet', icon: '📊', title: 'Connect a Google Sheet', desc: "Already track SaaS in a sheet? Link it and we'll import the rows — verified against the real contracts later.", cta: (state.settings && state.settings.ccSheetUrl) ? 'Sheet linked ✓' : 'Link a sheet', done: !!(state.settings && state.settings.ccSheetUrl), act: () => ccSheet() },
     { id: 'drive', icon: '🗂️', title: 'Connect Google Drive / a folder', desc: 'Point us at a Drive folder of contracts and upload them all at once (runs through bulk upload).', cta: req.drive ? 'Requested ✓' : 'Request access', done: !!req.drive, act: () => ccRequest('drive', 'Google Drive / folder sync') },
-    { id: 'shadow', icon: '🕵️', title: 'Discover shadow tools', desc: 'Find SaaS nobody logged — from expense data or SSO sign-ins — so nothing escapes the register.', cta: req.shadow ? 'Requested ✓' : 'Request access', done: !!req.shadow, act: () => ccRequest('shadow', 'Shadow-IT discovery') },
+    { id: 'shadow', icon: '🕵️', title: 'Discover shadow tools', desc: "Upload an expense or card-statement CSV and we'll flag recurring SaaS charges you aren't already tracking — scanned locally, nothing uploaded.", cta: 'Scan an expense CSV', done: false, act: () => openShadowDiscovery() },
     { id: 'team', icon: '👥', title: 'Add your team directory', desc: 'Import people and departments so spend and licences roll up by team.', cta: teamCount ? 'Review team' : 'Add team', done: teamCount > 0, act: () => switchView('team') },
   ];
 }
