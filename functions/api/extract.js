@@ -163,10 +163,21 @@ export async function onRequestPost({ request, env }) {
     }
     const body = await request.json().catch(() => ({}));
     const text = (body.text || "").toString();
-    if (!text.trim() || text.length < 40) {
-      return new Response(JSON.stringify({ ok: false, error: "no_text" }), { status: 400, headers });
+    const pdfBase64 = (body.pdf_base64 || "").toString();
+    const mediaType = (body.media_type || "application/pdf").toString();
+    const hasPdf = pdfBase64.length > 100;
+    if (!hasPdf && (!text.trim() || text.length < 40)) {
+      return new Response(JSON.stringify({ ok: false, error: "no_input" }), { status: 400, headers });
     }
     const model = await resolveModel(env);
+    // Prefer the native PDF document block (Claude reads tables and scanned
+    // pages directly) when the raw PDF is supplied; otherwise send the text.
+    const userContent = hasPdf
+      ? [
+          { type: "document", source: { type: "base64", media_type: mediaType, data: pdfBase64 } },
+          { type: "text", text: "Extract the contract facts from the attached document and call record_contract." },
+        ]
+      : `Extract the contract facts from the following document:\n\n<contract>\n${text.slice(0, 120000)}\n</contract>`;
     const payload = {
       model,
       max_tokens: 2000,
@@ -175,12 +186,7 @@ export async function onRequestPost({ request, env }) {
       // Newer models reject forced tool_choice ("tool"/"any"); "auto" works and
       // the system prompt instructs the model to call record_contract once.
       tool_choice: { type: "auto" },
-      messages: [
-        {
-          role: "user",
-          content: `Extract the contract facts from the following document:\n\n<contract>\n${text.slice(0, 120000)}\n</contract>`,
-        },
-      ],
+      messages: [{ role: "user", content: userContent }],
     };
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

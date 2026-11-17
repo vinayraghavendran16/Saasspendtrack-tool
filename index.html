@@ -5539,11 +5539,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const textarea = document.getElementById('contract-text');
     const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
     let text = '';
+    let pdfOpts = null;
     if (isPdf) {
       textarea.value = 'Reading PDF…';
       try {
-        text = await extractTextFromPdf(await f.arrayBuffer());
+        const buf = await f.arrayBuffer();
+        text = await extractTextFromPdf(buf);
         textarea.value = text;
+        // Keep the raw PDF (under ~12 MB) so AI extraction can read it natively
+        // — tables and scanned pages included — instead of our flattened text.
+        if (buf.byteLength <= 12 * 1024 * 1024) {
+          try { pdfOpts = { pdfBase64: arrayBufferToBase64(buf), mediaType: 'application/pdf' }; } catch (_) {}
+        }
       } catch (err) {
         textarea.value = '';
         alert('PDF parsing failed: ' + err.message);
@@ -5560,8 +5567,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // nothing but fill that panel, so with no subscription to attach to
     // (e.g. a brand-new workspace from onboarding) the contract vanished.
     try {
-      if (aiExtractEnabled()) { try { toast('Reading the contract with AI…', 'info'); } catch (_) {} }
-      const { sub, isNew, source } = await ingestContractSmart(text, f.name, false);
+      if (aiExtractEnabled()) { try { toast(pdfOpts ? 'Reading the PDF with AI…' : 'Reading the contract with AI…', 'info'); } catch (_) {} }
+      const { sub, isNew, source } = await ingestContractSmart(text, f.name, false, pdfOpts);
       save(); renderAll();
       const tag = source === 'ai' ? ' (AI)' : '';
       toast(
@@ -6636,16 +6643,32 @@ function ingestContractAsDraft(text, fileName, ocrUsed) {
 function aiExtractEnabled() { return !!(state.settings && state.settings.aiExtract); }
 function extractEndpoint() { return (state.settings && state.settings.extractEndpoint) || '/api/extract'; }
 
-async function aiExtractContract(text) {
+/* Base64-encode an ArrayBuffer in chunks (spread/apply overflows on big ones). */
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function aiExtractContract(text, opts) {
+  opts = opts || {};
   if (!aiExtractEnabled()) return null;
-  if (!text || text.trim().length < 40) return null;
+  const hasPdf = !!opts.pdfBase64;
+  if (!hasPdf && (!text || text.trim().length < 40)) return null;
   try {
     const ctrl = new AbortController();
-    const to = setTimeout(() => ctrl.abort(), 40000);
+    const to = setTimeout(() => ctrl.abort(), 60000);
+    const payload = hasPdf
+      ? { pdf_base64: opts.pdfBase64, media_type: opts.mediaType || 'application/pdf' }
+      : { text: text.slice(0, 120000) };
     const r = await fetch(extractEndpoint(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text.slice(0, 120000) }),
+      body: JSON.stringify(payload),
       signal: ctrl.signal,
     });
     clearTimeout(to);
@@ -6706,9 +6729,9 @@ function applyAiFacts(sub, d, existing) {
 
 /* Try AI extraction first (when enabled), else the local extractor.
    Always resolves to { sub, isNew, source }. */
-async function ingestContractSmart(text, fileName, ocrUsed) {
+async function ingestContractSmart(text, fileName, ocrUsed, opts) {
   if (aiExtractEnabled()) {
-    const res = await aiExtractContract(text);
+    const res = await aiExtractContract(text, opts || {});
     if (res && res.data) {
       const d = res.data;
       const name = d.vendor_name
@@ -6738,8 +6761,15 @@ async function bulkContractUpload(files) {
     const bar = document.createElement('div'); bar.textContent = '• ' + file.name + ' — reading…'; status.appendChild(bar);
     try {
       const { text, ocrUsed } = await readAndOcrIfNeeded(file, (stage, pct) => { bar.textContent = `• ${file.name} — ${stage} (${pct}%)`; });
+      // For AI extraction, hand Claude the raw PDF (native tables/scans) when
+      // it's a PDF under ~12 MB; otherwise the extracted text is used.
+      let pdfOpts = null;
+      const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+      if (aiExtractEnabled() && isPdf) {
+        try { const buf = await file.arrayBuffer(); if (buf.byteLength <= 12 * 1024 * 1024) pdfOpts = { pdfBase64: arrayBufferToBase64(buf), mediaType: 'application/pdf' }; } catch (_) {}
+      }
       if (aiExtractEnabled()) bar.textContent = `• ${file.name} — reading with AI…`;
-      const { sub, source } = await ingestContractSmart(text, file.name, ocrUsed);
+      const { sub, source } = await ingestContractSmart(text, file.name, ocrUsed, pdfOpts);
       const conf = sub.contract && sub.contract.confidence != null ? sub.contract.confidence + '% confidence' : 'extracted';
       bar.textContent = `✓ ${file.name} → ${sub.name} · ${conf}${source === 'ai' ? ' · AI' : ''}${ocrUsed ? ' · OCR' : ''}`;
     } catch (e) {
