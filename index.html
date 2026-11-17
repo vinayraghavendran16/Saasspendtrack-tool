@@ -5560,7 +5560,19 @@ document.addEventListener('DOMContentLoaded', () => {
       text = await f.text();
       textarea.value = text;
     }
-    renderExtract(extractContract(text));
+    // Some PDFs (custom-encoded or scanned fonts) extract as gibberish in the
+    // browser. Don't dump that into the review panel — show a note instead. The
+    // AI path still reads the PDF natively; the regex reader would just fail.
+    if (isGarbledText(text)) {
+      const note = aiExtractEnabled()
+        ? "This PDF's embedded text is garbled in the browser (custom-encoded or scanned font), so the preview below is skipped. AI extraction read the PDF itself — see the draft in the register above."
+        : "This PDF's embedded text can't be read as clean text in the browser (custom-encoded or scanned font). Turn on AI extraction (top right) to read the PDF natively, or paste the text manually.";
+      textarea.value = note;
+      const er = document.getElementById('extract-results');
+      if (er) er.innerHTML = `<p class="empty" style="padding:20px 0;font-size:13px">${note}</p>`;
+    } else {
+      renderExtract(extractContract(text));
+    }
     // Persist it so the uploaded contract actually shows up — in Contract
     // terms and in the Subscriptions register — instead of only living in
     // the ephemeral "Extracted terms" panel. A single upload used to do
@@ -6472,6 +6484,16 @@ function saveSettingsModal() {
   setIndustry(document.getElementById('f-industry').value);
   setOwnerMode(document.getElementById('f-owner-mode').checked);
   closeSettingsModal();
+}
+
+/* Detect browser-garbled PDF text (custom-encoded or scanned fonts extract as
+   symbol soup). A real contract of any length contains many common words; the
+   garbled output contains almost none. */
+function isGarbledText(t) {
+  if (!t || t.length < 120) return false;
+  const words = (String(t).toLowerCase().match(/\b(the|and|of|to|or|in|for|this|that|agreement|customer|order|services?|term|payment|shall|renewal|price|fees?|law|contract|company|inc|llc|ltd|notice|party|parties)\b/g) || []).length;
+  // ~1 common word per 25 chars is typical prose; < 3 in a long block is gibberish.
+  return words < 3;
 }
 
 /* ================= Deal-fact extraction (beyond legal clauses) =================
