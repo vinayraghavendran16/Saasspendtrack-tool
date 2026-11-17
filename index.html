@@ -7432,6 +7432,35 @@ async function loadPdfLibs() {
   window.html2pdf = html2pdf;
   return html2pdf;
 }
+/* Legacy one-pager / extensions paths call window.loadHtml2Pdf(); route it
+   through the same shim loader so they never fall back to a missing or old
+   html2pdf. */
+window.loadHtml2Pdf = loadPdfLibs;
+/* The app is usually in dark mode and html2canvas captures the live
+   colours, so exported panels came out dark with unreadable text. Forcing
+   the light palette's CSS custom properties inline onto the export clone
+   recolours the whole subtree (it is entirely var-driven) to white panels
+   and dark text, without touching the live UI. */
+const _LIGHT_THEME_VARS = {
+  '--bg': '#f5f6f8', '--bg-2': '#eef0f3', '--panel': '#ffffff', '--panel-2': '#f8f9fb',
+  '--border': '#e4e7ec', '--border-strong': '#d0d5dd',
+  '--text': '#101828', '--text-2': '#344054', '--text-dim': '#667085', '--text-faint': '#98a2b3',
+  '--accent': '#2563eb', '--accent-2': '#1d4ed8', '--accent-soft': '#eff4ff',
+  '--success': '#16a34a', '--success-soft': '#ecfdf3', '--success-text': '#067647',
+  '--warning': '#d97706', '--warning-soft': '#fffaeb', '--warning-text': '#b54708',
+  '--danger': '#dc2626', '--danger-soft': '#fef3f2', '--danger-text': '#b42318',
+  '--info-soft': '#eff4ff', '--info-text': '#1d4ed8',
+  '--ink': '#101828', '--ink-hover': '#1d2939',
+  '--shadow-sm': '0 1px 2px rgba(16,24,40,0.05)',
+  '--shadow-md': '0 4px 12px rgba(16,24,40,0.08), 0 1px 2px rgba(16,24,40,0.04)',
+  '--shadow-lg': '0 20px 48px rgba(16,24,40,0.18)',
+};
+function _forceLightTheme(el) {
+  if (!el) return;
+  el.setAttribute('data-theme', 'light');
+  Object.entries(_LIGHT_THEME_VARS).forEach(([k, v]) => el.style.setProperty(k, v));
+}
+
 async function exportToPdf(elementId, title) {
   toast('Preparing PDF…', 'info');
   const lib = await loadPdfLibs();
@@ -7453,14 +7482,9 @@ async function exportToPdf(elementId, title) {
   wrapper.style.cssText = 'background:#fff;color:#101828;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:0 24px 24px;max-width:1240px;margin:0 auto';
   wrapper.appendChild(header);
   wrapper.appendChild(clone);
-  // Force a white background inside the clone
-  wrapper.querySelectorAll('*').forEach(el => {
-    el.style.color = el.style.color || '#101828';
-    const cs = getComputedStyle(el);
-    if (cs.backgroundColor.includes('rgb(12,14,20)') || cs.backgroundColor.includes('rgb(18,22,31)') || cs.backgroundColor.includes('rgb(23,28,39)')) {
-      el.style.background = '#ffffff';
-    }
-  });
+  // Render in the light palette so panels are white and text is dark,
+  // whatever theme the app is currently in.
+  _forceLightTheme(wrapper);
   document.body.appendChild(wrapper);
   wrapper.style.position = 'absolute'; wrapper.style.left = '-99999px'; wrapper.style.top = '0'; wrapper.style.width = '1240px';
   try {
