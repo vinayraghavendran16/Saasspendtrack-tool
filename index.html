@@ -1671,12 +1671,15 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 /* Launch button in the Subscriptions view */
 .bi-launch {
   display: inline-flex; align-items: center; gap: 7px;
-  background: #2563eb; color: #ffffff; border: 0;
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 8px; padding: 9px 14px;
   font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
-  margin: 6px 0 14px;
+  margin: 0;
+  white-space: nowrap;
 }
-.bi-launch:hover { background: #1d4ed8; }
+.bi-launch:hover { background: var(--hover, rgba(37,99,235,0.08)); border-color: #2563eb; color: #2563eb; }
+.bi-launch svg { flex: 0 0 auto; }
 
 /* Modal shell (dark, consistent with signup) */
 .bi-modal {
@@ -12157,10 +12160,11 @@ function _speakChunk(chunk, isFirst, isLast) {
   if (!_preferredVoice || (_preferredVoice.lang || '').split('-')[0] !== (vs.ttsLang || 'en-US').split('-')[0]) _refreshVoice();
   if (_preferredVoice) { u.voice = _preferredVoice; u.lang = _preferredVoice.lang; }
   else { u.lang = vs.ttsLang || 'en-US'; }
-  // Vary prosody slightly per chunk to avoid a flat monotone
-  u.rate = 0.95 + (Math.random() * 0.06 - 0.03);     // 0.92 - 0.98
-  u.pitch = 1.0 + (Math.random() * 0.08 - 0.04);     // 0.96 - 1.04
-  u.volume = 0.95;
+  // Fixed, natural prosody. No per-chunk randomness: varying pitch/rate
+  // between chunks made the voice swoop up and down like singing.
+  u.rate = 1.0;
+  u.pitch = 1.0;
+  u.volume = 1.0;
   speechSynthesis.speak(u);
 }
 
@@ -12169,8 +12173,10 @@ function speak(text) {
   const plain = _humanizeForSpeech(text || '');
   if (!plain) return;
   speechSynthesis.cancel();
-  const chunks = _splitSentences(plain.slice(0, 600));
-  chunks.forEach((c, i) => _speakChunk(c, i === 0, i === chunks.length - 1));
+  // Speak as ONE utterance so the engine applies a single, natural
+  // intonation contour across the whole reply. Splitting into many
+  // short utterances with gaps is what produced the sing-song cadence.
+  _speakChunk(plain.slice(0, 600), true, true);
 }
 
 /* Expose for debugging + used by the picker UI */
@@ -16450,17 +16456,26 @@ function postOnboardingEvent(eventType, extra = {}) {
 /* ---------------- Inject "Bulk import" button into the Subscriptions view ---------------- */
 
 function injectImportButton() {
-  // Look for the subscriptions view container; place button at top.
-  const view = document.querySelector('.view[data-view="subscriptions"], #view-subscriptions, [data-view="subscriptions"]');
+  // Target the Subscriptions view specifically.
+  const view = document.getElementById('subscriptions')
+    || document.querySelector('.view[data-view="subscriptions"], #view-subscriptions, [data-view="subscriptions"]');
   if (!view) return;
   if (view.querySelector('.bi-launch')) return;
-  // Place at the start of the view so it's visible immediately.
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'bi-launch';
   btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Bulk import</span>`;
   btn.onclick = open;
-  // Find a sensible anchor — a heading, a toolbar, otherwise prepend to view.
+  // Preferred placement: inside the controls toolbar, right before "+ Add subscription",
+  // so the two action buttons sit side by side instead of the import stacking on its own.
+  const controls = view.querySelector('.section-head .controls');
+  const addBtn = controls && controls.querySelector('#add-btn');
+  if (controls) {
+    if (addBtn) controls.insertBefore(btn, addBtn);
+    else controls.appendChild(btn);
+    return;
+  }
+  // Fallback: after a heading or toolbar, otherwise prepend to the view.
   const anchor = view.querySelector('h1, h2, .view-head, .toolbar');
   if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(btn, anchor.nextSibling);
   else view.prepend(btn);
