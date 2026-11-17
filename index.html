@@ -3585,16 +3585,109 @@ function ccRequest(key, label) {
   try { toast(`Noted — we'll reach out about ${label}.`, 'success'); } catch (_) {}
   renderCommandCentre();
 }
+// Seed the bulk-import wizard (paste → map → import) with CSV text and advance
+// it to the column-mapping step, so CLM exports and Google Sheets flow through
+// the same reviewed importer.
+function biSeedCsv(text) {
+  try {
+    if (!window.BulkImport || !window.BulkImport.open) { toast('Importer unavailable.', 'error'); return false; }
+    window.BulkImport.open();
+    const paste = document.getElementById('bi-paste');
+    const next = document.getElementById('bi-next-1');
+    if (!paste || !next) return false;
+    paste.value = text;
+    paste.dispatchEvent(new Event('input', { bubbles: true }));
+    next.disabled = false;
+    next.click();
+    return true;
+  } catch (e) { console.warn(e); return false; }
+}
+// CLM import: most CLMs (SpotDraft, Ironclad, Juro, LinkSquares…) export a CSV
+// of contracts. We guide the export, then import through the reviewed wizard.
+function openClmImport() {
+  let m = document.getElementById('clm-modal'); if (m) m.remove();
+  m = document.createElement('div');
+  m.id = 'clm-modal'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:620px">
+      <h2>🔗 Import from your CLM</h2>
+      <p class="page-sub" style="margin:4px 0 12px">SpotDraft, Ironclad, Juro, LinkSquares and most contract tools can export your contracts as a CSV. Export yours, then import it here — you'll map the columns and review every row before anything is saved.</p>
+      <ol style="font-size:13px;line-height:1.7;margin:0 0 14px 18px">
+        <li>In your CLM, open the contracts list or reporting view.</li>
+        <li>Export or download as <b>CSV</b> (include vendor, value, start/end dates and renewal where available).</li>
+        <li>Import it below — repeat tabs or exports are de-duplicated on import.</li>
+      </ol>
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" id="clm-import">Import a CLM CSV export</button>
+        <button class="icon-btn" id="clm-close" style="margin-left:auto">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#clm-close').onclick = () => m.remove();
+  m.querySelector('#clm-import').onclick = () => { m.remove(); if (window.BulkImport && window.BulkImport.open) window.BulkImport.open(); };
+}
+// Google Sheet import: fetch the sheet CSV via our backend (no CORS), then feed
+// the reviewed wizard. Falls back to a paste flow if the sheet isn't shared.
 function ccSheet() {
+  let m = document.getElementById('sheet-modal'); if (m) m.remove();
   const cur = (state.settings && state.settings.ccSheetUrl) || '';
-  const url = prompt("Paste your Google Sheet link.\n\nWe'll import the rows now and verify them against the real contract links later.", cur);
-  if (url == null) return;
-  const u = url.trim();
-  state.settings = state.settings || {}; state.settings.ccSheetUrl = u;
-  save();
-  try { if (typeof postOnboardingEvent === 'function') postOnboardingEvent('cc_sheet_linked', {}); } catch (_) {}
-  try { toast(u ? "Sheet linked. We'll import and verify against contracts." : 'Sheet link cleared.', u ? 'success' : 'info'); } catch (_) {}
-  renderCommandCentre();
+  m = document.createElement('div');
+  m.id = 'sheet-modal'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:600px">
+      <h2>📊 Import a Google Sheet</h2>
+      <p class="page-sub" style="margin:4px 0 12px">Already track SaaS in a sheet? Paste its link. The sheet needs to be shared as <b>Anyone with the link can view</b>. You'll map columns and review rows before saving.</p>
+      <input id="sheet-url" placeholder="https://docs.google.com/spreadsheets/d/…" value="${escapeHtml(cur)}" style="width:100%;margin-bottom:8px" autocomplete="off" />
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-primary" id="sheet-go">Import rows</button>
+        <button class="icon-btn" id="sheet-paste">Paste CSV instead</button>
+        <button class="icon-btn" id="sheet-close" style="margin-left:auto">Close</button>
+      </div>
+      <div id="sheet-msg" class="dim" style="font-size:12.5px;margin-top:10px"></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#sheet-close').onclick = () => m.remove();
+  m.querySelector('#sheet-paste').onclick = () => { m.remove(); if (window.BulkImport && window.BulkImport.open) window.BulkImport.open(); };
+  m.querySelector('#sheet-go').onclick = async () => {
+    const url = m.querySelector('#sheet-url').value.trim();
+    const msg = m.querySelector('#sheet-msg');
+    if (!url) { msg.textContent = 'Paste a Google Sheets link first.'; return; }
+    msg.textContent = 'Fetching sheet…';
+    state.settings = state.settings || {}; state.settings.ccSheetUrl = url; save();
+    try {
+      const r = await fetch('/api/sheet-csv', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url }) });
+      const j = await r.json();
+      if (!j || !j.ok) { msg.textContent = (j && j.message) || 'Could not read the sheet.'; return; }
+      state.settings.ccSheetImported = new Date().toISOString(); save();
+      m.remove();
+      biSeedCsv(j.csv);
+      toast('Sheet loaded. Map the columns and review before importing.', 'success');
+      renderCommandCentre();
+    } catch (e) { msg.textContent = 'Network error fetching the sheet.'; }
+  };
+}
+// Drive / folder: pick a whole folder of contract PDFs or scans and run them
+// through the same bulk extractor. Local only, no OAuth needed.
+function openDriveFolder() {
+  let inp = document.getElementById('cc-folder-input');
+  if (inp) inp.remove();
+  inp = document.createElement('input');
+  inp.type = 'file'; inp.id = 'cc-folder-input'; inp.multiple = true; inp.hidden = true;
+  try { inp.webkitdirectory = true; } catch (_) {}
+  inp.accept = '.pdf,.png,.jpg,.jpeg,.txt,.md,image/*,application/pdf,text/plain';
+  document.body.appendChild(inp);
+  inp.onchange = (e) => {
+    const all = [...(e.target.files || [])];
+    const files = all.filter(f => /\.(pdf|png|jpe?g|txt|md)$/i.test(f.name));
+    inp.remove();
+    if (!files.length) { toast('No PDFs, scans or text files found in that folder.', 'info'); return; }
+    switchView('contracts');
+    setTimeout(() => { try { if (typeof bulkContractUpload === 'function') bulkContractUpload(files); } catch (_) {} }, 150);
+    toast(`Importing ${files.length} file${files.length === 1 ? '' : 's'} from the folder…`, 'success');
+  };
+  inp.click();
 }
 /* ===================== Shadow-IT discovery (expense CSV) =====================
    Upload a card statement / expense export; we flag recurring charges that
@@ -3743,9 +3836,9 @@ function ccSteps() {
     { id: 'individual', icon: '📄', title: 'Load individual contracts', desc: 'Upload a PDF or text file. We read the vendor, value, dates, renewal and clauses — AI-native when AI extraction is on.', cta: 'Upload a contract', done: subs.some(s => s.contract), act: () => goContracts('single') },
     { id: 'bulk', icon: '📚', title: 'Add contracts in bulk', desc: 'Drop a whole set of PDFs or scans at once. Each becomes a draft with its terms already extracted.', cta: 'Bulk upload', done: false, act: () => goContracts('bulk') },
     { id: 'paste', icon: '📋', title: 'Copy-paste contract details', desc: 'Paste contract text straight in for a quick read — handy for a single clause or an email.', cta: 'Paste text', done: false, act: () => goContracts('paste') },
-    { id: 'clm', icon: '🔗', title: 'Connect a CLM (SpotDraft, Ironclad…)', desc: 'Import contracts automatically from your contract-management tool.', cta: req.clm ? 'Requested ✓' : 'Request access', done: !!req.clm, act: () => ccRequest('clm', 'SpotDraft / CLM import') },
-    { id: 'sheet', icon: '📊', title: 'Connect a Google Sheet', desc: "Already track SaaS in a sheet? Link it and we'll import the rows — verified against the real contracts later.", cta: (state.settings && state.settings.ccSheetUrl) ? 'Sheet linked ✓' : 'Link a sheet', done: !!(state.settings && state.settings.ccSheetUrl), act: () => ccSheet() },
-    { id: 'drive', icon: '🗂️', title: 'Connect Google Drive / a folder', desc: 'Point us at a Drive folder of contracts and upload them all at once (runs through bulk upload).', cta: req.drive ? 'Requested ✓' : 'Request access', done: !!req.drive, act: () => ccRequest('drive', 'Google Drive / folder sync') },
+    { id: 'clm', icon: '🔗', title: 'Import from a CLM (SpotDraft, Ironclad…)', desc: 'Export your contracts from your CLM as CSV and import them here — mapped and de-duplicated on the way in.', cta: 'Import from CLM', done: false, act: () => openClmImport() },
+    { id: 'sheet', icon: '📊', title: 'Import a Google Sheet', desc: "Already track SaaS in a sheet? Paste the link and we'll pull the rows straight in for you to map and review.", cta: (state.settings && state.settings.ccSheetImported) ? 'Imported ✓ · import again' : 'Import a sheet', done: !!(state.settings && state.settings.ccSheetImported), act: () => ccSheet() },
+    { id: 'drive', icon: '🗂️', title: 'Import a folder of contracts', desc: 'Pick a whole folder of contract PDFs or scans and run them through the bulk extractor in one go.', cta: 'Select a folder', done: false, act: () => openDriveFolder() },
     { id: 'shadow', icon: '🕵️', title: 'Discover shadow tools', desc: "Upload an expense or card-statement CSV and we'll flag recurring SaaS charges you aren't already tracking — scanned locally, nothing uploaded.", cta: 'Scan an expense CSV', done: false, act: () => openShadowDiscovery() },
     { id: 'team', icon: '👥', title: 'Add your team directory', desc: 'Import people and departments so spend and licences roll up by team.', cta: teamCount ? 'Review team' : 'Add team', done: teamCount > 0, act: () => switchView('team') },
   ];
