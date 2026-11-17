@@ -1129,6 +1129,13 @@ html.owner-only #owner { display: block !important; }
 .ai-extract-toggle input { margin:0; }
 .ai-extract-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
+/* Ask Track AI ("Ask AI" button inside an answer) */
+.ask-ai-row { display:flex; align-items:center; gap:8px; margin-top:12px; }
+.ask-ai-btn { background: var(--accent); color:#fff; border:0; border-radius:8px; padding:6px 12px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; }
+.ask-ai-btn:hover { background: var(--accent-2); }
+.ask-ai-btn:disabled { opacity:.7; cursor:wait; }
+.ask-ai-answer { margin-top:10px; padding:12px 14px; background: var(--panel-2); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:8px; font-size:13.5px; line-height:1.55; color: var(--text); }
+
 /* ===== AI Chat ===== */
 .ai-launcher { position: fixed; right: 20px; bottom: 20px; z-index: 200; display:inline-flex; align-items:center; gap:6px; background: var(--accent); color:#fff; border:0; padding:10px 16px; border-radius:30px; font-weight:600; font-size:13px; cursor:pointer; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 .ai-launcher:hover { transform: translateY(-1px); }
@@ -12815,6 +12822,89 @@ function closeChatModal() {
   try { speechSynthesis?.cancel(); } catch (_) {}
   try { stopVoice(); } catch (_) {}
 }
+/* ---------- Ask Track AI (optional backend, hybrid) ----------
+   The local engine answers instantly from computed data; this sends an
+   app-computed snapshot (all figures pre-calculated) to /api/ask so Claude can
+   answer broader questions accurately without re-deriving numbers. */
+function askEndpoint() { return (state.settings && state.settings.askEndpoint) || '/api/ask'; }
+function askAiAvailable() { return aiExtractEnabled(); }
+
+function buildWorkspaceSnapshot() {
+  const subs = state.subscriptions || [];
+  const cur = (state.settings && state.settings.currency) || 'USD';
+  const vendors = subs.map(s => {
+    const c = s.contract || null;
+    return {
+      name: s.name, category: s.category || null, team: s.team || null,
+      cycle: s.cycle || 'yearly',
+      monthly: Math.round((typeof monthlyCost === 'function' ? monthlyCost(s) : 0) || 0),
+      annual: Math.round((typeof annualCost === 'function' ? annualCost(s) : 0) || 0),
+      seats: (s.seats != null ? s.seats : null), active: s.active !== false, renewal: s.renewal || null,
+      contract: c ? {
+        autoRenew: !!c.autoRenew, renewalType: c.renewalType || null, noticeDays: c.noticeDays ?? null,
+        paymentDays: c.paymentDays ?? null, priceCapPct: c.priceCapPct ?? null, governingLaw: c.governingLaw || null,
+        sla: c.sla || null, dpa: c.dpa || null, liabilityCap: c.liabilityCap || null,
+      } : null,
+    };
+  });
+  const active = vendors.filter(v => v.active);
+  const totalMonthly = active.reduce((a, v) => a + v.monthly, 0);
+  const invs = state.invoices || [];
+  const pending = invs.filter(i => (typeof invoiceStatus === 'function' ? invoiceStatus(i) : i.status) !== 'paid');
+  const today = new Date(); const in90 = new Date(today.getTime() + 90 * 86400000);
+  const upcoming = vendors.filter(v => v.renewal)
+    .map(v => ({ name: v.name, renewal: v.renewal, annual: v.annual }))
+    .filter(v => { const d = new Date(v.renewal); return d >= today && d <= in90; })
+    .sort((a, b) => new Date(a.renewal) - new Date(b.renewal));
+  return {
+    currency: cur,
+    totals: { activeVendors: active.length, totalVendors: vendors.length, monthlyActive: totalMonthly, annualActive: totalMonthly * 12 },
+    vendors, invoiceSummary: { count: invs.length, pendingCount: pending.length, pendingAmount: Math.round(pending.reduce((a, i) => a + (+i.amount || 0), 0)) },
+    upcomingRenewals90d: upcoming,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+async function askAI(question) {
+  if (!askAiAvailable()) return { _error: 'disabled' };
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 45000);
+    const r = await fetch(askEndpoint(), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, snapshot: buildWorkspaceSnapshot() }), signal: ctrl.signal,
+    });
+    clearTimeout(to);
+    if (!r.ok) return { _error: 'http_' + r.status };
+    const j = await r.json();
+    if (!j || !j.ok) return { _error: (j && j.error) || 'bad', _message: (j && j.message) || '' };
+    return { answer: j.answer, model: j.model };
+  } catch (e) { return { _error: (e && e.name === 'AbortError') ? 'timeout' : 'network' }; }
+}
+
+/* Wire an "Ask AI" button inside a rendered answer container. */
+function wireAskAi(container, question, speakFn) {
+  const btn = container.querySelector('.ask-ai-btn');
+  if (!btn) return;
+  btn.onclick = async () => {
+    if (!(state.settings && state.settings.askAiConsented)) {
+      const ok = confirm('Ask AI sends a summary of your workspace (vendors, costs, renewal dates and contract terms) to your own backend → the Anthropic API to answer in natural language. Your raw files are not sent. Continue?');
+      if (!ok) return;
+      state.settings = state.settings || {}; state.settings.askAiConsented = true; save();
+    }
+    const out = container.querySelector('.ask-ai-out');
+    btn.disabled = true; btn.textContent = '✨ Thinking…';
+    const res = await askAI(question);
+    btn.disabled = false; btn.textContent = '✨ Ask AI';
+    if (res.answer) {
+      if (out) out.innerHTML = `<div class="ask-ai-answer">${escapeHtml(res.answer).replace(/\n/g, '<br>')}</div>`;
+      try { if (speakFn && voiceSettings().speakOn) speakFn(res.answer.slice(0, 400)); } catch (_) {}
+    } else if (out) {
+      out.innerHTML = `<div class="dim" style="font-size:12px;padding:6px 0">AI answer unavailable${res._message ? ': ' + escapeHtml(res._message.slice(0, 140)) : ' (' + escapeHtml(res._error || '') + ')'}.</div>`;
+    }
+  };
+}
+
 function runModalQuery(q) {
   const body = document.getElementById('ai-modal-body');
   body.innerHTML = `<div class="ai-modal-loading">Thinking…</div>`;
@@ -12828,9 +12918,11 @@ function runModalQuery(q) {
         <div class="ai-headline">${ans.headline || ''}</div>
         <div class="ai-body">${ans.body || ''}</div>
         ${ans.sources?.length ? `<div class="ai-sources"><span class="dim">Sources:</span> ${ans.sources.map(s => `<a href="#" data-nav-src="${s.view}:${s.id}">${escapeHtml(s.label)}</a>`).join(', ')}</div>` : ''}
+        ${askAiAvailable() ? `<div class="ask-ai-row"><button type="button" class="ask-ai-btn">✨ Ask AI</button><span class="dim" style="font-size:11px">for a fuller answer from your data</span></div><div class="ask-ai-out"></div>` : ''}
         <details class="ai-trace"><summary class="dim">why this answer</summary><code>${escapeHtml(ans.trace || '')}</code></details>
       </div>
     `;
+    wireAskAi(body, q, speak);
     body.querySelectorAll('[data-nav-src]').forEach(a => a.onclick = (e) => { e.preventDefault(); const [view, id] = a.dataset.navSrc.split(':'); closeChatModal(); switchView(view); if (typeof openContractDetail === 'function') openContractDetail(id); });
     body.querySelectorAll('[data-nav-vendor]').forEach(r => r.onclick = () => { closeChatModal(); if (typeof openContractDetail === 'function') openContractDetail(r.dataset.navVendor); });
     body.querySelectorAll('[data-chip-q]').forEach(c => c.onclick = () => { const q2 = decodeURIComponent(c.dataset.chipQ); document.getElementById('ai-modal-input').value = q2; runModalQuery(q2); });
