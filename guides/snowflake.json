@@ -1,0 +1,125 @@
+{
+  "vendor": "Snowflake",
+  "slug": "snowflake",
+  "guide": "# Snowflake Renewal and Cancellation Guide (as of 2026-11-17)\n\n**Bottom line:** Snowflake's public Terms of Service don't set an auto-renewal rule or a notice window for core capacity contracts. Those terms sit in your signed Order Form. The public terms do say fees are non-cancelable and non-refundable.\n\n## 1. Default renewal behaviour\n\n- **The ToS defers to the Order Form.** \nAll Fees and payment terms are set out in the applicable Order Form. Except as expressly stated and to the extent the law permits, payment obligations are non-cancelable and Fees are non-refundable.\n \nEach Order Form terminates when its Subscription Term expires, unless it or the Agreement says otherwise.\n The ToS itself therefore doesn't create auto-renewal. Any auto-renewal would have to come from your Order Form.\n- **Third-party sources disagree with each other and are not authoritative.**\n  - Vendr says \nSnowflake contracts typically include auto-renewal clauses\n, and that buyers should negotiate notice periods.\n  - Costbench says \nSnowflake does not publicly disclose a standard cancellation window\n, and that negotiation guides suggest 30–90 days' advance written notice.\n  - Treat these as market commentary, not Snowflake's terms.\n- **Notice window for capacity contracts:** Not verified — confirm in your signed contract or with the vendor.\n- **The agreement itself.** \nThe Agreement stays in effect until terminated in accordance with its terms.\n \nIf no Order Form is in effect, either party may terminate on written notice.\n\n\n## 2. Steps to cancel or give notice\n\n1. **Check your Order Form** for any auto-renewal, notice period and notice-address clauses. These are not stated in the public ToS I retrieved.\n2. **Where to send notice for enterprise contracts:** Not verified — confirm in your signed contract or with the vendor. The ToS has a Notices clause, but I did not retrieve its text. Some third-party letter-template sites list contact details, but I did not rely on them.\n3. **Contact your Snowflake account team** in writing. Ask for written confirmation of non-renewal, and keep the confirmation.\n4. **If you bought through a reseller or cloud marketplace,** the ToS applies to entities \nother than a Reseller\n. Your renewal and cancellation terms may therefore sit in the reseller agreement. Not verified — confirm with your reseller.\n5. **Plan the data exit.** \nUpon written notice to Snowflake, you have up to 30 calendar days after termination or expiration to access the Service solely to retrieve Customer Data.\n You must give that notice for the right to apply.\n\n## 3. Product-specific rules\n\n- **Snowflake Marketplace paid listings** (Snowsight):\n  - \nCancelling a paid listing purchase stops auto-renewal, but it isn't immediate and you get no refund.\n\n  - The path is \nData sharing » Internal sharing, select the paid listing, then Manage Purchase » Cancel Purchase\n.\n  - \nTo request a cancellation or a refund, contact Snowflake Marketplace Operations.\n\n  - Third-party Marketplace providers set their own terms. For example, one provider's published terms say \nfixed terms have no automatic renewals\n. Their recurring subscriptions have their own notice rules. Check each provider's listing terms.\n- **AI Data Packages:** \nThe term is month-to-month and renews monthly until either party cancels.\n \nFees for the billing period in which the cancellation is processed are not refunded.\n\n- **Trial accounts:** \nA trial runs 30 days or until free credits are used up, whichever comes first.",
+  "sources": [
+    {
+      "url": "https://www.snowflake.com/en/legal/procurement/psa/",
+      "title": "Professional Services Agreement"
+    },
+    {
+      "url": "https://www.diaceutics.com/download/snowflake-terms-and-conditions",
+      "title": "Agreement for Snowflake Marketplace Products (Provider Diaceutics)"
+    },
+    {
+      "url": "https://www.snowflake.com/en/legal/terms-of-service/",
+      "title": "Snowflake Terms of Service"
+    },
+    {
+      "url": "https://www.snowflake.com/legal/terms-of-service/2024-08-01/",
+      "title": "[ARCHIVE] Snowflake Terms of Service - 2024-08-01 - Snowflake"
+    },
+    {
+      "url": "https://www.snowflake.com/legal/snowflake-provider-and-consumer-terms/2024-05-31/",
+      "title": "Snowflake Provider and Consumer Terms - Snowflake"
+    },
+    {
+      "url": "https://assets.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-14/documents/712444/668599055138058-terms-and-conditions-2024-05-02-1520.pdf",
+      "title": "Terms and conditions"
+    },
+    {
+      "url": "https://d7umqicpi7263.cloudfront.net/eula/product/106ff316-230f-4ad7-9d64-91e400266426/e54458d3-9c10-4dde-b15b-7d9bdada3713.pdf",
+      "title": "2020June30 Snowflake Terms of Service Page 1 of 8 SNOWFLAKE TERMS OF SERVICE"
+    },
+    {
+      "url": "https://www.datapancake.com/snowflake-terms-of-service",
+      "title": "Snowflake Terms of Service"
+    },
+    {
+      "url": "https://d7umqicpi7263.cloudfront.net/eula/product/4cc0f4b4-b646-4f61-a3bd-53ac4b29422d/64f95f27-cd81-4787-80b1-6d95b9fbbbcb.pdf",
+      "title": "2018Feb26 Snowflake Terms of Service Page 1 of 7 SNOWFLAKE TERMS OF SERVICE"
+    },
+    {
+      "url": "https://conductatlas.com/platform/snowflake/snowflake-terms-of-service/",
+      "title": "Snowflake Terms of Service"
+    },
+    {
+      "url": "https://docs.snowflake.com/en/user-guide/collaboration/listings/pricing-plans-offers/consumers-manage-offers",
+      "title": "Manage offers in Snowsight"
+    },
+    {
+      "url": "https://www.vendr.com/marketplace/snowflake",
+      "title": "Snowflake Software Pricing & Plans 2026: See Your Cost"
+    },
+    {
+      "url": "https://costbench.com/software/data-warehousing/snowflake/",
+      "title": "Snowflake Pricing 2026: Usage From $2 per credit"
+    },
+    {
+      "url": "https://hackernoon.com/before-you-renew-snowflake-run-these-6-queries",
+      "title": "Before You Renew Snowflake, Run These 6 Queries"
+    },
+    {
+      "url": "https://news.ycombinator.com/item?id=25281061",
+      "title": "Do not sign a contract with Snowflake"
+    },
+    {
+      "url": "https://redresscompliance.com/snowflake-commercial-negotiation-guide-for-cios-and-procurement-leaders/",
+      "title": "Snowflake Commercial Negotiation Guide for CIOs and Procurement Leaders"
+    },
+    {
+      "url": "https://www.stopee.com/en-sg/letters/cloud-storage/cancellation-snowflake/",
+      "title": "Cancel Snowflake: Step-by-Step Guide"
+    },
+    {
+      "url": "https://redlineapp.net/blog/how-to-get-out-of-an-auto-renewal-contract",
+      "title": "How to Get Out of an Auto-Renewal Contract: The Five-Step Escape"
+    },
+    {
+      "url": "https://lawinsider.com/clause/auto-renewal/_5",
+      "title": "Common use of Auto-Renewal Clause in Contracts"
+    },
+    {
+      "url": "https://docs.snowflake.com/en/user-guide/admin-trial-account",
+      "title": "Trial accounts"
+    },
+    {
+      "url": "https://snowflake.discourse.group/t/how-to-close-snowflake-account/7514",
+      "title": "How to close snowflake account? - Snowflake - Snowflake"
+    },
+    {
+      "url": "https://docs.snowflake.com/en/user-guide/collaboration/listings/pricing-plans-offers/consumers-pricing-plans-offers",
+      "title": "Use offers as a consumer"
+    },
+    {
+      "url": "https://repost.aws/questions/QUE1x8lLBrRp6-5zbm70zUcQ/would-i-be-able-to-cancel-snowflake-after-30-day-free-trial",
+      "title": "Would I be able to cancel snowflake after 30 day free trial"
+    },
+    {
+      "url": "https://www.joinchargeback.com/cancels/how-to-cancel-snowflake-inc-",
+      "title": "How to Cancel Your Snowflake Inc. Subscription (2025)"
+    },
+    {
+      "url": "https://www.stopee.com/en-in/letters/software-saas/cancellation-snowflake/",
+      "title": "Cancel Snowflake: Step-by-Step Guide"
+    },
+    {
+      "url": "https://www.postclic.com/en-ae/letters/software-saas/cancel-snowflake/",
+      "title": "Snowflake Cancel Query"
+    },
+    {
+      "url": "https://docs.zuora.com/en/zephr/configure-sites-pages-and-components-in-delivery/pages/create-a-cancel-subscription-page",
+      "title": "Welcome to Zuora Product Documentation"
+    },
+    {
+      "url": "https://www.observeinc.com/legal/terms-of-service",
+      "title": "Terms of Service"
+    },
+    {
+      "url": "https://www.snowflake.com/en/legal/optional-offerings/offering-specific-terms/snowflake-marketplace/snowflake-ai-data-packages/",
+      "title": "Snowflake AI Data Packages Terms"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:48:15.354Z",
+  "model": "claude-sonnet-5-5"
+}

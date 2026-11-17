@@ -1,0 +1,101 @@
+{
+  "vendor": "HubSpot",
+  "slug": "hubspot",
+  "guide": "# HubSpot renewal and cancellation guide (as of 2026-11-17)\n\n## Default renewal behaviour\n- **Subscriptions auto-renew unless you switch it off.** HubSpot's current Customer Terms of Service say that \nif you don't turn off the auto-renewal setting in Account & Billing, your Subscription will renew automatically.\n HubSpot's knowledge base says the same: \nkeeping auto-renewal on renews the same subscription, term and billing cycle.\n\n- **You can't cancel mid-term.** \nExcept as the Agreement specifically provides, you may not cancel before the end of your Current Term. HubSpot won't refund prepaid or unused fees for the rest of that term.\n\n- **Price increases at renewal are possible.** A February 2025 copy of the terms says \nHubSpot may raise fees up to its then-current list price. It says it will notify you at least 30 days before renewal if this applies.\n I did not confirm that this wording is unchanged in the current live version.\n\n## Notice window\n- **The current terms give a deadline but no lead time.** The notice must be given \n\"prior to the end of your Current Term\"\n, and it applies unless your Agreement or Order says otherwise. HubSpot's renewal help page likewise says you must disable auto-renewal \nbefore your next Renewal Term.\n\n- **No fixed number of days is stated in the sources I retrieved.** The pages I found don't give a fixed lead time, such as 30 or 60 days, for the standard terms. Treat any specific day count as **not verified. Confirm in your signed contract or with the vendor.**\n- **Older terms were different.** Archived 2015 terms required \nnotice no more than 90 days and no less than 45 days before the end of the Subscription Term.\n That is historical only. Contracts signed under older terms may still carry different notice periods.\n- **Product-specific terms may add detail.** Older versions of the terms say \nthe deadline varies by HubSpot product and edition, and point to the Product Specific Terms.\n I did not retrieve the current Product Specific Terms. Whether your Hub or edition has its own window is **not verified**.\n\n## Steps to give notice (self-serve)\nPer HubSpot's knowledge base:\n1. \nClick your account name (top right), then Account & Billing.\n\n2. \nOpen the Subscriptions tab.\n\n3. \nIn the Auto-Renewal Terms section, click Cancel auto-renewal.\n\n4. \nSelect the products to cancel. To cancel everything, select all products.\n\n5. \nReview the cancellation details, then click Cancel auto-renewal.\n\n\nNotes on this process:\n- **Who can do it:** \nSuper Admins or users with billing admin permissions.\n \nIf you don't see the button, check your billing admin permissions or contact HubSpot Support.\n\n- **When it takes effect:**",
+  "sources": [
+    {
+      "url": "https://legal.hubspot.com/tos/archive/2025-04-10",
+      "title": "Archived ToS April 10, 2025"
+    },
+    {
+      "url": "https://legal.hubspot.com/terms-of-service",
+      "title": "HubSpot Customer Terms of Service - Legal Center"
+    },
+    {
+      "url": "https://community.hubspot.com/t5/HubSpot-Legal-Stuff/November-2020-Revisions-to-our-Product-Specific-Terms/ba-p/383343",
+      "title": "HubSpot Community - November 2020 Revisions to our Product Specific Terms - HubSpot Community"
+    },
+    {
+      "url": "https://legal.hubspot.com/hubfs/Downloadable_Legal_Docs/HubSpot%20TOS%20for%20PDF%20download%20v.%201Oct2020.pdf",
+      "title": "Note to copy: The HubSpot Customer Terms of Service is made available at"
+    },
+    {
+      "url": "https://legal.hubspot.com/terms-of-service/archive/2015-04-17",
+      "title": "Terms of Service - Legal Center - HubSpot"
+    },
+    {
+      "url": "https://legal.hubspot.com/tos/archive/2024-01-03",
+      "title": "Archived TOS (Master Terms) - January 3, 2024"
+    },
+    {
+      "url": "https://742851.fs1.hubspotusercontent-na1.net/hubfs/742851/HubSpot%20TOS4Feb2025.pdf",
+      "title": "HubSpot Customer Terms of Service"
+    },
+    {
+      "url": "https://742851.fs1.hubspotusercontent-na1.net/hubfs/742851/HubSpot%20TOS_1Sept2023%20(FINAL).pdf",
+      "title": "HubSpot Customer Terms of Service"
+    },
+    {
+      "url": "https://742851.fs1.hubspotusercontent-na1.net/hubfs/742851/HubSpot%20TOS%20for%20PDF_5%20May%202022.pdf",
+      "title": "HubSpot Customer Terms of Service"
+    },
+    {
+      "url": "https://knowledge.hubspot.com/account/how-do-i-cancel-my-hubspot-account",
+      "title": "Downgrade or cancel your HubSpot subscription"
+    },
+    {
+      "url": "https://www.saasassure.com/blog/what-happens-to-hubspot-data-when-you-cancel",
+      "title": "What Happens to Your HubSpot Data If You Cancel Your Subscription"
+    },
+    {
+      "url": "https://mailsoftly.com/blog/cancel-hubspot/",
+      "title": "How to Cancel HubSpot: Step-by-Step, What to Export First, and What Happens to Your Data"
+    },
+    {
+      "url": "https://restacked.ai/hubspot-cancellation-fee-and-contract-exit",
+      "title": "HubSpot cancellation fee and contract exit guide"
+    },
+    {
+      "url": "https://cancelproof.app/how-to-cancel/hubspot",
+      "title": "How to Cancel HubSpot (2026) — Step by Step"
+    },
+    {
+      "url": "https://saleoid.com/blog/hubspot-cancellation-guide/",
+      "title": "HubSpot Cancellation Guide 2026"
+    },
+    {
+      "url": "https://knowledge.hubspot.com/account/review-your-upcoming-renewal",
+      "title": "- Knowledge Base"
+    },
+    {
+      "url": "https://knowledge.hubspot.com/account/billing-and-payment-faqs",
+      "title": "- Knowledge Base"
+    },
+    {
+      "url": "https://knowledge.hubspot.com/articles/kcs_article/account/how-do-i-delete-a-crm-portal",
+      "title": "how do i delete a crm portal"
+    },
+    {
+      "url": "https://www.avidlyagency.com/blog/how-to-get-out-of-hubspot-contract",
+      "title": "How to get out of a HubSpot contract: A step-by-step guide"
+    },
+    {
+      "url": "https://www.coffee.ai/articles/how-to-leave-hubspot-2026",
+      "title": "How to Leave HubSpot in 2026 Without Losing Data"
+    },
+    {
+      "url": "https://www.cancelmanual.com/services/hubspot",
+      "title": "How to Cancel HubSpot Subscription (2026 Guide)"
+    },
+    {
+      "url": "https://refundguides.com/hubspot-subscription-nonrenewal-guide/",
+      "title": "HubSpot Cancellation & Refund Guide"
+    },
+    {
+      "url": "https://knowledge.hubspot.com/contracts/view-and-manage-contracts?goal=scale-support",
+      "title": "View and manage contracts"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:47:43.753Z",
+  "model": "claude-sonnet-5-5"
+}

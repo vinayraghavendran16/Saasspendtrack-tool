@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-11-17T14:48:16.230Z",
+  "guides": [
+    {
+      "vendor": "Adobe",
+      "slug": "adobe",
+      "checkedAt": "2026-11-17T14:48:16.192Z",
+      "sourceCount": 43,
+      "chars": 2854
+    },
+    {
+      "vendor": "Datadog",
+      "slug": "datadog",
+      "checkedAt": "2026-11-17T14:48:14.828Z",
+      "sourceCount": 20,
+      "chars": 2616
+    },
+    {
+      "vendor": "DocuSign",
+      "slug": "docusign",
+      "checkedAt": "2026-11-17T14:48:16.142Z",
+      "sourceCount": 35,
+      "chars": 3682
+    },
+    {
+      "vendor": "Gong",
+      "slug": "gong",
+      "checkedAt": "2026-11-17T14:47:59.587Z",
+      "sourceCount": 37,
+      "chars": 2556
+    },
+    {
+      "vendor": "HubSpot",
+      "slug": "hubspot",
+      "checkedAt": "2026-11-17T14:47:43.753Z",
+      "sourceCount": 23,
+      "chars": 2683
+    },
+    {
+      "vendor": "Outreach",
+      "slug": "outreach",
+      "checkedAt": "2026-11-17T14:47:43.410Z",
+      "sourceCount": 31,
+      "chars": 3795
+    },
+    {
+      "vendor": "Salesforce",
+      "slug": "salesforce",
+      "checkedAt": "2026-11-17T14:47:43.989Z",
+      "sourceCount": 41,
+      "chars": 2486
+    },
+    {
+      "vendor": "Salesloft",
+      "slug": "salesloft",
+      "checkedAt": "2026-11-17T14:48:01.088Z",
+      "sourceCount": 33,
+      "chars": 2755
+    },
+    {
+      "vendor": "Slack",
+      "slug": "slack",
+      "checkedAt": "2026-11-17T14:47:59.752Z",
+      "sourceCount": 52,
+      "chars": 2830
+    },
+    {
+      "vendor": "Snowflake",
+      "slug": "snowflake",
+      "checkedAt": "2026-11-17T14:48:15.354Z",
+      "sourceCount": 29,
+      "chars": 3510
+    },
+    {
+      "vendor": "Zoom",
+      "slug": "zoom",
+      "checkedAt": "2026-11-17T14:47:59.478Z",
+      "sourceCount": 37,
+      "chars": 3113
+    },
+    {
+      "vendor": "ZoomInfo",
+      "slug": "zoominfo",
+      "checkedAt": "2026-11-17T14:47:43.855Z",
+      "sourceCount": 38,
+      "chars": 3207
+    }
+  ]
+}

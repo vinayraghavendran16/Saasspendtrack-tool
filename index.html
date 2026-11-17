@@ -14218,22 +14218,66 @@ function ensureRenewalGuidesView() {
     <div class="section-head">
       <div>
         <h2>Renewal guides</h2>
-        <p class="page-sub">Vendor-specific renewal and cancellation playbooks, built from the vendor's current public terms at the moment you ask. Every fact is sourced; anything we can't verify is flagged, not guessed.</p>
+        <p class="page-sub">Curated, reviewed renewal and cancellation playbooks for the vendors prospects ask about most. Each is built from the vendor's public terms and reputable sources, with every fact sourced and anything unverifiable flagged, not guessed.</p>
       </div>
     </div>
-    <div class="rg-controls">
-      <input list="rg-vendor-list" id="rg-vendor" placeholder="Vendor (e.g. ZoomInfo, Salesforce, Outreach)…" autocomplete="off" />
-      <datalist id="rg-vendor-list">${vendors.map(v => `<option value="${escapeHtml(v)}"></option>`).join('')}</datalist>
-      <button class="btn-primary" id="rg-go">Build guide</button>
-    </div>
-    <div class="rg-chips">${vendors.slice(0, 10).map(v => `<button class="chip" data-rg="${encodeURIComponent(v)}">${escapeHtml(v)}</button>`).join('')}</div>
-    <div class="rg-disclaimer">ℹ️ These guides summarise public vendor terms and reputable sources as of the time you generate them. They are not legal advice. Your signed order form or MSA overrides any public default, so always confirm there first.</div>
-    <div id="rg-result"></div>`;
+    <div class="rg-disclaimer">ℹ️ These guides summarise public vendor terms and reputable sources as of the review date shown on each. They are not legal advice. A signed order form or MSA overrides any public default, so always confirm there first.</div>
+    <div id="rg-gallery" class="rg-gallery"><p class="dim">Loading guides…</p></div>
+    <div id="rg-result"></div>
+    <details class="rg-advanced">
+      <summary>Admin: generate a live guide for another vendor</summary>
+      <p class="dim" style="font-size:12px;margin:6px 0">Runs a fresh web search now. The result is <b>live and unreviewed</b> until you add it to the curated set. Use this to preview a vendor before publishing it.</p>
+      <div class="rg-controls">
+        <input list="rg-vendor-list" id="rg-vendor" placeholder="Vendor (e.g. Workday, Apollo)…" autocomplete="off" />
+        <datalist id="rg-vendor-list">${vendors.map(v => `<option value="${escapeHtml(v)}"></option>`).join('')}</datalist>
+        <button class="btn-primary" id="rg-go">Generate live</button>
+      </div>
+    </details>`;
   main.appendChild(section);
-  const run = () => runRenewalGuide(section.querySelector('#rg-vendor').value);
+  const run = () => runRenewalGuide(section.querySelector('#rg-vendor').value, { live: true });
   section.querySelector('#rg-go').onclick = run;
   section.querySelector('#rg-vendor').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
-  section.querySelectorAll('.rg-chips .chip').forEach(c => c.onclick = () => { const v = decodeURIComponent(c.dataset.rg); section.querySelector('#rg-vendor').value = v; runRenewalGuide(v); });
+  loadRenewalGallery();
+}
+async function loadRenewalGallery() {
+  const host = document.getElementById('rg-gallery'); if (!host) return;
+  try {
+    const r = await fetch('/guides/index.json', { cache: 'no-cache' });
+    if (!r.ok) throw new Error('no index');
+    const j = await r.json();
+    const guides = (j && j.guides) || [];
+    if (!guides.length) throw new Error('empty');
+    host.innerHTML = `<div class="rg-grid">${guides.map(g => {
+      const d = g.checkedAt ? new Date(g.checkedAt) : null;
+      return `<button class="rg-tile" data-slug="${escapeHtml(g.slug)}" data-vendor="${escapeHtml(g.vendor)}">
+        <span class="rg-tile-name">${escapeHtml(g.vendor)}</span>
+        <span class="rg-tile-meta">${g.sourceCount || 0} sources · reviewed ${d ? d.toLocaleDateString() : '—'}</span>
+      </button>`;
+    }).join('')}</div>`;
+    host.querySelectorAll('.rg-tile').forEach(t => t.onclick = () => { host.querySelectorAll('.rg-tile').forEach(x => x.classList.remove('active')); t.classList.add('active'); openCachedGuide(t.dataset.slug, t.dataset.vendor); });
+  } catch (_) {
+    host.innerHTML = `<p class="dim" style="font-size:13px">No pre-built guides yet. Use the admin panel below to generate one.</p>`;
+  }
+}
+async function openCachedGuide(slug, vendor) {
+  const host = document.getElementById('rg-result'); if (!host) return;
+  host.innerHTML = `<div class="rg-card"><p class="dim">Loading ${escapeHtml(vendor)} guide…</p></div>`;
+  host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  try {
+    const r = await fetch(`/guides/${encodeURIComponent(slug)}.json`, { cache: 'no-cache' });
+    const j = await r.json();
+    const checked = j.checkedAt ? new Date(j.checkedAt) : new Date();
+    const srcHtml = (j.sources || []).length
+      ? `<div class="rg-sources"><h4 style="margin:0 0 4px">Sources checked (${j.sources.length})</h4><ol style="margin:0 0 0 18px">${j.sources.map(s => `<li style="margin:3px 0"><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title || s.url)}</a></li>`).join('')}</ol></div>`
+      : '';
+    host.innerHTML = `<div class="rg-card">
+      <div class="rg-meta">Reviewed ${checked.toLocaleDateString()}. Built from public sources; terms change and vary by contract, region and negotiated order form. Verify against the signed agreement before acting.</div>
+      <div class="rg-body">${rgMarkdown(j.guide)}</div>
+      ${srcHtml}
+    </div>`;
+  } catch (_) {
+    host.innerHTML = `<div class="rg-card"><p>⚠️ Couldn't load that guide. Try the admin panel to regenerate it.</p></div>`;
+  }
 }
 function ensureRenewalGuidesNav() {
   const btns = document.querySelectorAll('.sidebar [data-view="playbook"]');
@@ -14290,6 +14334,15 @@ if (window.PAGE_TITLES) window.PAGE_TITLES['renewal-guides'] = 'Renewal guides';
 [data-theme="dark"] .rg-unverified { color:#fde68a; }
 .rg-spinner { width:18px; height:18px; border:2px solid var(--border,#e2e8f0); border-top-color:var(--accent,#6366f1); border-radius:50%; animation:rgspin 0.7s linear infinite; margin-top:8px; }
 @keyframes rgspin { to { transform:rotate(360deg); } }
+.rg-gallery { margin-bottom:14px; }
+.rg-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; }
+.rg-tile { display:flex; flex-direction:column; align-items:flex-start; gap:4px; text-align:left; padding:12px 14px; background:var(--card,#fff); border:1px solid var(--border,#e2e8f0); border-radius:10px; cursor:pointer; transition:border-color .12s, box-shadow .12s; }
+.rg-tile:hover { border-color:var(--accent,#6366f1); box-shadow:0 2px 10px rgba(99,102,241,0.12); }
+.rg-tile.active { border-color:var(--accent,#6366f1); box-shadow:0 0 0 2px var(--accent,#6366f1) inset; }
+.rg-tile-name { font-weight:600; font-size:14px; }
+.rg-tile-meta { font-size:11.5px; color:var(--text-dim,#94a3b8); }
+.rg-advanced { margin-top:18px; max-width:780px; border-top:1px dashed var(--border,#e2e8f0); padding-top:12px; }
+.rg-advanced summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dim,#94a3b8); }
 </style>
 <script>
 /* ==========================================================================

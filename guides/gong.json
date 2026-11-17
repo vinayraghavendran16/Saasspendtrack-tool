@@ -1,0 +1,157 @@
+{
+  "vendor": "Gong",
+  "slug": "gong",
+  "guide": "# Gong: Renewal and Cancellation Guide (as of 2026-11-17)\n\n## Default renewal behaviour\n- **Auto-renews for one year.** Gong's public Terms and Conditions say that, \nexcept as otherwise specified in an Order Form, subscriptions automatically renew for additional one-year periods unless either party gives the other written notice (email acceptable) at least 60 days before the end of the relevant subscription term.\n (Source: gong.io/legal/terms-and-conditions, §3.3.)\n- **Promotional pricing ends at renewal.** \nUnless the Order Form says otherwise, renewal of promotional or one-time priced subscriptions is at Gong's list price in effect at the time.\n\n- **Third-party summaries agree on 60 days.** \nZoomInfo's pricing overview says subscriptions auto-renew for one-year periods unless either party gives 60 days' written notice.\n \nAvoma gives the same default.\n\n- **Conflicting claims.**\n  - \nOliv.ai says \"60-90 day\" notice.\n\n  - \nTropic says the default is 30 days.\n\n  - Neither matches Gong's published terms above. Treat 60 days as the public default and defer to your Order Form.\n\n## Notice window\n- **Public default:** at least 60 days before the end of the current subscription term (§3.3 above).\n- **Your actual deadline:** Not verified. Confirm it in your signed contract, because the Order Form can override it.\n\n## How to give notice\n1. **Check your Order Form first.** It may set a different term, notice period or method. \nThe 60-day default applies \"except as otherwise specified in an Order Form.\"\n\n2. **Calculate the deadline.** Count back at least 60 days from the term end date. Add buffer for delivery time.\n3. **Send written notice by a valid method.** Gong's terms say \nnotices to Gong are valid only if sent by pre-paid first-class certified mail or overnight courier to Gong, attn: Chief Legal Officer, P.O. Box 190250, San Francisco, CA 94119, or to an email address given in the terms, or another address Gong authorizes.\n\n   - The email address is hidden in the official page text I retrieved. One non-production mirror of the page shows legal@gong.io (\nsame P.O. Box and email listed there\n). I could not confirm it on Gong's production page, so mark it **Not verified — confirm in your signed contract or with the vendor.**\n   - The renewal clause says email is acceptable, but the general notice clause lists mail, courier or the stated email. It is not clear how these fit together. Send by a method that satisfies both, and keep proof of delivery. Confirm with Gong in writing.\n4. **Notices about payments** go to a separ",
+  "sources": [
+    {
+      "url": "https://www.oliv.ai/blog/gong-contract-renewal",
+      "title": "Gong Contract Renewal: How to Negotiate Better? or Find Alternatives! [2026]"
+    },
+    {
+      "url": "https://www.vendr.com/buyer-guides/gong",
+      "title": "Gong Software Pricing & Plans 2026: See Your Cost"
+    },
+    {
+      "url": "https://www.avoma.com/blog/gong-pricing",
+      "title": "Gong pricing 2026: Platform fees, per-seat costs, hidden Fee"
+    },
+    {
+      "url": "https://learn.g2.com/hubfs/G2%20MSA.pdf",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.sybill.ai/blogs/gong-pricing",
+      "title": "Gong Pricing in 2026: Real Costs, Hidden Fees, and What Users Say"
+    },
+    {
+      "url": "https://www.getmaxiq.com/blog/gong-ai-pricing",
+      "title": "Gong Pricing in 2026: Costs, Plans & Is It Worth It?"
+    },
+    {
+      "url": "https://marketbetter.ai/blog/gong-pricing-breakdown-2026/",
+      "title": "Gong Pricing 2026: $1,300-$1,920/User + Platform Fee"
+    },
+    {
+      "url": "https://www.gongkaraoke.net/useragreement.php",
+      "title": "User Agreement"
+    },
+    {
+      "url": "https://parrotnotes.app/blog/gong-pricing",
+      "title": "Gong Pricing 2026: Costs and Cheaper Options"
+    },
+    {
+      "url": "https://pipeline.zoominfo.com/sales/gong-pricing",
+      "title": "Gong Pricing Overview"
+    },
+    {
+      "url": "https://www.oliv.ai/blog/gong-io-pricing",
+      "title": "Gong Pricing Calculator & Guide: Per-User Costs, Platform Fees, Implementation & Volume Discounts"
+    },
+    {
+      "url": "https://firstsales.io/brand-review/gongio/",
+      "title": "Gong.io Review: Features, Pricing, Pros & Cons"
+    },
+    {
+      "url": "https://www.tropicapp.io/glossary/gong-price",
+      "title": "How Much Does Gong Cost? Pricing and Negotiation Tips"
+    },
+    {
+      "url": "https://topalter.com/android/bg.gong/cancel",
+      "title": "How to Delete and Cancel Gong.bg Subscription on Android 2025"
+    },
+    {
+      "url": "https://help.gong.io/docs/emails-from-gong",
+      "title": "About the emails Gong sends you"
+    },
+    {
+      "url": "https://www.gong.io/legal/terms-and-conditions",
+      "title": "Terms and Conditions - Gong"
+    },
+    {
+      "url": "https://www.gong.io/legal/terms-and-conditions-aws-marketplace",
+      "title": "Terms and Conditions - AWS Marketplace"
+    },
+    {
+      "url": "https://www.gong.io/gong-api-policy-terms-of-service/",
+      "title": "Gong Collective Developer Terms"
+    },
+    {
+      "url": "https://www.gong.io/legal/data-processing-addendum",
+      "title": "Data Processing Addendum - Gong"
+    },
+    {
+      "url": "https://gongdigital.net/terms-of-service/",
+      "title": "Terms of service"
+    },
+    {
+      "url": "https://thegongshop.com/pages/terms-of-service",
+      "title": "Terms of Service"
+    },
+    {
+      "url": "https://verifywise.ai/ai-trust-index/gong",
+      "title": "Is Gong safe with your data? Grade C"
+    },
+    {
+      "url": "https://www.contractken.com/glossary/evergreen-clause",
+      "title": "Evergreen Clause: Auto-Renewal Terms & Drafting Tips"
+    },
+    {
+      "url": "https://www.idexx.com/en/about-idexx/terms-of-sale/petly-plans-terms/",
+      "title": "Petly Plans Terms of Sale - IDEXX US"
+    },
+    {
+      "url": "https://www.washingtonsun.com/subscription-terms-and-conditions",
+      "title": "Subscription Agreement Terms and Conditions - The Washington Sun"
+    },
+    {
+      "url": "https://gong-next-sanity-web.vercel.app/legal/terms-and-conditions",
+      "title": "Terms and Conditions"
+    },
+    {
+      "url": "https://www.vesseltechnologies.com/vi-operator-agreement",
+      "title": "VI Operator Agreement"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/automatic-renewal/_3",
+      "title": "Common use of Automatic Renewal Clause in Contracts"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/automatically-renew",
+      "title": "Automatically Renew Clause Samples"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/automatic-renewal",
+      "title": "Automatic Renewal Clause Samples"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/notice-cure-breach-termination",
+      "title": "Notice, Cure, Breach Termination Sample Clauses"
+    },
+    {
+      "url": "https://afterpattern.com/clauses/material-breach",
+      "title": "Examples of material breach clauses in contracts"
+    },
+    {
+      "url": "https://www.gongex.com.au/terms-and-conditions/",
+      "title": "Terms and Conditions"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/termination-for-uncured-material-breach",
+      "title": "Termination for Uncured Material Breach Sample Clauses"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/material-breach-of-agreement",
+      "title": "Material Breach of Agreement Clause Samples"
+    },
+    {
+      "url": "https://www.goguardian.com/policies/eula",
+      "title": "Products Terms of Service & End User License Agreement"
+    },
+    {
+      "url": "https://lawinsider.com/dictionary/termination-for-a-material-breach",
+      "title": "Termination for a Material Breach Clause Samples"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:47:59.587Z",
+  "model": "claude-sonnet-5-5"
+}

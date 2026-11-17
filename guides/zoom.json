@@ -1,0 +1,157 @@
+{
+  "vendor": "Zoom",
+  "slug": "zoom",
+  "guide": "# Zoom renewal and cancellation guide\n\n**Which terms apply depends on how you bought Zoom.** The self-serve Terms of Service, an enterprise MSA and an order form can each set different rules. I could not retrieve a current dated version of the official terms. The copy of the Terms of Service I found on zoom.com was indexed as roughly 1,188 days old. A third-party check dated 13 Nov 2026 matches its 30-day figure (see below). Confirm against the live terms.\n\n## Default renewal behaviour (online Terms of Service)\n- **Auto-renewal is the default.** \nUnless your Order Form says otherwise or applicable law prohibits automatic renewal, each Renewal Term begins automatically at the end of the current term.\n\n- **Notice window is 30 calendar days.** Written notice of termination or modification must be given \nat least thirty (30) calendar days before the next Renewal Term starts, or within the notice period required by applicable law\n. A \n13 November 2026 comparison of vendors' terms also lists Zoom at 30 calendar days\n.\n- **Pricing.** \nPromotional or discounted prices may expire when a Renewal Term begins.\n The same comparison lists \na 30-day notice period for price changes at Zoom\n. I did not verify that against Zoom's own text, so treat it as unconfirmed.\n- **Payments.** \nPayments are non-cancelable for the current term and non-refundable, unless Zoom agrees otherwise, the law requires it, or your order form says so.\n\n\n## How to give notice\n1. **Self-serve accounts:** The terms say to \nnotify Zoom via the billing portal (if available for your account) or by email to renewals@zoom.us, within the Renewal Notice Period\n.\n2. **Web portal route:**\n   - Navigation labels have changed over time. One source says \ngo to Plans and Billing, then Plan Management\n.\n   - Older Zoom Community answers use \nAccount Management > Billing > Current Plans > Cancel Subscription\n.\n   - Zoom's own help-center article was not retrieved. Treat the exact menu names as unverified.\n3. **If the portal says \"Contact Sales\":** A Zoom Community answer says \nyou must contact the sales team or your Account Executive to cancel\n. A third-party guide says \nsales-quote purchases are cancelled by emailing your Account Executive or renewals@zoom.us\n.\n4. **App Store or Google Play purchases:** One third-party guide says \nthese must be cancelled through those platforms\n.\n5. **Keep proof of the date and method of notice.** The Terms of Service require written notice.\n\n## Key caveats\n- **Access after cancelling:** Cancelling stops renewal, but \nyou keep your paid plan for the rest of the subscription term\n.\n- **Conflicting guidance on timing:**\n  - A Zoom Community reply quoting the online cart says \nyou may request cancellation up until the day before auto-renewal\n.\n  - The Terms of Service say 30 days.\n  - For annual or order-form plans, assume 30 days. Which rule applies to your plan is not verified.\n- **Refunds:**\n  - A Zoom Community answer says a refund may be possible \nif requested within 30 days of renewal, and only prorated\n. This is an older post and eligibility conditions are unclear.\n  - Another",
+  "sources": [
+    {
+      "url": "https://tactiq.io/learn/cancel-zoom-subscription",
+      "title": "How to Cancel Your Zoom Subscription"
+    },
+    {
+      "url": "https://zoom.us/pricing",
+      "title": "Zoom Workplace Pricing - Zoom"
+    },
+    {
+      "url": "https://community.zoom.com/t5/Billing-Account-Management/Subscription-Refund/m-p/239695",
+      "title": "Solved: Re: Subscription Refund - Zoom Community"
+    },
+    {
+      "url": "https://community.zoom.com/billing-account-management-32/cancel-upcoming-annual-subscription-renewal-68729",
+      "title": "cancel upcoming annual subscription renewal"
+    },
+    {
+      "url": "https://emma-app.com/how-to-cancel/zoom",
+      "title": "How To Cancel Zoom"
+    },
+    {
+      "url": "https://www.notta.ai/en/blog/how-to-cancel-zoom-subscription",
+      "title": "How to Cancel a Zoom Subscription in Simple Steps"
+    },
+    {
+      "url": "https://community.zoom.com/t5/Billing-Account-Management/Regarding-Subscription-Cancellation/m-p/174577",
+      "title": "Solved: Re: Regarding Subscription Cancellation - Zoom Community"
+    },
+    {
+      "url": "https://totaltech.blog/how-to-cancel-zoom-subscription",
+      "title": "How to Cancel a Zoom Subscription [Stop Auto-Renewal Fast] - TotalTech.blog"
+    },
+    {
+      "url": "https://www.stilt.com/blog/2022/06/how-to-cancel-zoom-subscription/",
+      "title": "THIS is how to cancel a Zoom subscription [2024]"
+    },
+    {
+      "url": "https://au.trustpilot.com/review/zoom.us",
+      "title": "au.trustpilot.com"
+    },
+    {
+      "url": "https://community.zoom.com/t5/Billing-Account-Management/Regarding-Subscription-Cancellation/m-p/148626",
+      "title": "Solved: Re: Regarding Subscription Cancellation - Zoom Community"
+    },
+    {
+      "url": "https://www.justanswer.com/computer/kd52e-want-cancel-zoom-subscription.html",
+      "title": "How to Cancel Your Zoom Subscription: Expert Answers"
+    },
+    {
+      "url": "https://donotpay.com/learn/how-to-cancel-zoom-subscription/",
+      "title": "How to Cancel Zoom Subscription [Step-by-Step Guide]"
+    },
+    {
+      "url": "https://realitypathing.com/how-to-disable-auto-renewal-in-zoom/",
+      "title": "How to Disable Auto-renewal in Zoom"
+    },
+    {
+      "url": "https://www.boarddocs.com/ca/conejo/Board.nsf/files/CTHUAX7B2D99/$file/Zoom%20-%20Contract%20for%208.16.23%20BOE.pdf",
+      "title": "Zoom Master Subscription Agreement 2020 v.2 Page 1 of 13"
+    },
+    {
+      "url": "https://meetings.boardbook.org/Documents/DownloadPDF/81010b3c-be9f-48ed-895f-e1928c2500f5?org=1270",
+      "title": "Zoom Master Subscription Agreement 2022 v.7 Page 1 of 15"
+    },
+    {
+      "url": "https://go.boarddocs.com/ca/pccd/Board.nsf/files/CSK2F47D64A1/$file/Zoom%20MSA%20with%20California%20Community%20College%20Confer%2005.30.23%20(1).pdf",
+      "title": "Zoom Master Subscription Agreement 2022 v.12 Page 1 of 40"
+    },
+    {
+      "url": "https://assets.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-14/documents/708617/164362055695264-terms-and-conditions-2024-05-01-1450.pdf",
+      "title": "ZOOM TERMS OF SERVICE Effective Date: August 11, 2023"
+    },
+    {
+      "url": "https://legal.tractorzoom.com/Tractor%20Zoom%20MSA_With%20DocuSign_2025_V3.1.pdf",
+      "title": "MASTER SUBSCRIPTION & SERVICES AGREEMENT"
+    },
+    {
+      "url": "https://elpaso.novusagenda.com/AgendaPublic/AttachmentViewer.ashx?AttachmentID=56894&ItemID=37834",
+      "title": "Zoom Master Subscription Agreement 2022 v.6 Page 1 of 13"
+    },
+    {
+      "url": "https://kb.wisc.edu/zoom/page.php?id=105430",
+      "title": "UW-Madison Zoom Workplace - Zoom Terms of Service"
+    },
+    {
+      "url": "https://aeroleads.com/blog/zoominfo-terms-conditions-hidden-clauses-that-could-affect-your-business/",
+      "title": "ZoomInfo Terms and Conditions: Hidden Clauses That Could Affect Your Business • AeroLeads"
+    },
+    {
+      "url": "https://huggingface.co/datasets/EasyTerms/Manuel_dataset/viewer/default/train?p=0",
+      "title": "huggingface.co"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/subscription-term/_7",
+      "title": "Common use of Subscription Term Clause in Contracts"
+    },
+    {
+      "url": "https://www.zoom.com/en/trust/terms/",
+      "title": "Zoom Terms of Service"
+    },
+    {
+      "url": "https://www.zoom.com/en/trust/refer-terms-and-conditions/?cms_guid=false",
+      "title": "Zoom Terms of Service"
+    },
+    {
+      "url": "https://www.zoom.com/en/trust/build-platform-terms/",
+      "title": "Zoom Build Platform Terms of Service"
+    },
+    {
+      "url": "https://licenseware.io/saas-renewal-terms-notice-periods-price-increases/",
+      "title": "SaaS Renewal Terms: Notice Periods and Price Rises Compared"
+    },
+    {
+      "url": "https://getnoticewindow.com/cancel/zoom",
+      "title": "Cancelling Zoom: auto-renewal terms and how to find your notice window"
+    },
+    {
+      "url": "https://www.postclic.com/en-us/letters/software-saas/cancel-zoom/",
+      "title": "How to Cancel Zoom Subscription"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/term-automatic-renewal",
+      "title": "Term; Automatic Renewal Clause Samples"
+    },
+    {
+      "url": "https://community.zoom.com/t5/Billing-Account-Management/cancel-upcoming-annual-subscription-renewal/td-p/71512",
+      "title": "cancel upcoming annual subscription renewal"
+    },
+    {
+      "url": "https://fireflies.ai/blog/how-to-cancel-zoom-subscription",
+      "title": "How to Cancel Zoom Subscription"
+    },
+    {
+      "url": "https://www.privacy.com/blog/how-to-cancel-zoom-subscription",
+      "title": "How To Cancel Your Zoom Subscription—A User-Friendly Guide"
+    },
+    {
+      "url": "https://www.justanswer.com/computer/o8mb2-just-communicated-few-minutes-ago-cancelled.html",
+      "title": "How to Cancel Your Zoom Subscription and Get a Refund - Expert Q&A"
+    },
+    {
+      "url": "https://www.moneypilot.com/category/cancel/how-to-cancel-zoom",
+      "title": "How Do I Cancel My Zoom Subscription and Get My Money ..."
+    },
+    {
+      "url": "https://help.zoho.com/portal/en/kb/crm-plus/subscription-information/articles/cancel-subscriptions",
+      "title": "Cancel Subscriptions | Online Help - Zoho CRM Plus"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:47:59.478Z",
+  "model": "claude-sonnet-5-5"
+}

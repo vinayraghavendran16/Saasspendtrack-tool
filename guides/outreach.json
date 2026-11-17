@@ -1,0 +1,133 @@
+{
+  "vendor": "Outreach",
+  "slug": "outreach",
+  "guide": "# Outreach (outreach.io / outreach.ai sales engagement platform): renewal and cancellation guide\n\n*Scope: This covers the sales-execution platform at outreach.io, which now appears under outreach.ai. Several unrelated products are also called \"Outreach\" (Outreach Digital, Outreach Magazine, NinjaOutreach and others). Ignore their terms.*\n\n## Default renewal behaviour\n- **Auto-renews.** Outreach's public Terms of Service say that \neither party may terminate the autorenewal of the Agreement and/or any Order by written notice, given at least thirty (30) days before the end of the then-current Initial or Renewal Term.\n\n- **Missing the window.** \nIf notice isn't given in time, subscriptions under the current Order(s) auto-renew under the existing terms.\n\n- **Renewal length.** An archived December 2022 copy of the terms says \nrenewal is for successive periods of twelve months unless the Order says otherwise.\n I did not confirm that this wording is still in the current version.\n- **Price changes.** The same archived copy says \nfees after the Initial Term may change on at least 60 days' notice before a Renewal Term.\n That is a 2022 snapshot, so check whether it still applies.\n- **No mid-term exit.** \nExcept as otherwise set forth in the Agreement, Orders are non-cancelable and non-refundable.\n\n- **Changes to seats or services.** \nOutreach need not consider modifications to your subscription for the upcoming Renewal Term unless you request them at least 30 days before the current term ends.\n\n\n## Notice window: a conflict between sources\n- **Vendor's public terms:** 30 days.\n- **Third-party guidance:** One 2026 pricing blog says \nthe standard contract auto-renews unless written notice is given 60 days before term end.\n It also advises you to \nverify the window in your specific contract template.\n Vendr says \nmost contracts include auto-renewal clauses, and suggests negotiating 60–90 day notice periods.\n\n- **Reconciling them:** I can't tell from these sources why the numbers differ. Negotiated order forms are one possible reason. Treat 30 days as the minimum under the public terms, and plan for 60 days or more until you've checked your own paper.\n\n## Steps to give notice\n1. **Find your documents.** Pull your signed Order Form and any amendments. Under the public terms, \nthe Terms, the Order and any signed amendments together form the Agreement.\n\n2. **Set your deadline.** Take the end date of your current term and count back. Use the longest notice period you find in your own documents. Add a buffer.\n3. **Give written notice.** The terms require written notice to the other party. I did not verify the current notice address or method in the live terms.\n   - An archived December 2022 copy of the terms lists \n\"Outreach Corporation, Attn: Legal Notices, notices@outreach.io\".\n That is an old snapshot. Not verified as current. Confirm in your signed contract or with the vendor.\n4. **Keep proof and get confirmation.** Keep proof of delivery and ask Outreach to confirm in writing that auto-renewal has been terminated. I found no source describing a vendor confirmation process, so this is a practical suggestion rather than a documented step.\n5. **Raise seat or service changes early.** Send any change requests at least 30 days before term end, per the Billing section above.\n\n## What I could not verify\n- **Self-service cancellation.** Third-party guides describe a \"Cancel Subscription\" button in a billing portal (\nBardeen\n, \nSubscribed.FYI\n). These guides are about two years old and don't read as enterprise-contract guidance. Outreach's own terms treat enterprise Orders as non-cancelable. Not verified — confirm in your signed contract or with the vendor.\n- **Refunds and data export after termination.** Not verified for the outreach.ai terms. Confir",
+  "sources": [
+    {
+      "url": "https://www.responsive.io/legal/msa-07-oct-22",
+      "title": "Master Subscription Agreement (Oct 2022)"
+    },
+    {
+      "url": "https://www.outreach.ai/terms",
+      "title": "Terms of Service"
+    },
+    {
+      "url": "https://dealhub.io/master-subscription-agreement-msa",
+      "title": "MASTER SUBSCRIPTION AGREEMENT (MSA) - DealHub AI"
+    },
+    {
+      "url": "https://www.responsive.io/legal/msa-20-sep-21",
+      "title": "Master Subscription Agreement (Sep 2021)"
+    },
+    {
+      "url": "https://www.vendr.com/marketplace/outreach",
+      "title": "Outreach Software Pricing & Plans 2026: See Your Cost"
+    },
+    {
+      "url": "https://uploads-ssl.webflow.com/62a9c5b09c9f67e667041ec1/62a9c5b09c9f679c3c041f8b_Master%20Subscription%20Agreement.pdf",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.knowlee.ai/blog/tools/outreach-pricing-2026",
+      "title": "Outreach.io Pricing 2026: Standard vs Professional vs Enterprise Tiers"
+    },
+    {
+      "url": "https://assets.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-14/documents/93116/391795887580852-terms-and-conditions-2024-05-07-0836.pdf",
+      "title": "OUTSYSTEMS MASTER SUBSCRIPTION AGREEMENT Updated: January 1, 2024 "
+    },
+    {
+      "url": "https://d7umqicpi7263.cloudfront.net/eula/product/a00ed483-ff1d-4de7-aa97-7f70a6141c20/fe7ff780-1707-4f2c-b6dc-2f34ee9acdd1.pdf",
+      "title": "OUTSYSTEMS MASTER SUBSCRIPTION AGREEMENT"
+    },
+    {
+      "url": "https://outreachmagazine.com/terms-of-service.html",
+      "title": "Terms of Service - outreachmagazine.com"
+    },
+    {
+      "url": "https://www.bardeen.ai/answers/how-to-cancel-outreach-io-subscription",
+      "title": "How to Cancel Outreach.io Subscription: A Step-by-Step Guide"
+    },
+    {
+      "url": "https://outreach.com/privacy-legal-terms",
+      "title": "Outreach Privacy Policy, Copyrright, SMS Terms & Conditions , and Terms of Service"
+    },
+    {
+      "url": "https://subscribed.fyi/outreach/how-to-cancel/",
+      "title": "How to Cancel Outreach Subscription - Subscribed.FYI"
+    },
+    {
+      "url": "https://university.ninjaoutreach.com/article/how-can-i-cancel-my-subscription/",
+      "title": "How Can I Cancel My Subscription? - Influencers & Outreach University"
+    },
+    {
+      "url": "https://outreachplus.drift.help/article/how-to-cancel-your-subscription/",
+      "title": "Outreachplus Helpcenter - How to cancel your subscription?"
+    },
+    {
+      "url": "https://plus.outreachprograms.us/",
+      "title": "Outreach Plus"
+    },
+    {
+      "url": "https://support.outreachapps.com/en-us/article/how-do-i-cancel-my-subscription-17qeq6b/",
+      "title": "How do I cancel my subscription?"
+    },
+    {
+      "url": "https://support.outreachapps.com/en-us/category/faqs-p6s7yx/",
+      "title": "FAQs"
+    },
+    {
+      "url": "https://www.outreach.io/terms",
+      "title": "Terms"
+    },
+    {
+      "url": "https://digital.outreach.com/terms-of-service",
+      "title": "Terms of Service"
+    },
+    {
+      "url": "https://s3.amazonaws.com/EULA/1672768245-TermsofService_Outreach_December_2022.pdf",
+      "title": "1/3/23, 9:16 AM Terms of Service"
+    },
+    {
+      "url": "https://support.outreach.io/support/solutions/articles/159000425764-understanding-the-terms-of-service-of-outreach-data-sharing-with-snowflake",
+      "title": "Understanding the Terms of Service of Outreach Data Sharing with Snowflake : Customer Support Portal"
+    },
+    {
+      "url": "https://www.nudgesecurity.com/security-profile/outreach-io",
+      "title": "Is Outreach.io Safe? Learn if Outreach.io Is Legit"
+    },
+    {
+      "url": "https://www.outreach.ai/acceptable-use-policy",
+      "title": "Acceptable Use Policy"
+    },
+    {
+      "url": "https://getoutreach.us/terms-of-use",
+      "title": "Outreach SAAS Terms of Service"
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Terms_of_service",
+      "title": "Terms of service"
+    },
+    {
+      "url": "https://learn.microsoft.com/en-us/microsoft-365-app-certification/saas/outreachio-outreach-sales-execution-platform",
+      "title": "Application Information for Outreach Sales Execution Platform by Outreach.io - Microsoft 365 App Certification"
+    },
+    {
+      "url": "https://www.outreach.ai/legal-documents",
+      "title": "Legal Documents"
+    },
+    {
+      "url": "https://github.com/maliksuhail2034-bit/outreach-ai/pull/11",
+      "title": "feat(legal): add terms, privacy, refund, acceptable use and support pages by maliksuhail2034-bit · Pull Request #11 · maliksuhail2034-bit/outreach-ai · GitHub"
+    },
+    {
+      "url": "https://aioutreach.io/terms",
+      "title": "Terms of Service - AI Outreach"
+    },
+    {
+      "url": "https://outreach2day.com/terms",
+      "title": "Terms of Service"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:47:43.410Z",
+  "model": "claude-sonnet-5-5"
+}

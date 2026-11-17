@@ -1,0 +1,149 @@
+{
+  "vendor": "DocuSign",
+  "slug": "docusign",
+  "guide": "# DocuSign Renewal and Cancellation Guide (as of 2026-11-17)\n\nDocuSign has two tracks, and which one applies depends on how you bought it. Check this first.\n\n## Which terms apply to you?\n- **Self-serve or online plans** are governed by the public Sites & Services Terms. These terms \napply if you have no Master Services Agreement or similar agreement in effect with Docusign, to the extent that agreement doesn't already cover your use\n.\n- **Sales-led or enterprise deals** are governed by the Master Services Agreement (MSA) plus your Order Form. \nService-specific terms and subscription terms are set out in Service Schedules, Order Forms and SOWs, which become binding once an Order Form or SOW is executed.\n\n- **Public-sector resale** has its own MSA. \nIts attachment terms update to DocuSign's then-current terms on any renewal, but only to the extent consistent with federal requirements.\n\n\n## Default renewal behavior\n- **Self-serve plans auto-renew.** \nMonthly or annual subscriptions renew automatically on the billing anniversary date, to the latest equivalent plan, until you downgrade to a free account or cancel.\n\n- **Fees:** \nYou agree to pay the then-current fee, and the plan renews for the same time period.\n\n- **Enterprise and Commercial reminder:** \nAn Auto Renewal email goes to the account Administrator, Billing Contact and Renewal Manager 90 days before the renewal due date.\n\n- **Enterprise MSA:** \nEach executed Order Form is non-cancellable and non-refundable except as the Agreement provides. The Order Form term is a continuous, non-divisible commitment for its full duration, regardless of invoice schedule.\n You generally can't exit mid-term.\n\n## Notice windows\n- **Public online terms:** the current page says the plan renews unless \nyou cancel the Subscription Plan or terminate your Account at least five (5) business days before the end of the current term\n. This text is from a page the search tool flagged as about 673 days old. Older or alternate versions of the terms differ (for example, a 10-day written-notice clause for terminating an account). Treat the 5-business-day figure as unconfirmed for your account and don't rely on it as a deadline.\n- **Termination clause (public terms):** \nYou may terminate your Account at any time on ten (10) days' advance written notice, as instructed on DocuSign's website or through support.docusign.com.\n \nYou must receive confirmation from Docusign for the cancellation to take effect.\n\n- **Support forum guidance:** a post on DocuSign's community site says \nthey normally recommend submitting a cancellation request at least 5 to 14 days before the renewal date\n. This is a recommendation, not a contractual term.\n- **Enterprise or negotiated contracts:** the standard notice period is **Not verified — confirm in your signed contract or with the vendor.** The public MSA excerpts I retrieved didn't show the non-renewal notice length.\n- **Example only:** one publicly posted DocuSign Standard Order Form (a school district's, with a 2026 start date) \nauto-renews for the expiring term or one year (whichever is longer), unless either party gives written notice of non-renewal at least 30 days before the term ends, and allows a 5.00% price increase on 45 days' written notice\n. This is one customer's order form. Your numbers may differ.\n- **Third-party blogs** cite 30 or 60 days for annual or enterprise plans. These are unsourced and inconsistent with each other, so I haven't relied on them.\n\n## How to cancel or stop renewal\n**Most online plans** (\nmost plans purchased online, managed by administrators\n):\n1. \nSign in as an administrator, then go to Admin > Plan and Billing under Account.\n\n2.",
+  "sources": [
+    {
+      "url": "https://www.docusign.com/legal/terms-and-conditions",
+      "title": "DOCUSIGN SITES & SERVICES TERMS AND CONDITIONS"
+    },
+    {
+      "url": "https://www.docusign.com/iframe/company/terms-and-conditions/web",
+      "title": "DOCUSIGN SITES & SERVICES TERMS AND CONDITIONS"
+    },
+    {
+      "url": "https://www.docusign.com/legal/terms-and-conditions/mobile",
+      "title": "DOCUSIGN SITES & SERVICES TERMS AND CONDITIONS"
+    },
+    {
+      "url": "https://www.docusign.com/legal/terms-and-conditions/msa/v210920",
+      "title": "DOCUSIGN MASTER SERVICES AGREEMENT"
+    },
+    {
+      "url": "https://www.docusign.com/legal/terms-and-conditions/msa/v190814",
+      "title": "DOCUSIGN MASTER SERVICES AGREEMENT"
+    },
+    {
+      "url": "https://www.carahsoft.com/buy/gsa-schedule-contracts/approved-csas/docFileDownload/286450/02d7a6c1-0179-4e8f-8da8-ffb7a77c65e3",
+      "title": "Page 1 of 12 DOCUSIGN MASTER SERVICES AGREEMENT FOR PUBLIC SECTOR RESALE"
+    },
+    {
+      "url": "https://static.carahsoft.com/concrete/files/2616/5962/5258/DocuSign_Master_Services_Agreement_fo_Public_Sector.pdf",
+      "title": "Page 1 of 10 DOCUSIGN MASTER SERVICES AGREEMENT FOR PUBLIC SECTOR RESALE"
+    },
+    {
+      "url": "https://www.docusign.com/legal/agreements/DTR-terms-140304",
+      "title": "Services Agreement for Docusign Transaction Rooms"
+    },
+    {
+      "url": "https://static.carahsoft.com/concrete/files/8616/1374/4909/DocuSign_Master_Services_Agreement_for_US_Public_Entities.pdf",
+      "title": "DOCUSIGN MASTER SERVICES AGREEMENT FOR NON-FEDERAL U.S. PUBLIC ENTITIES"
+    },
+    {
+      "url": "https://support.docusign.com/s/articles/How-to-Cancel-Your-DocuSign-Account?language=en_US",
+      "title": "Cancel, downgrade, or close your Docusign account"
+    },
+    {
+      "url": "https://support.docusign.com/s/articles/Cancelling-your-DocuSign-subscription-through-Google-Play?language=en_US",
+      "title": "Manage or cancel your Docusign plan (Android)"
+    },
+    {
+      "url": "https://support.docusign.com/s/articles/Cancel-Your-Subscription-or-Close-your-Docusign-Account-Real-Estate-Starter-Developer-and-Legacy-Plans?language=en_US",
+      "title": "Cancel Your Subscription or Close your Docusign Account"
+    },
+    {
+      "url": "https://support.docusign.com/s/articles/Cancel-a-Docusign-subscription-or-stop-auto-renewal?language=en_US",
+      "title": "Cancel a Docusign subscription or stop auto-renewal"
+    },
+    {
+      "url": "https://support.docusign.com/s/articles/How-to-Cancel-Your-DocuSign-Account?language=en_US&tblci=GiCBIVBqzmxS5_gULeV0mWR5XoudyGLCdMyDQZGrI9xaICD5p20oz4v10ZL2hvb_ATDB71c",
+      "title": "Cancel Your Subscription or Close your Docusign Account"
+    },
+    {
+      "url": "https://www.fillhq.com/learn/how-to-cancel-docusign",
+      "title": "How to Cancel DocuSign in 5 Easy Steps - Fill"
+    },
+    {
+      "url": "https://certinal.com/blog/how-to-cancel-docusign-subscription/",
+      "title": "How to Cancel DocuSign Subscription: A Step-by-Step Guide"
+    },
+    {
+      "url": "https://www.dochub.com/compare/how-to-cancel-your-docusign-subscription",
+      "title": "How To Cancel a DocuSign Subscription - 2026 Guide"
+    },
+    {
+      "url": "https://signsend.com/blog/how-to-cancel-a-docusign-subscription",
+      "title": "How to Cancel a DocuSign Subscription - SignSend"
+    },
+    {
+      "url": "https://www.esign.ai/blog/cancel-docusign-avoid-charges-esignglobal",
+      "title": "How to Cancel DocuSign Without Charges — Step-by-Step for Every Plan (2026)"
+    },
+    {
+      "url": "https://terms.law/ToS-Watchdog/e-signature/docusign/",
+      "title": "DocuSign Terms of Service Review"
+    },
+    {
+      "url": "https://www.docusign.com/legal/agreements/signature-web-terms-160505",
+      "title": "Terms And Conditions For Use Of DocuSign Service Plans"
+    },
+    {
+      "url": "https://support.docusign.com/s/articles/Automatic-renewal-of-DocuSign-plans?language=en_US",
+      "title": "Does my Docusign subscription plan automatically renew?"
+    },
+    {
+      "url": "https://community.docusign.com/general-discussion-145/charged-without-consent-after-cancelling-last-october-2-weeks-of-silence-from-support-is-this-normal-27034",
+      "title": "Charged without consent after cancelling last October — 2 weeks of silence from Support. Is this normal?"
+    },
+    {
+      "url": "https://unsubby.com/en-us/cancel-docusign",
+      "title": "Cancel Your Docusign Subscription Online"
+    },
+    {
+      "url": "https://www.esignglobal.com/blog/docusign-contract-cancellation-penalty-explained",
+      "title": "DocuSign Early Termination Fee: What It Is, How to Calculate & Avoid It"
+    },
+    {
+      "url": "https://wheatonparkdistrict.com/wp-content/uploads/Springbrook-April-2023-Contracts.pdf",
+      "title": "Order Form: Q-04277-1 Date: 8/11/2022, 8:53 AM Expires On: 6/30/2023"
+    },
+    {
+      "url": "https://www.certinia.com/about-us/legal/msa/",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/renewal-subscription-term",
+      "title": "Renewal Subscription Term Sample Clauses"
+    },
+    {
+      "url": "https://go.boarddocs.com/ca/nlmusd/Board.nsf/files/DT7RNW6EDEBE/$file/Norwalk-La%20Mirada%20Unified%20School%20District_DocuSign,%20Inc._Docusign%20Standard%20Order%20Form%20(1).pdf",
+      "title": "Page 1 of 4 ORDER FORM Address Information Bill To: Ship To:"
+    },
+    {
+      "url": "https://athenahq.ai/msa",
+      "title": "Master Service Agreement"
+    },
+    {
+      "url": "https://dealhub.io/enterprise-subscription-agreement-msa/",
+      "title": "MASTER SUBSCRIPTION AGREEMENT (MSA) - DealHub AI"
+    },
+    {
+      "url": "https://www.msci.com/legal/terms-of-use",
+      "title": "Terms of use"
+    },
+    {
+      "url": "https://lawsnap.com/contracts/msa/auto-renewal/",
+      "title": "MSA Auto-Renewal: Notice Windows, Default Extensions, Drafting"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/order-form-term",
+      "title": "Order Form Term Sample Clauses"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/msa-term",
+      "title": "MSA Term Clause Samples"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:48:16.142Z",
+  "model": "claude-sonnet-5-5"
+}

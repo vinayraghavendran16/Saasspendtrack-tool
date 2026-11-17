@@ -1,0 +1,181 @@
+{
+  "vendor": "Adobe",
+  "slug": "adobe",
+  "guide": "# Adobe renewal and cancellation guide (as of 2026-11-17)\n\nAdobe sells through several channels, and the rules differ by channel. Find out which one you're on first: individual or direct, Teams (direct or reseller), or VIP/VIP Marketplace (volume licensing).\n\n## 1. Individual and direct plans (Creative Cloud, Acrobat)\n\n**Default renewal behavior**\n- Adobe says \nmost Adobe plans renew automatically until you cancel\n.\n- Adobe's help page also says \nyou currently can't stop a plan from renewing automatically. To turn off auto-renewal, you have to cancel the subscription.\n\n- Exceptions Adobe lists: \nindividual annual prepaid plans in Brazil and in Vermont can change auto-renewal settings in the Adobe account.\n\n- Adobe's US subscription terms say that \nfor automatic renewing customers in the United States, after the first year your subscription renews on a monthly basis until you cancel.\n Another regional version of the terms says \nfor all other automatic renewing customers, the subscription renews annually after the first year\n. The regional terms differ, so check your own region's page.\n- One third-party site says \nUS terms effective 1 August 2026 mean an annual plan billed monthly no longer rolls into a second full year by default.\n I couldn't confirm that effective date on Adobe's own pages. **Not verified — confirm in your signed contract or with the vendor.**\n- Renewal price: \nprices may change, but only on renewal, and Adobe says it will inform you beforehand.\n\n\n**Notice window**\n- There's no fixed notice period in the sources I retrieved. The cost of cancelling depends on plan type and timing:\n  - \nAfter 14 days, an annual plan paid monthly carries an early termination fee of 50% of the remaining contract balance.\n\n  - \nFor annual prepaid plans, a refund isn't possible if you cancel before the year ends.\n\n  - A third-party guide says an annual plan \ncan be cancelled in the last month of its term with no early termination fee\n. This is not stated on the Adobe pages I retrieved, so treat it as **not verified** and check your own plan.\n  - \nCancelling within 14 days gives a full refund\n, according to a third-party guide that matches Adobe's 14-day language.\n\n**Steps to cancel (direct purchase)**\n1. \nSign in at account.adobe.com/plans, select Manage plan next to the subscription, then select Cancel your plan and follow the prompts.\n\n2. \nReview the plan details, including any early termination fee, before continuing.\n\n3. \nIf you have more than one active Adobe plan, cancel each one separately.\n\n4. After cancelling, \nthe plan stays active until the end of the current billing period, and you keep access during that time.\n\n5. If the online option is missing, a third-party source says \nAdobe's terms allow cancelling online or through Adobe Customer Support.\n I found no verified support email or notice address",
+  "sources": [
+    {
+      "url": "https://helpx.adobe.com/account/individual/terms-policies-and-regulations/adobe-subscription-terms.html",
+      "title": "Understand Adobe's subscription terms and refund policies"
+    },
+    {
+      "url": "https://prodesigntools.com/guide-to-change-cancel-creative-cloud.html",
+      "title": "Wait! Thinking of Canceling Creative Cloud? Read This First."
+    },
+    {
+      "url": "https://resubs.app/resources/how-to-cancel-adobe",
+      "title": "Cancel Adobe Without Paying the Early Termination Fee"
+    },
+    {
+      "url": "https://www.techrounder.com/how-to/how-to-cancel-your-adobe-subscription-whats-new-after-adobes-150-million-settlement/",
+      "title": "How to Cancel Your Adobe Subscription: What's New After Adobe's $150 Million Settlement"
+    },
+    {
+      "url": "https://pdfeditify.com/blog/how-to-cancel-adobe-acrobat-subscription",
+      "title": "How to Cancel Adobe Acrobat Subscription (Avoid the Fee)"
+    },
+    {
+      "url": "https://subgrove.com/blog/how-to-cancel-adobe-subscription",
+      "title": "How to Cancel Adobe Subscription (and the Fee) · Subgrove"
+    },
+    {
+      "url": "https://www.subscriptionplaybook.com/case-studies/adobe-cancellation-fees/",
+      "title": "How Adobe's Hidden Cancellation Fee Cost It $150 Million"
+    },
+    {
+      "url": "https://cancelsubscriptionsapp.com/guides/adobe-early-termination-fee-explained",
+      "title": "Adobe's Early Termination Fee & the FTC Case Explained"
+    },
+    {
+      "url": "https://reverbico.com/blog/how-to-cancel-adobe-subscription/",
+      "title": "How To Cancel Adobe Subscription (2026) Without The Early Fee"
+    },
+    {
+      "url": "https://www.moneypilot.com/category/cancel/how-to-cancel-adobe-subscription",
+      "title": "How Do I Cancel My Adobe Subscription and Get a Refund?"
+    },
+    {
+      "url": "https://docs.platform.softwareone.com/extensions/adobe-vip-marketplace?scLang=en",
+      "title": "Adobe VIP Marketplace"
+    },
+    {
+      "url": "https://docs.platform.softwareone.com/extensions/adobe-vip-marketplace/tutorials-and-videos/terminate-adobe-subscription",
+      "title": "Terminate and return Adobe licenses"
+    },
+    {
+      "url": "https://helpx.adobe.com/business/vip-marketplace/manage-your-subscription/renewals.html",
+      "title": "VIP Marketplace renewals"
+    },
+    {
+      "url": "https://docs.platform.softwareone.com/extensions/adobe-vip-marketplace/terms-and-conditions",
+      "title": "Terms and Conditions - Marketplace Platform - SoftwareOne"
+    },
+    {
+      "url": "https://community.adobe.com/questions-6/cancel-auto-renew-subscription-1552787",
+      "title": "Cancel auto renew subscription"
+    },
+    {
+      "url": "https://helpx.adobe.com/account/individual/subscriptions-and-plans/renewals-and-cancellations/manage-auto-renewal-settings.html",
+      "title": "Auto-renew Adobe subscriptions"
+    },
+    {
+      "url": "https://community.adobe.com/t5/enterprise-teams-discussions/turn-off-auto-renewal-amex/m-p/11278139",
+      "title": "community.adobe.com"
+    },
+    {
+      "url": "https://community.adobe.com/questions-624/unable-to-cancel-subscription-or-stop-auto-renew-680815",
+      "title": "unable to cancel subscription or stop auto renew 680815"
+    },
+    {
+      "url": "https://community.adobe.com/questions-617/auto-renewal-566527",
+      "title": "auto renewal 566527"
+    },
+    {
+      "url": "https://www.adobe.com/qa_en/legal/subscription-terms.html",
+      "title": "Adobe Subscription and Cancellation Terms"
+    },
+    {
+      "url": "https://helpx.adobe.com/account/individual/subscriptions-and-plans/renewals-and-cancellations/renew-extend-adobe-subscription.html",
+      "title": "Renew or extend your Adobe subscription"
+    },
+    {
+      "url": "https://community.adobe.com/t5/account-payment-plan-discussions/cancellation-after-automatic-renewal/m-p/13214502",
+      "title": "Cancellation after automatic renewal"
+    },
+    {
+      "url": "https://helpx.adobe.com/my_en/account/individual/terms-policies-and-regulations/adobe-subscription-terms.html",
+      "title": "Cancellation details for common Adobe plans"
+    },
+    {
+      "url": "https://shotkit.com/how-to-cancel-adobe-subscription/",
+      "title": "How to Cancel Your Adobe Subscription (+ Avoid Fees)"
+    },
+    {
+      "url": "https://forums.adobe.com/message/5686603",
+      "title": "Solved: [Locked: Outdated information] How auto-renewal wo... - Adobe Product Community - 4485435"
+    },
+    {
+      "url": "https://adobe.com/ua/legal/subscription-terms.html",
+      "title": "Adobe Subscription and Cancellation Terms"
+    },
+    {
+      "url": "https://community.adobe.com/t5/account-payment-plan-discussions/cancellation-after-automatic-renewal/m-p/13214370",
+      "title": "community.adobe.com"
+    },
+    {
+      "url": "https://community.adobe.com/questions-624/how-do-i-remove-a-license-from-my-team-plan-677778",
+      "title": "How do I Remove a License from my Team Plan?"
+    },
+    {
+      "url": "https://helpx.adobe.com/in/enterprise/using/cancel-teams-subscription.html",
+      "title": "Learn how to cancel your Creative Cloud for teams licenses"
+    },
+    {
+      "url": "https://helpx.adobe.com/business/teams/setup-and-onboarding/manage-your-account/cancel-creative-cloud-for-teams-licenses.html",
+      "title": "Cancel Creative Cloud for teams licenses"
+    },
+    {
+      "url": "https://community.adobe.com/questions-624/why-does-adobe-make-it-impossible-to-cancel-licenses-683168",
+      "title": "Why does Adobe make it impossible to cancel licenses??"
+    },
+    {
+      "url": "https://community.adobe.com/questions-624/i-need-to-cancel-my-subscription-no-manage-plan-button-and-yes-i-bought-directly-from-adobe-1644431",
+      "title": "I need to cancel my subscription, no manage plan button and yes I bought directly from Adobe"
+    },
+    {
+      "url": "https://www.technobezz.com/how-to-cancel-an-adobe-subscription",
+      "title": "How to Cancel an Adobe Subscription"
+    },
+    {
+      "url": "https://community.adobe.com/t5/enterprise-teams-discussions/how-do-i-remove-a-license-from-my-team-plan/m-p/15137366/highlight/true",
+      "title": "community.adobe.com"
+    },
+    {
+      "url": "https://community.adobe.com/t5/enterprise-teams-discussions/how-do-i-remove-a-license-from-my-team-plan/m-p/13786981",
+      "title": "community.adobe.com"
+    },
+    {
+      "url": "https://www.adobe.com/content/dam/acom/en/buying-programs/pdfs/vip-program-guide-en.pdf",
+      "title": "Adobe Buying Programs Adobe VIP Program Guide Commercial and Government"
+    },
+    {
+      "url": "https://catalog.cloudblue.com/products/adobe-cloud/adobe-vip-marketplace-overview-and-terms/?pdf=9791",
+      "title": "Adobe VIP Marketplace © Ingram Micro, Inc. All Rights Reserved."
+    },
+    {
+      "url": "https://www.adobe.com/howtobuy/buying-programs/vip-terms.html",
+      "title": "Adobe Value Incentive Plan Terms and Conditions"
+    },
+    {
+      "url": "https://wiki.licenseware.io/wiki/adobe-vip-and-vip-marketplace/",
+      "title": "Adobe VIP and VIP Marketplace"
+    },
+    {
+      "url": "https://wwwimages.adobe.com/content/dam/acom/en/buying-programs/pdfs/vip-program-guide-ed-en.pdf",
+      "title": "Adobe Buying Programs Adobe VIP Program Guide Education December 11, 2018"
+    },
+    {
+      "url": "https://helpx.adobe.com/enterprise/vip/marketplace-license-term-options.html",
+      "title": "VIP Marketplace license term options"
+    },
+    {
+      "url": "https://helpx.adobe.com/business/vip-marketplace/manage-your-subscription/key-dates.html",
+      "title": "Understand VIP Marketplace key dates"
+    },
+    {
+      "url": "https://www.moonsoft.fi/materials/adobe-cc-program-guide-050316.pdf",
+      "title": "Adobe Buying Programs Adobe VIP Program Guide Commercial and Government"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:48:16.192Z",
+  "model": "claude-sonnet-5-5"
+}

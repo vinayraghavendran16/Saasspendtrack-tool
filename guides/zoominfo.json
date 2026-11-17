@@ -1,0 +1,161 @@
+{
+  "vendor": "ZoomInfo",
+  "slug": "zoominfo",
+  "guide": "# ZoomInfo renewal and cancellation guide (as of 2026-11-17)\n\n## 1. Default renewal behaviour\n\n- **Auto-extension in at least one official version of the terms.** ZoomInfo's License Terms & Conditions dated 03/06/2024 say that \non the date 60 days before the last day of the Term (the \"Extension Date\"), the Term automatically extends. The extension is for the length of the Initial Term or one year, whichever is longer, unless either party notifies the other in writing on or before the Extension Date that it should not extend.\n Treat that Extension Date as your real deadline.\n- **Renewal pricing.** The same terms say the extension fee is \nthe annualized Subscription Fee, plus 10% of that fee, plus any applied discount, multiplied by the length of the term in years.\n\n- **No mid-term cancellation.** The terms state that \nthe Agreement is not cancellable and remains in effect until it expires or is earlier terminated according to its terms.\n ZoomInfo's own 10-Q, as quoted by a third party, describes subscription contracts as \ntypically one to three years and non-cancelable.\n\n- **Third-party guidance agrees on 60 days.** Several recent guides report a 60-day written-notice window as typical. \nOne says most ZoomInfo contracts auto-renew unless written cancellation is submitted at least 60 days before the renewal date.\n Other sources report \nnotice periods of around 30–90 days depending on the contract.\n These are secondary sources, not ZoomInfo's own words.\n\n## 2. Notice window\n\n- **Public default:** 60 days before the last day of the term. This comes from the 2024 License Terms (see above) and is not verified against your contract.\n- **Version conflict:** I found two things that don't match.\n  - Two third-party reviews of the current terms say they \nset no notice period of their own, because the term is whatever the Ordering Document sets.\n One adds that \nthe License Terms contain no renewal clause, and the term and any extension are set in the order form.\n\n  - I could not retrieve the full current version of zoominfo.com/legal/ltc to settle this.\n  - **Notice period in your contract: Not verified — confirm in your signed contract or with the vendor.**\n- **Multi-year and negotiated deals:** One third-party source claims multi-year contracts \ncommonly carry a 90-day window.\n I could not confirm this from ZoomInfo. Not verified.\n\n## 3. Steps to give notice\n\n1. **Find your documents.** Locate your signed Order Form and the License Terms version it references. The order form and the \"Ordering Document\" set your term, as the third-party reviews above note.\n2. **Calculate the deadline.** Count back from the last day of your term. One third-party example: \na term ending December 31 with a 60-day window needs written notice by November 1 at the latest.\n Build in a buffer, because \na notice sent 59 days before the end is too late if your period is 60 days.\n\n3. **Send written notice, not a phone call.** The terms require that the party \nnotifies the other in writing.\n\n4. **Use the contractual notice route.**\n   - An archived (12/20/2021) version of the License Terms says notices \nare sent by electronic mail and deemed given when sent, with notices to ZoomInfo going",
+  "sources": [
+    {
+      "url": "https://meetings.boardbook.org/Documents/DownloadPDF/81010b3c-be9f-48ed-895f-e1928c2500f5?org=1270",
+      "title": "Zoom Master Subscription Agreement 2022 v.7 Page 1 of 15"
+    },
+    {
+      "url": "https://www.uplead.com/zoominfo-pricing/",
+      "title": "Zoominfo Pricing and Plans (2026): Is It Worth It? - UpLead"
+    },
+    {
+      "url": "https://www.tropicapp.io/glossary/zoominfo-price",
+      "title": "How Much Does ZoomInfo Cost? Pricing and Discounts"
+    },
+    {
+      "url": "https://www.cleanlist.ai/blog/2026-03-19-zoominfo-pricing-guide",
+      "title": "ZoomInfo Pricing [2026]: Real Cost Is $30K-$60K/Yr"
+    },
+    {
+      "url": "https://buzzlead.io/blogs/zoominfo-alternatives-what-to-switch-to-when-the-price-stops-making-sense",
+      "title": "ZoomInfo Alternatives: What to Switch to When the Price Stops Making Sense"
+    },
+    {
+      "url": "https://salesmotion.io/blog/zoominfo-pricing",
+      "title": "ZoomInfo Pricing 2026: How Much Does ZoomInfo Cost?"
+    },
+    {
+      "url": "https://aeroleads.com/blog/zoominfo-terms-conditions-hidden-clauses-that-could-affect-your-business/",
+      "title": "ZoomInfo Terms and Conditions: Hidden Clauses That Could Affect Your Business • AeroLeads"
+    },
+    {
+      "url": "https://aeroleads.com/blog/zoominfo-terms-conditions-key-clauses-buyer-should-read/",
+      "title": "ZoomInfo Terms and Conditions: Key Clauses Every Buyer Should Read • AeroLeads"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/subscription-term/_7",
+      "title": "Common use of Subscription Term Clause in Contracts"
+    },
+    {
+      "url": "https://www.cognism.com/blog/zoominfo-pricing",
+      "title": "ZoomInfo pricing in 2026"
+    },
+    {
+      "url": "https://subscribed.fyi/zoominfo/how-to-cancel/",
+      "title": "How to Cancel ZoomInfo Subscription - Subscribed.FYI - 2026"
+    },
+    {
+      "url": "https://www.factors.ai/blog/zoominfo-pricing",
+      "title": "ZoomInfo Pricing 2026: Plans, Add-Ons & Alternatives"
+    },
+    {
+      "url": "https://subscribed.fyi/zoominfo-operations/how-to-cancel/",
+      "title": "How to Cancel ZoomInfo Operations - Subscribed.FYI - 2026"
+    },
+    {
+      "url": "https://www.justcancel.io/blog/cancel-zoominfo-2026",
+      "title": "How to Cancel ZoomInfo in 2026 (The 60-Day Notice Trap + Contract Escape)"
+    },
+    {
+      "url": "https://www.justanswer.com/consumer-protection-law/iaknh-signed-service-zoominfo-year-that.html",
+      "title": "Expert Answers on ZoomInfo Auto-Renewal, Cancellation Policy, and Legalities"
+    },
+    {
+      "url": "https://justuseapp.com/cancel/1493170277/zoominfo",
+      "title": "Cancel ZoomInfo"
+    },
+    {
+      "url": "https://aeroleads.com/blog/cancel-zoominfo-subscription/",
+      "title": "How to Cancel ZoomInfo: A Step-by-Step Subscription Guide • AeroLeads"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/ringlead-customer-agreement",
+      "title": "ZoomInfo: The Go-to-Market Intelligence Platform"
+    },
+    {
+      "url": "https://thestackarchitects.com/zoominfo-pricing-agency-contract-reality/",
+      "title": "ZoomInfo Pricing: What Agencies Actually Pay After the Contract Is Signed - The Stack Architects"
+    },
+    {
+      "url": "https://zoominfocompetitors.com/zoominfo-pricing/",
+      "title": "ZoomInfo Pricing: Tiers, Credits, Contract Terms (2026)"
+    },
+    {
+      "url": "https://sponasales.com/blog/zoominfo-pricing",
+      "title": "ZoomInfo Pricing 2026: What It Really Costs and How to Pay Less"
+    },
+    {
+      "url": "https://coldmailer.ai/blog/zoominfo-cost-per-month",
+      "title": "ZoomInfo Cost Per Month: Why It Bills Annually"
+    },
+    {
+      "url": "https://lawinsider.com/clause/subscription-term-and-termination",
+      "title": "Subscription Term and Termination Sample Clauses"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/ltc_03_23_2020",
+      "title": "ZoomInfo License Terms and Conditions"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/ltc_03_06_2024",
+      "title": "ZoomInfo License Terms & Conditions"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/ltc_12_20_2021",
+      "title": "ZoomInfo License Terms & Conditions"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/ltc",
+      "title": "ZoomInfo License Terms and Conditions"
+    },
+    {
+      "url": "https://d7umqicpi7263.cloudfront.net/eula/NHpbTzs2YBuo4LU2KhwmJmGB06YtcQ4hHRcwecObp0U",
+      "title": "ZoomInfo License Terms and Conditions - Cloudfront.net"
+    },
+    {
+      "url": "https://useartemis.co/blog/zoominfo-pricing-is-it-really-worth-your-investment",
+      "title": "ZoomInfo Pricing: Is It Really Worth Your Investment?"
+    },
+    {
+      "url": "https://marketintelligencetools.com/reports/zoominfo-pricing/",
+      "title": "ZoomInfo Pricing 2026: Plans, Credits & the $33,500 Median Contract"
+    },
+    {
+      "url": "https://imisofts.com/blog/zoominfo-pricing/",
+      "title": "ZoomInfo Pricing: $0.25 to $0.45 a Record, or a Sales Quote"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/ce-terms-conditions",
+      "title": "ZoomInfo Lite Community Terms of Use"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/terms-conditions-mobile-app",
+      "title": "ZoomInfo Community Mobile App Terms and Conditions"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/terms-of-use",
+      "title": "ZoomInfo Website Terms of Use"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/websights-lite-terms-of-use",
+      "title": "ZoomInfo: The Go-to-Market Intelligence Platform"
+    },
+    {
+      "url": "https://www.zoominfo.com/legal/terms-conditions-2019",
+      "title": "ZoomInfo: The Go-to-Market Intelligence Platform"
+    },
+    {
+      "url": "https://zoominfo.pissedconsumer.com/customer-service.html",
+      "title": "ZoomInfo Customer Service Phone Number 1-866-904-9666, Email, Help Center"
+    },
+    {
+      "url": "https://assets.ctfassets.net/kyld7105l6mt/28WEZvJoWucn8jb7ig0Yjl/a681f6c5c8b8de3ec4f1bf061e0d7847/ZoomInfo_Connector_Agreement__8.6.2025_.pdf",
+      "title": "ZoomInfo Connector Agreement (8.6.2025)"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:47:43.855Z",
+  "model": "claude-sonnet-5-5"
+}

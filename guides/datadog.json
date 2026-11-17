@@ -1,0 +1,89 @@
+{
+  "vendor": "Datadog",
+  "slug": "datadog",
+  "guide": "# Datadog renewal and cancellation guide (as of 2026-11-17)\n\nDatadog's public terms are the starting point. Your signed order form or MSA overrides them. Terms also vary by contract date, region, purchase channel and negotiated order form.\n\n## Default renewal behaviour\n- **Orders auto-renew.** Datadog's MSA says \norders automatically renew as a new Order for additional periods of the same duration as the expiring Order Term\n, unless a party takes a non-renewal action. This wording comes from the August 2023 PDF copy of the MSA. The live page at datadoghq.com/legal/msa/ is consistent with it, but my search only returned fragments of that page, so confirm the current wording there.\n- **Renewal reminder from Datadog.** In the 2023 version, \nfor Orders of 12 months or longer, Datadog emails the Customer Administrator on or around 30 days before the Renewal Order Term starts\n. \nFor Orders under 12 months, the email comes on or around 15 days before.\n I could not confirm that these periods are unchanged in the current version.\n- **Price increases.** \nFailure to take a non-renewal action in time is deemed consent to the applicable fee increase.\n \nFor auto-renewals of Orders of 12 months or longer, Datadog may increase the pricing in effect at the end of the Order Term.\n The cap or limit on that increase was cut off in my results. **Not verified — confirm in your signed contract or with the vendor.**\n\n## Notice window\n- **15 days.** The MSA says \nthe customer must submit a request to their Datadog Customer Success Manager at least 15 days before the current Order Term expires\n. The sentence continues with an alternative (\"or make the desired changes within the…\") that was truncated in my results. **That alternative is not verified.**\n- **Conflicting third-party figure.** One benchmarking site says \nDatadog contracts auto-renew unless you provide 90-day notice\n. That conflicts with the MSA's 15 days. It may reflect negotiated enterprise order forms, but I couldn't verify that. Treat 90 days as a conservative internal planning date only. Your order form controls.\n\n## Steps to give notice or cancel\n1. **Find your purchase channel and contract.** Look at the order form, the MSA version and the renewal date.\n2. **Enterprise or sales-led contract.** Send a written non-renewal request to your Customer Success Manager, ahead of the deadline in your order form. The public MSA default is 15 days. Keep proof of delivery. The required notice address or format for formal notices is **not verified — confirm in your signed contract or with the vendor.**\n3. **To stop usage and charges.** The M",
+  "sources": [
+    {
+      "url": "https://www.datadoghq.com/legal/msa/",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.datadoghq.com/legal/msp/2018-04-21/",
+      "title": "Managed Service Provider Master Subscription Agreement"
+    },
+    {
+      "url": "https://assets.applytosupply.digitalmarketplace.service.gov.uk/g-cloud-13/documents/700012/962694623439870-terms-and-conditions-2022-05-17-2147.pdf",
+      "title": "! BACK TO DATADOG LEGAL Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.datadoghq.com/legal/eula/",
+      "title": "End-User License Agreement"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/datadotcom%20msa%20archive/salesforce-msa-datadotcom-03012013-07232013.pdf",
+      "title": "1 Master Subscription Agreement for Data.com Services"
+    },
+    {
+      "url": "https://www.datadoghq.com/legal/terms/2014-12-31/",
+      "title": "Datadog Service Terms and Agreement"
+    },
+    {
+      "url": "https://s3.amazonaws.com/EULA/Master_Subscription_Agreement_Datadog.pdf",
+      "title": " BACK TO DATADOG LEGAL Master Subscription Agreement Current as of"
+    },
+    {
+      "url": "https://d7umqicpi7263.cloudfront.net/eula/1H8XcdwVO7papqU0SiSFcjwfU7mn557nU3XoYX0fSeU",
+      "title": "Master Subscription Agreement Current as of July 27, 2023"
+    },
+    {
+      "url": "https://d7umqicpi7263.cloudfront.net/eula/product/d882c81b-9d58-4e1e-954c-1a6126a36317/bd7b7359-ba96-4c68-ab4b-fcd6031cc1fd.pdf",
+      "title": "170523 MSA (Online) MASTER SUBSCRIPTION AGREEMENT"
+    },
+    {
+      "url": "https://s3.amazonaws.com/EULA/Datadog_EULA_08072023.pdf",
+      "title": "Subscription Agreement 1. Access and Use"
+    },
+    {
+      "url": "https://www.joinchargeback.com/cancels/how-to-cancel-datadog",
+      "title": "How to Cancel Your Datadog Subscription (2026)"
+    },
+    {
+      "url": "https://docs.datadoghq.com/cloudcraft/account-management/cancel-subscription/",
+      "title": "Cancel your Cloudcraft (Standalone) Subscription"
+    },
+    {
+      "url": "https://costbench.com/software/observability/datadog/",
+      "title": "Datadog Pricing 2026: Free to $27/Host Plans - CostBench"
+    },
+    {
+      "url": "https://subscribed.fyi/datadog/how-to-cancel/",
+      "title": "How to Cancel Datadog Subscription - Subscribed.FYI - 2026"
+    },
+    {
+      "url": "https://vendorbenchmark.com/vendors/datadog-pricing",
+      "title": "Datadog Pricing 2026: Enterprise Costs & Benchmarks"
+    },
+    {
+      "url": "https://topalter.com/android/com.datadog.app/cancel",
+      "title": "How to Delete and Cancel Datadog Subscription on Android 2026"
+    },
+    {
+      "url": "https://docs.datadoghq.com/account_management/billing/credit_card/",
+      "title": "Credit Card Billing"
+    },
+    {
+      "url": "https://docs.dataddo.com/docs/unsubscribe-cancel-delete-account",
+      "title": "Unsubscribe, Cancel, or Delete My Dataddo Account"
+    },
+    {
+      "url": "https://docs.datadoghq.com/account_management/plan_and_usage/",
+      "title": "Plan & Usage"
+    },
+    {
+      "url": "https://docs.cloud.google.com/support/docs/downgrade",
+      "title": "Downgrade your support service"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:48:14.828Z",
+  "model": "claude-sonnet-5-5"
+}

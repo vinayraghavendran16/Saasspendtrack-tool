@@ -1,0 +1,141 @@
+{
+  "vendor": "Salesloft",
+  "slug": "salesloft",
+  "guide": "# Salesloft renewal and cancellation guide (as of 2026-11-17)\n\n## 1. Default renewal behaviour\n- **Current MSA, renewal clause: not verified.** Salesloft's current public MSA (URL dated 2026-02-10) defines \"Subscription Term\" as \nthe Initial Subscription Term and any renewal terms\n. The initial term is \nset by the first Order Form\n. The excerpts I retrieved did not include the auto-renewal sentence or a non-renewal notice window. Confirm both in your signed contract or with the vendor.\n- **Previous MSA version (older customers):** A prior MSA PDF on Salesloft's asset host says that, unless the Order Form provides otherwise, \nsubscriptions automatically renew for periods equal to the expiring term or one year (whichever is shorter), unless either party gives non-renewal notice between 120 days and 60 days before term end.\n\n  - The file name says \"pre-2025-02-10\" but the page title says \"pre-2026-02-10\". I could not confirm which date is correct, so I can't tell which customers it covers.\n  - Don't assume the 120–60 day window still applies under the newer MSA.\n- **Anecdotal only:** Trustpilot reviewers (the retrieved reviews appear old) report \na 60-day notice requirement\n and say the order form \nlinked to an MSA saying the product will auto renew unless stated otherwise\n. Treat these as user claims, not terms.\n\n## 2. Notice window\n- **Current MSA:** Not verified. Confirm in your signed contract or with the vendor.\n- **Older MSA:** 120 to 60 days before term end (see above). If this applies to you, notice sent too early or too late may not count.\n\n## 3. Steps to give notice or cancel\n1. **Pull your signed Order Form(s) and the MSA version they reference.** The Order Form overrides the public defaults.\n2. **Calculate your deadline** from the term end date and the notice window in your contract.\n3. **Send written notice.**\n   - Salesloft's current MSA says notices \nmust be sent to Salesloft, Inc., Attn: Legal Department, 1154 Sonora Court, Sunnyvale, CA 94086, with a copy emailed to legal@clari.com.\n\n   - Email alone may not count as formal notice. Salesloft's separate Technical Validation Services Agreement says \nemail is not sufficient for notices of termination\n. That agreement is a different document, so check whether your MSA says the same.\n   - Whether non-renewal notice can also go to your account manager or support: Not verified.\n4. **Keep proof of delivery** and ask for written confirmation.\n5. **Don't rely on a self-service cancel button.** A third-party guide (\ndescribing a \"Cancel Subscription\" button\n) is generic and about two years old. A reviewer says there is \nno cancel button\n. Neither is an official Salesloft source, so a portal route is Not verified.\n\n## 4. Key caveats\n- **Early termination",
+  "sources": [
+    {
+      "url": "https://www.salesloft.com/legal/msa-2026-02-10",
+      "title": "Master Services Agreement"
+    },
+    {
+      "url": "https://www.salesloft.com/legal/data-processing-addendum",
+      "title": "Data Processing Addendum"
+    },
+    {
+      "url": "https://www.salesloft.com/legal/technical-validation-services-agreement",
+      "title": "Technical Validation Services Agreement"
+    },
+    {
+      "url": "https://www.sec.gov/Archives/edgar/data/1847806/000110465921111136/tm219610d6_ex10-12.htm",
+      "title": "master subscription agreement"
+    },
+    {
+      "url": "https://www.trustpilot.com/review/salesloft.com",
+      "title": "SalesLoft Reviews"
+    },
+    {
+      "url": "https://assets.contentstack.io/v3/assets/blt48e9deb40787970b/bltad9af80c50b80a88/69a05e3640b034977c0f83fa/Salesloft_MSA_(pre-2025-02-10).pdf",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://emelia.io/hub/salesloft-pricing",
+      "title": "Salesloft Pricing 2026: Real Costs, Contracts and Alternatives"
+    },
+    {
+      "url": "https://d7umqicpi7263.cloudfront.net/eula/VWYqP5ij9rW6d2Kq4YskIoSdRiDd5V5UcnAvbYlEhtY",
+      "title": "Salesloft AWS Marketplace EULA - Cloudfront.net"
+    },
+    {
+      "url": "https://www.salesloft.com/legal/drift/terms-of-service",
+      "title": "Drift Terms of Service"
+    },
+    {
+      "url": "https://prosperstack.com/blog/california-automatic-renewal-law/",
+      "title": "How to Comply - California “Click to Cancel” Auto-Renewal Law"
+    },
+    {
+      "url": "https://subscribed.fyi/salesloft/how-to-cancel/",
+      "title": "How to Cancel Salesloft Subscription - Subscribed.FYI - 2026"
+    },
+    {
+      "url": "https://oag.ca.gov/news/press-releases/attorney-general-bonta-issues-consumer-alert-california%E2%80%99s-automatic-renewal-law",
+      "title": "Attorney General Bonta Issues Consumer Alert on California’s Automatic Renewal Law"
+    },
+    {
+      "url": "https://legislature.idaho.gov/statutesrules/idstat/title48/t48ch6/sect48-603g/",
+      "title": "Section 48-603G"
+    },
+    {
+      "url": "https://blog.bettertracker.com/how-to-stop-unwanted-software-auto-renewals-2026-guide",
+      "title": "How to Stop Unwanted Software Auto-Renewals (2026 Guide)"
+    },
+    {
+      "url": "https://www.cooley.com/news/insight/2021/2021-10-27-california-passes-updated-automatic-renewal-law",
+      "title": "California Passes Updated Automatic Renewal Law // Cooley // Global Law Firm"
+    },
+    {
+      "url": "https://www.lawinsider.com/clause/auto-renewal",
+      "title": "Auto-Renewal Sample Clauses"
+    },
+    {
+      "url": "https://www.revenue.io/blog/the-salesloft-and-clari-merger-what-it-means-for-your-sales-team",
+      "title": "The Salesloft and Clari Merger: What It Means for Your Sales Team"
+    },
+    {
+      "url": "https://www.docket.io/resources/research/clari-review",
+      "title": "Clari Review 2026: Honest Verdict, Pricing, Pros & Cons"
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Salesloft",
+      "title": "Salesloft"
+    },
+    {
+      "url": "https://www.getmaxiq.com/blog/clari-salesloft-merger-guide",
+      "title": "Clari & Salesloft Merger Explained (2026): Risks, Costs & Alternatives"
+    },
+    {
+      "url": "https://www.spotsaas.com/blog/salesloft-pricing",
+      "title": "Salesloft Pricing 2026: What Buyers Pay After the Clari Merger"
+    },
+    {
+      "url": "https://www.coffee.ai/articles/gong-vs-salesloft",
+      "title": "Gong vs Salesloft 2026: A Bottleneck-Based Framework"
+    },
+    {
+      "url": "https://www.usagepricing.com/blueprint/activity/salesloft-2025-12-03-clari-merger",
+      "title": "Salesloft acquisition — Salesloft and Clari complete their merger"
+    },
+    {
+      "url": "https://www.revspire.io/compare/salesloft-pricing",
+      "title": "Salesloft Pricing (2026): Costs and Clari Merger"
+    },
+    {
+      "url": "https://www.weflow.ai/blog/clari-salesloft-merger-what-changed",
+      "title": "Clari after the Salesloft merger: what actually changed, and what it means for your renewal"
+    },
+    {
+      "url": "https://www.revenueflow.com/blog/clari-salesloft",
+      "title": "Clari and Salesloft Merged: What Changes for a Buyer"
+    },
+    {
+      "url": "https://www.certinia.com/about-us/legal/msa/",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://zylo.com/msa",
+      "title": "Master Service Agreement"
+    },
+    {
+      "url": "https://dealhub.io/enterprise-subscription-agreement-msa/",
+      "title": "MASTER SUBSCRIPTION AGREEMENT (MSA) - DealHub AI"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/salesforce_Developer_MSA.pdf",
+      "title": "MSA-Online-Developer_US_EN"
+    },
+    {
+      "url": "https://blog.salesflare.com/salesforce-contracts",
+      "title": "Salesforce Contract: What They Won’t Tell You"
+    },
+    {
+      "url": "https://www.seatcompress.com/blog/hidden-cost-auto-renewal-clauses",
+      "title": "The Hidden Cost of Auto-Renewal Clauses in SaaS Contracts"
+    },
+    {
+      "url": "https://lawinsider.com/clause/subscription-period",
+      "title": "Subscription Period Sample Clauses"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:48:01.088Z",
+  "model": "claude-sonnet-5-5"
+}

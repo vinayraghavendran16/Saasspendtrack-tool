@@ -1,0 +1,217 @@
+{
+  "vendor": "Slack",
+  "slug": "slack",
+  "guide": "# Slack renewal and cancellation guide (as of 2026-11-17)\n\nSlack's current public customer terms and help pages set the defaults below. Your signed order form overrides them, and terms vary by contract date, region and negotiated order form. I could not retrieve Slack's own \"cancel a plan\" help article. The self-serve steps therefore come from third-party guides, and I've flagged them as such.\n\n## 1. Default renewal behaviour\n- **Auto-renews by default.** Unless an order form says otherwise, \nall subscriptions automatically renew, with no checkout or renewal order form needed, for periods of one year or the preceding term, whichever is shorter.\n\n- **Renewal pricing.** The same terms say \nper-unit pricing in an automatic renewal term stays the same as in the prior term.\n This is the default only. A third-party source reports that Slack self-serve Business+ moved from $12.50 to $15 per user per month at the first renewal after 17 August 2025 (\nLicenseware, checked 13 Nov 2026\n). Check your own renewal quote.\n- **Free subscriptions.** \nA free subscription continues until terminated, while a paid subscription has a term that may expire or be terminated.\n (This is from an archived version of the terms.)\n\n## 2. Notice window\n- **30 days.** Per Slack's customer terms, \neither party can give notice of non-renewal at least 30 days before the end of a subscription term.\n\n- **Third-party corroboration.** Tropic describes \n30 days' opt-out notice as Slack's default\n, and Licenseware lists \n30 days, written, under the Salesforce MSA\n.\n- **Conflicting source.** One reseller-style source claims Enterprise Grid agreements auto-renew with a \n90-day clause\n. I couldn't verify this against Slack's own documents. It is plausibly a negotiated order-form term, so treat 30 days as the public default and confirm yours.\n- **Cancel-by date.** Work it out as \nthe renewal date minus the notice period.\n A 30-day default means your deadline is 30 days before term end.\n\n## 3. How to cancel or give notice\n**Self-serve plans (website purchase, card or self-serve invoice).** These steps are from third-party guides, not Slack's help center:\n1. A workspace admin or owner needs web or desktop access. Sources disagree on whether admins can manage billing or only owners can (\none says only workspace owners\n; \nanother says owners or admins\n). Confirm which role you need.\n2. Open your workspace name, then Billing. Select \nChange subscription, then choose \"Switch immediately to Free subscription\" or \"Switch to Free subscription upon renewal.\"\n\n3. \nPreview the changes, tick the confirmation box and click Downgrade Slack.\n\n4. Choosing the \"upon renewal\" option is the way to avoid paying for the next term while keeping paid features until then. Check the confirmation email.\n\n**Order-form / invoiced contracts (e.g. Business+",
+  "sources": [
+    {
+      "url": "https://slack.com/policy-archives/terms-of-service/2018-01-31",
+      "title": "Customer Terms of Service (Archived)"
+    },
+    {
+      "url": "https://giving.nyulangone.org/site/TR/DIY/General?pg=personal&px=2904379&fr_id=1290",
+      "title": "In memory of: Canceling Your Slack Paid Subscription - NYU Langone Health"
+    },
+    {
+      "url": "https://emma-app.com/how-to-cancel/slack",
+      "title": "How To Cancel Slack"
+    },
+    {
+      "url": "https://www.polly.ai/help/slack/managing-your-polly-subscription",
+      "title": "Upgrades, Trials, and Cancelations - Polly"
+    },
+    {
+      "url": "https://penji.co/how-to-cancel-slack-subscription/",
+      "title": "How to Cancel Your Slack Subscription - Penji"
+    },
+    {
+      "url": "https://claimee.io/how-to-cancel-slack-paid-plan/",
+      "title": "How to Cancel Slack Paid Plan"
+    },
+    {
+      "url": "https://saltfish.ai/tutorials/slack/how-to-cancel-subscription",
+      "title": "How to Cancel Slack Subscription (Step-by-Step Guide)"
+    },
+    {
+      "url": "https://www.tumblr.com/communities/rankingtheblog/post/815344168650031104/how-to-cancel-your-slack-subscription",
+      "title": "How to Cancel Your Slack Subscription (Step-by-Step Billing Guide 2026)"
+    },
+    {
+      "url": "https://www.19pine.ai/cancel-subscription/software-and-app-services/how-to-cancel-slack",
+      "title": "How to Cancel Slack Subscription (2025 Guide)"
+    },
+    {
+      "url": "https://www.moneypilot.com/category/cancel/how-to-cancel-slack-paid-plan",
+      "title": "Cancel Slack Paid in 4 Minutes and Get Your Refund"
+    },
+    {
+      "url": "https://slack.com/intl/en-in/terms-of-service",
+      "title": "Customer terms of service"
+    },
+    {
+      "url": "https://slack.com/terms-of-service/partners",
+      "title": "Slack Partner Program Terms & Conditions"
+    },
+    {
+      "url": "https://licenseware.io/saas-renewal-terms-notice-periods-price-increases/",
+      "title": "SaaS Renewal Terms: Notice Periods and Price Rises Compared"
+    },
+    {
+      "url": "https://smstoslack.com/legal/terms-of-service",
+      "title": "Terms of Service - SMS to Slack"
+    },
+    {
+      "url": "https://www.sec.gov/Archives/edgar/data/0000934868/000109690608002195/proginet10q103108ex10-24.htm",
+      "title": "PROGINET CORP - Form 10-Q - FY2008"
+    },
+    {
+      "url": "https://slack.com/policy-archives/terms-of-service/2021-10-01",
+      "title": "Customer Terms of Service (Archived)"
+    },
+    {
+      "url": "https://slack.com/main-services-agreement",
+      "title": "Main Services Agreement"
+    },
+    {
+      "url": "https://www.contractken.com/glossary/renewal",
+      "title": "Renewal Clause: Auto-Renewal, Notice & Key Terms"
+    },
+    {
+      "url": "https://bindlegal.com/resources/guides/auto-renewal-clause/",
+      "title": "Auto-Renewal Clauses: What's Standard (2026) - Bind Legal"
+    },
+    {
+      "url": "https://slack.com/help/articles/23546798305171-FAQ--Updates-to-Slack%E2%80%99s-active-user-calculation",
+      "title": "FAQ: Updates to Slack’s active user calculation"
+    },
+    {
+      "url": "https://slack.com/intl/en-gb/help/articles/4426294050451-Slack-feature-and-subscription-retirements",
+      "title": "Slack feature and subscription retirements"
+    },
+    {
+      "url": "https://www.tropicapp.io/glossary/slack-pricing",
+      "title": "How much does Slack cost? - Tropic procurement"
+    },
+    {
+      "url": "https://redresscompliance.com/salesforce-slack-enterprise-grid-licensing.html",
+      "title": "Salesforce Slack Enterprise Grid Licensing 2026: What's Included, SELA Bundle Terms & Pricing"
+    },
+    {
+      "url": "https://slack.com/help/articles/4426294050451-Slack-feature-and-plan-retirements",
+      "title": "Slack feature and plan retirements"
+    },
+    {
+      "url": "https://subcenter.io/teams/guides/saas-renewal-reminders",
+      "title": "How to never miss a SaaS renewal or cancel-by date"
+    },
+    {
+      "url": "https://mindcat.ai/blog/slack-support-success-plans",
+      "title": "Slack support changes on 27 October"
+    },
+    {
+      "url": "https://www.therevenueaireport.com/blog/slack-enterprise-plus-45-slackbot-flex-credits-order-form",
+      "title": "Slack Enterprise+ $45 vs Business+: 15 Slackbot Messages, Then Flex Credits"
+    },
+    {
+      "url": "https://costloop.app/cancel/slack/",
+      "title": "How to Cancel Slack - Step by Step Guide - CostLoop"
+    },
+    {
+      "url": "https://www.linkedin.com/pulse/how-cancel-your-slack-subscription-dotpenji-ri6oc?trk=public_post_main-feed-card_feed-article-content",
+      "title": "How to Cancel Your Slack Subscription"
+    },
+    {
+      "url": "https://www.joinchargeback.com/cancels/how-to-cancel-slack",
+      "title": "How to Cancel Your Slack Subscription (2026)"
+    },
+    {
+      "url": "https://clearmysubs.com/how-to-cancel/slack",
+      "title": "How to Cancel Slack Subscription"
+    },
+    {
+      "url": "https://orbitmoney.io/cancel/slack",
+      "title": "How to Cancel Slack Subscription (2026 Guide) - Orbit Money"
+    },
+    {
+      "url": "https://blog.seesubs.com/how-to-cancel-slack-subscription-100-success-rate/",
+      "title": "How to Cancel Slack Subscription? 100% Success Rate - SeeSubs Blog"
+    },
+    {
+      "url": "https://saascmopro.substack.com/p/behind-slacks-success-the-fair-billing",
+      "title": "Behind Slack’s Success: 🔥 The Fair Billing Policy 🔥"
+    },
+    {
+      "url": "https://slack.com/intl/en-fi/help/articles/218915077-Slacks-Fair-Billing-Policy",
+      "title": "Slack's Fair Billing Policy"
+    },
+    {
+      "url": "https://zylo.com/blog/slack-license-management",
+      "title": "Slack License Management Solved with Zylo Insights"
+    },
+    {
+      "url": "https://www.lilachbullock.com/slack-pricing/",
+      "title": "Slack Pricing 2026: Every Plan, Discount and Billing Rule"
+    },
+    {
+      "url": "https://www.19pine.ai/cancel-subscription/slack",
+      "title": "How to Cancel Slack Subscription: Official Steps"
+    },
+    {
+      "url": "https://slack.green/en/blog/how-to-find-inactive-users-in-slack",
+      "title": "How to Find Inactive Users in Slack: Sort by Last Active"
+    },
+    {
+      "url": "https://www.ando.so/slack-pricing-explained",
+      "title": "Slack Pricing Explained (2026): Plans, Per-Seat Costs, Free Plan · Ando"
+    },
+    {
+      "url": "https://www.stratrix.com/pricing-lens/slack-fair-billing",
+      "title": "Slack refunds you for coworkers who stop logging in — and turned the refund into a sales pitch"
+    },
+    {
+      "url": "https://bizit.substack.com/p/13-slacks-fair-billing-policy",
+      "title": "[#13] Slack's fair billing policy"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/salesforce_Developer_MSA.pdf?bc=DB",
+      "title": "Main Services Agreement — Developer Services"
+    },
+    {
+      "url": "https://www.certinia.com/about-us/legal/msa/",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/Master%20Subscription%20Agreement%20Archive/salesforce-msa-05072009-06202010.pdf",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/Master%20Subscription%20Agreement%20Archive/salesforce-msa-12012010-09142011.pdf",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.smartdcc.co.uk/media/6305/dcct0189-salesforce-msa.pdf",
+      "title": "SFDC-MSA Nov 2018 Page 1 of 9 MASTER SUBSCRIPTION AGREEMENT"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/salesforce-msa-11272013.pdf",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/Master%20Subscription%20Agreement%20Archive/salesforce-msa-10212015.pdf",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://ledgerguard.io/",
+      "title": "LedgerGuard: See renewal risk before it costs you money"
+    },
+    {
+      "url": "https://www.langleyhq.com/blog/cancel-salesforce",
+      "title": "How to Cancel a Salesforce Contract"
+    },
+    {
+      "url": "https://lawsnap.com/contracts/msa/auto-renewal/",
+      "title": "MSA Auto-Renewal: Notice Windows, Default Extensions, Drafting"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:47:59.752Z",
+  "model": "claude-sonnet-5-5"
+}

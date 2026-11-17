@@ -1,0 +1,173 @@
+{
+  "vendor": "Salesforce",
+  "slug": "salesforce",
+  "guide": "# Salesforce renewal and cancellation guide (as of 2026-11-17)\n\nSalesforce's public terms are the Main Services Agreement (MSA). Your signed order form overrides them, and terms vary by contract date, region and Salesforce entity.\n\n## Default renewal behaviour\n- **Auto-renewal is the default.** \nUnless an order form says otherwise, subscriptions automatically renew unless either party gives written notice (email acceptable) at least 30 days before the end of the subscription term.\n That quote comes from an older MSA copy.\n- **Renewal length:** A secondary source quotes the September 2025 MSA as renewing for \n\"additional periods equal to the expiring subscription term or one year (whichever is shorter)\"\n. An older copy of the MSA says \none-year terms\n. The current MSA's exact wording on renewal length is not verified. Confirm it in your signed contract.\n- **Notice window:** The MSA says 30 days. Salesforce's help articles describe a 90-day deadline for changes:\n  - \nEven on auto-renew, requests to renegotiate or change the contract must be submitted before the 90-day deadline.\n\n  - \nThe Manage Renewal button appears when the contract is within 90 days of renewal.\n\n  - Treat 90 days as the practical deadline for changes and 30 days as the contractual minimum for non-renewal. Which one applies to you is not verified. Confirm it in your signed contract or with the vendor.\n- **Non-auto-renew contracts:** \nThese need action from you. You must review and sign a new quote before the contract end date, or the services end.\n Check your renewal type in the Billing Portal under Contracts.\n\n## How to cancel or give notice\n1. **Check your contract.** \nThe Billing Portal's Contracts section shows start and end dates, renewal type, and payment terms.\n\n2. **Billing Portal toggle.** \nAs of November 14, 2025, you can disable auto-renew for eligible contracts.\n\n   - \nIf the toggle is blue, click it to turn off auto-renew.\n\n   - \nIf the contract is ineligible, contact your Account Executive.\n\n   - The eligibility window is not shown in the retrieved text. Third-party sources say it runs from 90 to 7 days before the end date. That is not verified.\n3. **\"Your Account\" app.** Open Your Account, then Go to Contracts, then select the contract. \nFor an annual subscription, click Manage Renewal, then Don't Renew to cancel.\n\n   - \nYou need the Manage Billing permission or the Manage Subscriptions in Your Account permission set.\n\n   - This help article is dated roughly 1,",
+  "sources": [
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/salesforce_Developer_MSA.pdf?bc=DB",
+      "title": "Main Services Agreement — Developer Services"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/Salesforce_MSA.pdf",
+      "title": "MAIN SERVICES AGREEMENT"
+    },
+    {
+      "url": "https://www.bdemerson.com/article/saas-spend-management",
+      "title": "SaaS Spend Management: A Renewal Playbook"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/salesforce_Developer_MSA.pdf",
+      "title": "Developer Services"
+    },
+    {
+      "url": "https://licenseware.io/saas-renewal-terms-notice-periods-price-increases/",
+      "title": "SaaS Renewal Terms: Notice Periods and Price Rises Compared"
+    },
+    {
+      "url": "https://c1.sfdcstatic.com/content/dam/web/en_us/www/documents/legal/salesforce_MSA.pdf",
+      "title": "MAIN SERVICES AGREEMENT"
+    },
+    {
+      "url": "https://www.langleyhq.com/blog/cancel-salesforce",
+      "title": "How to Cancel a Salesforce Contract"
+    },
+    {
+      "url": "https://blog.salesflare.com/salesforce-contracts",
+      "title": "Salesforce Contract: What They Won’t Tell You"
+    },
+    {
+      "url": "https://lawinsider.com/clause/auto-renewal/_6",
+      "title": "Common use of Auto-Renewal Clause in Contracts"
+    },
+    {
+      "url": "https://help.salesforce.com/s/articleView?language=en_US&id=essentials_subscription.htm&type=5",
+      "title": "Manage Your Essentials Subscription"
+    },
+    {
+      "url": "https://www.investglass.com/how-to-cancel-salesforce-subscription-a-clear-guide/",
+      "title": "The Best Guide on How to Cancel Salesforce Subscription Effortlessly"
+    },
+    {
+      "url": "https://www.19pine.ai/cancel-subscription/salesforce",
+      "title": "How to Cancel Salesforce: Official Steps & Timing"
+    },
+    {
+      "url": "https://www.19pine.ai/cancel-subscription/software-and-app-services/how-to-cancel-salesforce",
+      "title": "How to Cancel Salesforce Subscription (2025 Guide)"
+    },
+    {
+      "url": "https://www.cloudarc.com/resource/asking-how-to-cancel-salesforce-subscription/",
+      "title": "Asking How to Cancel Salesforce Subscription? CloudArc Can Help!"
+    },
+    {
+      "url": "https://www.reputationprivacy.com/articles/cancel-salesforce-stop-auto-renewal/",
+      "title": "How to Cancel Salesforce and Stop Auto Renewal (Why It’s Hard to Find)"
+    },
+    {
+      "url": "https://cancelproof.app/how-to-cancel/salesforce",
+      "title": "How to Cancel Salesforce (2026) — Step by Step"
+    },
+    {
+      "url": "https://help.asia.nikkei.com/How%20do%20I%20cancel%20my%20subscription%3F-671ee1f29b00232462623a29",
+      "title": "How do I cancel my subscription?"
+    },
+    {
+      "url": "https://www.lowcode.agency/blog/salesforce-price-increases-at-renewal",
+      "title": "Salesforce Price Increases at Renewal 2026"
+    },
+    {
+      "url": "https://redresscompliance.com/salesforce-licensing-changes-2026.html",
+      "title": "Salesforce Licensing Changes 2026: Agentforce, Price Increases, and What Buyers Must Know"
+    },
+    {
+      "url": "https://redresscompliance.com/salesforce-renewal-12-month-countdown-plan",
+      "title": "The 12-Month Salesforce Renewal Countdown: Monthly RACI"
+    },
+    {
+      "url": "https://redresscompliance.com/salesforce-sales-cloud-negotiation",
+      "title": "Salesforce Sales Cloud negotiation in 2026. Seats, editions and the renewal cap."
+    },
+    {
+      "url": "https://redresscompliance.com/saas-negotiation-playbook-2026",
+      "title": "SaaS Negotiation Playbook 2026: Renewals, Seats, Uplift"
+    },
+    {
+      "url": "https://redresscompliance.com/salesforce-negotiation-cio-playbook",
+      "title": "Salesforce negotiation playbook 2026 for CIOs. Settle the count, the date and the uplift before the quote."
+    },
+    {
+      "url": "https://nosavenopay.com/blog-salesforce-price-increase-2026",
+      "title": "Salesforce Price Increase 2026: How to Protect Your Contract"
+    },
+    {
+      "url": "https://saased.co/blog/salesforce-sela-changes-negotiation-tactics-for?page=1",
+      "title": "Salesforce SELA Changes & Negotiation Tactics for 2026 — SaaSed"
+    },
+    {
+      "url": "https://www.beri.net/article/microsoft-365-google-workspace-salesforce-ai-bundle-price-increase-renewal-negotiation-2026",
+      "title": "Microsoft 365 Price Increase: Negotiate From Last Year's Bill"
+    },
+    {
+      "url": "https://salesforcenegotiations.com/blog/salesforce-pricing-2026-complete-guide/",
+      "title": "Salesforce Pricing 2026: The Complete Enterprise Guide — SalesforceNegotiations"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/PSA%20Archive/salesforce-psa.pdf",
+      "title": "Professional Services Agreement"
+    },
+    {
+      "url": "https://www.smartdcc.co.uk/media/6305/dcct0189-salesforce-msa.pdf",
+      "title": "SFDC-MSA Nov 2018 Page 1 of 9 MASTER SUBSCRIPTION AGREEMENT"
+    },
+    {
+      "url": "https://c1.sfdcstatic.com/content/dam/web/en_us/www/documents/legal/Master%20Subscription%20Agreement%20Archive/salesforce-msa-09012014.pdf",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/Master%20Subscription%20Agreement%20Archive/Salesforce_MSA_08232023-09282023.pdf",
+      "title": "MAIN SERVICES AGREEMENT"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/salesforce_Partner_Program_Agreement-mar112024.pdf",
+      "title": "Salesforce Partner Program Agreement (SPPA)"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/Agreements/alliance-agreements-and-terms/salesforce_Partner_Program_Agreement.pdf",
+      "title": "SALESFORCE PARTNER PROGRAM AGREEMENT (SPPA Version Date: June 16, 2026)"
+    },
+    {
+      "url": "https://www.salesforce.com/en-us/wp-content/uploads/sites/4/documents/legal/salesforce-msa-11272013.pdf",
+      "title": "Master Subscription Agreement"
+    },
+    {
+      "url": "https://help.salesforce.com/s/articleView?id=005299103&language=en_US&type=1",
+      "title": "Salesforce Billing Portal FAQ"
+    },
+    {
+      "url": "https://help.salesforce.com/s/articleView?id=005167138&language=en_US&type=1",
+      "title": "Salesforce Renewal FAQ"
+    },
+    {
+      "url": "https://help.salesforce.com/s/articleView?id=sf.users_your_account_manage_renewals.htm&language=en_US&type=5",
+      "title": "Manage Renewals"
+    },
+    {
+      "url": "https://workshare.my.salesforce-sites.com/knowledgebase/articles/Text_Article/Manage-auto-renewals",
+      "title": "knowledgebase - Turn on or turn off Auto-Renew"
+    },
+    {
+      "url": "https://www.ezeelogin.com/kb/article/how-to-enable-auto-renew-in-new-billing-portal-324.html",
+      "title": "How to enable auto-renew in new billing portal?"
+    },
+    {
+      "url": "https://activenetwork.my.salesforce-sites.com/usersupport/articles/en_US/Article/Member-Turn-On-or-Cancel-Auto-Renew-in-Membership-Portal-2",
+      "title": "Member - Turn On or Cancel Auto-Renew in Membership Portal"
+    },
+    {
+      "url": "https://workshare.my.site.com/help/articles/Text_Article/Manage-auto-renewals",
+      "title": "Text Article: Turn on or turn off Auto-Renew"
+    }
+  ],
+  "checkedAt": "2026-11-17T14:47:43.989Z",
+  "model": "claude-sonnet-5-5"
+}
