@@ -3266,6 +3266,26 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
         </label>
         <label>Vendor URL<input type="url" id="f-url" placeholder="https://…" /></label>
       </div>
+      <div class="row">
+        <label>Department / cost center
+          <input type="text" id="f-department" list="dept-list" placeholder="Leave blank to use the owner's department" />
+          <datalist id="dept-list">
+            <option value="Engineering"></option>
+            <option value="Sales"></option>
+            <option value="Marketing"></option>
+            <option value="Finance"></option>
+            <option value="Product"></option>
+            <option value="Design"></option>
+            <option value="Security"></option>
+            <option value="IT"></option>
+            <option value="Operations"></option>
+            <option value="People"></option>
+            <option value="Legal"></option>
+            <option value="G&A"></option>
+          </datalist>
+        </label>
+        <label>&nbsp;<span class="dim" style="font-size:11px;display:block;padding-top:8px">For chargeback. Overrides the owner-derived department in reports.</span></label>
+      </div>
       <fieldset class="form-fieldset">
         <legend>Licenses / seats</legend>
         <div class="row triple">
@@ -4865,6 +4885,7 @@ function openModal(id) {
   document.getElementById('f-category').value = sub?.category || '';
   document.getElementById('f-renewal').value = sub?.renewal || '';
   document.getElementById('f-team').value = sub?.team || '';
+  document.getElementById('f-department').value = sub?.department || '';
   document.getElementById('f-url').value = sub?.url || '';
   document.getElementById('f-lic-total').value = sub?.licenses ?? '';
   document.getElementById('f-lic-assigned').value = sub?.assigned ?? '';
@@ -4891,6 +4912,7 @@ function handleSubmit(e) {
     category: document.getElementById('f-category').value.trim(),
     renewal: document.getElementById('f-renewal').value || null,
     team: document.getElementById('f-team').value.trim(),
+    department: document.getElementById('f-department').value.trim(),
     url: document.getElementById('f-url').value.trim(),
     licenses:  parseInt(document.getElementById('f-lic-total').value, 10) || null,
     assigned:  parseInt(document.getElementById('f-lic-assigned').value, 10) || null,
@@ -15064,7 +15086,7 @@ function rptAnnual(s) { return (parseFloat(s.cost) || 0) * (s.cycle === 'monthly
 function rptEmpDept() { const m = {}; (state.employees || []).forEach(e => { if (e.email) m[e.email.toLowerCase()] = e.department || ''; }); return m; }
 function rptDimValue(sub, dim, dateForBucket, empDept) {
   switch (dim) {
-    case 'department': { const d = sub.owner && sub.owner.email ? empDept[sub.owner.email.toLowerCase()] : ''; return d || sub.team || 'Unassigned'; }
+    case 'department': { if (sub.department) return sub.department; const d = sub.owner && sub.owner.email ? empDept[sub.owner.email.toLowerCase()] : ''; return d || sub.team || 'Unassigned'; }
     case 'team': return sub.team || 'Unassigned';
     case 'function': return sub.category || 'Uncategorized';
     case 'tool': return sub.name || '—';
@@ -18217,6 +18239,7 @@ const FIELDS = [
   { key: 'cycle',    label: 'Billing cycle',     required: false, hint: 'monthly / yearly / quarterly' },
   { key: 'category', label: 'Category',          required: false, hint: 'CRM, Analytics, Design...' },
   { key: 'team',     label: 'Owning team',       required: false, hint: 'Sales, Marketing, Engineering...' },
+  { key: 'department', label: 'Department / cost center', required: false, hint: 'For chargeback. Overrides owner-derived dept.' },
   { key: 'owner',    label: 'Owner email',       required: false, hint: 'The person responsible for this tool' },
   { key: 'renewal',  label: 'Renewal date',      required: false, hint: 'ISO (2026-05-14) or natural (14 May 2026)' },
   { key: 'licenses', label: 'Licences purchased',required: false, hint: 'Numeric' },
@@ -18230,7 +18253,8 @@ const HEADER_ALIASES = {
   cost:     ['cost', 'price', 'amount', 'annual spend', 'annual cost', 'monthly cost', 'spend', 'yearly cost', 'yearly spend', 'acv', 'arr', 'total', 'subscription cost'],
   cycle:    ['cycle', 'billing', 'billing cycle', 'billing period', 'period', 'frequency', 'term', 'interval'],
   category: ['category', 'type', 'segment', 'bucket', 'function', 'use case'],
-  team:     ['team', 'department', 'dept', 'owner team', 'business unit', 'bu', 'division'],
+  team:     ['team', 'owner team', 'squad', 'group', 'pod'],
+  department: ['department', 'dept', 'cost center', 'cost centre', 'business unit', 'bu', 'division', 'cost code', 'gl code'],
   owner:    ['owner', 'owner email', 'contact', 'contact email', 'manager', 'point of contact', 'poc', 'responsible', 'primary contact'],
   renewal:  ['renewal', 'renewal date', 'renews on', 'renews', 'next renewal', 'end date', 'expiration', 'expires', 'contract end', 'renewal due'],
   licenses: ['licenses', 'licences', 'seats', 'seat count', 'users', 'user count', 'quantity', 'qty'],
@@ -18521,6 +18545,7 @@ function buildPreviewRows() {
       cycle: coerceCycle(get('cycle')),
       category: get('category') || '',
       team: get('team') || '',
+      department: get('department') || '',
       ownerEmail: get('owner') || '',
       renewal: coerceDate(get('renewal')),
       licenses: coerceInt(get('licenses')),
@@ -18665,6 +18690,7 @@ function commitImport() {
       cycle: r.cycle,
       category: r.category,
       team: r.team,
+      department: r.department || '',
       renewal: r.renewal,
       notes: r.notes,
       url: r.url,
