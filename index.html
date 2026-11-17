@@ -291,6 +291,21 @@ button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
 .link { background: none; border: none; padding: 0; color: var(--accent); font-weight: 500; cursor: pointer; }
 .link:hover { text-decoration: underline; }
 .link.danger { color: var(--danger-text); }
+/* Command Centre */
+.cc-progress { height: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 99px; overflow: hidden; margin: 2px 0 18px; }
+.cc-progress-fill { height: 100%; background: var(--accent); transition: width .3s ease; }
+.cc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.cc-card { display: flex; flex-direction: column; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 18px 16px; transition: border-color .15s, transform .15s, box-shadow .15s; }
+.cc-card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.cc-card.cc-done { border-color: var(--success); background: var(--panel); }
+.cc-ic { font-size: 24px; line-height: 1; }
+.cc-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.cc-check { color: var(--success-text); font-weight: 700; }
+.cc-desc { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; flex: 1; }
+.cc-cta { align-self: flex-start; margin-top: 4px; background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.cc-cta:hover { background: var(--accent-2); }
+.cc-done .cc-cta { background: var(--panel-2); color: var(--text-dim); border: 1px solid var(--border); }
+
 /* Dashboard get-started empty state */
 .gs-card { text-align: left; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; transition: border-color .15s, transform .15s; font-family: inherit; }
 .gs-card:hover { border-color: var(--accent); transform: translateY(-1px); }
@@ -2573,6 +2588,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
       </div>
     </div>
     <div class="nav-group"><div class="nav-label">Overview</div>
+      <button class="tab" data-view="command-centre"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg><span>Command Centre</span></button>
       <button class="tab active" data-view="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Dashboard</span><span class="nav-count" id="nav-count-dashboard" hidden></span></button>
       <button class="tab" data-view="insights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-5 4 3 5-7"/></svg><span>Insights</span><span class="nav-count" id="nav-count-insights" hidden></span></button>
       <button class="tab" data-view="analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 17V9M13 17v-6M18 17v-3"/></svg><span>Analytics</span></button>
@@ -2639,6 +2655,11 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
     </nav>
 
 <main>
+  <!-- Command Centre -->
+  <section id="command-centre" class="view">
+    <div id="cc-root"></div>
+  </section>
+
   <!-- Dashboard -->
   <section id="dashboard" class="view active">
     <div class="section-head"><div><h2>Dashboard</h2><p class="page-sub">Spend, invoices and the renewals that need a decision.</p></div></div>
@@ -3522,6 +3543,83 @@ function initials(name) {
 // -------- rendering --------
 function activeSubs() { return state.subscriptions.filter(s => s.active !== false); }
 
+/* ===================== Command Centre (guided onboarding hub) =====================
+   The landing page for new/blank workspaces. Guides the user into every way to
+   get contracts and tools in: individual upload, bulk, paste, CLM import,
+   Google Sheet, Drive folder, shadow-tool discovery, and the team directory. */
+function goContracts(mode) {
+  switchView('contracts');
+  setTimeout(() => {
+    try {
+      if (mode === 'single') { const el = document.getElementById('contract-file'); if (el) el.click(); }
+      else if (mode === 'bulk') { const el = document.getElementById('bulk-upload'); if (el) el.click(); }
+      else if (mode === 'paste') { const t = document.getElementById('contract-text'); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.focus(); } }
+    } catch (_) {}
+  }, 150);
+}
+function ccRequest(key, label) {
+  state.settings = state.settings || {}; state.settings.ccRequests = state.settings.ccRequests || {};
+  state.settings.ccRequests[key] = new Date().toISOString();
+  save();
+  try { if (typeof postOnboardingEvent === 'function') postOnboardingEvent('cc_request', { item: key }); } catch (_) {}
+  try { toast(`Noted — we'll reach out about ${label}.`, 'success'); } catch (_) {}
+  renderCommandCentre();
+}
+function ccSheet() {
+  const cur = (state.settings && state.settings.ccSheetUrl) || '';
+  const url = prompt("Paste your Google Sheet link.\n\nWe'll import the rows now and verify them against the real contract links later.", cur);
+  if (url == null) return;
+  const u = url.trim();
+  state.settings = state.settings || {}; state.settings.ccSheetUrl = u;
+  save();
+  try { if (typeof postOnboardingEvent === 'function') postOnboardingEvent('cc_sheet_linked', {}); } catch (_) {}
+  try { toast(u ? "Sheet linked. We'll import and verify against contracts." : 'Sheet link cleared.', u ? 'success' : 'info'); } catch (_) {}
+  renderCommandCentre();
+}
+function ccSteps() {
+  const subs = state.subscriptions || [];
+  const req = (state.settings && state.settings.ccRequests) || {};
+  const teamCount = (state.employees || []).length;
+  return [
+    { id: 'individual', icon: '📄', title: 'Load individual contracts', desc: 'Upload a PDF or text file. We read the vendor, value, dates, renewal and clauses — AI-native when AI extraction is on.', cta: 'Upload a contract', done: subs.some(s => s.contract), act: () => goContracts('single') },
+    { id: 'bulk', icon: '📚', title: 'Add contracts in bulk', desc: 'Drop a whole set of PDFs or scans at once. Each becomes a draft with its terms already extracted.', cta: 'Bulk upload', done: false, act: () => goContracts('bulk') },
+    { id: 'paste', icon: '📋', title: 'Copy-paste contract details', desc: 'Paste contract text straight in for a quick read — handy for a single clause or an email.', cta: 'Paste text', done: false, act: () => goContracts('paste') },
+    { id: 'clm', icon: '🔗', title: 'Connect a CLM (SpotDraft, Ironclad…)', desc: 'Import contracts automatically from your contract-management tool.', cta: req.clm ? 'Requested ✓' : 'Request access', done: !!req.clm, act: () => ccRequest('clm', 'SpotDraft / CLM import') },
+    { id: 'sheet', icon: '📊', title: 'Connect a Google Sheet', desc: "Already track SaaS in a sheet? Link it and we'll import the rows — verified against the real contracts later.", cta: (state.settings && state.settings.ccSheetUrl) ? 'Sheet linked ✓' : 'Link a sheet', done: !!(state.settings && state.settings.ccSheetUrl), act: () => ccSheet() },
+    { id: 'drive', icon: '🗂️', title: 'Connect Google Drive / a folder', desc: 'Point us at a Drive folder of contracts and upload them all at once (runs through bulk upload).', cta: req.drive ? 'Requested ✓' : 'Request access', done: !!req.drive, act: () => ccRequest('drive', 'Google Drive / folder sync') },
+    { id: 'shadow', icon: '🕵️', title: 'Discover shadow tools', desc: 'Find SaaS nobody logged — from expense data or SSO sign-ins — so nothing escapes the register.', cta: req.shadow ? 'Requested ✓' : 'Request access', done: !!req.shadow, act: () => ccRequest('shadow', 'Shadow-IT discovery') },
+    { id: 'team', icon: '👥', title: 'Add your team directory', desc: 'Import people and departments so spend and licences roll up by team.', cta: teamCount ? 'Review team' : 'Add team', done: teamCount > 0, act: () => switchView('team') },
+  ];
+}
+function renderCommandCentre() {
+  const root = document.getElementById('cc-root'); if (!root) return;
+  const steps = ccSteps();
+  const done = steps.filter(s => s.done).length;
+  const ws = (typeof workspace === 'function') ? workspace() : {};
+  root.innerHTML = `
+    <div class="section-head">
+      <div>
+        <h2>Command Centre</h2>
+        <p class="page-sub">${ws.companyName ? 'Welcome, ' + escapeHtml(ws.companyName) + '. ' : ''}Get every contract and tool into one place — start with any path below. <b>${done} of ${steps.length}</b> done.</p>
+      </div>
+      <button class="icon-btn" id="cc-to-dashboard">Go to dashboard →</button>
+    </div>
+    <div class="cc-progress"><div class="cc-progress-fill" style="width:${Math.round(done / steps.length * 100)}%"></div></div>
+    <div class="cc-grid">
+      ${steps.map(s => `
+        <div class="cc-card ${s.done ? 'cc-done' : ''}">
+          <div class="cc-ic">${s.icon}</div>
+          <div class="cc-title">${escapeHtml(s.title)}${s.done ? ' <span class="cc-check">✓</span>' : ''}</div>
+          <div class="cc-desc">${escapeHtml(s.desc)}</div>
+          <button type="button" class="cc-cta" data-cc-act="${s.id}">${escapeHtml(s.cta)}</button>
+        </div>`).join('')}
+    </div>`;
+  const dash = root.querySelector('#cc-to-dashboard');
+  if (dash) dash.onclick = () => { state.settings = state.settings || {}; state.settings.ccDismissed = true; save(); switchView('dashboard'); };
+  const map = {}; steps.forEach(s => { map[s.id] = s.act; });
+  root.querySelectorAll('[data-cc-act]').forEach(b => b.onclick = () => { const f = map[b.dataset.ccAct]; if (f) f(); });
+}
+
 /* Empty-workspace guidance: when there are no subscriptions, show a card
    pointing new customers at the two ways to get started — upload their own
    contracts, or load a ready-made industry preset. Removed once data exists. */
@@ -4145,6 +4243,7 @@ function renderNavCounts() {
 function renderAll() {
   renderNavCounts();
   renderUrgencyStrip();
+  try { renderCommandCentre(); } catch (_) {}
   renderDashboard();
   renderNoticeWindows();
   renderSubscriptions();
@@ -5425,8 +5524,13 @@ function clearAll() {
 }
 
 // -------- wiring --------
-const PAGE_TITLES = window.PAGE_TITLES = { dashboard: 'Dashboard', subscriptions: 'Subscriptions', invoices: 'Invoices', consumption: 'Licence usage', team: 'Team directory', alerts: 'Alerts', renewals: 'Renewals', contracts: 'Contract terms', risk: 'Risk analytics', playbook: 'Clause playbook', integrations: 'Integrations', roadmap: 'Integration roadmap', backlog: 'Product backlog', insights: 'Insights', analytics: 'Analytics', pricing: 'Plans' };
-const VIEWS = ['dashboard', 'subscriptions', 'invoices', 'consumption', 'team', 'alerts', 'renewals', 'contracts', 'risk', 'playbook', 'integrations', 'roadmap', 'backlog', 'insights', 'analytics', 'pricing'];
+const PAGE_TITLES = window.PAGE_TITLES = { 'command-centre': 'Command Centre', dashboard: 'Dashboard', subscriptions: 'Subscriptions', invoices: 'Invoices', consumption: 'Licence usage', team: 'Team directory', alerts: 'Alerts', renewals: 'Renewals', contracts: 'Contract terms', risk: 'Risk analytics', playbook: 'Clause playbook', integrations: 'Integrations', roadmap: 'Integration roadmap', backlog: 'Product backlog', insights: 'Insights', analytics: 'Analytics', pricing: 'Plans' };
+const VIEWS = ['command-centre', 'dashboard', 'subscriptions', 'invoices', 'consumption', 'team', 'alerts', 'renewals', 'contracts', 'risk', 'playbook', 'integrations', 'roadmap', 'backlog', 'insights', 'analytics', 'pricing'];
+
+function defaultLandingView() {
+  const blank = !(state.subscriptions && state.subscriptions.length);
+  return (blank && !(state.settings && state.settings.ccDismissed)) ? 'command-centre' : 'dashboard';
+}
 function switchView(name, opts = {}) {
   if (!VIEWS.includes(name)) name = 'dashboard';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
@@ -5441,7 +5545,10 @@ function switchView(name, opts = {}) {
 }
 function viewFromHash() {
   const raw = (location.hash || '').replace(/^#/, '');
-  return VIEWS.includes(raw) ? raw : 'dashboard';
+  if (VIEWS.includes(raw)) return raw;
+  // No explicit view in the URL → new/blank workspaces land on the Command Centre.
+  if (!raw) return defaultLandingView();
+  return 'dashboard';
 }
 
 function applyTheme(t) {
