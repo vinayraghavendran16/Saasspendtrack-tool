@@ -198,7 +198,9 @@ export async function onRequestPost({ request, env }) {
       max_tokens: 2000,
       system: SYSTEM,
       tools: [EXTRACT_TOOL],
-      tool_choice: { type: "tool", name: "record_contract" },
+      // Newer models reject forced tool_choice ("tool"/"any"); "auto" works and
+      // the system prompt instructs the model to call record_contract once.
+      tool_choice: { type: "auto" },
       messages: [
         {
           role: "user",
@@ -229,11 +231,19 @@ export async function onRequestPost({ request, env }) {
     }
     const data = await r.json();
     const toolUse = (data.content || []).find((b) => b.type === "tool_use");
-    if (!toolUse || !toolUse.input) {
-      return new Response(JSON.stringify({ ok: false, error: "no_tool_use" }), { status: 200, headers });
+    let result = toolUse && toolUse.input;
+    // Fallback: if the model answered with text instead of a tool call, pull the
+    // first JSON object out of the text.
+    if (!result) {
+      const textOut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+      const m = textOut.match(/\{[\s\S]*\}/);
+      if (m) { try { result = JSON.parse(m[0]); } catch (_) {} }
+    }
+    if (!result) {
+      return new Response(JSON.stringify({ ok: false, error: "no_result", message: "The model did not return structured data." }), { status: 200, headers });
     }
     return new Response(
-      JSON.stringify({ ok: true, data: toolUse.input, model, usage: data.usage || null }),
+      JSON.stringify({ ok: true, data: result, model, usage: data.usage || null }),
       { status: 200, headers }
     );
   } catch (e) {
