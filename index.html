@@ -3605,7 +3605,7 @@ const SAAS_SIGNATURES = [
   ['HubSpot', /hubspot/i], ['Datadog', /datadog/i], ['Zendesk', /zendesk/i], ['Figma', /figma/i],
   ['Notion', /notion/i], ['Atlassian', /atlassian|jira|confluence|trello/i], ['GitHub', /github/i], ['GitLab', /gitlab/i],
   ['Snowflake', /snowflake/i], ['Databricks', /databricks/i],
-  ['Google Workspace', /google\s*(workspace|gsuite|g suite)|goog\s*\*?\s*gsuite|google cloud/i],
+  ['Google Workspace', /\bg\s?suite\b|gsuite|google\s*workspace|google\s*cloud|goog\s*\*/i],
   ['Microsoft 365', /\bmicrosoft\b|\bmsft\b|office\s*365|\bo365\b|microsoft 365|\bazure\b/i],
   ['AWS', /amazon web services|\baws\b|amazon\s*\*?\s*aws/i], ['Adobe', /adobe/i], ['DocuSign', /docusign/i],
   ['Dropbox', /dropbox/i], ['Box', /\bbox\.com\b|\bbox inc\b|\bbox\.net\b/i], ['Asana', /asana/i],
@@ -14125,6 +14125,172 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 </script>
+<script>
+/* ==========================================================================
+   Renewal Guides — vendor-specific renewal / cancellation guides for prospects.
+   Grounded in LIVE web search via /api/renewal-guide so the content reflects
+   terms valid at request time. The model is required to cite sources and to
+   mark anything it cannot verify, rather than guess. If the AI backend is not
+   configured or returns nothing verified, we show only the vendor's official
+   terms link — never fabricated renewal terms.
+   ========================================================================== */
+function renewalGuideEndpoint() { return (state.settings && state.settings.renewalGuideEndpoint) || '/api/renewal-guide'; }
+let _rgAvailable = null;
+async function renewalGuideAvailable() {
+  if (_rgAvailable !== null) return _rgAvailable;
+  try { const r = await fetch(renewalGuideEndpoint(), { method: 'GET' }); const j = await r.json(); _rgAvailable = !!(j && j.configured); }
+  catch (_) { _rgAvailable = false; }
+  return _rgAvailable;
+}
+// Light markdown -> safe HTML (headings, bold, lists, links, paragraphs). Escapes first.
+function rgMarkdown(md) {
+  let s = escapeHtml(String(md || ''));
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  s = s.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
+  const lines = s.split(/\r?\n/); let html = ''; let inUl = false;
+  const closeUl = () => { if (inUl) { html += '</ul>'; inUl = false; } };
+  lines.forEach(ln => {
+    let m;
+    if ((m = ln.match(/^\s*#{1,6}\s+(.*)$/))) { closeUl(); html += `<h4 style="margin:12px 0 4px">${m[1]}</h4>`; return; }
+    if ((m = ln.match(/^\s*[-*]\s+(.*)$/))) { if (!inUl) { html += '<ul style="margin:4px 0 4px 18px">'; inUl = true; } html += `<li style="margin:3px 0">${m[1]}</li>`; return; }
+    if (/^\s*$/.test(ln)) { closeUl(); return; }
+    closeUl(); html += `<p style="margin:6px 0">${ln}</p>`;
+  });
+  closeUl();
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  // Highlight "not verified" caveats so they stand out.
+  html = html.replace(/(not verified[^.<]*\.?)/ig, '<span class="rg-unverified">$1</span>');
+  return html;
+}
+function rgOfficialUrlFor(vendor) {
+  try { if (typeof vendorMsaEntry === 'function') { const e = vendorMsaEntry(vendor); if (e && e.url) return e.url; } } catch (_) {}
+  return '';
+}
+function rgVendorList() {
+  const fromRegister = (state.subscriptions || []).map(s => s.name).filter(Boolean);
+  const popular = ['Salesforce', 'HubSpot', 'ZoomInfo', 'Outreach', 'Salesloft', 'Gong', 'Zoom', 'Slack', 'Datadog', 'Snowflake', 'Adobe', 'DocuSign', 'Workday', 'Atlassian'];
+  const seen = new Set(); const out = [];
+  [...fromRegister, ...popular].forEach(n => { const k = n.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(n); } });
+  return out;
+}
+async function runRenewalGuide(vendor) {
+  const host = document.getElementById('rg-result'); if (!host) return;
+  vendor = (vendor || '').trim(); if (!vendor) { host.innerHTML = '<p class="empty" style="padding:14px 0">Pick or type a vendor.</p>'; return; }
+  const official = rgOfficialUrlFor(vendor);
+  const ok = await renewalGuideAvailable();
+  if (!ok) {
+    host.innerHTML = `<div class="rg-card">
+      <p>Live renewal-guide generation needs the AI backend (an Anthropic API key on the server). It isn't configured, so to avoid showing anything unverified, here's the authoritative source to check for <b>${escapeHtml(vendor)}</b>:</p>
+      ${official ? `<p>👉 <a href="${escapeHtml(official)}" target="_blank" rel="noopener noreferrer">${escapeHtml(vendor)} official terms</a></p>` : `<p class="dim">No official-terms link on file for this vendor. Search the vendor's own site for "master subscription agreement" or "auto-renewal".</p>`}
+      <p class="dim" style="font-size:12px">Always confirm against your own signed order form, which overrides public defaults.</p>
+    </div>`;
+    return;
+  }
+  host.innerHTML = `<div class="rg-card"><p class="dim">Searching current sources for <b>${escapeHtml(vendor)}</b>'s renewal and cancellation terms…</p><div class="rg-spinner"></div></div>`;
+  try {
+    const r = await fetch(renewalGuideEndpoint(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ vendor, officialUrl: official }) });
+    const j = await r.json();
+    if (!j || !j.ok) {
+      const msg = (j && j.message) || 'Could not produce a verified guide right now.';
+      host.innerHTML = `<div class="rg-card"><p>⚠️ ${escapeHtml(msg)}</p>${official ? `<p>Check the official source directly: <a href="${escapeHtml(official)}" target="_blank" rel="noopener noreferrer">${escapeHtml(vendor)} terms</a></p>` : ''}</div>`;
+      return;
+    }
+    const checked = j.checkedAt ? new Date(j.checkedAt) : new Date();
+    const srcHtml = (j.sources || []).length
+      ? `<div class="rg-sources"><h4 style="margin:0 0 4px">Sources checked</h4><ol style="margin:0 0 0 18px">${j.sources.map(s => `<li style="margin:3px 0"><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title || s.url)}</a></li>`).join('')}</ol></div>`
+      : '';
+    host.innerHTML = `<div class="rg-card">
+      <div class="rg-meta">Generated from live web sources on ${checked.toLocaleDateString()} ${checked.toLocaleTimeString()}. Terms change and vary by contract, region and negotiated order form. Verify against your own signed agreement before acting.</div>
+      <div class="rg-body">${rgMarkdown(j.guide)}</div>
+      ${srcHtml}
+    </div>`;
+  } catch (e) {
+    host.innerHTML = `<div class="rg-card"><p>⚠️ Network error generating the guide.</p>${official ? `<p>Check the official source: <a href="${escapeHtml(official)}" target="_blank" rel="noopener noreferrer">${escapeHtml(vendor)} terms</a></p>` : ''}</div>`;
+  }
+}
+function ensureRenewalGuidesView() {
+  if (document.getElementById('renewal-guides')) return;
+  const main = document.querySelector('.main-area main'); if (!main) return;
+  const section = document.createElement('section');
+  section.id = 'renewal-guides'; section.className = 'view';
+  const vendors = rgVendorList();
+  section.innerHTML = `
+    <div class="section-head">
+      <div>
+        <h2>Renewal guides</h2>
+        <p class="page-sub">Vendor-specific renewal and cancellation playbooks, built from the vendor's current public terms at the moment you ask. Every fact is sourced; anything we can't verify is flagged, not guessed.</p>
+      </div>
+    </div>
+    <div class="rg-controls">
+      <input list="rg-vendor-list" id="rg-vendor" placeholder="Vendor (e.g. ZoomInfo, Salesforce, Outreach)…" autocomplete="off" />
+      <datalist id="rg-vendor-list">${vendors.map(v => `<option value="${escapeHtml(v)}"></option>`).join('')}</datalist>
+      <button class="btn-primary" id="rg-go">Build guide</button>
+    </div>
+    <div class="rg-chips">${vendors.slice(0, 10).map(v => `<button class="chip" data-rg="${encodeURIComponent(v)}">${escapeHtml(v)}</button>`).join('')}</div>
+    <div class="rg-disclaimer">ℹ️ These guides summarise public vendor terms and reputable sources as of the time you generate them. They are not legal advice. Your signed order form or MSA overrides any public default, so always confirm there first.</div>
+    <div id="rg-result"></div>`;
+  main.appendChild(section);
+  const run = () => runRenewalGuide(section.querySelector('#rg-vendor').value);
+  section.querySelector('#rg-go').onclick = run;
+  section.querySelector('#rg-vendor').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
+  section.querySelectorAll('.rg-chips .chip').forEach(c => c.onclick = () => { const v = decodeURIComponent(c.dataset.rg); section.querySelector('#rg-vendor').value = v; runRenewalGuide(v); });
+}
+function ensureRenewalGuidesNav() {
+  const btns = document.querySelectorAll('.sidebar [data-view="playbook"]');
+  let placed = false;
+  btns.forEach(ref => {
+    if (placed || !ref.parentElement || ref.parentElement.querySelector('[data-view="renewal-guides"]')) return;
+    const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
+    const btn = document.createElement('button');
+    btn.className = 'tab'; btn.dataset.view = 'renewal-guides';
+    const hasText = ref.querySelector('span');
+    btn.innerHTML = hasText ? `${svg}<span>Renewal guides</span>` : 'Renewal guides';
+    ref.parentElement.insertBefore(btn, ref.nextSibling);
+    btn.addEventListener('click', () => switchView('renewal-guides'));
+    placed = true;
+  });
+}
+function patchSwitchViewForRenewalGuides() {
+  if (window._rgSwitchPatched) return;
+  const _orig = window.switchView;
+  window.switchView = function (name, opts = {}) {
+    if (name === 'renewal-guides') {
+      ensureRenewalGuidesView();
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === name));
+      window.scrollTo({ top: 0 });
+      const crumb = document.getElementById('page-crumb');
+      if (crumb) crumb.textContent = 'Renewal guides';
+      if (!opts.replaceHistory) { const target = '#renewal-guides'; if (location.hash !== target) history.pushState({ view: name }, '', target); }
+      return;
+    }
+    return _orig(name, opts);
+  };
+  window._rgSwitchPatched = true;
+}
+if (window.PAGE_TITLES) window.PAGE_TITLES['renewal-guides'] = 'Renewal guides';
+(function () {
+  const boot = () => { try { ensureRenewalGuidesView(); ensureRenewalGuidesNav(); patchSwitchViewForRenewalGuides(); } catch (e) { console.warn(e); } };
+  if (window.renderAll) { const _p = window.renderAll; window.renderAll = function () { _p(); boot(); }; }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 700));
+})();
+</script>
+<style>
+.rg-controls { display:flex; gap:8px; margin:4px 0 10px; max-width:640px; }
+.rg-controls input { flex:1; }
+.rg-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.rg-disclaimer { font-size:12px; color:var(--text-dim,#94a3b8); background:var(--card,#f8fafc); border:1px solid var(--border,#e2e8f0); border-radius:8px; padding:8px 12px; margin-bottom:14px; }
+.rg-card { background:var(--card,#fff); border:1px solid var(--border,#e2e8f0); border-radius:12px; padding:16px 18px; max-width:780px; }
+.rg-meta { font-size:12px; color:var(--text-dim,#94a3b8); border-left:3px solid var(--accent,#6366f1); padding:6px 10px; margin-bottom:10px; background:var(--bg-soft,#f8fafc); border-radius:0 6px 6px 0; }
+.rg-body { font-size:14px; line-height:1.6; }
+.rg-body a { color:var(--accent,#6366f1); }
+.rg-sources { margin-top:14px; padding-top:10px; border-top:1px dashed var(--border,#e2e8f0); font-size:12.5px; }
+.rg-sources a { color:var(--accent,#6366f1); word-break:break-all; }
+.rg-unverified { background:rgba(234,179,8,0.18); color:#92400e; padding:0 3px; border-radius:3px; font-weight:600; }
+[data-theme="dark"] .rg-unverified { color:#fde68a; }
+.rg-spinner { width:18px; height:18px; border:2px solid var(--border,#e2e8f0); border-top-color:var(--accent,#6366f1); border-radius:50%; animation:rgspin 0.7s linear infinite; margin-top:8px; }
+@keyframes rgspin { to { transform:rotate(360deg); } }
+</style>
 <script>
 /* ==========================================================================
    SaaS Spend Track — Phase 14
