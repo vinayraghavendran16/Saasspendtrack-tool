@@ -1139,6 +1139,13 @@ html.owner-only #owner { display: block !important; }
   .cr-tab { padding:9px 10px; font-size:12px; }
 }
 
+/* Master-agreement reference block in contract detail */
+.msa-block { margin-top:16px; padding:14px 16px; background: var(--panel-2); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:10px; }
+.msa-head { font-size:13px; font-weight:600; color: var(--text); margin-bottom:6px; }
+.msa-note { font-size:12.5px; color: var(--text-dim); line-height:1.55; margin:0 0 10px; }
+.msa-link { font-size:13px; font-weight:600; color: var(--accent); text-decoration:none; }
+.msa-link:hover { text-decoration:underline; }
+
 /* Contract upload processing banner */
 .contract-processing { display:none; align-items:center; gap:10px; background: var(--accent-soft); border:1px solid var(--accent); color: var(--accent); border-radius:10px; padding:11px 14px; margin:0 0 14px; font-size:13px; font-weight:500; }
 .cp-spin { width:15px; height:15px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation: cp-spin .7s linear infinite; flex:0 0 auto; }
@@ -6272,6 +6279,58 @@ function renderContractsV2() {
   host.querySelectorAll('[data-contract-detail]').forEach(btn => btn.onclick = () => openContractDetail(btn.dataset.contractDetail));
 }
 
+/* Official legal / Master-Agreement pages. Order forms usually defer most legal
+   clauses (governing law, liability, IP, DPA, termination) to the vendor's
+   master agreement, so we link the official source where those live. These are
+   each vendor's stable legal landing page; for anyone not listed we fall back to
+   a search so the link is never wrong. */
+const VENDOR_MSA = {
+  'salesforce': { label: 'Salesforce', url: 'https://www.salesforce.com/company/legal/agreements/' },
+  'outreach': { label: 'Outreach', url: 'https://www.outreach.io/legal' },
+  'salesloft': { label: 'Salesloft', url: 'https://salesloft.com/legal/' },
+  'zoom': { label: 'Zoom', url: 'https://www.zoom.com/en/trust/terms/' },
+  'zoominfo': { label: 'ZoomInfo', url: 'https://www.zoominfo.com/about/terms-of-service' },
+  'zendesk': { label: 'Zendesk', url: 'https://www.zendesk.com/company/agreements-and-terms/' },
+  'datadog': { label: 'Datadog', url: 'https://www.datadoghq.com/legal/msa/' },
+  'slack': { label: 'Slack', url: 'https://slack.com/legal' },
+  'hubspot': { label: 'HubSpot', url: 'https://legal.hubspot.com/terms-of-service' },
+  'atlassian': { label: 'Atlassian', url: 'https://www.atlassian.com/legal/cloud-terms-of-service' },
+  'jira': { label: 'Atlassian', url: 'https://www.atlassian.com/legal/cloud-terms-of-service' },
+  'confluence': { label: 'Atlassian', url: 'https://www.atlassian.com/legal/cloud-terms-of-service' },
+  'snowflake': { label: 'Snowflake', url: 'https://www.snowflake.com/legal/' },
+  'microsoft': { label: 'Microsoft', url: 'https://www.microsoft.com/licensing/terms/' },
+  'google workspace': { label: 'Google Workspace', url: 'https://workspace.google.com/terms/premier_terms/' },
+  'aws': { label: 'AWS', url: 'https://aws.amazon.com/agreement/' },
+  'amazon web services': { label: 'AWS', url: 'https://aws.amazon.com/agreement/' },
+  'adobe': { label: 'Adobe', url: 'https://www.adobe.com/legal/terms.html' },
+  'docusign': { label: 'DocuSign', url: 'https://www.docusign.com/company/terms-and-conditions/msa' },
+  'gong': { label: 'Gong', url: 'https://www.gong.io/legal/' },
+  'notion': { label: 'Notion', url: 'https://www.notion.so/Master-Subscription-Agreement-6d2ab5d6854c45a98fd85489b273c20e' },
+  'figma': { label: 'Figma', url: 'https://www.figma.com/legal/tos/' },
+  'okta': { label: 'Okta', url: 'https://www.okta.com/agreements/' },
+  'workday': { label: 'Workday', url: 'https://www.workday.com/en-us/legal.html' },
+  'greenhouse': { label: 'Greenhouse', url: 'https://www.greenhouse.io/legal' },
+  'linkedin': { label: 'LinkedIn', url: 'https://www.linkedin.com/legal/l/sales-navigator-subscription-agreement' },
+};
+function vendorMsaEntry(name) {
+  const n = (name || '').toLowerCase().trim();
+  if (!n) return null;
+  if (VENDOR_MSA[n]) return VENDOR_MSA[n];
+  for (const key in VENDOR_MSA) { if (n.includes(key) || key.includes(n)) return VENDOR_MSA[key]; }
+  return null;
+}
+function msaBlockHtml(sub) {
+  const entry = vendorMsaEntry(sub.name);
+  const url = entry ? entry.url : ('https://www.google.com/search?q=' + encodeURIComponent((sub.name || 'vendor') + ' master subscription agreement official'));
+  const label = entry ? entry.label : (sub.name || 'this vendor');
+  return `
+    <div class="msa-block">
+      <div class="msa-head">📑 Standard terms (Master Agreement)</div>
+      <p class="msa-note">Order forms usually defer the main legal clauses — governing law, limitation of liability, IP, DPA, termination — to the vendor's master agreement. Any clause not detected in this order likely lives there. Review ${escapeHtml(label)}'s official terms for the full picture.</p>
+      <a class="msa-link" href="${url}" target="_blank" rel="noopener">Open ${escapeHtml(label)}'s ${entry ? 'Master Agreement' : 'master agreement (search)'} →</a>
+    </div>`;
+}
+
 function openContractDetail(id) {
   const sub = state.subscriptions.find(s => s.id === id); if (!sub) return;
   const r = scoreContract(sub, portfolioCtx());
@@ -6307,6 +6366,7 @@ function openContractDetail(id) {
         <div class="clause-value">${present ? escapeHtml(String(v)) : '<i>not detected</i>'}</div>
       </div>`;
     }).join('')}</div>
+    ${msaBlockHtml(sub)}
     <div class="actions" style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
       ${sub.hasPdf ? `<button type="button" class="icon-btn" onclick="downloadSubPdf('${sub.id}')">⬇ Download original PDF</button>` : ''}
       <button type="button" class="primary" onclick="document.getElementById('contract-detail-modal').hidden = true">Close</button>
