@@ -14762,13 +14762,8 @@ const PERSONAL_EMAIL_DOMAINS = new Set([
 ]);
 
 function isPersonalEmail(email) {
-  const domain = (email || '').toLowerCase().split('@')[1] || '';
-  if (!domain) return false;
-  if (PERSONAL_EMAIL_DOMAINS.has(domain)) return true;
-  // Catch subdomains of blocked providers (e.g. "foo.gmail.com" edge case)
-  for (const d of PERSONAL_EMAIL_DOMAINS) {
-    if (domain.endsWith('.' + d)) return true;
-  }
+  // Personal email validation temporarily disabled -- accepting all email addresses.
+  // Re-enable by restoring the domain checks when moving to work-email-only mode.
   return false;
 }
 
@@ -14905,10 +14900,10 @@ function ensureSignupModal(mode = 'initial') {
       </div>
       <h2>${isChange ? 'Use a different email' : 'Work email only. No credit card.'}</h2>
       <p class="sm-sub">${isChange
-        ? 'Switching the email we have on file for this workspace. We\'ll log the change in our records so follow-up goes to the right address. Must be a work email (gmail, yahoo etc not accepted).'
-        : 'Your workspace runs entirely in your browser. We just need your <b>work email</b> (gmail, yahoo etc not accepted) so we can send your login link when you open the tool on another device, and handle GST invoicing for Indian customers.'}</p>
+        ? 'Switching the email we have on file for this workspace. We\'ll log the change in our records so follow-up goes to the right address.'
+        : 'Your workspace runs entirely in your browser. We just need your <b>email</b> so we can send your login link when you open the tool on another device, and handle GST invoicing for Indian customers.'}</p>
       <form id="signup-form" class="sm-form">
-        <label>Work email *
+        <label>Email *
           <input type="email" id="signup-email" value="${escapeHtml(currentEmail)}" placeholder="you@yourcompany.com" required autocomplete="email" autofocus/>
         </label>
         <label>Company <span class="sm-optional">(optional)</span>
