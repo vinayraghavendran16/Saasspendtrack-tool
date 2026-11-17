@@ -1145,6 +1145,14 @@ html.owner-only #owner { display: block !important; }
 .msa-note { font-size:12.5px; color: var(--text-dim); line-height:1.55; margin:0 0 10px; }
 .msa-link { font-size:13px; font-weight:600; color: var(--accent); text-decoration:none; }
 .msa-link:hover { text-decoration:underline; }
+.msa-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.msa-signed { margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); }
+.msa-signed-row { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:12.5px; }
+.msa-val { font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; }
+.msa-val.ok { background: var(--success-soft); color: var(--success-text); }
+.msa-val.warn { background: var(--warning-soft); color: var(--warning-text); }
+.msa-tag { display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.04em; padding:1px 6px; border-radius:99px; background: var(--accent-soft); color: var(--accent); vertical-align:middle; }
+.clause-card.from-msa { border-left:3px solid var(--accent); }
 
 /* Contract upload processing banner */
 .contract-processing { display:none; align-items:center; gap:10px; background: var(--accent-soft); border:1px solid var(--accent); color: var(--accent); border-radius:10px; padding:11px 14px; margin:0 0 14px; font-size:13px; font-weight:500; }
@@ -6319,15 +6327,115 @@ function vendorMsaEntry(name) {
   for (const key in VENDOR_MSA) { if (n.includes(key) || key.includes(n)) return VENDOR_MSA[key]; }
   return null;
 }
+/* Map an AI extraction result or a deepExtract result to the flat clause shape
+   stored on sub.contract, so MSA clauses can be merged in. */
+function aiDataToClauses(d) {
+  return {
+    renewalType: d.auto_renews === true ? 'Auto-renew' : (d.auto_renews === false ? 'Manual renewal' : null),
+    autoRenew: (d.auto_renews != null) ? !!d.auto_renews : null,
+    noticeDays: (d.renewal_notice_days != null) ? d.renewal_notice_days : null,
+    termLength: d.term_months ? d.term_months + ' months' : null,
+    priceCapPct: (d.price_increase_cap_pct != null) ? d.price_increase_cap_pct : null,
+    paymentDays: (d.payment_terms_days != null) ? d.payment_terms_days : null,
+    governingLaw: d.governing_law || null, liabilityCap: d.liability_cap || null, indemnity: d.indemnity || null,
+    sla: (d.sla_uptime_pct != null) ? d.sla_uptime_pct + '% uptime' : null, support: d.support_tier || null,
+    termination: d.termination_rights || null, dpa: d.dpa || null, security: d.security_certifications || null,
+    audit: d.audit_rights || null, warranty: d.warranty || null, assignment: d.assignment || null, lateFee: d.late_fee || null,
+  };
+}
+function deepExtractToClauses(text) {
+  const c = deepExtract(text || '').clauses;
+  return {
+    renewalType: c.renewal?.value || null, autoRenew: c.renewal ? (c.renewal.value === 'Auto-renew') : null,
+    noticeDays: c.notice?.days || null, termLength: c.term?.value || null, priceCapPct: c.priceCap?.pct ?? null,
+    paymentDays: c.paymentDays?.days || null, governingLaw: c.governingLaw?.value || null, liabilityCap: c.liabilityCap?.value || null,
+    indemnity: c.indemnity?.value || null, sla: c.sla?.value || null, support: c.support?.value || null,
+    termination: c.termination?.value || null, dpa: c.dpa?.value || null, security: c.security?.value || null,
+    audit: c.audit?.value || null, warranty: c.warranty?.value || null, assignment: c.assignment?.value || null, lateFee: c.lateFee?.value || null,
+  };
+}
+/* Fill only the clauses the order form left empty from the MSA, and record which
+   keys came from the MSA so they can be highlighted. Order-form terms win. */
+function mergeMsaClauses(sub, clauses) {
+  sub.contract = sub.contract || {};
+  sub.contract.msaClauses = sub.contract.msaClauses || [];
+  const keys = ['renewalType', 'noticeDays', 'termLength', 'priceCapPct', 'paymentDays', 'governingLaw', 'liabilityCap', 'indemnity', 'sla', 'support', 'termination', 'dpa', 'security', 'audit', 'warranty', 'assignment', 'lateFee'];
+  let added = 0;
+  keys.forEach(k => {
+    const cur = sub.contract[k];
+    if ((cur == null || cur === '') && clauses[k] != null && clauses[k] !== '') {
+      sub.contract[k] = clauses[k];
+      if (!sub.contract.msaClauses.includes(k)) sub.contract.msaClauses.push(k);
+      added++;
+    }
+  });
+  if (clauses.autoRenew != null && sub.contract.autoRenew == null) sub.contract.autoRenew = clauses.autoRenew;
+  return added;
+}
+
+async function uploadSignedMsa(subId) {
+  const sub = state.subscriptions.find(s => s.id === subId); if (!sub) return;
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.pdf,.txt,application/pdf,text/plain';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    setContractProcessing(`Reading signed MSA "${f.name}"…`);
+    try {
+      let text = '', pdfOpts = null;
+      const buf = await f.arrayBuffer();
+      if (isPdf) {
+        try { text = await extractTextFromPdf(buf); } catch (_) { text = ''; }
+        if (buf.byteLength <= 12 * 1024 * 1024) { try { pdfOpts = { pdfBase64: arrayBufferToBase64(buf), mediaType: 'application/pdf' }; } catch (_) {} }
+      } else { text = await f.text(); }
+      let clauses = null;
+      if (aiExtractEnabled()) { const res = await aiExtractContract(text, pdfOpts || {}); if (res && res.data) clauses = aiDataToClauses(res.data); }
+      if (!clauses) clauses = deepExtractToClauses(text);
+      const added = mergeMsaClauses(sub, clauses);
+      sub.msaUploaded = true; sub.msaName = f.name; sub.msaValidated = false; sub.msaAt = new Date().toISOString();
+      if (pdfOpts) { try { await savePdfForSub('msa:' + sub.id, pdfOpts.pdfBase64, f.name); } catch (_) {} }
+      save(); renderAll();
+      try { toast(`Signed MSA added — ${added} clause${added === 1 ? '' : 's'} filled from it (tagged MSA). Validate it against the public version when ready.`, 'ok'); } catch (_) {}
+      openContractDetail(sub.id);
+    } catch (e) { try { toast('Could not read the MSA: ' + (e.message || e), 'error'); } catch (_) {} }
+    finally { clearContractProcessing(); }
+  };
+  inp.click();
+}
+window.uploadSignedMsa = uploadSignedMsa;
+function setMsaValidated(subId, val) {
+  const sub = state.subscriptions.find(s => s.id === subId); if (!sub) return;
+  sub.msaValidated = !!val; if (val) sub.msaValidatedAt = new Date().toISOString();
+  save();
+  try { toast(val ? 'Marked: signed MSA validated against the vendor version.' : 'Validation cleared.', 'info'); } catch (_) {}
+  openContractDetail(subId);
+}
+window.setMsaValidated = setMsaValidated;
+
 function msaBlockHtml(sub) {
   const entry = vendorMsaEntry(sub.name);
   const url = entry ? entry.url : ('https://www.google.com/search?q=' + encodeURIComponent((sub.name || 'vendor') + ' master subscription agreement official'));
   const label = entry ? entry.label : (sub.name || 'this vendor');
+  const uploaded = !!sub.msaUploaded;
+  const validated = !!sub.msaValidated;
   return `
     <div class="msa-block">
-      <div class="msa-head">📑 Standard terms (Master Agreement)</div>
-      <p class="msa-note">Order forms usually defer the main legal clauses — governing law, limitation of liability, IP, DPA, termination — to the vendor's master agreement. Any clause not detected in this order likely lives there. Review ${escapeHtml(label)}'s official terms for the full picture.</p>
-      <a class="msa-link" href="${url}" target="_blank" rel="noopener">Open ${escapeHtml(label)}'s ${entry ? 'Master Agreement' : 'master agreement (search)'} →</a>
+      <div class="msa-head">📑 Master Agreement (standard terms)</div>
+      <p class="msa-note">Order forms defer the main legal clauses — governing law, liability, IP, DPA, termination — to the vendor's master agreement. Clauses tagged <span class="msa-tag">MSA</span> below were filled from the signed MSA you uploaded. MSAs change by date and region, so confirm the public version matches the one you actually signed.</p>
+      <div class="msa-actions"><a class="msa-link" href="${url}" target="_blank" rel="noopener">Open ${escapeHtml(label)}'s public ${entry ? 'Master Agreement' : 'master agreement (search)'} →</a></div>
+      <div class="msa-signed">
+        ${uploaded ? `
+          <div class="msa-signed-row"><span>✅ Signed MSA on file: <b>${escapeHtml(sub.msaName || 'MSA.pdf')}</b></span><span class="msa-val ${validated ? 'ok' : 'warn'}">${validated ? '✓ Validated' : 'Not validated'}</span></div>
+          <div class="msa-actions">
+            <button type="button" class="icon-btn" onclick="downloadSubPdf('msa:${sub.id}')">⬇ Download signed MSA</button>
+            <button type="button" class="icon-btn" onclick="uploadSignedMsa('${sub.id}')">Replace</button>
+            ${validated ? `<button type="button" class="icon-btn" onclick="setMsaValidated('${sub.id}', false)">Mark not validated</button>` : `<button type="button" class="primary" onclick="setMsaValidated('${sub.id}', true)">Mark validated ✓</button>`}
+          </div>
+          ${validated ? '' : `<p class="msa-note" style="margin:8px 0 0">⚠ Open the public link above and confirm the version, effective date and region match your signed MSA, then mark it validated.</p>`}
+        ` : `
+          <div class="msa-actions"><button type="button" class="primary" onclick="uploadSignedMsa('${sub.id}')">⬆ Upload signed MSA</button><span class="dim" style="font-size:11.5px">We'll extract its clauses and tag the ones it fills.</span></div>
+        `}
+      </div>
     </div>`;
 }
 
@@ -6359,10 +6467,12 @@ function openContractDetail(id) {
     }).join('')}</div>
     <h3 style="font-size:13px;margin:16px 0 8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Clauses on file</h3>
     <div class="clause-grid">${CLAUSE_LIBRARY.map(cl => {
-      const v = c[cl.id === 'renewal' ? 'renewalType' : cl.id === 'notice' ? 'noticeDays' : cl.id === 'term' ? 'termLength' : cl.id === 'priceCap' ? 'priceCapPct' : cl.id];
+      const key = cl.id === 'renewal' ? 'renewalType' : cl.id === 'notice' ? 'noticeDays' : cl.id === 'term' ? 'termLength' : cl.id === 'priceCap' ? 'priceCapPct' : cl.id;
+      const v = c[key];
       const present = v != null && v !== '';
-      return `<div class="clause-card ${present ? '' : 'missing'}">
-        <div class="clause-label">${cl.label}${cl.critical ? ' <span class="badge danger" style="margin-left:4px">critical</span>' : ''}</div>
+      const fromMsa = Array.isArray(c.msaClauses) && c.msaClauses.includes(key);
+      return `<div class="clause-card ${present ? '' : 'missing'} ${fromMsa ? 'from-msa' : ''}">
+        <div class="clause-label">${cl.label}${cl.critical ? ' <span class="badge danger" style="margin-left:4px">critical</span>' : ''}${fromMsa ? ' <span class="msa-tag" title="Filled from the signed MSA">MSA</span>' : ''}</div>
         <div class="clause-value">${present ? escapeHtml(String(v)) : '<i>not detected</i>'}</div>
       </div>`;
     }).join('')}</div>
