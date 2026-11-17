@@ -12064,6 +12064,15 @@ function stopVoice() { try { _rec && _rec.stop(); } catch (_) {} _recOn = false;
    in Chrome — refresh the selected voice once voiceschanged fires. */
 let _preferredVoice = null;
 
+/* macOS / Chrome novelty, joke and robotic voices that must NEVER be
+   auto-selected. "Bad News" and "Good News" literally sing a melody —
+   that was the "autotune" cadence the voice had. Blocked outright. */
+const BLOCKED_VOICE_RX = /\b(bad news|good news|bahh|bells|boing|bubbles|cellos|jester|organ|pipe organ|superstar|trinoids|whisper|wobble|zarvox|albert|fred|ralph|kathy|junior|princess|deranged|hysterical|bruce|agnes)\b/i;
+/* Known natural, pleasant female voices across platforms (Samantha is the
+   macOS default). A strong boost so a normal speaking lady voice wins over
+   a flat or novelty default. */
+const GOOD_FEMALE_VOICE_RX = /\b(samantha|ava|allison|susan|zoe|karen|serena|fiona|moira|tessa|catherine|martha|kate|libby|sonia|aria|jenny|michelle|neerja|veena|priya|aditi|ananya|isha|swara|sneha|kajal)\b/i;
+
 /* Score voices, but ONLY within the requested language family.
    The scorer never crosses language families — if user picks English,
    it will never fall back to a Hindi voice (and vice versa). */
@@ -12072,11 +12081,14 @@ function _scoreVoiceForLang(v, targetLangStem) {
   const l = (v.lang || '').toLowerCase();
   // Hard filter: must match target language family (e.g. "en" or "hi")
   if (!l.startsWith(targetLangStem.toLowerCase())) return -1;
+  // Never auto-pick singing / novelty / robotic voices.
+  if (BLOCKED_VOICE_RX.test(n)) return -1000;
   let s = 0;
   // Quality tier — biggest lever
   if (/neural|natural/i.test(n)) s += 100;           // Microsoft Edge Natural (best in browser)
   if (/online/i.test(n)) s += 80;                    // Edge Online
-  if (/wavenet|studio|news|polyglot/i.test(n)) s += 70;  // Google premium
+  if (/wavenet|studio|polyglot/i.test(n)) s += 70;   // Google premium (NOT bare "news" — that matched "Bad News")
+  if (GOOD_FEMALE_VOICE_RX.test(n)) s += 60;         // known natural female voices (e.g. Samantha)
   if (/enhanced|premium/i.test(n)) s += 50;          // macOS Enhanced
   if (/google/i.test(n)) s += 30;
   if (/microsoft/i.test(n) && !/desktop/i.test(n)) s += 20;
@@ -12115,7 +12127,11 @@ function pickVoiceForLang(langCode) {
     if (/male/i.test(n) && !/female/i.test(n)) s -= 5;
     return { v, s };
   }).sort((a, b) => b.s - a.s);
-  return scored[0]?.v || pool[0];
+  // Never hand back a blocked (novelty / singing) voice, even as a last resort.
+  const best = scored.find(x => x.s > -1000);
+  return (best && best.v)
+    || pool.find(v => !BLOCKED_VOICE_RX.test((v.name || '').toLowerCase()))
+    || pool[0];
 }
 /* Kept name for backward compat elsewhere in the file */
 function pickIndianFemaleVoice() { return pickVoiceForLang(voiceSettings().ttsLang || 'en-US'); }
@@ -12135,6 +12151,8 @@ function listVoicesForPicker() {
   const voices = speechSynthesis.getVoices() || [];
   const grouped = {};
   voices.forEach(v => {
+    // Hide novelty / singing / robotic voices from the picker entirely.
+    if (BLOCKED_VOICE_RX.test((v.name || '').toLowerCase())) return;
     const stem = (v.lang || 'en').split('-')[0];
     (grouped[stem] ||= []).push({ name: v.name, lang: v.lang });
   });
