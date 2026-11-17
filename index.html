@@ -5450,24 +5450,37 @@ document.addEventListener('DOMContentLoaded', () => {
     e.target.value = '';
     const textarea = document.getElementById('contract-text');
     const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    let text = '';
     if (isPdf) {
       textarea.value = 'Reading PDF…';
       try {
-        const text = await extractTextFromPdf(await f.arrayBuffer());
+        text = await extractTextFromPdf(await f.arrayBuffer());
         textarea.value = text;
-        renderExtract(extractContract(text));
       } catch (err) {
         textarea.value = '';
         alert('PDF parsing failed: ' + err.message);
+        return;
       }
     } else {
-      const reader = new FileReader();
-      reader.onload = () => {
-        textarea.value = reader.result;
-        renderExtract(extractContract(reader.result));
-      };
-      reader.readAsText(f);
+      text = await f.text();
+      textarea.value = text;
     }
+    renderExtract(extractContract(text));
+    // Persist it so the uploaded contract actually shows up — in Contract
+    // terms and in the Subscriptions register — instead of only living in
+    // the ephemeral "Extracted terms" panel. A single upload used to do
+    // nothing but fill that panel, so with no subscription to attach to
+    // (e.g. a brand-new workspace from onboarding) the contract vanished.
+    try {
+      const { sub, isNew } = ingestContractAsDraft(text, f.name, false);
+      save(); renderAll();
+      toast(
+        isNew
+          ? `Saved "${sub.name}" as a draft in your register. Add its cost and renewal in Subscriptions.`
+          : `Updated "${sub.name}" with the extracted contract terms.`,
+        'ok'
+      );
+    } catch (_) {}
   });
   document.getElementById('attach-btn').addEventListener('click', attachToSub);
 
@@ -6363,6 +6376,50 @@ function saveSettingsModal() {
 }
 
 // Bulk upload handler
+/* Create or update a draft subscription from extracted contract text.
+   Shared by the single-file upload and the bulk drop so that an uploaded
+   contract always lands in the register (and the Contract terms list),
+   instead of only populating the ephemeral "Extracted terms" panel. */
+function ingestContractAsDraft(text, fileName, ocrUsed) {
+  const ex = deepExtract(text || '');
+  const rawName = (fileName || '')
+    .replace(/\.(pdf|txt|md|png|jpg|jpeg)$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const name = rawName || 'Untitled contract';
+  const existing = state.subscriptions.find(s => s.name.toLowerCase() === name.toLowerCase());
+  const subId = existing ? existing.id : (() => {
+    const s = { id: crypto.randomUUID(), name, cost: 0, cycle: 'yearly', category: '', team: '', renewal: null, notes: `Draft from contract ingest${ocrUsed ? ' (OCR)' : ''}`, url: '', active: true };
+    state.subscriptions.push(s); return s.id;
+  })();
+  const sub = state.subscriptions.find(s => s.id === subId);
+  const c = ex.clauses;
+  sub.contract = {
+    renewalType: c.renewal?.value || null,
+    autoRenew: c.renewal?.value === 'Auto-renew',
+    noticeDays: c.notice?.days || null,
+    termLength: c.term?.value || null,
+    priceCapPct: c.priceCap?.pct ?? null,
+    paymentDays: c.paymentDays?.days || null,
+    governingLaw: c.governingLaw?.value || null,
+    liabilityCap: c.liabilityCap?.value || null,
+    indemnity: c.indemnity?.value || null,
+    sla: c.sla?.value || null,
+    support: c.support?.value || null,
+    termination: c.termination?.value || null,
+    dpa: c.dpa?.value || null,
+    security: c.security?.value || null,
+    audit: c.audit?.value || null,
+    warranty: c.warranty?.value || null,
+    assignment: c.assignment?.value || null,
+    lateFee: c.lateFee?.value || null,
+    confidence: ex.confidence,
+    ocrUsed: !!ocrUsed,
+  };
+  return { sub, ex, isNew: !existing };
+}
+
 async function bulkContractUpload(files) {
   const status = document.getElementById('bulk-ocr-status');
   if (!status) return;
@@ -6372,37 +6429,7 @@ async function bulkContractUpload(files) {
     const bar = document.createElement('div'); bar.textContent = '• ' + file.name + ' — reading…'; status.appendChild(bar);
     try {
       const { text, ocrUsed } = await readAndOcrIfNeeded(file, (stage, pct) => { bar.textContent = `• ${file.name} — ${stage} (${pct}%)`; });
-      const ex = deepExtract(text);
-      const name = file.name.replace(/\.(pdf|txt|png|jpg|jpeg)$/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
-      const existing = state.subscriptions.find(s => s.name.toLowerCase() === name.toLowerCase());
-      const subId = existing ? existing.id : (() => {
-        const s = { id: crypto.randomUUID(), name, cost: 0, cycle: 'yearly', category: '', team: '', renewal: null, notes: `Draft from contract ingest${ocrUsed ? ' (OCR)' : ''}`, url: '', active: true };
-        state.subscriptions.push(s); return s.id;
-      })();
-      const sub = state.subscriptions.find(s => s.id === subId);
-      const c = ex.clauses;
-      sub.contract = {
-        renewalType: c.renewal?.value || null,
-        autoRenew: c.renewal?.value === 'Auto-renew',
-        noticeDays: c.notice?.days || null,
-        termLength: c.term?.value || null,
-        priceCapPct: c.priceCap?.pct ?? null,
-        paymentDays: c.paymentDays?.days || null,
-        governingLaw: c.governingLaw?.value || null,
-        liabilityCap: c.liabilityCap?.value || null,
-        indemnity: c.indemnity?.value || null,
-        sla: c.sla?.value || null,
-        support: c.support?.value || null,
-        termination: c.termination?.value || null,
-        dpa: c.dpa?.value || null,
-        security: c.security?.value || null,
-        audit: c.audit?.value || null,
-        warranty: c.warranty?.value || null,
-        assignment: c.assignment?.value || null,
-        lateFee: c.lateFee?.value || null,
-        confidence: ex.confidence,
-        ocrUsed,
-      };
+      const { sub, ex } = ingestContractAsDraft(text, file.name, ocrUsed);
       bar.textContent = `✓ ${file.name} → ${sub.name} · ${ex.confidence}% confidence${ocrUsed ? ' · OCR' : ''}`;
     } catch (e) {
       bar.textContent = `✗ ${file.name} — ${e.message || e}`;
