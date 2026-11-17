@@ -1139,6 +1139,11 @@ html.owner-only #owner { display: block !important; }
   .cr-tab { padding:9px 10px; font-size:12px; }
 }
 
+/* Contract upload processing banner */
+.contract-processing { display:none; align-items:center; gap:10px; background: var(--accent-soft); border:1px solid var(--accent); color: var(--accent); border-radius:10px; padding:11px 14px; margin:0 0 14px; font-size:13px; font-weight:500; }
+.cp-spin { width:15px; height:15px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation: cp-spin .7s linear infinite; flex:0 0 auto; }
+@keyframes cp-spin { to { transform: rotate(360deg); } }
+
 /* AI extraction toggle in the Contracts header */
 .ai-extract-toggle { display:inline-flex; align-items:center; gap:5px; font-size:12px; color: var(--text-dim); cursor:pointer; padding:0 6px; border:1px solid var(--border); border-radius:8px; height:30px; }
 .ai-extract-toggle input { margin:0; }
@@ -5652,6 +5657,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.target.value = '';
     const textarea = document.getElementById('contract-text');
     const isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+    setContractProcessing(`Reading "${f.name}"…`);
     let text = '';
     let pdfOpts = null;
     if (isPdf) {
@@ -5667,6 +5673,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         textarea.value = '';
+        clearContractProcessing();
         alert('PDF parsing failed: ' + err.message);
         return;
       }
@@ -5693,17 +5700,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // nothing but fill that panel, so with no subscription to attach to
     // (e.g. a brand-new workspace from onboarding) the contract vanished.
     try {
-      if (aiExtractEnabled()) { try { toast(pdfOpts ? 'Reading the PDF with AI…' : 'Reading the contract with AI…', 'info'); } catch (_) {} }
-      const { sub, isNew, source } = await ingestContractSmart(text, f.name, false, pdfOpts);
+      setContractProcessing(pdfOpts ? (aiExtractEnabled() ? `Reading "${f.name}" with AI…` : `Reading "${f.name}"…`) : (aiExtractEnabled() ? 'Extracting with AI…' : 'Extracting contract terms…'));
+      const sourceHash = _quickHash(pdfOpts ? pdfOpts.pdfBase64.slice(0, 200000) : text.slice(0, 200000));
+      const opts = Object.assign({ sourceHash }, pdfOpts || {});
+      const { sub, isNew, source, duplicate } = await ingestContractSmart(text, f.name, false, opts);
+      // Store the original PDF so it can be downloaded from the contract later.
+      if (pdfOpts && sub && duplicate !== 'exact') {
+        sub.hasPdf = true; sub.pdfName = f.name;
+        try { await savePdfForSub(sub.id, pdfOpts.pdfBase64, f.name); } catch (_) {}
+      }
       save(); renderAll();
       const tag = source === 'ai' ? ' (AI)' : '';
-      toast(
-        isNew
-          ? `Saved "${sub.name}"${tag} as a draft in your register. Review its cost and renewal in Subscriptions.`
-          : `Updated "${sub.name}"${tag} with the extracted contract terms.`,
-        'ok'
-      );
-    } catch (_) {}
+      let msg;
+      if (duplicate === 'exact') msg = `That's an exact duplicate of "${sub.name}" — already on file, nothing changed.`;
+      else if (duplicate === 'name') msg = `Updated "${sub.name}"${tag} — a contract for this vendor was already on file.`;
+      else msg = `Saved "${sub.name}"${tag} as a draft. Review its cost and renewal in Subscriptions.`;
+      toast(msg, duplicate === 'exact' ? 'info' : 'ok');
+      if (isGarbledText(text) || duplicate) {
+        const er = document.getElementById('extract-results');
+        if (er) er.innerHTML = `<p class="empty" style="padding:20px 0;font-size:13px">${escapeHtml(msg)}</p>`;
+      }
+    } catch (err) {
+      const er = document.getElementById('extract-results');
+      if (er) er.innerHTML = `<p class="empty" style="padding:20px 0;font-size:13px">Couldn't process that contract: ${escapeHtml((err && err.message) || String(err))}</p>`;
+    } finally {
+      clearContractProcessing();
+    }
   });
   document.getElementById('attach-btn').addEventListener('click', attachToSub);
 
@@ -6285,7 +6307,10 @@ function openContractDetail(id) {
         <div class="clause-value">${present ? escapeHtml(String(v)) : '<i>not detected</i>'}</div>
       </div>`;
     }).join('')}</div>
-    <div class="actions" style="margin-top:16px"><button type="button" class="primary" onclick="document.getElementById('contract-detail-modal').hidden = true">Close</button></div>
+    <div class="actions" style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+      ${sub.hasPdf ? `<button type="button" class="icon-btn" onclick="downloadSubPdf('${sub.id}')">⬇ Download original PDF</button>` : ''}
+      <button type="button" class="primary" onclick="document.getElementById('contract-detail-modal').hidden = true">Close</button>
+    </div>
   `;
 }
 
@@ -6610,6 +6635,92 @@ function isGarbledText(t) {
   return words < 3;
 }
 
+/* ---------- Content hash + duplicate detection ---------- */
+function _quickHash(str) {
+  str = String(str || '');
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = (((h << 5) + h) + str.charCodeAt(i)) >>> 0;
+  return 'h' + h.toString(36) + '-' + str.length.toString(36);
+}
+/* Returns { sub, kind } where kind is 'exact' (same source bytes already
+   ingested) or 'name' (a contract already on file under this vendor), else null. */
+function findContractDuplicate(name, sourceHash) {
+  const subs = state.subscriptions || [];
+  if (sourceHash) {
+    const exact = subs.find(s => s.contract && s.contract.sourceHash && s.contract.sourceHash === sourceHash);
+    if (exact) return { sub: exact, kind: 'exact' };
+  }
+  if (name) {
+    const byName = subs.find(s => s.contract && s.name && s.name.toLowerCase() === name.toLowerCase());
+    if (byName) return { sub: byName, kind: 'name' };
+  }
+  return null;
+}
+
+/* ---------- Original-PDF storage (IndexedDB; keeps localStorage small) ---------- */
+const _PDF_DB_NAME = 'sst-contract-pdfs';
+function _pdfDb() {
+  return new Promise((res, rej) => {
+    let r;
+    try { r = indexedDB.open(_PDF_DB_NAME, 1); } catch (e) { return rej(e); }
+    r.onupgradeneeded = () => { try { r.result.createObjectStore('pdfs'); } catch (_) {} };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function savePdfForSub(id, base64, name) {
+  if (!id || !base64) return false;
+  try {
+    const db = await _pdfDb();
+    await new Promise((res, rej) => {
+      const tx = db.transaction('pdfs', 'readwrite');
+      tx.objectStore('pdfs').put({ base64, name: name || 'contract.pdf', at: Date.now() }, id);
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+    return true;
+  } catch (_) { return false; }
+}
+async function getPdfForSub(id) {
+  try {
+    const db = await _pdfDb();
+    return await new Promise((res) => {
+      const tx = db.transaction('pdfs', 'readonly');
+      const g = tx.objectStore('pdfs').get(id);
+      g.onsuccess = () => res(g.result || null); g.onerror = () => res(null);
+    });
+  } catch (_) { return null; }
+}
+async function downloadSubPdf(id, fallbackName) {
+  const rec = await getPdfForSub(id);
+  if (!rec || !rec.base64) { try { toast('No original PDF is stored for this contract.', 'info'); } catch (_) {} return; }
+  try {
+    const bytes = Uint8Array.from(atob(rec.base64), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = rec.name || fallbackName || 'contract.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (e) { try { toast('Could not open the stored PDF: ' + e.message, 'error'); } catch (_) {} }
+}
+window.downloadSubPdf = downloadSubPdf;
+
+/* ---------- Visible "processing" banner for contract uploads ---------- */
+function setContractProcessing(msg) {
+  const view = document.getElementById('contracts'); if (!view) return;
+  let el = document.getElementById('contract-processing');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'contract-processing';
+    el.className = 'contract-processing';
+    const head = view.querySelector('.section-head');
+    if (head && head.parentNode) head.parentNode.insertBefore(el, head.nextSibling); else view.prepend(el);
+  }
+  el.innerHTML = `<span class="cp-spin" aria-hidden="true"></span><span>${escapeHtml(msg)}</span>`;
+  el.style.display = 'flex';
+}
+function clearContractProcessing() { const el = document.getElementById('contract-processing'); if (el) el.style.display = 'none'; }
+
 /* ================= Deal-fact extraction (beyond legal clauses) =================
    Order forms, quotes and MSAs carry the practical fields a buyer actually
    wants captured — who the vendor is, the contract value, the term dates and
@@ -6714,7 +6825,8 @@ function extractDealFacts(text) {
    Shared by the single-file upload and the bulk drop so that an uploaded
    contract always lands in the register (and the Contract terms list),
    instead of only populating the ephemeral "Extracted terms" panel. */
-function ingestContractAsDraft(text, fileName, ocrUsed) {
+function ingestContractAsDraft(text, fileName, ocrUsed, opts) {
+  opts = opts || {};
   const ex = deepExtract(text || '');
   const facts = extractDealFacts(text || '');
   const rawName = (fileName || '')
@@ -6725,7 +6837,11 @@ function ingestContractAsDraft(text, fileName, ocrUsed) {
   // Prefer the vendor name read from the contract itself; fall back to the
   // file name, then a generic label.
   const name = facts.vendorName || rawName || 'Untitled contract';
-  const existing = state.subscriptions.find(s => s.name.toLowerCase() === name.toLowerCase());
+  // Duplicate detection: the exact same file is a no-op; a same-vendor contract
+  // updates the existing record.
+  const dup = findContractDuplicate(name, opts.sourceHash);
+  if (dup && dup.kind === 'exact') return { sub: dup.sub, ex, isNew: false, duplicate: 'exact' };
+  const existing = dup ? dup.sub : state.subscriptions.find(s => s.name.toLowerCase() === name.toLowerCase());
   const subId = existing ? existing.id : (() => {
     const s = { id: crypto.randomUUID(), name, cost: 0, cycle: 'yearly', category: '', team: '', renewal: null, notes: `Draft from contract ingest${ocrUsed ? ' (OCR)' : ''}`, url: '', active: true };
     state.subscriptions.push(s); return s.id;
@@ -6765,8 +6881,9 @@ function ingestContractAsDraft(text, fileName, ocrUsed) {
     lateFee: c.lateFee?.value || null,
     confidence: Math.max(blendedConfidence, ex.confidence),
     ocrUsed: !!ocrUsed,
+    sourceHash: opts.sourceHash || (sub.contract && sub.contract.sourceHash) || null,
   };
-  return { sub, ex, isNew: !existing };
+  return { sub, ex, isNew: !existing, duplicate: existing ? 'name' : null };
 }
 
 /* ================= AI contract extraction (optional backend) =================
@@ -6866,26 +6983,30 @@ function applyAiFacts(sub, d, existing) {
 /* Try AI extraction first (when enabled), else the local extractor.
    Always resolves to { sub, isNew, source }. */
 async function ingestContractSmart(text, fileName, ocrUsed, opts) {
+  opts = opts || {};
   if (aiExtractEnabled()) {
-    const res = await aiExtractContract(text, opts || {});
+    const res = await aiExtractContract(text, opts);
     if (res && res.data) {
       const d = res.data;
       const name = d.vendor_name
         || (fileName || '').replace(/\.(pdf|txt|md|png|jpe?g)$/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
         || 'Untitled contract';
-      const existing = state.subscriptions.find(s => s.name.toLowerCase() === name.toLowerCase());
+      const dup = findContractDuplicate(name, opts.sourceHash);
+      if (dup && dup.kind === 'exact') return { sub: dup.sub, isNew: false, source: 'ai', model: res.model, duplicate: 'exact' };
+      const existing = dup ? dup.sub : state.subscriptions.find(s => s.name.toLowerCase() === name.toLowerCase());
       const subId = existing ? existing.id : (() => {
         const s = { id: crypto.randomUUID(), name, cost: 0, cycle: 'yearly', category: '', team: '', renewal: null, notes: 'Draft from AI contract extraction', url: '', active: true };
         state.subscriptions.push(s); return s.id;
       })();
       const sub = state.subscriptions.find(s => s.id === subId);
       applyAiFacts(sub, d, existing);
-      return { sub, isNew: !existing, source: 'ai', model: res.model };
+      if (sub.contract) sub.contract.sourceHash = opts.sourceHash || (sub.contract.sourceHash || null);
+      return { sub, isNew: !existing, source: 'ai', model: res.model, duplicate: existing ? 'name' : null };
     }
     if (res && res._error) { try { toast(res._message ? `AI extraction: ${res._message.slice(0,140)} — used the built-in reader.` : `AI extraction unavailable (${res._error}) — used the built-in reader.`, 'info'); } catch (_) {} }
   }
-  const r = ingestContractAsDraft(text, fileName, ocrUsed);
-  return { sub: r.sub, isNew: r.isNew, source: 'local' };
+  const r = ingestContractAsDraft(text, fileName, ocrUsed, opts);
+  return { sub: r.sub, isNew: r.isNew, source: 'local', duplicate: r.duplicate };
 }
 
 async function bulkContractUpload(files) {
@@ -6901,13 +7022,19 @@ async function bulkContractUpload(files) {
       // it's a PDF under ~12 MB; otherwise the extracted text is used.
       let pdfOpts = null;
       const isPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
-      if (aiExtractEnabled() && isPdf) {
+      if (isPdf) {
         try { const buf = await file.arrayBuffer(); if (buf.byteLength <= 12 * 1024 * 1024) pdfOpts = { pdfBase64: arrayBufferToBase64(buf), mediaType: 'application/pdf' }; } catch (_) {}
       }
       if (aiExtractEnabled()) bar.textContent = `• ${file.name} — reading with AI…`;
-      const { sub, source } = await ingestContractSmart(text, file.name, ocrUsed, pdfOpts);
-      const conf = sub.contract && sub.contract.confidence != null ? sub.contract.confidence + '% confidence' : 'extracted';
-      bar.textContent = `✓ ${file.name} → ${sub.name} · ${conf}${source === 'ai' ? ' · AI' : ''}${ocrUsed ? ' · OCR' : ''}`;
+      const sourceHash = _quickHash(pdfOpts ? pdfOpts.pdfBase64.slice(0, 200000) : (text || '').slice(0, 200000));
+      const opts = Object.assign({ sourceHash }, pdfOpts || {});
+      const { sub, source, duplicate } = await ingestContractSmart(text, file.name, ocrUsed, opts);
+      if (pdfOpts && sub && duplicate !== 'exact') { sub.hasPdf = true; sub.pdfName = file.name; try { await savePdfForSub(sub.id, pdfOpts.pdfBase64, file.name); } catch (_) {} }
+      if (duplicate === 'exact') { bar.textContent = `⊘ ${file.name} → duplicate of ${sub.name} · skipped`; bar.style.color = 'var(--text-dim)'; }
+      else {
+        const conf = sub.contract && sub.contract.confidence != null ? sub.contract.confidence + '% confidence' : 'extracted';
+        bar.textContent = `✓ ${file.name} → ${sub.name} · ${conf}${source === 'ai' ? ' · AI' : ''}${ocrUsed ? ' · OCR' : ''}${duplicate === 'name' ? ' · updated existing' : ''}`;
+      }
     } catch (e) {
       bar.textContent = `✗ ${file.name} — ${e.message || e}`;
       bar.style.color = 'var(--danger-text)';
@@ -16590,14 +16717,12 @@ function bootOnboarding() {
   renderBeacons();
   initSmartTips();
 
-  // Run the first-visit welcome tour once.
-  if (!ob().tourSeen) {
-    // Give the app 1s to settle before we dim its screen.
-    setTimeout(() => {
-      if (onboardingHidden()) return; // signup modal may have just appeared
-      if (!ob().tourSeen) runFlow('tour');
-    }, 1200);
-  }
+  // The first-visit welcome tour is retired: the Command Centre is now the
+  // guided landing page, so the dimmed 5-step walkthrough is redundant and
+  // overlapped it. Mark it seen so it never auto-runs; it stays available to
+  // replay from Help / the command palette ("Replay the welcome tour").
+  ob().tourSeen = true;
+  try { save(); } catch (_) {}
 
   // Periodic tick for completion + rebinding beacons after re-renders.
   setInterval(tick, 2500);
