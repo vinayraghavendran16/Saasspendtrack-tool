@@ -42,6 +42,9 @@
   --brand: #16a34a;
   --accent: #2563eb;
   --accent-2: #1d4ed8;
+  /* aliases used by Reporting / InfoSec / Renewal-guides / connector modules */
+  --card: #ffffff;
+  --bg-soft: #f5f6f8;
   --accent-soft: #eff4ff;
   --success: #16a34a;
   --success-soft: #ecfdf3;
@@ -81,6 +84,8 @@
   --text-faint: #667085;
   --accent: #5b8def;
   --accent-2: #7aa3f5;
+  --card: #12161f;
+  --bg-soft: #0b0e14;
   --accent-soft: #15213a;
   --success-soft: #0f2a1c;
   --success-text: #4ade80;
@@ -2707,6 +2712,11 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
     </div>
 
     <div class="panel-grid">
+      <div class="panel span-2">
+        <h2>Notice windows</h2>
+        <p class="panel-sub">Cancel-by dates calculated from each vendor's own notice clause, not a 30-day guess. These are the renewals that need a decision first.</p>
+        <div id="notice-windows" class="notice-windows"></div>
+      </div>
       <div class="panel">
         <h2>Spend by category</h2>
         <div id="category-chart" class="chart"></div>
@@ -2732,11 +2742,6 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
           </table>
           <p id="vendor-empty" class="empty" style="display:none;padding:24px">No vendors yet.</p>
         </div>
-      </div>
-      <div class="panel span-2">
-        <h2>Notice windows</h2>
-        <p class="panel-sub">Calculated from each vendor's own notice clause, not a 30-day guess.</p>
-        <div id="notice-windows" class="notice-windows"></div>
       </div>
       <div class="panel">
         <h2>Upcoming renewals</h2>
@@ -14760,9 +14765,11 @@ if (window.PAGE_TITLES) window.PAGE_TITLES['renewal-guides'] = 'Renewal guides';
 .rg-controls input { flex:1; }
 .rg-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
 .rg-disclaimer { font-size:12px; color:var(--text-dim,#94a3b8); background:var(--card,#f8fafc); border:1px solid var(--border,#e2e8f0); border-radius:8px; padding:8px 12px; margin-bottom:14px; }
-.rg-card { background:var(--card,#fff); border:1px solid var(--border,#e2e8f0); border-radius:12px; padding:16px 18px; max-width:780px; }
-.rg-meta { font-size:12px; color:var(--text-dim,#94a3b8); border-left:3px solid var(--accent,#6366f1); padding:6px 10px; margin-bottom:10px; background:var(--bg-soft,#f8fafc); border-radius:0 6px 6px 0; }
-.rg-body { font-size:14px; line-height:1.6; }
+.rg-card { background:var(--card,#fff); border:1px solid var(--border,#e2e8f0); border-radius:12px; padding:16px 18px; max-width:820px; color:var(--text); }
+.rg-meta { font-size:12px; color:var(--text-dim,#94a3b8); border-left:3px solid var(--accent,#6366f1); padding:8px 10px; margin-bottom:12px; background:var(--bg-soft,#f8fafc); border-radius:0 6px 6px 0; }
+.rg-body { font-size:14px; line-height:1.65; color:var(--text); }
+.rg-body h4 { color:var(--text); }
+.rg-body p, .rg-body li { color:var(--text); }
 .rg-body a { color:var(--accent,#6366f1); }
 .rg-sources { margin-top:14px; padding-top:10px; border-top:1px dashed var(--border,#e2e8f0); font-size:12.5px; }
 .rg-sources a { color:var(--accent,#6366f1); word-break:break-all; }
@@ -15039,7 +15046,7 @@ window.openInfosecConnectors = openInfosecConnectors;
 })();
 </script>
 <style>
-.is-tiles { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:4px 0 12px; }
+.is-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:4px 0 12px; }
 .is-tile { background:var(--card,#fff); border:1px solid var(--border,#e2e8f0); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:2px; }
 .is-n { font-size:22px; font-weight:700; }
 .is-l { font-size:12px; color:var(--text-dim,#94a3b8); }
