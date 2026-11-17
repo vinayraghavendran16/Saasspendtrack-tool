@@ -9,7 +9,38 @@
 //   Redeploy. The client calls this same-origin, so there are no CORS issues
 //   and the key never reaches the browser.
 
+// Last-resort fallback only. Normally the model is auto-discovered from the
+// account (resolveModel) or set via EXTRACT_MODEL.
 const MODEL_DEFAULT = "claude-3-5-sonnet-20241022";
+
+// Cached across requests within a warm isolate to avoid a models lookup per call.
+let _cachedModel = null;
+
+async function listModels(env) {
+  const r = await fetch("https://api.anthropic.com/v1/models?limit=100", {
+    headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+  });
+  if (!r.ok) return [];
+  const j = await r.json().catch(() => ({}));
+  return (j.data || []).filter((m) => m && m.id);
+}
+
+// Pick the best available model: an explicit EXTRACT_MODEL override wins;
+// otherwise prefer the newest Sonnet the account can use, then any newest model.
+async function resolveModel(env) {
+  if (env.EXTRACT_MODEL) return env.EXTRACT_MODEL;
+  if (_cachedModel) return _cachedModel;
+  try {
+    const models = await listModels(env);
+    if (models.length) {
+      const byNewest = (a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""));
+      const sonnets = models.filter((m) => /sonnet/i.test(m.id)).sort(byNewest);
+      const pick = (sonnets[0] || models.slice().sort(byNewest)[0]);
+      if (pick && pick.id) { _cachedModel = pick.id; return pick.id; }
+    }
+  } catch (_) { /* fall through */ }
+  return MODEL_DEFAULT;
+}
 
 const EXTRACT_TOOL = {
   name: "record_contract",
@@ -117,15 +148,16 @@ export async function onRequestOptions() {
 //                               we can see exactly why the main path fails.
 export async function onRequestGet({ request, env }) {
   const headers = { ...CORS, "Content-Type": "application/json" };
-  const model = env.EXTRACT_MODEL || MODEL_DEFAULT;
   const info = {
     ok: true,
     hasKey: !!env.ANTHROPIC_API_KEY,
-    keyPrefix: env.ANTHROPIC_API_KEY ? env.ANTHROPIC_API_KEY.slice(0, 7) : null,
-    keyLen: env.ANTHROPIC_API_KEY ? env.ANTHROPIC_API_KEY.length : 0,
-    model,
+    model: env.ANTHROPIC_API_KEY ? await resolveModel(env) : (env.EXTRACT_MODEL || MODEL_DEFAULT),
+    modelOverride: env.EXTRACT_MODEL || null,
   };
   const url = new URL(request.url);
+  if (url.searchParams.get("models") === "1" && env.ANTHROPIC_API_KEY) {
+    try { info.available = (await listModels(env)).map((m) => m.id); } catch (e) { info.available_error = String(e).slice(0, 200); }
+  }
   if (url.searchParams.get("test") === "1" && env.ANTHROPIC_API_KEY) {
     try {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -135,7 +167,7 @@ export async function onRequestGet({ request, env }) {
           "x-api-key": env.ANTHROPIC_API_KEY,
           "anthropic-version": "2023-06-01",
         },
-        body: JSON.stringify({ model, max_tokens: 16, messages: [{ role: "user", content: "Reply with the single word: ok" }] }),
+        body: JSON.stringify({ model: info.model, max_tokens: 16, messages: [{ role: "user", content: "Reply with the single word: ok" }] }),
       });
       const bodyText = await r.text();
       info.test = { status: r.status, ok: r.ok, body: bodyText.slice(0, 400) };
@@ -160,7 +192,7 @@ export async function onRequestPost({ request, env }) {
     if (!text.trim() || text.length < 40) {
       return new Response(JSON.stringify({ ok: false, error: "no_text" }), { status: 400, headers });
     }
-    const model = env.EXTRACT_MODEL || MODEL_DEFAULT;
+    const model = await resolveModel(env);
     const payload = {
       model,
       max_tokens: 2000,
