@@ -1435,6 +1435,8 @@ body.readonly-mode .kpi-value::after {
 .identity-email { font-size: 12px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .identity-change { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 3px 8px; font-size: 10.5px; border-radius: 10px; cursor: pointer; flex: 0 0 auto; }
 .identity-change:hover { border-color: var(--accent); color: var(--accent); }
+.identity-actions { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
+.identity-signout:hover { border-color: var(--danger); color: var(--danger-text); }
 
 /* Change-email backdrop a touch lighter (less destructive feel) */
 .signup-modal.sm-change .sm-backdrop { background: rgba(0,0,0,0.6); }
@@ -14919,6 +14921,19 @@ function needsSignupCapture() {
   return placeholders.includes(email) && !w.signupCaptured;
 }
 
+/* Wipe sample/demo data so a freshly signed-up customer starts empty.
+   seededOnce stays true so the auto-seed does not refill it on reload. */
+function clearToBlankSlate() {
+  state.subscriptions = [];
+  state.invoices = [];
+  state.employees = [];
+  state.alertLog = {};
+  state.settings = state.settings || {};
+  state.settings.autoSentAlerts = {};
+  state.settings.seededOnce = true;
+  save();
+}
+
 function markSignupCaptured(email, company) {
   const w = workspace();
   w.ownerEmail = email;
@@ -15044,8 +15059,8 @@ function ensureSignupModal(mode = 'initial') {
         <label>Email *
           <input type="email" id="signup-email" value="${escapeHtml(isChange ? currentEmail : '')}" placeholder="you@yourcompany.com" required autocomplete="email" autofocus/>
         </label>
-        <label>Company <span class="sm-optional">(optional)</span>
-          <input type="text" id="signup-company" value="${escapeHtml(currentCompany)}" placeholder="Your company name" autocomplete="organization"/>
+        <label>Company *
+          <input type="text" id="signup-company" value="${escapeHtml(currentCompany)}" placeholder="Your company name" autocomplete="organization" required/>
         </label>
         <div class="sm-error" id="signup-error" hidden></div>
         <button type="submit" class="sm-primary" id="signup-submit">${isChange ? 'Update email →' : 'Start my 14-day trial →'}</button>
@@ -15086,6 +15101,9 @@ function ensureSignupModal(mode = 'initial') {
     if (!/.+@.+\..+/.test(email)) {
       errEl.textContent = 'Please enter a valid email address.'; errEl.hidden = false; return;
     }
+    if (!isChange && !company) {
+      errEl.textContent = 'Please enter your company name.'; errEl.hidden = false; companyEl.focus(); return;
+    }
     if (isPersonalEmail(email)) {
       const domain = email.split('@')[1] || '';
       errEl.innerHTML = `<b>${escapeHtml(domain)}</b> looks like a personal email. Please use your work email so we can match your trial to your company for follow-up and GST invoicing.`;
@@ -15105,6 +15123,10 @@ function ensureSignupModal(mode = 'initial') {
       : { email, company, event_type: 'trial_started', ...ctx };
     await submitSignup(payload);
     markSignupCaptured(email, company);
+    // New customers start on a blank slate — the sample/demo data that was
+    // shown before signup is cleared so they build their own workspace (or
+    // load an industry preset from "Demo presets"). Only on first signup.
+    if (!isChange) { try { clearToBlankSlate(); } catch (_) {} }
     m.classList.add('sm-done');
     setTimeout(() => {
       m.remove();
@@ -15113,7 +15135,7 @@ function ensureSignupModal(mode = 'initial') {
       try {
         toast(isChange
           ? `Updated. Your email is now ${email}.`
-          : `Welcome. Confirmation sent to ${email}.`,
+          : `Welcome! Your workspace is empty — add a subscription, bulk import, or load an industry preset from Demo presets.`,
           'success'
         );
       } catch (_) {}
@@ -15156,11 +15178,37 @@ function refreshIdentityChip() {
         <div class="identity-label">Signed in as</div>
         <div class="identity-email" title="${escapeHtml(email)}">${escapeHtml(email)}</div>
       </div>
-      <button type="button" class="identity-change" id="identity-change-btn" title="Change email">Change</button>
+      <div class="identity-actions">
+        <button type="button" class="identity-change" id="identity-change-btn" title="Change email">Change</button>
+        <button type="button" class="identity-change identity-signout" id="identity-signout-btn" title="Sign out of this workspace">Sign out</button>
+      </div>
     </div>
   `;
   const btn = document.getElementById('identity-change-btn');
   if (btn) btn.onclick = (e) => { e.stopPropagation(); ensureSignupModal('change'); };
+  const so = document.getElementById('identity-signout-btn');
+  if (so) so.onclick = (e) => { e.stopPropagation(); signOut(); };
+}
+
+/* Sign out: clear the captured identity and this device's workspace data,
+   then return to the signup screen. Data is browser-local and not backed
+   up, so we confirm first. */
+function signOut() {
+  if (!confirm('Sign out of SaaS Spend Track?\n\nThis clears this workspace on this device. Your data is stored only in this browser and is not backed up, so it cannot be recovered after signing out.')) return;
+  const w = workspace();
+  w.ownerEmail = 'vinay@whizzlead.com';
+  w.companyName = '';
+  w.signupCaptured = false;
+  if (Array.isArray(w.users)) { const o = w.users.find(u => u.role === 'owner'); if (o) { o.email = ''; o.name = 'Owner'; } }
+  state.subscriptions = [];
+  state.invoices = [];
+  state.employees = [];
+  state.alertLog = {};
+  state.settings = state.settings || {};
+  state.settings.autoSentAlerts = {};
+  state.settings.seededOnce = true;
+  save();
+  location.reload();
 }
 
 function maybeShowSignupModal() {
