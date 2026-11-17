@@ -146,36 +146,10 @@ export async function onRequestOptions() {
 // GET /api/extract?test=1     → also runs a minimal Anthropic call and reports
 //                               the upstream status + a short body snippet, so
 //                               we can see exactly why the main path fails.
-export async function onRequestGet({ request, env }) {
+// Minimal, safe health check — no secrets, no model list, no billable calls.
+export async function onRequestGet({ env }) {
   const headers = { ...CORS, "Content-Type": "application/json" };
-  const info = {
-    ok: true,
-    hasKey: !!env.ANTHROPIC_API_KEY,
-    model: env.ANTHROPIC_API_KEY ? await resolveModel(env) : (env.EXTRACT_MODEL || MODEL_DEFAULT),
-    modelOverride: env.EXTRACT_MODEL || null,
-  };
-  const url = new URL(request.url);
-  if (url.searchParams.get("models") === "1" && env.ANTHROPIC_API_KEY) {
-    try { info.available = (await listModels(env)).map((m) => m.id); } catch (e) { info.available_error = String(e).slice(0, 200); }
-  }
-  if (url.searchParams.get("test") === "1" && env.ANTHROPIC_API_KEY) {
-    try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": env.ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({ model: info.model, max_tokens: 16, messages: [{ role: "user", content: "Reply with the single word: ok" }] }),
-      });
-      const bodyText = await r.text();
-      info.test = { status: r.status, ok: r.ok, body: bodyText.slice(0, 400) };
-    } catch (e) {
-      info.test = { error: String((e && e.message) || e).slice(0, 300) };
-    }
-  }
-  return new Response(JSON.stringify(info), { status: 200, headers });
+  return new Response(JSON.stringify({ ok: true, configured: !!env.ANTHROPIC_API_KEY }), { status: 200, headers });
 }
 
 export async function onRequestPost({ request, env }) {
