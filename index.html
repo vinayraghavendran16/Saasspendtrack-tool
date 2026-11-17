@@ -6220,8 +6220,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); closeInvModal(); } });
 
   document.getElementById('extract-btn').addEventListener('click', () => {
-    const text = document.getElementById('contract-text').value;
+    let text = document.getElementById('contract-text').value;
     if (!text.trim()) { alert('Paste some contract text first.'); return; }
+    if (isGarbledText(text)) {
+      const fixed = degarbleText(text);
+      if (fixed && !isGarbledText(fixed)) {
+        text = fixed;
+        document.getElementById('contract-text').value = fixed;
+        toast('Recovered text from an encoded PDF font layer.', 'ok');
+      } else {
+        const er = document.getElementById('extract-results');
+        if (er) er.innerHTML = `<p class="empty" style="padding:20px 0;font-size:13px">This text looks like a broken PDF text layer (custom-encoded or scanned font), not readable contract text, so clause extraction was skipped. Turn on <b>AI extraction</b> (top right) to read the original PDF natively, or paste clean text.</p>`;
+        return;
+      }
+    }
     renderExtract(extractContract(text));
   });
   document.getElementById('clear-contract').addEventListener('click', () => {
@@ -6280,12 +6292,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // browser. Don't dump that into the review panel — show a note instead. The
     // AI path still reads the PDF natively; the regex reader would just fail.
     if (isGarbledText(text)) {
-      const note = aiExtractEnabled()
-        ? "This PDF's embedded text is garbled in the browser (custom-encoded or scanned font), so the preview below is skipped. AI extraction read the PDF itself — see the draft in the register above."
-        : "This PDF's embedded text can't be read as clean text in the browser (custom-encoded or scanned font). Turn on AI extraction (top right) to read the PDF natively, or paste the text manually.";
-      textarea.value = note;
-      const er = document.getElementById('extract-results');
-      if (er) er.innerHTML = `<p class="empty" style="padding:20px 0;font-size:13px">${note}</p>`;
+      const fixed = degarbleText(text);
+      if (fixed && !isGarbledText(fixed)) {
+        // Constant-offset font garble — repaired in the browser.
+        text = fixed; textarea.value = fixed;
+        renderExtract(extractContract(fixed));
+        toast('Recovered text from an encoded PDF font layer.', 'ok');
+      } else {
+        const note = aiExtractEnabled()
+          ? "This PDF's embedded text is garbled in the browser (custom-encoded or scanned font), so the preview below is skipped. AI extraction read the PDF itself — see the draft in the register above."
+          : "This PDF's embedded text can't be read as clean text in the browser (custom-encoded or scanned font). Turn on AI extraction (top right) to read the PDF natively, or paste the text manually.";
+        textarea.value = note;
+        const er = document.getElementById('extract-results');
+        if (er) er.innerHTML = `<p class="empty" style="padding:20px 0;font-size:13px">${note}</p>`;
+      }
     } else {
       renderExtract(extractContract(text));
     }
@@ -7380,9 +7400,36 @@ function saveSettingsModal() {
    garbled output contains almost none. */
 function isGarbledText(t) {
   if (!t || t.length < 120) return false;
-  const words = (String(t).toLowerCase().match(/\b(the|and|of|to|or|in|for|this|that|agreement|customer|order|services?|term|payment|shall|renewal|price|fees?|law|contract|company|inc|llc|ltd|notice|party|parties)\b/g) || []).length;
+  const s = String(t);
+  const words = (s.toLowerCase().match(/\b(the|and|of|to|or|in|for|this|that|agreement|customer|order|services?|term|payment|shall|renewal|price|fees?|law|contract|company|inc|llc|ltd|notice|party|parties)\b/g) || []).length;
+  // Broken-encoding / CID-font PDFs extract as symbol+digit soup: a Caesar-style
+  // byte shift pushes most letters out of a-z into punctuation and digits, so the
+  // share of alphabetic characters collapses. Real prose is mostly letters+spaces.
+  const letters = (s.match(/[a-zA-Z]/g) || []).length;
+  const nonspace = (s.match(/\S/g) || []).length || 1;
+  const letterRatio = letters / nonspace;
+  if (letterRatio < 0.35) return true;
   // ~1 common word per 25 chars is typical prose; < 3 in a long block is gibberish.
   return words < 3;
+}
+
+/* Some PDFs encode fonts with a constant code-point offset, so their text layer
+   extracts as a Caesar-shifted soup (e.g. "7KLV 0DVWHU" for "This Master"). When
+   the whole block is shifted by one constant, we can recover it: try every
+   printable-ASCII offset and keep the one that yields the most common contract
+   words. Returns the repaired text, or null if nothing readable emerges (true
+   scanned/CID garble, which only the AI PDF-native path can read). */
+function degarbleText(t) {
+  if (!t || t.length < 60) return null;
+  const s = String(t);
+  const rx = /\b(the|and|of|to|or|in|for|this|that|agreement|customer|order|services?|term|payment|shall|renewal|price|fees?|law|contract|company|notice|party|parties|subscription|liability|written|renew|provides|section|period|month|year|days?)\b/gi;
+  let best = null, bestScore = 4; // need > 4 matches to trust a recovery
+  for (let off = 1; off < 94; off++) {
+    const dec = s.replace(/[\x21-\x7e]/g, c => String.fromCharCode(((c.charCodeAt(0) - 33 + off) % 94) + 33));
+    const score = (dec.toLowerCase().match(rx) || []).length;
+    if (score > bestScore) { bestScore = score; best = dec; }
+  }
+  return best;
 }
 
 /* ---------- Content hash + duplicate detection ---------- */
@@ -7734,6 +7781,10 @@ function applyAiFacts(sub, d, existing) {
    Always resolves to { sub, isNew, source }. */
 async function ingestContractSmart(text, fileName, ocrUsed, opts) {
   opts = opts || {};
+  // Repair constant-offset PDF font garble so both the AI text path and the
+  // regex fallback get readable text. When a native PDF is attached the AI reads
+  // that directly; the repaired text still helps the regex fallback.
+  if (isGarbledText(text)) { const fixed = degarbleText(text); if (fixed && !isGarbledText(fixed)) text = fixed; }
   if (aiExtractEnabled()) {
     const res = await aiExtractContract(text, opts);
     if (res && res.data) {
