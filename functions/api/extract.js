@@ -111,6 +111,41 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS });
 }
 
+// GET /api/extract            → health: is the key visible, which model.
+// GET /api/extract?test=1     → also runs a minimal Anthropic call and reports
+//                               the upstream status + a short body snippet, so
+//                               we can see exactly why the main path fails.
+export async function onRequestGet({ request, env }) {
+  const headers = { ...CORS, "Content-Type": "application/json" };
+  const model = env.EXTRACT_MODEL || MODEL_DEFAULT;
+  const info = {
+    ok: true,
+    hasKey: !!env.ANTHROPIC_API_KEY,
+    keyPrefix: env.ANTHROPIC_API_KEY ? env.ANTHROPIC_API_KEY.slice(0, 7) : null,
+    keyLen: env.ANTHROPIC_API_KEY ? env.ANTHROPIC_API_KEY.length : 0,
+    model,
+  };
+  const url = new URL(request.url);
+  if (url.searchParams.get("test") === "1" && env.ANTHROPIC_API_KEY) {
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({ model, max_tokens: 16, messages: [{ role: "user", content: "Reply with the single word: ok" }] }),
+      });
+      const bodyText = await r.text();
+      info.test = { status: r.status, ok: r.ok, body: bodyText.slice(0, 400) };
+    } catch (e) {
+      info.test = { error: String((e && e.message) || e).slice(0, 300) };
+    }
+  }
+  return new Response(JSON.stringify(info), { status: 200, headers });
+}
+
 export async function onRequestPost({ request, env }) {
   const headers = { ...CORS, "Content-Type": "application/json" };
   try {
