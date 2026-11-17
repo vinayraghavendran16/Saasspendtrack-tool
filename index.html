@@ -237,7 +237,13 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: var(-
   background: var(--ink); color: var(--panel); font-size: 11px; font-weight: 700;
 }
 
-main { padding: 24px 28px 48px; max-width: 1440px; width: 100%; }
+main { padding: 24px 28px 48px; width: 100%; max-width: 1760px; margin-inline: auto; }
+/* Use more of the width on large and ultra-wide monitors, but keep the
+   content centred and capped so tables and charts stay readable rather
+   than stretching the full span of a 34"/49" display. */
+@media (min-width: 2100px) { main { max-width: 1960px; } }
+@media (min-width: 2700px) { main { max-width: 2280px; } }
+@media (min-width: 3300px) { main { max-width: 2520px; } }
 .view { display: none; animation: fade 0.18s ease; }
 .view.active { display: block; }
 @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
