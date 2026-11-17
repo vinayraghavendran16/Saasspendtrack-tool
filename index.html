@@ -3602,30 +3602,99 @@ function biSeedCsv(text) {
     return true;
   } catch (e) { console.warn(e); return false; }
 }
-// CLM import: most CLMs (SpotDraft, Ironclad, Juro, LinkSquares…) export a CSV
-// of contracts. We guide the export, then import through the reviewed wizard.
-function openClmImport() {
-  let m = document.getElementById('clm-modal'); if (m) m.remove();
+// CLM connectors. Each is a real product. The CSV export import works today for
+// every one of them. Direct API sync uses the generic /api/clm-sync proxy: the
+// base URL / endpoint shown are starting hints to confirm against the provider's
+// own API docs, not hard-coded guarantees — so nothing is fabricated.
+const CLM_CONNECTORS = [
+  { id: 'spotdraft', name: 'SpotDraft', color: '#4f46e5', site: 'https://www.spotdraft.com', docs: 'https://www.spotdraft.com', base: 'https://api.spotdraft.com', path: '/v1/contracts', scheme: 'bearer' },
+  { id: 'ironclad', name: 'Ironclad', color: '#111827', site: 'https://ironcladapp.com', docs: 'https://developer.ironcladapp.com', base: 'https://ironcladapp.com/public/api/v1', path: '/records', scheme: 'bearer' },
+  { id: 'juro', name: 'Juro', color: '#6d28d9', site: 'https://juro.com', docs: 'https://help.juro.com/en/collections/2650842-juro-api', base: 'https://api.juro.com', path: '/api/v1/contracts', scheme: 'bearer' },
+  { id: 'linksquares', name: 'LinkSquares', color: '#0ea5e9', site: 'https://linksquares.com', docs: 'https://www.linksquares.com', base: 'https://api.linksquares.com', path: '/contracts', scheme: 'bearer' },
+  { id: 'concord', name: 'Concord', color: '#2563eb', site: 'https://www.concord.app', docs: 'https://www.concord.app', base: 'https://api.concord.app', path: '/api/rest/1/organizations', scheme: 'bearer' },
+  { id: 'conga', name: 'Conga CLM', color: '#e11d48', site: 'https://conga.com', docs: 'https://developer.conga.com', base: 'https://api.conga.com', path: '/contracts', scheme: 'bearer' },
+  { id: 'agiloft', name: 'Agiloft', color: '#0f766e', site: 'https://www.agiloft.com', docs: 'https://wiki.agiloft.com', base: 'https://your-kb.agiloft.com/ewws/rest', path: '/table/contract', scheme: 'bearer' },
+  { id: 'docusign-clm', name: 'DocuSign CLM', color: '#f59e0b', site: 'https://www.docusign.com/products/clm', docs: 'https://developers.docusign.com/docs/clm-api', base: 'https://apiuatna11.springcm.com/v2', path: '/contracts', scheme: 'bearer' },
+  { id: 'gatekeeper', name: 'Gatekeeper', color: '#059669', site: 'https://www.gatekeeperhq.com', docs: 'https://www.gatekeeperhq.com', base: 'https://api.gatekeeperhq.com', path: '/api/v1/contracts', scheme: 'bearer' },
+  { id: 'contractworks', name: 'ContractWorks', color: '#7c3aed', site: 'https://www.contractworks.com', docs: 'https://www.contractworks.com', base: 'https://api.contractworks.com', path: '/v1/contracts', scheme: 'bearer' },
+  { id: 'icertis', name: 'Icertis', color: '#1d4ed8', site: 'https://www.icertis.com', docs: 'https://www.icertis.com', base: 'https://your-instance.icertis.com/api', path: '/contracts', scheme: 'bearer' },
+  { id: 'sirion', name: 'Sirion', color: '#0891b2', site: 'https://www.sirion.ai', docs: 'https://www.sirion.ai', base: 'https://api.sirion.ai', path: '/contracts', scheme: 'bearer' },
+];
+function clmRowsToCsv(rows) {
+  const keys = []; rows.forEach(r => Object.keys(r).forEach(k => { if (!keys.includes(k)) keys.push(k); }));
+  const esc = (v) => { const s = (v == null ? '' : String(v)); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  return [keys.join(',')].concat(rows.map(r => keys.map(k => esc(r[k])).join(','))).join('\n');
+}
+function openClmImport() { openClmGallery(); }
+function openClmGallery() {
+  let m = document.getElementById('clm-gallery'); if (m) m.remove();
   m = document.createElement('div');
-  m.id = 'clm-modal'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.id = 'clm-gallery'; m.className = 'modal-backdrop'; m.hidden = false;
   m.innerHTML = `
-    <div class="modal" style="max-width:620px">
-      <h2>🔗 Import from your CLM</h2>
-      <p class="page-sub" style="margin:4px 0 12px">SpotDraft, Ironclad, Juro, LinkSquares and most contract tools can export your contracts as a CSV. Export yours, then import it here — you'll map the columns and review every row before anything is saved.</p>
-      <ol style="font-size:13px;line-height:1.7;margin:0 0 14px 18px">
-        <li>In your CLM, open the contracts list or reporting view.</li>
-        <li>Export or download as <b>CSV</b> (include vendor, value, start/end dates and renewal where available).</li>
-        <li>Import it below — repeat tabs or exports are de-duplicated on import.</li>
-      </ol>
-      <div style="display:flex;gap:8px">
-        <button class="btn-primary" id="clm-import">Import a CLM CSV export</button>
-        <button class="icon-btn" id="clm-close" style="margin-left:auto">Close</button>
-      </div>
+    <div class="modal" style="max-width:720px">
+      <h2>🔗 Connect a contract tool</h2>
+      <p class="page-sub" style="margin:4px 0 12px">Pick your CLM. Every one supports a one-click CSV export import today; direct API sync is available for tools that expose a contracts API.</p>
+      <div class="clm-grid">${CLM_CONNECTORS.map(c => `
+        <button class="clm-tile" data-clm="${c.id}">
+          <span class="clm-badge" style="background:${c.color}">${escapeHtml(c.name[0])}</span>
+          <span class="clm-name">${escapeHtml(c.name)}</span>
+        </button>`).join('')}</div>
+      <div style="display:flex;margin-top:12px"><button class="icon-btn" id="clm-g-close" style="margin-left:auto">Close</button></div>
     </div>`;
   document.body.appendChild(m);
   m.addEventListener('click', e => { if (e.target === m) m.remove(); });
-  m.querySelector('#clm-close').onclick = () => m.remove();
-  m.querySelector('#clm-import').onclick = () => { m.remove(); if (window.BulkImport && window.BulkImport.open) window.BulkImport.open(); };
+  m.querySelector('#clm-g-close').onclick = () => m.remove();
+  m.querySelectorAll('.clm-tile').forEach(t => t.onclick = () => { const c = CLM_CONNECTORS.find(x => x.id === t.dataset.clm); m.remove(); openClmConnect(c); });
+}
+function openClmConnect(c) {
+  let m = document.getElementById('clm-connect'); if (m) m.remove();
+  m = document.createElement('div');
+  m.id = 'clm-connect'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:640px">
+      <h2><span class="clm-badge" style="background:${c.color};vertical-align:middle;margin-right:8px">${escapeHtml(c.name[0])}</span>Connect ${escapeHtml(c.name)}</h2>
+      <div class="clm-opt">
+        <h3 style="margin:10px 0 4px;font-size:15px">Import a CSV export <span class="badge ok">works now</span></h3>
+        <p class="dim" style="font-size:12.5px;margin:0 0 8px">Export your contracts from ${escapeHtml(c.name)} as CSV (vendor, value, start/end dates, renewal). Import maps the columns, de-dupes, and lets you review every row before saving.</p>
+        <button class="btn-primary" id="clm-csv">Import a CSV export</button>
+      </div>
+      <details class="clm-opt" style="margin-top:14px">
+        <summary style="cursor:pointer;font-weight:600;font-size:14px">Direct API sync (advanced)</summary>
+        <p class="dim" style="font-size:12px;margin:8px 0">Paste a ${escapeHtml(c.name)} API token to pull contracts directly. The base URL and endpoint below are starting points — confirm them against <a href="${escapeHtml(c.docs)}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.name)}'s API docs</a>. Your token is sent once to fetch records and is never stored.</p>
+        <label class="clm-f">API base URL<input id="clm-base" value="${escapeHtml(c.base)}" /></label>
+        <label class="clm-f">Contracts endpoint<input id="clm-path" value="${escapeHtml(c.path)}" /></label>
+        <label class="clm-f">API token<input id="clm-token" type="password" placeholder="Bearer token" autocomplete="off" /></label>
+        <label class="clm-f">Records path (optional)<input id="clm-records" placeholder="e.g. data.records — leave blank to auto-detect" /></label>
+        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn-primary" id="clm-sync">Pull contracts</button></div>
+        <div id="clm-sync-msg" class="dim" style="font-size:12.5px;margin-top:8px"></div>
+      </details>
+      <div style="display:flex;margin-top:14px"><button class="icon-btn" id="clm-c-back">← All tools</button><button class="icon-btn" id="clm-c-close" style="margin-left:auto">Close</button></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#clm-c-close').onclick = () => m.remove();
+  m.querySelector('#clm-c-back').onclick = () => { m.remove(); openClmGallery(); };
+  m.querySelector('#clm-csv').onclick = () => { m.remove(); if (window.BulkImport && window.BulkImport.open) window.BulkImport.open(); };
+  m.querySelector('#clm-sync').onclick = async () => {
+    const msg = m.querySelector('#clm-sync-msg');
+    const payload = {
+      baseUrl: m.querySelector('#clm-base').value.trim(),
+      path: m.querySelector('#clm-path').value.trim(),
+      token: m.querySelector('#clm-token').value.trim(),
+      recordsPath: m.querySelector('#clm-records').value.trim(),
+      scheme: c.scheme || 'bearer',
+    };
+    if (!payload.token) { msg.textContent = 'Enter your API token.'; return; }
+    msg.textContent = `Pulling contracts from ${c.name}…`;
+    try {
+      const r = await fetch('/api/clm-sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const j = await r.json();
+      if (!j || !j.ok) { msg.textContent = (j && j.message) || 'Could not pull contracts.'; return; }
+      m.remove();
+      biSeedCsv(clmRowsToCsv(j.rows));
+      toast(`Pulled ${j.count} record${j.count === 1 ? '' : 's'} from ${c.name}. Map the columns and review before importing.`, 'success');
+    } catch (e) { msg.textContent = 'Network error pulling contracts.'; }
+  };
 }
 // Google Sheet import: fetch the sheet CSV via our backend (no CORS), then feed
 // the reviewed wizard. Falls back to a paste flow if the sheet isn't shared.
@@ -3836,7 +3905,7 @@ function ccSteps() {
     { id: 'individual', icon: '📄', title: 'Load individual contracts', desc: 'Upload a PDF or text file. We read the vendor, value, dates, renewal and clauses — AI-native when AI extraction is on.', cta: 'Upload a contract', done: subs.some(s => s.contract), act: () => goContracts('single') },
     { id: 'bulk', icon: '📚', title: 'Add contracts in bulk', desc: 'Drop a whole set of PDFs or scans at once. Each becomes a draft with its terms already extracted.', cta: 'Bulk upload', done: false, act: () => goContracts('bulk') },
     { id: 'paste', icon: '📋', title: 'Copy-paste contract details', desc: 'Paste contract text straight in for a quick read — handy for a single clause or an email.', cta: 'Paste text', done: false, act: () => goContracts('paste') },
-    { id: 'clm', icon: '🔗', title: 'Import from a CLM (SpotDraft, Ironclad…)', desc: 'Export your contracts from your CLM as CSV and import them here — mapped and de-duplicated on the way in.', cta: 'Import from CLM', done: false, act: () => openClmImport() },
+    { id: 'clm', icon: '🔗', title: 'Connect a CLM (SpotDraft, Ironclad…)', desc: 'Pull contracts from SpotDraft, Ironclad, Juro, LinkSquares and 8 more — one-click CSV import, or direct API sync where available.', cta: 'Connect a CLM', done: false, act: () => openClmGallery() },
     { id: 'sheet', icon: '📊', title: 'Import a Google Sheet', desc: "Already track SaaS in a sheet? Paste the link and we'll pull the rows straight in for you to map and review.", cta: (state.settings && state.settings.ccSheetImported) ? 'Imported ✓ · import again' : 'Import a sheet', done: !!(state.settings && state.settings.ccSheetImported), act: () => ccSheet() },
     { id: 'drive', icon: '🗂️', title: 'Import a folder of contracts', desc: 'Pick a whole folder of contract PDFs or scans and run them through the bulk extractor in one go.', cta: 'Select a folder', done: false, act: () => openDriveFolder() },
     { id: 'shadow', icon: '🕵️', title: 'Discover shadow tools', desc: "Upload an expense or card-statement CSV and we'll flag recurring SaaS charges you aren't already tracking — scanned locally, nothing uploaded.", cta: 'Scan an expense CSV', done: false, act: () => openShadowDiscovery() },
@@ -14436,6 +14505,14 @@ if (window.PAGE_TITLES) window.PAGE_TITLES['renewal-guides'] = 'Renewal guides';
 .rg-tile-meta { font-size:11.5px; color:var(--text-dim,#94a3b8); }
 .rg-advanced { margin-top:18px; max-width:780px; border-top:1px dashed var(--border,#e2e8f0); padding-top:12px; }
 .rg-advanced summary { cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dim,#94a3b8); }
+.clm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+.clm-tile { display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--card,#fff); border:1px solid var(--border,#e2e8f0); border-radius:10px; cursor:pointer; transition:border-color .12s, box-shadow .12s; }
+.clm-tile:hover { border-color:var(--accent,#6366f1); box-shadow:0 2px 10px rgba(99,102,241,0.12); }
+.clm-badge { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:7px; color:#fff; font-weight:700; font-size:14px; flex:none; }
+.clm-name { font-weight:600; font-size:14px; }
+.clm-f { display:block; font-size:12px; color:var(--text-dim,#94a3b8); margin:8px 0 0; }
+.clm-f input { display:block; width:100%; margin-top:3px; }
+.clm-opt { border-top:1px dashed var(--border,#e2e8f0); padding-top:10px; }
 </style>
 <script>
 /* ==========================================================================
