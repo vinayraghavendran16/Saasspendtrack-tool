@@ -6570,6 +6570,12 @@ function ingestContractAsDraft(text, fileName, ocrUsed) {
   if (facts.cycle && (!existing || !sub.cycle)) sub.cycle = facts.cycle;
   if (facts.renewalDate && !sub.renewal) sub.renewal = facts.renewalDate;
   if (facts.seats != null && sub.seats == null) sub.seats = facts.seats;
+  // Blended confidence: legal-clause coverage plus the commercial deal facts
+  // we captured, so an order form that defers legal terms to a master MSA
+  // still scores for the vendor, value, dates and payment it did provide.
+  const factHits = [facts.vendorName, facts.value, facts.renewalDate, facts.paymentDays, facts.seats, facts.startDate].filter(v => v != null).length;
+  const factScore = factHits / 6;
+  const blendedConfidence = Math.round((factScore * 0.5 + (ex.confidence / 100) * 0.5) * 100);
   const c = ex.clauses;
   sub.contract = {
     renewalType: c.renewal?.value || null,
@@ -6590,7 +6596,7 @@ function ingestContractAsDraft(text, fileName, ocrUsed) {
     warranty: c.warranty?.value || null,
     assignment: c.assignment?.value || null,
     lateFee: c.lateFee?.value || null,
-    confidence: ex.confidence,
+    confidence: Math.max(blendedConfidence, ex.confidence),
     ocrUsed: !!ocrUsed,
   };
   return { sub, ex, isNew: !existing };
