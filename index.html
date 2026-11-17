@@ -4161,6 +4161,7 @@ function ccSteps() {
     { id: 'invoices', icon: '🧾', title: 'Import invoices', desc: 'Bring in invoices or payments and reconcile real spend against contracts. Vendors are matched or created automatically.', cta: (state.settings && state.settings.invoicesImported) ? 'Imported ✓ · import more' : 'Import invoices', done: !!(state.settings && state.settings.invoicesImported), act: () => openInvoiceImport() },
     { id: 'accounting', icon: '💳', title: 'Connect accounting', desc: 'Pull spend from QuickBooks, Xero, NetSuite, Zoho Books and more — CSV export, or direct API sync where available.', cta: 'Connect accounting', done: false, act: () => openAcctGallery() },
     { id: 'sso', icon: '🔐', title: 'Discover apps via SSO', desc: "Connect Okta, Google Workspace or Entra ID and flag apps from login activity that you aren't tracking yet.", cta: 'Connect SSO', done: false, act: () => openSsoGallery() },
+    { id: 'infosec', icon: '🛡️', title: 'Set up vendor security reviews', desc: 'Track InfoSec onboarding requirements and annual reviews per vendor, and connect your GRC / vendor-risk tool.', cta: 'Open InfoSec', done: infosecReviewedSubs().length > 0, act: () => switchView('infosec') },
   ];
 }
 function renderCommandCentre() {
@@ -14764,6 +14765,495 @@ if (window.PAGE_TITLES) window.PAGE_TITLES['renewal-guides'] = 'Renewal guides';
 .clm-f { display:block; font-size:12px; color:var(--text-dim,#94a3b8); margin:8px 0 0; }
 .clm-f input { display:block; width:100%; margin-top:3px; }
 .clm-opt { border-top:1px dashed var(--border,#e2e8f0); padding-top:10px; }
+</style>
+<script>
+/* ==========================================================================
+   InfoSec module — vendor security review & onboarding tracking.
+   Each vendor carries an InfoSec profile: status, data classification, review
+   dates, and a checklist of onboarding requirements. Feeds the Reporting module
+   (review pending / annual review due). Connects to GRC / vendor-risk tools.
+   ========================================================================== */
+const INFOSEC_REQS = [
+  ['vra', 'Security questionnaire / vendor risk assessment'],
+  ['soc2', 'SOC 2 Type II or ISO 27001 report collected'],
+  ['dpa', 'Data Processing Agreement (DPA) signed'],
+  ['pentest', 'Penetration test / vulnerability report reviewed'],
+  ['classification', 'Data classification assigned'],
+  ['ssomfa', 'SSO + MFA enforced'],
+  ['subproc', 'Subprocessor list reviewed'],
+  ['offboarding', 'Access & data-deletion / offboarding plan'],
+  ['bcdr', 'Business continuity / DR reviewed'],
+  ['annual', 'Annual security re-review scheduled'],
+];
+const INFOSEC_CLASSES = ['', 'Public', 'Internal', 'Confidential', 'Restricted'];
+const INFOSEC_STATUSES = [
+  ['not_started', 'Not started', '#94a3b8'],
+  ['in_review', 'In review', '#f59e0b'],
+  ['approved', 'Approved', '#16a34a'],
+  ['exception', 'Approved w/ exception', '#0891b2'],
+  ['rejected', 'Rejected', '#dc2626'],
+];
+const INFOSEC_TOOLS = [
+  { id: 'vanta', name: 'Vanta', color: '#6366f1', docs: 'https://developer.vanta.com', base: 'https://api.vanta.com/v1', path: '/vendors', scheme: 'bearer' },
+  { id: 'drata', name: 'Drata', color: '#5b21b6', docs: 'https://developers.drata.com', base: 'https://public-api.drata.com', path: '/vendors', scheme: 'bearer' },
+  { id: 'secureframe', name: 'Secureframe', color: '#0ea5e9', docs: 'https://developer.secureframe.com', base: 'https://api.secureframe.com', path: '/vendors', scheme: 'bearer' },
+  { id: 'onetrust', name: 'OneTrust', color: '#2563eb', docs: 'https://developer.onetrust.com', base: 'https://your-org.onetrust.com/api', path: '/vendorrisk/v1/vendors', scheme: 'bearer' },
+  { id: 'securityscorecard', name: 'SecurityScorecard', color: '#111827', docs: 'https://securityscorecard.readme.io', base: 'https://api.securityscorecard.io', path: '/portfolios', scheme: 'apikey', headerName: 'Authorization' },
+  { id: 'whistic', name: 'Whistic', color: '#f43f5e', docs: 'https://whistic.com', base: 'https://api.whistic.com', path: '/vendors', scheme: 'bearer' },
+  { id: 'upguard', name: 'UpGuard', color: '#7c3aed', docs: 'https://help.upguard.com', base: 'https://cyber-risk.upguard.com/api/public', path: '/vendors', scheme: 'apikey', headerName: 'Authorization' },
+];
+function ensureInfosec(sub) {
+  if (!sub.infosec) sub.infosec = { status: 'not_started', classification: '', owner: '', lastReviewDate: null, nextReviewDate: null, requirements: [], updatedAt: null };
+  if (!Array.isArray(sub.infosec.requirements) || !sub.infosec.requirements.length) {
+    const existing = {}; (sub.infosec.requirements || []).forEach(r => existing[r.id] = r);
+    sub.infosec.requirements = INFOSEC_REQS.map(([id, label]) => existing[id] || { id, label, status: 'pending', note: '' });
+  }
+  return sub.infosec;
+}
+function infosecProgress(sub) {
+  const is = sub.infosec; if (!is || !is.requirements) return { done: 0, total: INFOSEC_REQS.length, applicable: INFOSEC_REQS.length };
+  const applicable = is.requirements.filter(r => r.status !== 'na');
+  return { done: applicable.filter(r => r.status === 'complete').length, total: is.requirements.length, applicable: applicable.length };
+}
+function infosecStatusMeta(key) { return INFOSEC_STATUSES.find(s => s[0] === key) || INFOSEC_STATUSES[0]; }
+function infosecReviewDue(sub, withinDays) {
+  const d = sub.infosec && sub.infosec.nextReviewDate; if (!d) return null;
+  const days = Math.ceil((new Date(d) - new Date()) / 86400000);
+  if (withinDays != null && days > withinDays) return null;
+  return days;
+}
+function infosecReviewedSubs() { return (state.subscriptions || []).filter(s => s.infosec && s.infosec.status && s.infosec.status !== 'not_started'); }
+
+function ensureInfosecView() {
+  if (document.getElementById('infosec')) return;
+  const main = document.querySelector('.main-area main'); if (!main) return;
+  const section = document.createElement('section');
+  section.id = 'infosec'; section.className = 'view';
+  main.appendChild(section);
+  renderInfosec();
+}
+function renderInfosec() {
+  const section = document.getElementById('infosec'); if (!section) return;
+  const subs = (state.subscriptions || []).slice();
+  const withIs = subs.filter(s => s.infosec);
+  const counts = { approved: 0, in_review: 0, not_started: 0, rejected: 0, exception: 0 };
+  subs.forEach(s => { const st = (s.infosec && s.infosec.status) || 'not_started'; counts[st] = (counts[st] || 0) + 1; });
+  const dueSoon = subs.filter(s => infosecReviewDue(s, 90) != null).sort((a, b) => new Date(a.infosec.nextReviewDate) - new Date(b.infosec.nextReviewDate));
+  const pendingReviews = subs.filter(s => s.infosec && s.infosec.status === 'in_review');
+  section.innerHTML = `
+    <div class="section-head">
+      <div>
+        <h2>InfoSec</h2>
+        <p class="page-sub">Vendor security reviews and onboarding requirements. Track what's pending, approved, and due for annual re-review.</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="icon-btn" id="is-connect">Connect InfoSec tools</button>
+        <button class="btn-primary" id="is-start-all">Start review on untracked</button>
+      </div>
+    </div>
+    <div class="is-tiles">
+      <div class="is-tile"><span class="is-n">${counts.approved + counts.exception}</span><span class="is-l">Approved</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#f59e0b">${counts.in_review}</span><span class="is-l">In review</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#94a3b8">${counts.not_started}</span><span class="is-l">Not started</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#dc2626">${counts.rejected}</span><span class="is-l">Rejected</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#2563eb">${dueSoon.length}</span><span class="is-l">Reviews due ≤90d</span></div>
+    </div>
+    ${dueSoon.length ? `<div class="is-due">⏰ Annual review due soon: ${dueSoon.slice(0, 6).map(s => `<b>${escapeHtml(s.name)}</b> (${infosecReviewDue(s)}d)`).join(', ')}${dueSoon.length > 6 ? ` +${dueSoon.length - 6} more` : ''}</div>` : ''}
+    <div class="table-wrap" style="margin-top:14px"><table class="sub-table"><thead><tr>
+      <th>Vendor</th><th>Status</th><th>Classification</th><th>Requirements</th><th>Next review</th><th>Owner</th><th></th>
+    </tr></thead><tbody>${subs.map(s => {
+      const is = s.infosec; const st = infosecStatusMeta(is && is.status || 'not_started');
+      const prog = is ? infosecProgress(s) : null;
+      const due = infosecReviewDue(s);
+      return `<tr>
+        <td><b>${escapeHtml(s.name)}</b></td>
+        <td><span class="badge" style="background:${st[2]}22;color:${st[2]}">${st[1]}</span></td>
+        <td>${is && is.classification ? escapeHtml(is.classification) : '<span class="dim">—</span>'}</td>
+        <td>${prog ? `<div class="is-bar" title="${prog.done}/${prog.applicable} complete"><span style="width:${prog.applicable ? Math.round(prog.done / prog.applicable * 100) : 0}%"></span></div><span class="dim" style="font-size:11px">${prog.done}/${prog.applicable}</span>` : '<span class="dim">—</span>'}</td>
+        <td>${is && is.nextReviewDate ? `${new Date(is.nextReviewDate).toLocaleDateString()}${due != null && due <= 90 ? ` <span class="badge warn">${due}d</span>` : ''}` : '<span class="dim">—</span>'}</td>
+        <td>${is && is.owner ? escapeHtml(is.owner) : '<span class="dim">—</span>'}</td>
+        <td class="actions-cell"><button class="icon-btn" data-is-open="${s.id}">${is && is.status !== 'not_started' ? 'Review' : 'Start'}</button></td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
+  section.querySelector('#is-connect').onclick = () => openInfosecConnectors();
+  section.querySelector('#is-start-all').onclick = () => {
+    let n = 0; (state.subscriptions || []).forEach(s => { if (!s.infosec || s.infosec.status === 'not_started') { ensureInfosec(s); s.infosec.status = 'in_review'; s.infosec.updatedAt = new Date().toISOString(); n++; } });
+    save(); renderInfosec(); toast(`Started InfoSec review on ${n} vendor${n === 1 ? '' : 's'}.`, 'success');
+  };
+  section.querySelectorAll('[data-is-open]').forEach(b => b.onclick = () => openInfosecDetail(b.dataset.isOpen));
+}
+function openInfosecDetail(subId) {
+  const sub = state.subscriptions.find(s => s.id === subId); if (!sub) return;
+  const is = ensureInfosec(sub);
+  let m = document.getElementById('is-detail'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'is-detail'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:640px">
+      <h2>🔐 ${escapeHtml(sub.name)} — security review</h2>
+      <div class="is-fgrid">
+        <label class="clm-f">Status<select id="isd-status">${INFOSEC_STATUSES.map(s => `<option value="${s[0]}" ${is.status === s[0] ? 'selected' : ''}>${s[1]}</option>`).join('')}</select></label>
+        <label class="clm-f">Data classification<select id="isd-class">${INFOSEC_CLASSES.map(c => `<option value="${c}" ${is.classification === c ? 'selected' : ''}>${c || '—'}</option>`).join('')}</select></label>
+        <label class="clm-f">InfoSec owner<input id="isd-owner" value="${escapeHtml(is.owner || '')}" placeholder="reviewer@acme.com" /></label>
+        <label class="clm-f">Last review<input id="isd-last" type="date" value="${is.lastReviewDate || ''}" /></label>
+        <label class="clm-f">Next (annual) review<input id="isd-next" type="date" value="${is.nextReviewDate || ''}" /></label>
+      </div>
+      <h4 style="margin:14px 0 6px">Onboarding requirements</h4>
+      <div class="is-reqs">${is.requirements.map(r => `
+        <label class="is-req">
+          <select data-req="${r.id}">
+            <option value="pending" ${r.status === 'pending' ? 'selected' : ''}>Pending</option>
+            <option value="complete" ${r.status === 'complete' ? 'selected' : ''}>Complete</option>
+            <option value="na" ${r.status === 'na' ? 'selected' : ''}>N/A</option>
+          </select>
+          <span>${escapeHtml(r.label)}</span>
+        </label>`).join('')}</div>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn-primary" id="isd-save">Save review</button><button class="icon-btn" id="isd-close" style="margin-left:auto">Close</button></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#isd-close').onclick = () => m.remove();
+  m.querySelector('#isd-save').onclick = () => {
+    is.status = m.querySelector('#isd-status').value;
+    is.classification = m.querySelector('#isd-class').value;
+    is.owner = m.querySelector('#isd-owner').value.trim();
+    is.lastReviewDate = m.querySelector('#isd-last').value || null;
+    is.nextReviewDate = m.querySelector('#isd-next').value || null;
+    m.querySelectorAll('[data-req]').forEach(sel => { const r = is.requirements.find(x => x.id === sel.dataset.req); if (r) r.status = sel.value; });
+    is.updatedAt = new Date().toISOString();
+    save(); renderInfosec(); m.remove();
+    toast(`Saved InfoSec review for ${sub.name}.`, 'success');
+  };
+}
+function openInfosecConnectors() {
+  openConnectorGallery({
+    icon: '🔐', title: 'Connect InfoSec / GRC tools', sub: 'Pull vendor security posture from your GRC or vendor-risk platform. CSV export works for all; API sync where available.',
+    list: INFOSEC_TOOLS,
+    onPick: (c) => openGenericConnect(c, {
+      title: `Connect ${c.name}`, csvLabel: `Import a vendor list / risk report from ${c.name}`,
+      onCsv: () => openInfosecImport(''), onRows: (rows) => openInfosecImport(clmRowsToCsv(rows)),
+    }),
+  });
+}
+function openInfosecImport(seedText) {
+  let m = document.getElementById('isimp-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'isimp-modal'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:640px">
+      <h2>🔐 Import vendor security data</h2>
+      <p class="page-sub" style="margin:4px 0 10px">Paste or upload a vendor list with a security status (vendor name required; status/review-date optional). We match to your register and update each vendor's InfoSec profile.</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <label class="icon-btn" for="isimp-file" style="cursor:pointer">Upload CSV</label>
+        <input type="file" id="isimp-file" accept=".csv,.tsv,text/csv,text/plain" hidden />
+        <button class="icon-btn" id="isimp-go">Import</button>
+        <button class="icon-btn" id="isimp-close" style="margin-left:auto">Close</button>
+      </div>
+      <textarea id="isimp-csv" placeholder="Vendor,Status,Next review\nSalesforce,Approved,2027-01-15\nFigma,In review," style="width:100%;min-height:100px;font-family:var(--mono);font-size:12px">${escapeHtml(seedText || '')}</textarea>
+      <div id="isimp-msg" class="dim" style="font-size:12.5px;margin-top:8px"></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#isimp-close').onclick = () => m.remove();
+  m.querySelector('#isimp-file').onchange = async (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; m.querySelector('#isimp-csv').value = await f.text(); };
+  m.querySelector('#isimp-go').onclick = () => {
+    const text = m.querySelector('#isimp-csv').value || '';
+    const grid = (window.BulkImport && window.BulkImport.parseCSV) ? window.BulkImport.parseCSV(text) : text.split(/\r?\n/).filter(Boolean).map(l => l.split(','));
+    if (grid.length < 2) { m.querySelector('#isimp-msg').textContent = 'Need a header row and at least one data row.'; return; }
+    const h = grid[0].map(x => (x || '').toLowerCase());
+    const vi = h.findIndex(x => /vendor|name|tool|supplier/.test(x));
+    const si = h.findIndex(x => /status|posture|risk|state/.test(x));
+    const di = h.findIndex(x => /next|review|due|date/.test(x));
+    if (vi < 0) { m.querySelector('#isimp-msg').textContent = 'No vendor/name column found.'; return; }
+    const mapStatus = (v) => { const s = (v || '').toLowerCase(); if (/approv|pass|low risk|compliant/.test(s)) return 'approved'; if (/reject|fail|high risk|critical/.test(s)) return 'rejected'; if (/except|condition/.test(s)) return 'exception'; if (/review|progress|pending|medium/.test(s)) return 'in_review'; return 'in_review'; };
+    let matched = 0, skipped = 0;
+    grid.slice(1).forEach(r => {
+      const name = (r[vi] || '').trim(); if (!name) return;
+      const sub = state.subscriptions.find(s => s.name.toLowerCase() === name.toLowerCase());
+      if (!sub) { skipped++; return; }
+      ensureInfosec(sub);
+      if (si >= 0 && r[si]) sub.infosec.status = mapStatus(r[si]);
+      else if (sub.infosec.status === 'not_started') sub.infosec.status = 'in_review';
+      if (di >= 0 && r[di]) { const d = new Date(r[di]); if (!isNaN(d)) sub.infosec.nextReviewDate = d.toISOString().slice(0, 10); }
+      sub.infosec.updatedAt = new Date().toISOString();
+      matched++;
+    });
+    save(); renderInfosec(); m.remove();
+    toast(`Updated ${matched} vendor${matched === 1 ? '' : 's'}${skipped ? `, ${skipped} not in register` : ''}.`, 'success');
+    try { switchView('infosec'); } catch (_) {}
+  };
+}
+function ensureInfosecNav() {
+  const ref = document.querySelector('.sidebar [data-view="risk"]') || document.querySelector('.sidebar [data-view="playbook"]');
+  if (!ref || !ref.parentElement || ref.parentElement.querySelector('[data-view="infosec"]')) return;
+  const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>';
+  const btn = document.createElement('button');
+  btn.className = 'tab'; btn.dataset.view = 'infosec';
+  btn.innerHTML = ref.querySelector('span') ? `${svg}<span>InfoSec</span>` : 'InfoSec';
+  ref.parentElement.insertBefore(btn, ref.nextSibling);
+  btn.addEventListener('click', () => switchView('infosec'));
+}
+function patchSwitchViewForInfosec() {
+  if (window._isSwitchPatched) return;
+  const _orig = window.switchView;
+  window.switchView = function (name, opts = {}) {
+    if (name === 'infosec') {
+      ensureInfosecView(); renderInfosec();
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === name));
+      window.scrollTo({ top: 0 });
+      const crumb = document.getElementById('page-crumb'); if (crumb) crumb.textContent = 'InfoSec';
+      if (!opts.replaceHistory) { const t = '#infosec'; if (location.hash !== t) history.pushState({ view: name }, '', t); }
+      return;
+    }
+    return _orig(name, opts);
+  };
+  window._isSwitchPatched = true;
+}
+if (window.PAGE_TITLES) window.PAGE_TITLES['infosec'] = 'InfoSec';
+window.openInfosecConnectors = openInfosecConnectors;
+(function () {
+  const boot = () => { try { ensureInfosecView(); ensureInfosecNav(); patchSwitchViewForInfosec(); } catch (e) { console.warn(e); } };
+  if (window.renderAll) { const _p = window.renderAll; window.renderAll = function () { _p(); boot(); }; }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 720));
+})();
+</script>
+<style>
+.is-tiles { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:4px 0 12px; }
+.is-tile { background:var(--card,#fff); border:1px solid var(--border,#e2e8f0); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:2px; }
+.is-n { font-size:22px; font-weight:700; }
+.is-l { font-size:12px; color:var(--text-dim,#94a3b8); }
+.is-due { font-size:13px; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:8px; padding:8px 12px; }
+[data-theme="dark"] .is-due { background:rgba(234,179,8,0.12); color:#fde68a; border-color:rgba(234,179,8,0.3); }
+.is-bar { display:inline-block; width:80px; height:6px; background:var(--border,#e2e8f0); border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:6px; }
+.is-bar span { display:block; height:100%; background:var(--accent,#6366f1); }
+.is-fgrid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.is-reqs { display:flex; flex-direction:column; gap:6px; max-height:280px; overflow:auto; }
+.is-req { display:flex; align-items:center; gap:10px; font-size:13px; }
+.is-req select { width:120px; flex:none; }
+</style>
+<script>
+/* ==========================================================================
+   Reporting module — cross-functional, filterable reports for CFO / CRO / IT /
+   Procurement / InfoSec. Pick a metric, a split dimension, a date range and
+   filters; get tiles, a table, a bar chart and a CSV export.
+   ========================================================================== */
+const RPT_METRICS = {
+  spend: { label: 'Annualized spend', money: true, kind: 'sub', val: s => rptAnnual(s) },
+  invoices_paid: { label: 'Invoices paid', money: true, kind: 'invoice', dateField: 'paidDate', keep: i => !!i.paidDate, val: i => i.amount || 0 },
+  invoices_pending: { label: 'Invoices outstanding', money: true, kind: 'invoice', dateField: 'issueDate', keep: i => !i.paidDate, val: i => i.amount || 0 },
+  tool_count: { label: 'Tool count', money: false, kind: 'sub', val: () => 1 },
+  lic_assigned: { label: 'Licences assigned', money: false, kind: 'sub', val: s => s.assigned || 0 },
+  lic_utilized: { label: 'Licences used', money: false, kind: 'sub', val: s => s.utilized || 0 },
+  renewals_due: { label: 'Renewals due', money: false, kind: 'sub', dateField: 'renewal', keep: s => !!s.renewal, val: () => 1 },
+  infosec_pending: { label: 'InfoSec pending', money: false, kind: 'sub', keep: s => !s.infosec || ['not_started', 'in_review'].includes(s.infosec.status), val: () => 1 },
+  infosec_due: { label: 'InfoSec reviews due', money: false, kind: 'sub', dateField: s => s.infosec && s.infosec.nextReviewDate, keep: s => s.infosec && s.infosec.nextReviewDate, val: () => 1 },
+};
+const RPT_DIMS = { department: 'Department', team: 'Team', function: 'Function', tool: 'Tool', owner: 'Owner', infosec_status: 'InfoSec status', month: 'Month', quarter: 'Quarter' };
+const RPT_RANGES = { 'this-month': 'This month', 'this-quarter': 'This quarter', 'this-fiscal': 'This fiscal year', 'this-cal-year': 'This calendar year', 'last-12m': 'Last 12 months', 'next-90': 'Next 90 days', 'next-12m': 'Next 12 months', 'all': 'All time' };
+const RPT_PRESETS = [
+  { persona: 'CFO', label: 'Spend by department', cfg: { metric: 'spend', groupBy: 'department', range: 'this-fiscal' } },
+  { persona: 'CFO', label: 'Invoices paid by month', cfg: { metric: 'invoices_paid', groupBy: 'month', range: 'this-fiscal' } },
+  { persona: 'CFO', label: 'Outstanding by department', cfg: { metric: 'invoices_pending', groupBy: 'department', range: 'all' } },
+  { persona: 'CRO', label: 'Tools by function', cfg: { metric: 'tool_count', groupBy: 'function', range: 'all' } },
+  { persona: 'CRO', label: 'Renewals next 90 days', cfg: { metric: 'renewals_due', groupBy: 'tool', range: 'next-90' } },
+  { persona: 'IT', label: 'Spend by tool', cfg: { metric: 'spend', groupBy: 'tool', range: 'this-fiscal' } },
+  { persona: 'Procurement', label: 'Renewals by quarter', cfg: { metric: 'renewals_due', groupBy: 'quarter', range: 'next-12m' } },
+  { persona: 'InfoSec', label: 'Reviews due by dept', cfg: { metric: 'infosec_due', groupBy: 'department', range: 'next-90' } },
+  { persona: 'InfoSec', label: 'Pending by department', cfg: { metric: 'infosec_pending', groupBy: 'department', range: 'all' } },
+];
+function rptAnnual(s) { return (parseFloat(s.cost) || 0) * (s.cycle === 'monthly' ? 12 : 1); }
+function rptEmpDept() { const m = {}; (state.employees || []).forEach(e => { if (e.email) m[e.email.toLowerCase()] = e.department || ''; }); return m; }
+function rptDimValue(sub, dim, dateForBucket, empDept) {
+  switch (dim) {
+    case 'department': { const d = sub.owner && sub.owner.email ? empDept[sub.owner.email.toLowerCase()] : ''; return d || sub.team || 'Unassigned'; }
+    case 'team': return sub.team || 'Unassigned';
+    case 'function': return sub.category || 'Uncategorized';
+    case 'tool': return sub.name || '—';
+    case 'owner': return (sub.owner && (sub.owner.name || sub.owner.email)) || 'Unassigned';
+    case 'infosec_status': return sub.infosec ? infosecStatusMeta(sub.infosec.status)[1] : 'Not started';
+    case 'month': return dateForBucket ? new Date(dateForBucket).toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : 'No date';
+    case 'quarter': { if (!dateForBucket) return 'No date'; const d = new Date(dateForBucket); return `${d.getFullYear()} Q${Math.floor(d.getMonth() / 3) + 1}`; }
+    default: return '—';
+  }
+}
+function rptRangeBounds(key, fyStart) {
+  const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let from = null, to = null;
+  if (key === 'this-month') { from = new Date(now.getFullYear(), now.getMonth(), 1); to = new Date(now.getFullYear(), now.getMonth() + 1, 0); }
+  else if (key === 'this-quarter') { const q = Math.floor(now.getMonth() / 3); from = new Date(now.getFullYear(), q * 3, 1); to = new Date(now.getFullYear(), q * 3 + 3, 0); }
+  else if (key === 'this-cal-year') { from = new Date(now.getFullYear(), 0, 1); to = new Date(now.getFullYear(), 11, 31); }
+  else if (key === 'this-fiscal') { const fm = (fyStart || 1) - 1; let y = now.getFullYear(); if (now.getMonth() < fm) y--; from = new Date(y, fm, 1); to = new Date(y + 1, fm, 0); }
+  else if (key === 'last-12m') { from = new Date(now.getFullYear(), now.getMonth() - 11, 1); to = new Date(now.getFullYear(), now.getMonth() + 1, 0); }
+  else if (key === 'next-90') { from = today; to = new Date(today.getTime() + 90 * 86400000); }
+  else if (key === 'next-12m') { from = today; to = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()); }
+  return { from, to };
+}
+function rptInRange(dateStr, b) { if (!b.from && !b.to) return true; if (!dateStr) return false; const d = new Date(dateStr); if (isNaN(d)) return false; if (b.from && d < b.from) return false; if (b.to && d > new Date(b.to.getFullYear(), b.to.getMonth(), b.to.getDate(), 23, 59, 59)) return false; return true; }
+function rptFilterSubs(f) {
+  const empDept = rptEmpDept();
+  return (state.subscriptions || []).filter(s => {
+    if (f.activeOnly && s.active === false) return false;
+    if (f.autoRenewOnly && !(s.contract && s.contract.autoRenew)) return false;
+    if (f.department && rptDimValue(s, 'department', null, empDept) !== f.department) return false;
+    if (f.team && (s.team || 'Unassigned') !== f.team) return false;
+    if (f.function && (s.category || 'Uncategorized') !== f.function) return false;
+    if (f.owner && ((s.owner && (s.owner.name || s.owner.email)) || 'Unassigned') !== f.owner) return false;
+    if (f.infosec && (s.infosec ? s.infosec.status : 'not_started') !== f.infosec) return false;
+    if (f.tool && s.name !== f.tool) return false;
+    return true;
+  });
+}
+function buildReport(cfg) {
+  const M = RPT_METRICS[cfg.metric]; const fyStart = (typeof workspace === 'function' ? (workspace().fiscalYearStart || 1) : 1);
+  const bounds = rptRangeBounds(cfg.range, fyStart);
+  const empDept = rptEmpDept();
+  const subs = rptFilterSubs(cfg.filters || {});
+  const subIds = new Set(subs.map(s => s.id));
+  const groups = {}; let total = 0;
+  const add = (k, v) => { (groups[k] = groups[k] || { value: 0, count: 0 }); groups[k].value += v; groups[k].count++; total += v; };
+  const dated = !!M.dateField || M.kind === 'invoice';
+  if (M.kind === 'invoice') {
+    const bySub = {}; subs.forEach(s => bySub[s.id] = s);
+    (state.invoices || []).forEach(inv => {
+      const s = bySub[inv.subId]; if (!s) return;
+      if (M.keep && !M.keep(inv)) return;
+      const dv = inv[M.dateField];
+      if (dated && (cfg.range !== 'all') && !rptInRange(dv, bounds)) return;
+      add(rptDimValue(s, cfg.groupBy, dv, empDept), M.val(inv));
+    });
+  } else {
+    subs.forEach(s => {
+      if (M.keep && !M.keep(s)) return;
+      const df = typeof M.dateField === 'function' ? M.dateField(s) : (M.dateField ? s[M.dateField] : null);
+      if (M.dateField && cfg.range !== 'all' && !rptInRange(df, bounds)) return;
+      add(rptDimValue(s, cfg.groupBy, df, empDept), M.val(s));
+    });
+  }
+  const rows = Object.entries(groups).map(([k, v]) => ({ key: k, value: v.value, count: v.count })).sort((a, b) => b.value - a.value);
+  return { rows, total, metric: M, dated };
+}
+let _rptCfg = { metric: 'spend', groupBy: 'department', range: 'this-fiscal', filters: { activeOnly: true } };
+function ensureReportingView() {
+  if (document.getElementById('reporting')) return;
+  const main = document.querySelector('.main-area main'); if (!main) return;
+  const section = document.createElement('section'); section.id = 'reporting'; section.className = 'view';
+  main.appendChild(section); renderReporting();
+}
+function rptOptions(obj, sel) { return Object.entries(obj).map(([k, v]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${escapeHtml(v)}</option>`).join(''); }
+function rptDistinct(dim) {
+  const empDept = rptEmpDept(); const set = new Set();
+  (state.subscriptions || []).forEach(s => set.add(rptDimValue(s, dim, null, empDept)));
+  return [...set].sort();
+}
+function renderReporting() {
+  const section = document.getElementById('reporting'); if (!section) return;
+  const c = _rptCfg;
+  const money = (n) => RPT_METRICS[c.metric].money ? formatMoney(n) : (Math.round(n * 100) / 100).toLocaleString();
+  section.innerHTML = `
+    <div class="section-head">
+      <div><h2>Reporting</h2><p class="page-sub">Cross-functional reports. Pick a metric, split, date range and filters. Built for finance, revenue, IT, procurement and security.</p></div>
+      <button class="icon-btn" id="rpt-export">Export CSV</button>
+    </div>
+    <div class="rpt-presets">${RPT_PRESETS.map((p, i) => `<button class="chip" data-preset="${i}"><b>${p.persona}</b> · ${escapeHtml(p.label)}</button>`).join('')}</div>
+    <div class="rpt-controls">
+      <label>Metric<select id="rpt-metric">${rptOptions(Object.fromEntries(Object.entries(RPT_METRICS).map(([k, v]) => [k, v.label])), c.metric)}</select></label>
+      <label>Split by<select id="rpt-group">${rptOptions(RPT_DIMS, c.groupBy)}</select></label>
+      <label>Date range<select id="rpt-range">${rptOptions(RPT_RANGES, c.range)}</select></label>
+      <label>Department<select id="rpt-f-dept"><option value="">All</option>${rptDistinct('department').map(v => `<option ${c.filters.department === v ? 'selected' : ''}>${escapeHtml(v)}</option>`).join('')}</select></label>
+      <label>Team<select id="rpt-f-team"><option value="">All</option>${rptDistinct('team').map(v => `<option ${c.filters.team === v ? 'selected' : ''}>${escapeHtml(v)}</option>`).join('')}</select></label>
+      <label>Function<select id="rpt-f-func"><option value="">All</option>${rptDistinct('function').map(v => `<option ${c.filters.function === v ? 'selected' : ''}>${escapeHtml(v)}</option>`).join('')}</select></label>
+      <label>Owner<select id="rpt-f-owner"><option value="">All</option>${rptDistinct('owner').map(v => `<option ${c.filters.owner === v ? 'selected' : ''}>${escapeHtml(v)}</option>`).join('')}</select></label>
+      <label>InfoSec<select id="rpt-f-is"><option value="">All</option>${INFOSEC_STATUSES.map(s => `<option value="${s[0]}" ${c.filters.infosec === s[0] ? 'selected' : ''}>${s[1]}</option>`).join('')}</select></label>
+      <label class="rpt-chk"><input type="checkbox" id="rpt-active" ${c.filters.activeOnly ? 'checked' : ''}/> Active only</label>
+      <label class="rpt-chk"><input type="checkbox" id="rpt-autorenew" ${c.filters.autoRenewOnly ? 'checked' : ''}/> Auto-renew only</label>
+    </div>
+    <div id="rpt-out"></div>`;
+  const wire = (id, fn) => { const el = section.querySelector('#' + id); if (el) el.onchange = fn; };
+  wire('rpt-metric', e => { c.metric = e.target.value; renderReporting(); });
+  wire('rpt-group', e => { c.groupBy = e.target.value; renderReporting(); });
+  wire('rpt-range', e => { c.range = e.target.value; renderReporting(); });
+  wire('rpt-f-dept', e => { c.filters.department = e.target.value; renderReporting(); });
+  wire('rpt-f-team', e => { c.filters.team = e.target.value; renderReporting(); });
+  wire('rpt-f-func', e => { c.filters.function = e.target.value; renderReporting(); });
+  wire('rpt-f-owner', e => { c.filters.owner = e.target.value; renderReporting(); });
+  wire('rpt-f-is', e => { c.filters.infosec = e.target.value; renderReporting(); });
+  wire('rpt-active', e => { c.filters.activeOnly = e.target.checked; renderReporting(); });
+  wire('rpt-autorenew', e => { c.filters.autoRenewOnly = e.target.checked; renderReporting(); });
+  section.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { const p = RPT_PRESETS[+b.dataset.preset]; _rptCfg = { ...p.cfg, filters: { activeOnly: true } }; renderReporting(); });
+  section.querySelector('#rpt-export').onclick = () => rptExport();
+  // Results
+  const rep = buildReport(c);
+  const out = section.querySelector('#rpt-out');
+  const max = Math.max(...rep.rows.map(r => r.value), 1);
+  const noteDated = (c.groupBy === 'month' || c.groupBy === 'quarter') && !rep.dated;
+  out.innerHTML = `
+    <div class="rpt-tiles">
+      <div class="is-tile"><span class="is-n">${money(rep.total)}</span><span class="is-l">${escapeHtml(RPT_METRICS[c.metric].label)} · total</span></div>
+      <div class="is-tile"><span class="is-n">${rep.rows.length}</span><span class="is-l">${escapeHtml(RPT_DIMS[c.groupBy])} groups</span></div>
+      <div class="is-tile"><span class="is-n">${rep.rows.reduce((a, r) => a + r.count, 0)}</span><span class="is-l">records</span></div>
+    </div>
+    ${noteDated ? `<p class="dim" style="font-size:12px">This metric has no per-record date, so month/quarter grouping isn't meaningful here. Pick a dated metric (invoices, renewals, reviews) for a time series.</p>` : ''}
+    ${rep.rows.length ? `<div class="table-wrap"><table class="sub-table"><thead><tr><th>${escapeHtml(RPT_DIMS[c.groupBy])}</th><th class="num">${escapeHtml(RPT_METRICS[c.metric].label)}</th><th class="num">Records</th><th class="num">Share</th><th style="width:30%">&nbsp;</th></tr></thead>
+      <tbody>${rep.rows.map(r => `<tr>
+        <td><b>${escapeHtml(r.key)}</b></td>
+        <td class="num">${money(r.value)}</td>
+        <td class="num">${r.count}</td>
+        <td class="num">${rep.total ? Math.round(r.value / rep.total * 100) : 0}%</td>
+        <td><div class="rpt-bar"><span style="width:${Math.round(r.value / max * 100)}%"></span></div></td>
+      </tr>`).join('')}</tbody></table></div>` : `<p class="empty" style="padding:20px 0">No data for this combination. Widen the date range or clear filters.</p>`}`;
+}
+function rptExport() {
+  const rep = buildReport(_rptCfg);
+  const esc = v => { const s = (v == null ? '' : String(v)); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const header = [RPT_DIMS[_rptCfg.groupBy], RPT_METRICS[_rptCfg.metric].label, 'Records', 'Share %'];
+  const lines = [header.join(',')].concat(rep.rows.map(r => [esc(r.key), r.value, r.count, rep.total ? Math.round(r.value / rep.total * 100) : 0].join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `report-${_rptCfg.metric}-by-${_rptCfg.groupBy}.csv`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('Report exported.', 'success');
+}
+function ensureReportingNav() {
+  const ref = document.querySelector('.sidebar [data-view="analytics"]') || document.querySelector('.sidebar [data-view="insights"]');
+  if (!ref || !ref.parentElement || ref.parentElement.querySelector('[data-view="reporting"]')) return;
+  const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="7"/><rect x="12" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/></svg>';
+  const btn = document.createElement('button'); btn.className = 'tab'; btn.dataset.view = 'reporting';
+  btn.innerHTML = ref.querySelector('span') ? `${svg}<span>Reporting</span>` : 'Reporting';
+  ref.parentElement.insertBefore(btn, ref.nextSibling);
+  btn.addEventListener('click', () => switchView('reporting'));
+}
+function patchSwitchViewForReporting() {
+  if (window._rptSwitchPatched) return;
+  const _orig = window.switchView;
+  window.switchView = function (name, opts = {}) {
+    if (name === 'reporting') {
+      ensureReportingView(); renderReporting();
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === name));
+      window.scrollTo({ top: 0 });
+      const crumb = document.getElementById('page-crumb'); if (crumb) crumb.textContent = 'Reporting';
+      if (!opts.replaceHistory) { const t = '#reporting'; if (location.hash !== t) history.pushState({ view: name }, '', t); }
+      return;
+    }
+    return _orig(name, opts);
+  };
+  window._rptSwitchPatched = true;
+}
+if (window.PAGE_TITLES) window.PAGE_TITLES['reporting'] = 'Reporting';
+(function () {
+  const boot = () => { try { ensureReportingView(); ensureReportingNav(); patchSwitchViewForReporting(); } catch (e) { console.warn(e); } };
+  if (window.renderAll) { const _p = window.renderAll; window.renderAll = function () { _p(); boot(); }; }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 740));
+})();
+</script>
+<style>
+.rpt-presets { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 12px; }
+.rpt-presets .chip b { color:var(--accent,#6366f1); }
+.rpt-controls { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px 10px; margin-bottom:14px; align-items:end; }
+.rpt-controls label { display:flex; flex-direction:column; font-size:11.5px; color:var(--text-dim,#94a3b8); gap:3px; }
+.rpt-chk { flex-direction:row !important; align-items:center; gap:6px !important; font-size:12.5px !important; }
+.rpt-tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
+.rpt-bar { height:8px; background:var(--border,#e2e8f0); border-radius:4px; overflow:hidden; }
+.rpt-bar span { display:block; height:100%; background:var(--accent,#6366f1); }
 </style>
 <script>
 /* ==========================================================================
