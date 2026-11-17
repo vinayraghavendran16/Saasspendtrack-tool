@@ -1124,6 +1124,11 @@ html.owner-only #owner { display: block !important; }
   .cr-tab { padding:9px 10px; font-size:12px; }
 }
 
+/* AI extraction toggle in the Contracts header */
+.ai-extract-toggle { display:inline-flex; align-items:center; gap:5px; font-size:12px; color: var(--text-dim); cursor:pointer; padding:0 6px; border:1px solid var(--border); border-radius:8px; height:30px; }
+.ai-extract-toggle input { margin:0; }
+.ai-extract-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ===== AI Chat ===== */
 .ai-launcher { position: fixed; right: 20px; bottom: 20px; z-index: 200; display:inline-flex; align-items:center; gap:6px; background: var(--accent); color:#fff; border:0; padding:10px 16px; border-radius:30px; font-weight:600; font-size:13px; cursor:pointer; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
 .ai-launcher:hover { transform: translateY(-1px); }
@@ -2931,6 +2936,9 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
     <div class="section-head">
       <div><h2>Contract terms</h2><p class="page-sub">Ingest from any source: single paste, upload, or bulk drop. OCR fires automatically on scanned PDFs and images.</p></div>
       <div class="controls">
+        <label class="ai-extract-toggle" title="When on, contract text is sent to your /api/extract backend for AI extraction. When off, the built-in reader runs entirely in your browser.">
+          <input type="checkbox" id="ai-extract-toggle"/> <span>AI extraction</span>
+        </label>
         <button id="sample-contract" class="icon-btn">Load sample</button>
         <label class="icon-btn" for="contract-file" style="cursor:pointer">Upload .pdf / .txt</label>
         <input type="file" id="contract-file" accept=".txt,.pdf,text/plain,application/pdf" hidden />
@@ -5511,6 +5519,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('contract-text').value = SAMPLE_CONTRACT;
     renderExtract(extractContract(SAMPLE_CONTRACT));
   });
+  // AI extraction toggle (off by default; sends contract text to /api/extract)
+  const aiTog = document.getElementById('ai-extract-toggle');
+  if (aiTog) {
+    aiTog.checked = aiExtractEnabled();
+    aiTog.addEventListener('change', () => {
+      if (aiTog.checked) {
+        const ok = confirm('Turn on AI contract extraction?\n\nWhen on, the text of contracts you upload is sent to your own /api/extract backend (your Cloudflare project → the Anthropic API) for far more accurate extraction. It requires ANTHROPIC_API_KEY to be set on your Cloudflare project. With it off, extraction runs entirely in your browser.');
+        if (!ok) { aiTog.checked = false; return; }
+      }
+      state.settings.aiExtract = aiTog.checked;
+      save();
+      toast(aiTog.checked ? 'AI extraction on.' : 'AI extraction off — using the built-in reader.', 'info');
+    });
+  }
   document.getElementById('contract-file').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
     e.target.value = '';
@@ -5538,12 +5560,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // nothing but fill that panel, so with no subscription to attach to
     // (e.g. a brand-new workspace from onboarding) the contract vanished.
     try {
-      const { sub, isNew } = ingestContractAsDraft(text, f.name, false);
+      if (aiExtractEnabled()) { try { toast('Reading the contract with AI…', 'info'); } catch (_) {} }
+      const { sub, isNew, source } = await ingestContractSmart(text, f.name, false);
       save(); renderAll();
+      const tag = source === 'ai' ? ' (AI)' : '';
       toast(
         isNew
-          ? `Saved "${sub.name}" as a draft in your register. Add its cost and renewal in Subscriptions.`
-          : `Updated "${sub.name}" with the extracted contract terms.`,
+          ? `Saved "${sub.name}"${tag} as a draft in your register. Review its cost and renewal in Subscriptions.`
+          : `Updated "${sub.name}"${tag} with the extracted contract terms.`,
         'ok'
       );
     } catch (_) {}
@@ -6602,6 +6626,109 @@ function ingestContractAsDraft(text, fileName, ocrUsed) {
   return { sub, ex, isNew: !existing };
 }
 
+/* ================= AI contract extraction (optional backend) =================
+   When enabled (toggle in Contract terms) the contract text is POSTed to the
+   same-origin /api/extract Cloudflare Function, which calls the Anthropic API
+   with a strict schema and returns structured facts. Falls back silently to
+   the local rules-based extractor when disabled, not configured, or on error.
+   Privacy: with this ON, contract text leaves the browser for your own
+   backend (your Cloudflare project → the Anthropic API). */
+function aiExtractEnabled() { return !!(state.settings && state.settings.aiExtract); }
+function extractEndpoint() { return (state.settings && state.settings.extractEndpoint) || '/api/extract'; }
+
+async function aiExtractContract(text) {
+  if (!aiExtractEnabled()) return null;
+  if (!text || text.trim().length < 40) return null;
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 40000);
+    const r = await fetch(extractEndpoint(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.slice(0, 120000) }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(to);
+    if (!r.ok) {
+      let msg = ''; try { msg = (await r.json()).error || ''; } catch (_) {}
+      return { _error: msg || ('http_' + r.status) };
+    }
+    const j = await r.json();
+    if (!j || !j.ok || !j.data) return { _error: (j && j.error) || 'bad_response' };
+    return { data: j.data, model: j.model };
+  } catch (e) {
+    return { _error: (e && e.name === 'AbortError') ? 'timeout' : 'network' };
+  }
+}
+
+/* Map the AI's structured result onto a subscription's contract block and
+   practical fields. Never overwrites real data the user already entered. */
+function applyAiFacts(sub, d, existing) {
+  const months = d.term_months || null;
+  let cost = null, cycle = null;
+  if (d.annual_value != null) { cost = d.annual_value; cycle = 'yearly'; }
+  else if (d.total_contract_value != null) {
+    if (months && months >= 11) { cost = Math.round(d.total_contract_value * 12 / months); cycle = 'yearly'; }
+    else if (months && months <= 2) { cost = d.total_contract_value; cycle = 'monthly'; }
+    else { cost = d.total_contract_value; cycle = (d.billing_frequency === 'monthly') ? 'monthly' : 'yearly'; }
+  }
+  if (!cycle) cycle = (d.billing_frequency === 'monthly') ? 'monthly' : 'yearly';
+  if (cost != null && !sub.cost) sub.cost = cost;
+  if (cycle && !existing) sub.cycle = cycle;
+  if (d.term_end_date && !sub.renewal) sub.renewal = d.term_end_date;
+  if (d.seats != null && sub.seats == null) sub.seats = d.seats;
+  if (d.category && !sub.category) sub.category = d.category;
+  sub.contract = {
+    renewalType: d.auto_renews === true ? 'Auto-renew' : (d.auto_renews === false ? 'Manual renewal' : null),
+    autoRenew: d.auto_renews === true,
+    noticeDays: (d.renewal_notice_days != null) ? d.renewal_notice_days : null,
+    termLength: months ? `${months} months` : null,
+    priceCapPct: (d.price_increase_cap_pct != null) ? d.price_increase_cap_pct : null,
+    paymentDays: (d.payment_terms_days != null) ? d.payment_terms_days : null,
+    governingLaw: d.governing_law || null,
+    liabilityCap: d.liability_cap || null,
+    indemnity: d.indemnity || null,
+    sla: (d.sla_uptime_pct != null) ? `${d.sla_uptime_pct}% uptime` : null,
+    support: d.support_tier || null,
+    termination: d.termination_rights || null,
+    dpa: d.dpa || null,
+    security: d.security_certifications || null,
+    audit: d.audit_rights || null,
+    warranty: d.warranty || null,
+    assignment: d.assignment || null,
+    lateFee: d.late_fee || null,
+    confidence: (d.confidence != null) ? d.confidence : null,
+    aiExtracted: true,
+    summary: d.summary || null,
+  };
+  return sub;
+}
+
+/* Try AI extraction first (when enabled), else the local extractor.
+   Always resolves to { sub, isNew, source }. */
+async function ingestContractSmart(text, fileName, ocrUsed) {
+  if (aiExtractEnabled()) {
+    const res = await aiExtractContract(text);
+    if (res && res.data) {
+      const d = res.data;
+      const name = d.vendor_name
+        || (fileName || '').replace(/\.(pdf|txt|md|png|jpe?g)$/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+        || 'Untitled contract';
+      const existing = state.subscriptions.find(s => s.name.toLowerCase() === name.toLowerCase());
+      const subId = existing ? existing.id : (() => {
+        const s = { id: crypto.randomUUID(), name, cost: 0, cycle: 'yearly', category: '', team: '', renewal: null, notes: 'Draft from AI contract extraction', url: '', active: true };
+        state.subscriptions.push(s); return s.id;
+      })();
+      const sub = state.subscriptions.find(s => s.id === subId);
+      applyAiFacts(sub, d, existing);
+      return { sub, isNew: !existing, source: 'ai', model: res.model };
+    }
+    if (res && res._error) { try { toast(`AI extraction unavailable (${res._error}) — used the built-in reader.`, 'info'); } catch (_) {} }
+  }
+  const r = ingestContractAsDraft(text, fileName, ocrUsed);
+  return { sub: r.sub, isNew: r.isNew, source: 'local' };
+}
+
 async function bulkContractUpload(files) {
   const status = document.getElementById('bulk-ocr-status');
   if (!status) return;
@@ -6611,8 +6738,10 @@ async function bulkContractUpload(files) {
     const bar = document.createElement('div'); bar.textContent = '• ' + file.name + ' — reading…'; status.appendChild(bar);
     try {
       const { text, ocrUsed } = await readAndOcrIfNeeded(file, (stage, pct) => { bar.textContent = `• ${file.name} — ${stage} (${pct}%)`; });
-      const { sub, ex } = ingestContractAsDraft(text, file.name, ocrUsed);
-      bar.textContent = `✓ ${file.name} → ${sub.name} · ${ex.confidence}% confidence${ocrUsed ? ' · OCR' : ''}`;
+      if (aiExtractEnabled()) bar.textContent = `• ${file.name} — reading with AI…`;
+      const { sub, source } = await ingestContractSmart(text, file.name, ocrUsed);
+      const conf = sub.contract && sub.contract.confidence != null ? sub.contract.confidence + '% confidence' : 'extracted';
+      bar.textContent = `✓ ${file.name} → ${sub.name} · ${conf}${source === 'ai' ? ' · AI' : ''}${ocrUsed ? ' · OCR' : ''}`;
     } catch (e) {
       bar.textContent = `✗ ${file.name} — ${e.message || e}`;
       bar.style.color = 'var(--danger-text)';

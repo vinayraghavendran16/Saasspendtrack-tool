@@ -1,0 +1,173 @@
+// Cloudflare Pages Function — POST /api/extract
+// World-class contract extraction: sends contract text to the Anthropic API
+// and returns structured, schema-validated facts via tool use.
+//
+// Setup (one time):
+//   Cloudflare dashboard → your Pages project → Settings → Environment variables
+//     ANTHROPIC_API_KEY = sk-ant-...        (required, mark as "Secret/Encrypt")
+//     EXTRACT_MODEL      = claude-3-5-sonnet-20241022   (optional override)
+//   Redeploy. The client calls this same-origin, so there are no CORS issues
+//   and the key never reaches the browser.
+
+const MODEL_DEFAULT = "claude-3-5-sonnet-20241022";
+
+const EXTRACT_TOOL = {
+  name: "record_contract",
+  description:
+    "Record the structured facts extracted from a SaaS/vendor contract, order form, quote, or MSA.",
+  input_schema: {
+    type: "object",
+    properties: {
+      vendor_name: {
+        type: "string",
+        description:
+          "Short common name of the VENDOR/supplier — the party providing the software or service (often defined as 'us'/'we'/'our' or shown in the header/logo), e.g. 'Outreach'. NEVER the customer.",
+      },
+      vendor_legal_name: { type: "string" },
+      customer_name: { type: "string" },
+      order_type: {
+        type: "string",
+        enum: ["new", "renewal", "amendment", "expansion", "unknown"],
+      },
+      currency: { type: "string", description: "ISO code, e.g. USD, INR, EUR, GBP." },
+      total_contract_value: {
+        type: "number",
+        description: "Total value for the WHOLE term, numeric only (no symbols or commas).",
+      },
+      annual_value: {
+        type: "number",
+        description: "Annualised value (total ÷ term years) when the term can be determined.",
+      },
+      billing_frequency: {
+        type: "string",
+        enum: ["monthly", "quarterly", "semi-annual", "annual", "one-time", "usage-based", "unknown"],
+      },
+      payment_terms_days: { type: "integer", description: "Net payment days (e.g. 30 for 'Net 30')." },
+      term_start_date: { type: "string", description: "ISO date YYYY-MM-DD." },
+      term_end_date: { type: "string", description: "ISO date YYYY-MM-DD — the renewal/expiry date." },
+      term_months: { type: "integer" },
+      auto_renews: { type: "boolean" },
+      renewal_notice_days: { type: "integer", description: "Notice days required to cancel / not renew." },
+      renewal_terms: { type: "string" },
+      price_increase_cap_pct: { type: "number", description: "Max % uplift at renewal, if capped." },
+      seats: { type: "integer", description: "Total licensed seats / primary quantity." },
+      category: { type: "string", description: "Software category, e.g. 'Sales engagement', 'Observability'." },
+      governing_law: { type: "string" },
+      liability_cap: { type: "string" },
+      indemnity: { type: "string" },
+      dpa: { type: "string", description: "Data-processing / DPA terms, or omit." },
+      security_certifications: { type: "string", description: "e.g. 'SOC 2 Type II, ISO 27001'." },
+      sla_uptime_pct: { type: "number" },
+      support_tier: { type: "string" },
+      termination_rights: { type: "string" },
+      warranty: { type: "string" },
+      assignment: { type: "string" },
+      audit_rights: { type: "string" },
+      late_fee: { type: "string" },
+      non_cancelable: { type: "boolean" },
+      line_items: {
+        type: "array",
+        description: "Each priced line on the order form.",
+        items: {
+          type: "object",
+          properties: {
+            service: { type: "string" },
+            quantity: { type: "number" },
+            unit_price: { type: "number" },
+            total: { type: "number" },
+          },
+          required: ["service"],
+        },
+      },
+      summary: {
+        type: "string",
+        description: "One or two plain-English sentences summarising the deal.",
+      },
+      confidence: {
+        type: "integer",
+        description: "0-100 honest overall confidence in this extraction.",
+      },
+    },
+    required: ["vendor_name", "confidence"],
+  },
+};
+
+const SYSTEM = `You are a meticulous commercial-contracts analyst. Extract the requested fields from the provided SaaS/vendor contract, order form, quote or MSA. Rules:
+- The VENDOR is the party supplying the software/service (often defined as "us"/"we"/"our", or shown in the header/logo). The CUSTOMER is the buyer ("you"/"your"). Never confuse them; vendor_name is the supplier.
+- Report money as plain numbers, no symbols or commas. If a grand "Total" is shown, that is total_contract_value. Compute annual_value from the term when possible (e.g. a $600,000 total over 24 months → annual_value 300000).
+- Dates must be ISO YYYY-MM-DD. The renewal/expiry date is the services/term end date.
+- "Net 30" → payment_terms_days 30. "shall not automatically renew" → auto_renews false. "automatically renew" / "evergreen" → auto_renews true.
+- Prefer facts stated in THIS document; if it defers to a master agreement you were not given, omit those fields rather than inventing them.
+- Only include fields you can support from the text. Omit what you cannot determine. Set confidence honestly based on how much of the document you could ground.
+- Call the record_contract tool exactly once with your result.`;
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function onRequestOptions() {
+  return new Response(null, { status: 204, headers: CORS });
+}
+
+export async function onRequestPost({ request, env }) {
+  const headers = { ...CORS, "Content-Type": "application/json" };
+  try {
+    if (!env.ANTHROPIC_API_KEY) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "not_configured", message: "ANTHROPIC_API_KEY is not set on the server." }),
+        { status: 501, headers }
+      );
+    }
+    const body = await request.json().catch(() => ({}));
+    const text = (body.text || "").toString();
+    if (!text.trim() || text.length < 40) {
+      return new Response(JSON.stringify({ ok: false, error: "no_text" }), { status: 400, headers });
+    }
+    const model = env.EXTRACT_MODEL || MODEL_DEFAULT;
+    const payload = {
+      model,
+      max_tokens: 2000,
+      system: SYSTEM,
+      tools: [EXTRACT_TOOL],
+      tool_choice: { type: "tool", name: "record_contract" },
+      messages: [
+        {
+          role: "user",
+          content: `Extract the contract facts from the following document:\n\n<contract>\n${text.slice(0, 120000)}\n</contract>`,
+        },
+      ],
+    };
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return new Response(
+        JSON.stringify({ ok: false, error: "upstream", status: r.status, message: errText.slice(0, 600) }),
+        { status: 502, headers }
+      );
+    }
+    const data = await r.json();
+    const toolUse = (data.content || []).find((b) => b.type === "tool_use");
+    if (!toolUse || !toolUse.input) {
+      return new Response(JSON.stringify({ ok: false, error: "no_tool_use" }), { status: 502, headers });
+    }
+    return new Response(
+      JSON.stringify({ ok: true, data: toolUse.input, model, usage: data.usage || null }),
+      { status: 200, headers }
+    );
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }),
+      { status: 500, headers }
+    );
+  }
+}

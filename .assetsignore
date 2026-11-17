@@ -2,6 +2,9 @@
 # https://developers.cloudflare.com/workers/static-assets/direct-upload/#ignoring-files
 README.md
 README-hosting.md
+CONTRACT-AI-SETUP.md
+UAT.md
+VINAY-TODO.md
 wrangler.toml
 .assetsignore
 .gitignore
