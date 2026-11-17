@@ -14931,13 +14931,13 @@ function ensureSignupModal(mode = 'initial') {
           <div class="sm-brand-tag">${isChange ? 'Change your email' : 'Start your 14-day trial'}</div>
         </div>
       </div>
-      <h2>${isChange ? 'Use a different email' : 'Work email only. No credit card.'}</h2>
+      <h2>${isChange ? 'Use a different email' : 'Start your free trial. No credit card.'}</h2>
       <p class="sm-sub">${isChange
         ? 'Switching the email we have on file for this workspace. We\'ll log the change in our records so follow-up goes to the right address.'
         : 'Your workspace runs entirely in your browser. We just need your <b>email</b> so we can send your login link when you open the tool on another device, and handle GST invoicing for Indian customers.'}</p>
       <form id="signup-form" class="sm-form">
         <label>Email *
-          <input type="email" id="signup-email" value="${escapeHtml(currentEmail)}" placeholder="you@yourcompany.com" required autocomplete="email" autofocus/>
+          <input type="email" id="signup-email" value="${escapeHtml(isChange ? currentEmail : '')}" placeholder="you@yourcompany.com" required autocomplete="email" autofocus/>
         </label>
         <label>Company <span class="sm-optional">(optional)</span>
           <input type="text" id="signup-company" value="${escapeHtml(currentCompany)}" placeholder="Your company name" autocomplete="organization"/>
