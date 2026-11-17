@@ -3897,9 +3897,256 @@ function runShadowScan() {
 }
 window.openShadowDiscovery = openShadowDiscovery;
 
+/* ===================== Command Centre: workspace, invoices, accounting, SSO ===================== */
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// 1) Workspace setup — company, fiscal year, default renewal-notice window.
+function openWorkspaceSetup() {
+  const w = (typeof workspace === 'function') ? workspace() : (state.settings.workspace || {});
+  let m = document.getElementById('ws-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'ws-modal'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:560px">
+      <h2>⚙️ Workspace setup</h2>
+      <p class="page-sub" style="margin:4px 0 12px">The basics that make spend, renewals and alerts roll up correctly across the app.</p>
+      <label class="clm-f">Company name<input id="ws-name" value="${escapeHtml(w.name || '')}" /></label>
+      <label class="clm-f">Primary domain<input id="ws-domain" value="${escapeHtml(w.domain || '')}" placeholder="acme.com" /></label>
+      <label class="clm-f">Fiscal year starts in
+        <select id="ws-fy">${MONTHS.map((mo, i) => `<option value="${i + 1}" ${(w.fiscalYearStart || 1) === i + 1 ? 'selected' : ''}>${mo}</option>`).join('')}</select>
+      </label>
+      <label class="clm-f">Default renewal-notice window (days)<input id="ws-notice" type="number" min="0" max="365" value="${w.defaultNoticeDays != null ? w.defaultNoticeDays : 30}" /></label>
+      <p class="dim" style="font-size:12px;margin:8px 0 0">Base currency is set per workspace in <a href="#" id="ws-currency-link">Settings → Currency</a>.</p>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn-primary" id="ws-save">Save setup</button><button class="icon-btn" id="ws-close" style="margin-left:auto">Close</button></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#ws-close').onclick = () => m.remove();
+  m.querySelector('#ws-currency-link').onclick = (e) => { e.preventDefault(); m.remove(); try { switchView('settings'); } catch (_) {} };
+  m.querySelector('#ws-save').onclick = () => {
+    w.name = m.querySelector('#ws-name').value.trim() || w.name;
+    w.domain = m.querySelector('#ws-domain').value.trim();
+    w.fiscalYearStart = parseInt(m.querySelector('#ws-fy').value, 10) || 1;
+    w.defaultNoticeDays = Math.max(0, parseInt(m.querySelector('#ws-notice').value, 10) || 0);
+    w.setupDone = true;
+    save(); renderAll(); m.remove();
+    toast('Workspace setup saved.', 'success');
+  };
+}
+// 2) Invoice import — CSV of invoices/payments, matched to vendors (created if new).
+function invAutoMap(headers) {
+  const n = headers.map(h => (h || '').toLowerCase());
+  const find = (rx) => n.findIndex(h => rx.test(h));
+  return {
+    vendor: find(/vendor|supplier|merchant|payee|name|description/),
+    amount: find(/amount|total|value|paid|charge|debit/),
+    number: find(/invoice.*(no|num|#)|number|ref/),
+    issue: find(/issue|invoice date|^date$|billing/),
+    due: find(/due/),
+    paid: find(/paid|payment date|settled/),
+  };
+}
+function openInvoiceImport(seedText) {
+  let m = document.getElementById('invimp-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'invimp-modal'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:680px">
+      <h2>🧾 Import invoices</h2>
+      <p class="page-sub" style="margin:4px 0 10px">Paste or upload an invoice/payment CSV (vendor, amount, dates). We match each to a vendor in your register, creating one if it's new, and you review before saving.</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <label class="icon-btn" for="invimp-file" style="cursor:pointer">Upload CSV</label>
+        <input type="file" id="invimp-file" accept=".csv,.tsv,text/csv,text/plain" hidden />
+        <button class="icon-btn" id="invimp-parse">Parse</button>
+        <button class="icon-btn" id="invimp-close" style="margin-left:auto">Close</button>
+      </div>
+      <textarea id="invimp-csv" placeholder="Vendor,Amount,Invoice #,Issue date,Due date,Paid date\nSalesforce,4500,INV-1001,2026-01-05,2026-02-05,2026-02-03" style="width:100%;min-height:110px;font-family:var(--mono);font-size:12px">${escapeHtml(seedText || '')}</textarea>
+      <div id="invimp-body" style="margin-top:12px"></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#invimp-close').onclick = () => m.remove();
+  m.querySelector('#invimp-parse').onclick = () => invImpParse();
+  m.querySelector('#invimp-file').onchange = async (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; m.querySelector('#invimp-csv').value = await f.text(); invImpParse(); };
+  if (seedText) invImpParse();
+}
+function invImpParse() {
+  const m = document.getElementById('invimp-modal'); if (!m) return;
+  const text = m.querySelector('#invimp-csv').value || '';
+  const body = m.querySelector('#invimp-body');
+  const grid = (window.BulkImport && window.BulkImport.parseCSV) ? window.BulkImport.parseCSV(text) : text.split(/\r?\n/).filter(Boolean).map(l => l.split(','));
+  if (grid.length < 2) { body.innerHTML = `<p class="empty" style="padding:12px 0">Need a header row and at least one data row.</p>`; return; }
+  const headers = grid[0].map(h => (h || '').trim());
+  const map = invAutoMap(headers);
+  const sel = (key) => `<select data-im="${key}">${headers.map((h, i) => `<option value="${i}" ${map[key] === i ? 'selected' : ''}>${escapeHtml(h || ('Col ' + (i + 1)))}</option>`).join('')}<option value="-1" ${map[key] < 0 ? 'selected' : ''}>— none —</option></select>`;
+  const rows = grid.slice(1).filter(r => r.length);
+  body.innerHTML = `
+    <div class="im-map" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;margin-bottom:10px">
+      <label>Vendor ${sel('vendor')}</label><label>Amount ${sel('amount')}</label><label>Invoice # ${sel('number')}</label>
+      <label>Issue date ${sel('issue')}</label><label>Due date ${sel('due')}</label><label>Paid date ${sel('paid')}</label>
+    </div>
+    <div class="dim" style="font-size:12px;margin-bottom:6px">${rows.length} row${rows.length === 1 ? '' : 's'} ready.</div>
+    <button class="btn-primary" id="invimp-go">Import ${rows.length} invoice${rows.length === 1 ? '' : 's'}</button>`;
+  body.querySelector('#invimp-go').onclick = () => {
+    const get = (key) => parseInt(body.querySelector(`[data-im="${key}"]`).value, 10);
+    const ci = { vendor: get('vendor'), amount: get('amount'), number: get('number'), issue: get('issue'), due: get('due'), paid: get('paid') };
+    if (ci.vendor < 0 || ci.amount < 0) { toast('Vendor and Amount columns are required.', 'error'); return; }
+    let created = 0, added = 0;
+    const cell = (r, i) => (i >= 0 && r[i] != null ? String(r[i]).trim() : '');
+    const dnorm = (v) => { if (!v) return null; const d = new Date(v); return isNaN(d) ? v : d.toISOString().slice(0, 10); };
+    rows.forEach(r => {
+      const vname = cell(r, ci.vendor); if (!vname) return;
+      let sub = state.subscriptions.find(s => s.name.toLowerCase() === vname.toLowerCase());
+      if (!sub) { sub = { id: crypto.randomUUID(), name: vname, cost: 0, cycle: 'yearly', category: '', team: '', renewal: null, notes: 'Created from invoice import', url: '', active: true }; state.subscriptions.push(sub); created++; }
+      state.invoices.push({ id: crypto.randomUUID(), subId: sub.id, amount: _num(cell(r, ci.amount)) || 0, invoiceNumber: cell(r, ci.number), issueDate: dnorm(cell(r, ci.issue)), dueDate: dnorm(cell(r, ci.due)), paidDate: dnorm(cell(r, ci.paid)) });
+      added++;
+    });
+    state.settings = state.settings || {}; state.settings.invoicesImported = new Date().toISOString();
+    save(); renderAll(); m.remove();
+    toast(`Imported ${added} invoice${added === 1 ? '' : 's'}${created ? `, created ${created} new vendor${created === 1 ? '' : 's'}` : ''}.`, 'success');
+    try { switchView('invoices'); } catch (_) {}
+  };
+}
+// Shared connector gallery for accounting + SSO (reuses /api/clm-sync).
+function openConnectorGallery(opts) {
+  let m = document.getElementById('gc-gallery'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'gc-gallery'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:700px">
+      <h2>${opts.icon} ${escapeHtml(opts.title)}</h2>
+      <p class="page-sub" style="margin:4px 0 12px">${escapeHtml(opts.sub)}</p>
+      <div class="clm-grid">${opts.list.map(c => `<button class="clm-tile" data-c="${c.id}"><span class="clm-badge" style="background:${c.color}">${escapeHtml(c.name[0])}</span><span class="clm-name">${escapeHtml(c.name)}</span></button>`).join('')}</div>
+      <div style="display:flex;margin-top:12px"><button class="icon-btn" id="gc-close" style="margin-left:auto">Close</button></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#gc-close').onclick = () => m.remove();
+  m.querySelectorAll('.clm-tile').forEach(t => t.onclick = () => { const c = opts.list.find(x => x.id === t.dataset.c); m.remove(); opts.onPick(c); });
+}
+// 3) Accounting connectors — spend from the system of record.
+const ACCT_CONNECTORS = [
+  { id: 'quickbooks', name: 'QuickBooks', color: '#2ca01c', docs: 'https://developer.intuit.com', base: 'https://quickbooks.api.intuit.com/v3', path: '/company/{realmId}/query', scheme: 'bearer' },
+  { id: 'xero', name: 'Xero', color: '#13b5ea', docs: 'https://developer.xero.com', base: 'https://api.xero.com/api.xro/2.0', path: '/Invoices', scheme: 'bearer' },
+  { id: 'netsuite', name: 'NetSuite', color: '#1f3a5f', docs: 'https://docs.oracle.com/en/cloud/saas/netsuite', base: 'https://your-account.suitetalk.api.netsuite.com/services/rest/record/v1', path: '/vendorbill', scheme: 'bearer' },
+  { id: 'zohobooks', name: 'Zoho Books', color: '#e42527', docs: 'https://www.zoho.com/books/api/v3', base: 'https://www.zohoapis.com/books/v3', path: '/invoices', scheme: 'bearer' },
+  { id: 'tally', name: 'Tally', color: '#1a73e8', docs: 'https://tallysolutions.com', base: '', path: '', scheme: 'bearer' },
+  { id: 'freshbooks', name: 'FreshBooks', color: '#0f5bff', docs: 'https://www.freshbooks.com/api', base: 'https://api.freshbooks.com/accounting', path: '/account/{id}/invoices/invoices', scheme: 'bearer' },
+  { id: 'sage', name: 'Sage', color: '#00dc06', docs: 'https://developer.sage.com', base: 'https://api.accounting.sage.com/v3.1', path: '/sales_invoices', scheme: 'bearer' },
+];
+function openAcctGallery() { openConnectorGallery({ icon: '💳', title: 'Connect accounting', sub: 'Pull spend and invoices from your accounting system. CSV export works for all; direct API sync where the system exposes an API.', list: ACCT_CONNECTORS, onPick: openAcctConnect }); }
+function openAcctConnect(c) { openGenericConnect(c, { title: `Connect ${c.name}`, csvLabel: `Import an invoice/expense CSV export from ${c.name}`, onCsv: () => openInvoiceImport(), onRows: (rows) => openInvoiceImport(clmRowsToCsv(rows)) }); }
+// 4) SSO shadow-IT — discover apps from identity-provider sign-in/app reports.
+const SSO_CONNECTORS = [
+  { id: 'okta', name: 'Okta', color: '#007dc1', docs: 'https://developer.okta.com/docs/reference', base: 'https://your-org.okta.com/api/v1', path: '/apps', scheme: 'apikey', headerName: 'Authorization' },
+  { id: 'google', name: 'Google Workspace', color: '#ea4335', docs: 'https://developers.google.com/admin-sdk', base: 'https://admin.googleapis.com/admin/directory/v1', path: '/customer/my_customer/domains', scheme: 'bearer' },
+  { id: 'entra', name: 'Microsoft Entra ID', color: '#0067b8', docs: 'https://learn.microsoft.com/en-us/graph', base: 'https://graph.microsoft.com/v1.0', path: '/servicePrincipals', scheme: 'bearer' },
+  { id: 'onelogin', name: 'OneLogin', color: '#1c1f2a', docs: 'https://developers.onelogin.com', base: 'https://your-org.onelogin.com/api/2', path: '/apps', scheme: 'bearer' },
+  { id: 'jumpcloud', name: 'JumpCloud', color: '#2bb673', docs: 'https://docs.jumpcloud.com', base: 'https://console.jumpcloud.com/api/v2', path: '/applications', scheme: 'apikey', headerName: 'x-api-key' },
+];
+function openSsoGallery() { openConnectorGallery({ icon: '🔐', title: 'Discover apps via SSO', sub: "Connect your identity provider to find apps from login activity. Export the app/sign-in report as CSV, or sync via API, and we'll flag tools you aren't tracking.", list: SSO_CONNECTORS, onPick: openSsoConnect }); }
+function openSsoConnect(c) { openGenericConnect(c, { title: `Connect ${c.name}`, csvLabel: `Import an app or sign-in CSV report from ${c.name}`, onCsv: () => openSsoScan(''), onRows: (rows) => openSsoScan(clmRowsToCsv(rows)) }); }
+function openSsoScan(seedText) {
+  let m = document.getElementById('sso-modal'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'sso-modal'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:720px">
+      <h2>🔐 Discover apps from SSO</h2>
+      <p class="page-sub" style="margin:4px 0 10px">Paste or upload your identity provider's app or sign-in report (CSV). We scan locally for SaaS you aren't tracking.</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <label class="icon-btn" for="sso-file" style="cursor:pointer">Upload CSV</label>
+        <input type="file" id="sso-file" accept=".csv,.tsv,text/csv,text/plain" hidden />
+        <button class="icon-btn" id="sso-scan">Scan</button>
+        <button class="icon-btn" id="sso-close" style="margin-left:auto">Close</button>
+      </div>
+      <textarea id="sso-csv" placeholder="App name,Users,Last sign-in\nSalesforce,120,2026-11-10\nFigma,34,2026-11-12" style="width:100%;min-height:100px;font-family:var(--mono);font-size:12px">${escapeHtml(seedText || '')}</textarea>
+      <div id="sso-results" style="margin-top:12px"></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#sso-close').onclick = () => m.remove();
+  m.querySelector('#sso-scan').onclick = () => runSsoScan();
+  m.querySelector('#sso-file').onchange = async (e) => { const f = e.target.files && e.target.files[0]; if (!f) return; m.querySelector('#sso-csv').value = await f.text(); runSsoScan(); };
+  if (seedText) runSsoScan();
+}
+function runSsoScan() {
+  const m = document.getElementById('sso-modal'); if (!m) return;
+  const text = m.querySelector('#sso-csv').value || '';
+  const host = m.querySelector('#sso-results');
+  const grid = (window.BulkImport && window.BulkImport.parseCSV) ? window.BulkImport.parseCSV(text) : text.split(/\r?\n/).filter(Boolean).map(l => l.split(','));
+  if (grid.length < 1) { host.innerHTML = `<p class="empty" style="padding:12px 0">Paste the report first.</p>`; return; }
+  // Find the column with the most SaaS-name matches.
+  const cols = Math.max(...grid.map(r => r.length), 0);
+  let best = 0, bestHits = -1;
+  for (let ci = 0; ci < cols; ci++) { let hits = 0; grid.forEach(r => { if (r[ci] && detectSaasVendor(String(r[ci]))) hits++; }); if (hits > bestHits) { bestHits = hits; best = ci; } }
+  const found = {};
+  grid.forEach(r => { const name = detectSaasVendor(String(r[best] || '')); if (name) found[name] = (found[name] || 0) + 1; });
+  const existing = new Set((state.subscriptions || []).map(s => (s.name || '').toLowerCase()));
+  const list = Object.keys(found).map(name => ({ name, inRegister: existing.has(name.toLowerCase()) })).sort((a, b) => a.name.localeCompare(b.name));
+  if (!list.length) { host.innerHTML = `<p class="empty" style="padding:12px 0">No known SaaS matched. Check the report has an app-name column.</p>`; return; }
+  const shadow = list.filter(x => !x.inRegister);
+  host.innerHTML = `
+    <div style="font-size:13px;margin-bottom:8px"><b>${shadow.length}</b> untracked app${shadow.length === 1 ? '' : 's'} · ${list.length - shadow.length} already tracked</div>
+    <div class="table-wrap"><table class="sub-table"><thead><tr><th>App</th><th>Status</th><th></th></tr></thead><tbody>${list.map(x => `<tr>
+      <td><b>${escapeHtml(x.name)}</b></td>
+      <td>${x.inRegister ? '<span class="badge ok">In register</span>' : '<span class="badge warn">Shadow</span>'}</td>
+      <td class="actions-cell">${x.inRegister ? '' : `<button class="icon-btn" data-sso-add="${encodeURIComponent(x.name)}">+ Add</button>`}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+  host.querySelectorAll('[data-sso-add]').forEach(b => b.onclick = () => {
+    const name = decodeURIComponent(b.dataset.ssoAdd);
+    if (state.subscriptions.some(s => s.name.toLowerCase() === name.toLowerCase())) { toast(`${name} is already tracked.`, 'info'); return; }
+    state.subscriptions.push({ id: crypto.randomUUID(), name, cost: 0, cycle: 'yearly', category: '', team: '', renewal: null, notes: 'Discovered via SSO', url: '', active: true });
+    save(); renderAll();
+    toast(`Added "${name}". Set its cost and renewal in Subscriptions.`, 'ok');
+    b.closest('tr').querySelector('td:nth-child(2)').innerHTML = '<span class="badge ok">In register</span>';
+    b.remove();
+  });
+}
+// Generic connect modal (CSV import + direct API sync via /api/clm-sync).
+function openGenericConnect(c, opts) {
+  let m = document.getElementById('gc-connect'); if (m) m.remove();
+  m = document.createElement('div'); m.id = 'gc-connect'; m.className = 'modal-backdrop'; m.hidden = false;
+  m.innerHTML = `
+    <div class="modal" style="max-width:640px">
+      <h2><span class="clm-badge" style="background:${c.color};vertical-align:middle;margin-right:8px">${escapeHtml(c.name[0])}</span>${escapeHtml(opts.title)}</h2>
+      <div class="clm-opt">
+        <h3 style="margin:10px 0 4px;font-size:15px">Import a CSV export <span class="badge ok">works now</span></h3>
+        <p class="dim" style="font-size:12.5px;margin:0 0 8px">${escapeHtml(opts.csvLabel)}. You'll map columns and review before saving.</p>
+        <button class="btn-primary" id="gc-csv">Import a CSV</button>
+      </div>
+      ${c.base ? `<details class="clm-opt" style="margin-top:14px">
+        <summary style="cursor:pointer;font-weight:600;font-size:14px">Direct API sync (advanced)</summary>
+        <p class="dim" style="font-size:12px;margin:8px 0">Paste an API token to pull records directly. The base URL and endpoint are starting points — confirm against <a href="${escapeHtml(c.docs)}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.name)}'s API docs</a>. Your token is used once and never stored.</p>
+        <label class="clm-f">API base URL<input id="gc-base" value="${escapeHtml(c.base)}" /></label>
+        <label class="clm-f">Endpoint<input id="gc-path" value="${escapeHtml(c.path)}" /></label>
+        <label class="clm-f">API token<input id="gc-token" type="password" autocomplete="off" /></label>
+        <label class="clm-f">Records path (optional)<input id="gc-records" placeholder="leave blank to auto-detect" /></label>
+        <div style="margin-top:8px"><button class="btn-primary" id="gc-sync">Pull records</button></div>
+        <div id="gc-msg" class="dim" style="font-size:12.5px;margin-top:8px"></div>
+      </details>` : `<p class="dim" style="font-size:12px;margin-top:12px">${escapeHtml(c.name)} doesn't expose a public contracts/spend API — use the CSV export above.</p>`}
+      <div style="display:flex;margin-top:14px"><button class="icon-btn" id="gc-c-close" style="margin-left:auto">Close</button></div>
+    </div>`;
+  document.body.appendChild(m);
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#gc-c-close').onclick = () => m.remove();
+  m.querySelector('#gc-csv').onclick = () => { m.remove(); opts.onCsv(); };
+  const syncBtn = m.querySelector('#gc-sync');
+  if (syncBtn) syncBtn.onclick = async () => {
+    const msg = m.querySelector('#gc-msg');
+    const payload = { baseUrl: m.querySelector('#gc-base').value.trim(), path: m.querySelector('#gc-path').value.trim(), token: m.querySelector('#gc-token').value.trim(), recordsPath: m.querySelector('#gc-records').value.trim(), scheme: c.scheme || 'bearer', headerName: c.headerName || 'Authorization' };
+    if (!payload.token) { msg.textContent = 'Enter your API token.'; return; }
+    msg.textContent = `Pulling from ${c.name}…`;
+    try {
+      const r = await fetch('/api/clm-sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const j = await r.json();
+      if (!j || !j.ok) { msg.textContent = (j && j.message) || 'Could not pull records.'; return; }
+      m.remove(); opts.onRows(j.rows);
+      toast(`Pulled ${j.count} record${j.count === 1 ? '' : 's'} from ${c.name}. Review before importing.`, 'success');
+    } catch (e) { msg.textContent = 'Network error.'; }
+  };
+}
+window.openWorkspaceSetup = openWorkspaceSetup; window.openInvoiceImport = openInvoiceImport; window.openAcctGallery = openAcctGallery; window.openSsoGallery = openSsoGallery;
+
 function ccSteps() {
   const subs = state.subscriptions || [];
   const req = (state.settings && state.settings.ccRequests) || {};
+  const w = (typeof workspace === 'function') ? workspace() : (state.settings.workspace || {});
   const teamCount = (state.employees || []).length;
   return [
     { id: 'individual', icon: '📄', title: 'Load individual contracts', desc: 'Upload a PDF or text file. We read the vendor, value, dates, renewal and clauses — AI-native when AI extraction is on.', cta: 'Upload a contract', done: subs.some(s => s.contract), act: () => goContracts('single') },
@@ -3910,6 +4157,10 @@ function ccSteps() {
     { id: 'drive', icon: '🗂️', title: 'Import a folder of contracts', desc: 'Pick a whole folder of contract PDFs or scans and run them through the bulk extractor in one go.', cta: 'Select a folder', done: false, act: () => openDriveFolder() },
     { id: 'shadow', icon: '🕵️', title: 'Discover shadow tools', desc: "Upload an expense or card-statement CSV and we'll flag recurring SaaS charges you aren't already tracking — scanned locally, nothing uploaded.", cta: 'Scan an expense CSV', done: false, act: () => openShadowDiscovery() },
     { id: 'team', icon: '👥', title: 'Add your team directory', desc: 'Import people and departments so spend and licences roll up by team.', cta: teamCount ? 'Review team' : 'Add team', done: teamCount > 0, act: () => switchView('team') },
+    { id: 'workspace', icon: '⚙️', title: 'Set up your workspace', desc: 'Company, fiscal year and a default renewal-notice window so spend, renewals and alerts roll up correctly.', cta: w.setupDone ? 'Review setup' : 'Set up', done: !!w.setupDone, act: () => openWorkspaceSetup() },
+    { id: 'invoices', icon: '🧾', title: 'Import invoices', desc: 'Bring in invoices or payments and reconcile real spend against contracts. Vendors are matched or created automatically.', cta: (state.settings && state.settings.invoicesImported) ? 'Imported ✓ · import more' : 'Import invoices', done: !!(state.settings && state.settings.invoicesImported), act: () => openInvoiceImport() },
+    { id: 'accounting', icon: '💳', title: 'Connect accounting', desc: 'Pull spend from QuickBooks, Xero, NetSuite, Zoho Books and more — CSV export, or direct API sync where available.', cta: 'Connect accounting', done: false, act: () => openAcctGallery() },
+    { id: 'sso', icon: '🔐', title: 'Discover apps via SSO', desc: "Connect Okta, Google Workspace or Entra ID and flag apps from login activity that you aren't tracking yet.", cta: 'Connect SSO', done: false, act: () => openSsoGallery() },
   ];
 }
 function renderCommandCentre() {
