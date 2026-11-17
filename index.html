@@ -6654,7 +6654,7 @@ async function aiExtractContract(text) {
       return { _error: msg || ('http_' + r.status) };
     }
     const j = await r.json();
-    if (!j || !j.ok || !j.data) return { _error: (j && j.error) || 'bad_response' };
+    if (!j || !j.ok || !j.data) return { _error: (j && j.error) || 'bad_response', _message: (j && j.message) || '' };
     return { data: j.data, model: j.model };
   } catch (e) {
     return { _error: (e && e.name === 'AbortError') ? 'timeout' : 'network' };
@@ -6723,7 +6723,7 @@ async function ingestContractSmart(text, fileName, ocrUsed) {
       applyAiFacts(sub, d, existing);
       return { sub, isNew: !existing, source: 'ai', model: res.model };
     }
-    if (res && res._error) { try { toast(`AI extraction unavailable (${res._error}) — used the built-in reader.`, 'info'); } catch (_) {} }
+    if (res && res._error) { try { toast(res._message ? `AI extraction: ${res._message.slice(0,140)} — used the built-in reader.` : `AI extraction unavailable (${res._error}) — used the built-in reader.`, 'info'); } catch (_) {} }
   }
   const r = ingestContractAsDraft(text, fileName, ocrUsed);
   return { sub: r.sub, isNew: r.isNew, source: 'local' };

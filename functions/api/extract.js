@@ -185,15 +185,20 @@ export async function onRequestPost({ request, env }) {
     });
     if (!r.ok) {
       const errText = await r.text().catch(() => "");
+      let apiMessage = "";
+      try { apiMessage = JSON.parse(errText)?.error?.message || ""; } catch (_) {}
+      // Use HTTP 200 with ok:false: Cloudflare replaces real 5xx responses with
+      // its own HTML error page, which the client can't parse. The client keys
+      // off the JSON body's ok flag, not the HTTP status.
       return new Response(
-        JSON.stringify({ ok: false, error: "upstream", status: r.status, message: errText.slice(0, 600) }),
-        { status: 502, headers }
+        JSON.stringify({ ok: false, error: "upstream", upstream_status: r.status, message: apiMessage || errText.slice(0, 400) }),
+        { status: 200, headers }
       );
     }
     const data = await r.json();
     const toolUse = (data.content || []).find((b) => b.type === "tool_use");
     if (!toolUse || !toolUse.input) {
-      return new Response(JSON.stringify({ ok: false, error: "no_tool_use" }), { status: 502, headers });
+      return new Response(JSON.stringify({ ok: false, error: "no_tool_use" }), { status: 200, headers });
     }
     return new Response(
       JSON.stringify({ ok: true, data: toolUse.input, model, usage: data.usage || null }),
@@ -202,7 +207,7 @@ export async function onRequestPost({ request, env }) {
   } catch (e) {
     return new Response(
       JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }),
-      { status: 500, headers }
+      { status: 200, headers }
     );
   }
 }
