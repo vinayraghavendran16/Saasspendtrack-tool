@@ -3307,6 +3307,34 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
         <label>Manager name<input type="text" id="f-manager-name" placeholder="Alex Kim" /></label>
         <label>Manager email<input type="email" id="f-manager-email" placeholder="alex@company.com" /></label>
       </div>
+      <fieldset class="form-fieldset">
+        <legend>Internal stakeholders</legend>
+        <div class="row"><label>InfoSec contact<input type="text" id="f-is-name" list="emp-name-list" placeholder="Name" /></label><label>InfoSec email<input type="email" id="f-is-email" list="emp-email-list" placeholder="security@company.com" /></label></div>
+        <div class="row"><label>Legal contact<input type="text" id="f-legal-name" list="emp-name-list" placeholder="Name" /></label><label>Legal email<input type="email" id="f-legal-email" list="emp-email-list" placeholder="legal@company.com" /></label></div>
+        <div class="row"><label>Procurement contact<input type="text" id="f-proc-name" list="emp-name-list" placeholder="Name" /></label><label>Procurement email<input type="email" id="f-proc-email" list="emp-email-list" placeholder="procurement@company.com" /></label></div>
+        <datalist id="emp-name-list"></datalist>
+        <datalist id="emp-email-list"></datalist>
+      </fieldset>
+      <fieldset class="form-fieldset">
+        <legend>Vendor contact (AE / CSM)</legend>
+        <div class="row triple"><label>Name<input type="text" id="f-vc-name" placeholder="Account exec" /></label><label>Email<input type="email" id="f-vc-email" placeholder="ae@vendor.com" /></label><label>Phone<input type="text" id="f-vc-phone" placeholder="+1 …" /></label></div>
+      </fieldset>
+      <fieldset class="form-fieldset">
+        <legend>Procurement &amp; approvals</legend>
+        <div class="row"><label>Why was this procured?<input type="text" id="f-proc-reason" placeholder="Business reason / use case" /></label><label>When procured<input type="date" id="f-proc-date" /></label></div>
+        <div class="row quad">
+          <label>InfoSec<select id="f-ap-infosec"><option value="not_started">Not started</option><option value="in_review">In review</option><option value="approved">Approved</option><option value="exception">Approved w/ exception</option><option value="rejected">Rejected</option></select></label>
+          <label>Legal<select id="f-ap-legal" class="ap-sel"></select></label>
+          <label>Procurement<select id="f-ap-proc" class="ap-sel"></select></label>
+          <label>Finance<select id="f-ap-finance" class="ap-sel"></select></label>
+        </div>
+        <div class="row quad">
+          <label>InfoSec review<input type="date" id="f-rv-infosec" /></label>
+          <label>Legal review<input type="date" id="f-rv-legal" /></label>
+          <label>Procurement review<input type="date" id="f-rv-proc" /></label>
+          <label>Finance review<input type="date" id="f-rv-finance" /></label>
+        </div>
+      </fieldset>
       <label>Notes<textarea id="f-notes" rows="2" placeholder="Team plan, 5 seats…"></textarea></label>
       <label class="check"><input type="checkbox" id="f-active" checked /> Active</label>
       <div class="actions">
@@ -4879,9 +4907,24 @@ function renderUrgencyStrip() {
 }
 
 // -------- modal --------
+const APPROVAL_OPTS = [['', '—', '#94a3b8'], ['pending', 'Pending', '#f59e0b'], ['approved', 'Approved', '#16a34a'], ['rejected', 'Rejected', '#dc2626'], ['na', 'N/A', '#94a3b8']];
+function govOf(sub) {
+  if (!sub.governance) sub.governance = {};
+  const g = sub.governance;
+  g.approvals = g.approvals || {}; g.reviews = g.reviews || {};
+  if (!sub.stakeholders) sub.stakeholders = {};
+  return g;
+}
+function approvalMeta(key) { return APPROVAL_OPTS.find(o => o[0] === key) || APPROVAL_OPTS[0]; }
 function openModal(id) {
   const modal = document.getElementById('modal');
   const sub = id ? state.subscriptions.find(s => s.id === id) : null;
+  // Fill employee datalists (map internal stakeholders from the team directory)
+  const nameDl = document.getElementById('emp-name-list'), emailDl = document.getElementById('emp-email-list');
+  if (nameDl) nameDl.innerHTML = (state.employees || []).map(e => `<option value="${escapeHtml(e.name || '')}"></option>`).join('');
+  if (emailDl) emailDl.innerHTML = (state.employees || []).map(e => `<option value="${escapeHtml(e.email || '')}"></option>`).join('');
+  // Fill legal/procurement/finance approval selects
+  document.querySelectorAll('select.ap-sel').forEach(sel => { sel.innerHTML = APPROVAL_OPTS.map(o => `<option value="${o[0]}">${o[1]}</option>`).join(''); });
   document.getElementById('modal-title').textContent = sub ? 'Edit subscription' : 'Add subscription';
   document.getElementById('f-id').value = sub?.id || '';
   document.getElementById('f-name').value = sub?.name || '';
@@ -4901,6 +4944,25 @@ function openModal(id) {
   document.getElementById('f-manager-email').value = sub?.manager?.email || '';
   document.getElementById('f-notes').value = sub?.notes || '';
   document.getElementById('f-active').checked = sub ? sub.active !== false : true;
+  // Internal stakeholders
+  const st = (sub && sub.stakeholders) || {};
+  const setV = (elid, v) => { const el = document.getElementById(elid); if (el) el.value = v || ''; };
+  setV('f-is-name', st.infosec?.name); setV('f-is-email', st.infosec?.email);
+  setV('f-legal-name', st.legal?.name); setV('f-legal-email', st.legal?.email);
+  setV('f-proc-name', st.procurement?.name); setV('f-proc-email', st.procurement?.email);
+  // Vendor contact (AE/CSM) from contactBook
+  const cb = (sub && sub.contactBook) || {};
+  setV('f-vc-name', cb.name); setV('f-vc-email', cb.email); setV('f-vc-phone', cb.phone);
+  // Procurement + approvals
+  const g = (sub && sub.governance) || { approvals: {}, reviews: {} };
+  setV('f-proc-reason', g.reason); setV('f-proc-date', g.procuredDate);
+  document.getElementById('f-ap-infosec').value = (sub && sub.infosec && sub.infosec.status) || 'not_started';
+  document.getElementById('f-ap-legal').value = g.approvals?.legal || '';
+  document.getElementById('f-ap-proc').value = g.approvals?.procurement || '';
+  document.getElementById('f-ap-finance').value = g.approvals?.finance || '';
+  setV('f-rv-infosec', (sub && sub.infosec && sub.infosec.nextReviewDate) || '');
+  setV('f-rv-legal', g.reviews?.legal); setV('f-rv-proc', g.reviews?.procurement); setV('f-rv-finance', g.reviews?.finance);
+  modal.querySelector('.modal')?.classList.add('modal--wide');
   modal.hidden = false;
   setTimeout(() => document.getElementById('f-name').focus(), 50);
 }
@@ -4909,7 +4971,10 @@ function closeModal() { document.getElementById('modal').hidden = true; }
 function handleSubmit(e) {
   e.preventDefault();
   const id = document.getElementById('f-id').value || crypto.randomUUID();
+  const existing = state.subscriptions.find(x => x.id === id) || {};
+  const val = (elid) => (document.getElementById(elid)?.value || '').trim();
   const sub = {
+    ...existing,
     id,
     name: document.getElementById('f-name').value.trim(),
     cost: parseFloat(document.getElementById('f-cost').value) || 0,
@@ -4932,8 +4997,30 @@ function handleSubmit(e) {
     },
     notes: document.getElementById('f-notes').value.trim(),
     active: document.getElementById('f-active').checked,
-    contract: state.subscriptions.find(x => x.id === id)?.contract || null,
+    contract: existing.contract || null,
+    stakeholders: {
+      infosec: { name: val('f-is-name'), email: val('f-is-email') },
+      legal: { name: val('f-legal-name'), email: val('f-legal-email') },
+      procurement: { name: val('f-proc-name'), email: val('f-proc-email') },
+    },
+    contactBook: Object.assign({}, existing.contactBook, { name: val('f-vc-name'), email: val('f-vc-email'), phone: val('f-vc-phone') }),
+    governance: Object.assign({}, existing.governance, {
+      reason: val('f-proc-reason'),
+      procuredDate: document.getElementById('f-proc-date').value || null,
+      approvals: {
+        legal: val('f-ap-legal'), procurement: val('f-ap-proc'), finance: val('f-ap-finance'),
+      },
+      reviews: {
+        legal: document.getElementById('f-rv-legal').value || null,
+        procurement: document.getElementById('f-rv-proc').value || null,
+        finance: document.getElementById('f-rv-finance').value || null,
+      },
+    }),
   };
+  // InfoSec approval + review feed the InfoSec module (single source of truth there)
+  ensureInfosec(sub);
+  sub.infosec.status = document.getElementById('f-ap-infosec').value || 'not_started';
+  sub.infosec.nextReviewDate = document.getElementById('f-rv-infosec').value || null;
   const idx = state.subscriptions.findIndex(s => s.id === id);
   const isNew = idx < 0;
   if (isNew) {
@@ -15109,6 +15196,11 @@ window.openInfosecConnectors = openInfosecConnectors;
 .is-reqs { display:flex; flex-direction:column; gap:6px; max-height:280px; overflow:auto; }
 .is-req { display:flex; align-items:center; gap:10px; font-size:13px; }
 .is-req select { width:120px; flex:none; }
+/* Full-screen subscription editor */
+.modal--wide { max-width:min(1040px,94vw) !important; width:min(1040px,94vw); max-height:92vh; overflow:auto; }
+.modal--wide .row.quad { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+@media (max-width:720px){ .modal--wide .row.quad { grid-template-columns:repeat(2,1fr); } }
+.modal--wide .form-fieldset { margin-top:12px; }
 </style>
 <script>
 /* ==========================================================================
@@ -15335,6 +15427,102 @@ if (window.PAGE_TITLES) window.PAGE_TITLES['reporting'] = 'Reporting';
 .rpt-bar { height:8px; background:var(--border,#e2e8f0); border-radius:4px; overflow:hidden; }
 .rpt-bar span { display:block; height:100%; background:var(--accent,#6366f1); }
 </style>
+<script>
+/* ==========================================================================
+   Vendors tab — the governance register: every vendor with department, why and
+   when it was procured, approval status from InfoSec / Legal / Procurement /
+   Finance, and the next review date. Row opens the full-screen editor.
+   ========================================================================== */
+function vendorDept(sub) {
+  try { if (typeof rptDimValue === 'function') return rptDimValue(sub, 'department', null, (typeof rptEmpDept === 'function' ? rptEmpDept() : {})); } catch (_) {}
+  return sub.department || sub.team || '—';
+}
+function vendorNextReview(sub) {
+  const ds = [sub.infosec && sub.infosec.nextReviewDate, sub.governance && sub.governance.reviews && sub.governance.reviews.legal, sub.governance && sub.governance.reviews && sub.governance.reviews.procurement, sub.governance && sub.governance.reviews && sub.governance.reviews.finance].filter(Boolean).map(d => new Date(d)).filter(d => !isNaN(d));
+  if (!ds.length) return null;
+  const future = ds.filter(d => d >= new Date()).sort((a, b) => a - b);
+  return (future[0] || ds.sort((a, b) => b - a)[0]);
+}
+function apBadge(meta) { return `<span class="badge" style="background:${meta[2]}22;color:${meta[2]}">${meta[1]}</span>`; }
+function ensureVendorsView() {
+  if (document.getElementById('vendors')) return;
+  const main = document.querySelector('.main-area main'); if (!main) return;
+  const section = document.createElement('section'); section.id = 'vendors'; section.className = 'view';
+  main.appendChild(section); renderVendors();
+}
+function renderVendors() {
+  const section = document.getElementById('vendors'); if (!section) return;
+  const subs = (state.subscriptions || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const apOf = (sub, key) => sub.governance && sub.governance.approvals ? approvalMeta(sub.governance.approvals[key]) : approvalMeta('');
+  const pendingCount = subs.filter(s => {
+    const is = s.infosec && ['not_started', 'in_review'].includes(s.infosec.status);
+    const g = s.governance && s.governance.approvals || {};
+    return is || [g.legal, g.procurement, g.finance].some(v => !v || v === 'pending');
+  }).length;
+  section.innerHTML = `
+    <div class="section-head">
+      <div><h2>Vendors</h2><p class="page-sub">The governance register: every vendor, why and when it was procured, approvals across InfoSec, Legal, Procurement and Finance, and the next review.</p></div>
+      <button class="btn-primary" id="vn-add">Add vendor</button>
+    </div>
+    <div class="is-tiles">
+      <div class="is-tile"><span class="is-n">${subs.length}</span><span class="is-l">Vendors</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#f59e0b">${pendingCount}</span><span class="is-l">With an approval pending</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#2563eb">${subs.filter(s => { const d = vendorNextReview(s); return d && (d - new Date()) / 86400000 <= 90 && d >= new Date(); }).length}</span><span class="is-l">Reviews due ≤90d</span></div>
+    </div>
+    <div class="table-wrap" style="margin-top:14px"><table class="sub-table"><thead><tr>
+      <th>Vendor</th><th>Department</th><th>Why procured</th><th>Procured</th><th>InfoSec</th><th>Legal</th><th>Procurement</th><th>Finance</th><th>Next review</th>
+    </tr></thead><tbody>${subs.map(s => {
+      const g = s.governance || {}; const nr = vendorNextReview(s);
+      const isMeta = (typeof infosecStatusMeta === 'function') ? infosecStatusMeta((s.infosec && s.infosec.status) || 'not_started') : ['', '—', '#94a3b8'];
+      const nrDue = nr && (nr - new Date()) / 86400000 <= 90 && nr >= new Date();
+      return `<tr data-vendor-edit="${s.id}" style="cursor:pointer">
+        <td><b>${escapeHtml(s.name)}</b></td>
+        <td>${escapeHtml(vendorDept(s))}</td>
+        <td class="dim" style="max-width:220px;white-space:normal">${g.reason ? escapeHtml(g.reason) : '<span class="dim">—</span>'}</td>
+        <td>${g.procuredDate ? new Date(g.procuredDate).toLocaleDateString() : '<span class="dim">—</span>'}</td>
+        <td>${apBadge(isMeta)}</td>
+        <td>${apBadge(apOf(s, 'legal'))}</td>
+        <td>${apBadge(apOf(s, 'procurement'))}</td>
+        <td>${apBadge(apOf(s, 'finance'))}</td>
+        <td>${nr ? `${nr.toLocaleDateString()}${nrDue ? ` <span class="badge warn">${Math.ceil((nr - new Date()) / 86400000)}d</span>` : ''}` : '<span class="dim">—</span>'}</td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
+  section.querySelector('#vn-add').onclick = () => openModal();
+  section.querySelectorAll('[data-vendor-edit]').forEach(r => r.onclick = () => openModal(r.dataset.vendorEdit));
+}
+function ensureVendorsNav() {
+  const ref = document.querySelector('.sidebar [data-view="subscriptions"]');
+  if (!ref || !ref.parentElement || ref.parentElement.querySelector('[data-view="vendors"]')) return;
+  const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>';
+  const btn = document.createElement('button'); btn.className = 'tab'; btn.dataset.view = 'vendors';
+  btn.innerHTML = ref.querySelector('span') ? `${svg}<span>Vendors</span>` : 'Vendors';
+  ref.parentElement.insertBefore(btn, ref.nextSibling);
+  btn.addEventListener('click', () => switchView('vendors'));
+}
+function patchSwitchViewForVendors() {
+  if (window._vnSwitchPatched) return;
+  const _orig = window.switchView;
+  window.switchView = function (name, opts = {}) {
+    if (name === 'vendors') {
+      ensureVendorsView(); renderVendors();
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === name));
+      window.scrollTo({ top: 0 });
+      const crumb = document.getElementById('page-crumb'); if (crumb) crumb.textContent = 'Vendors';
+      if (!opts.replaceHistory) { const t = '#vendors'; if (location.hash !== t) history.pushState({ view: name }, '', t); }
+      return;
+    }
+    return _orig(name, opts);
+  };
+  window._vnSwitchPatched = true;
+}
+if (window.PAGE_TITLES) window.PAGE_TITLES['vendors'] = 'Vendors';
+(function () {
+  const boot = () => { try { ensureVendorsView(); ensureVendorsNav(); patchSwitchViewForVendors(); } catch (e) { console.warn(e); } };
+  if (window.renderAll) { const _p = window.renderAll; window.renderAll = function () { _p(); boot(); }; }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 760));
+})();
+</script>
 <script>
 /* ==========================================================================
    SaaS Spend Track — Phase 14
