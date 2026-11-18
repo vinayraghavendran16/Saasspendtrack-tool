@@ -50,6 +50,7 @@ as **Secret**.
 | `APP_URL` | `https://app.saasspendtrack.com` |
 | `FROM_EMAIL` | `hello@saasspendtrack.com` (must be a verified ZeptoMail sender) |
 | `FROM_NAME` | `SaaS Spend Track` |
+| `REPLY_TO` | branded reply address, e.g. `hello@saasspendtrack.com` (optional; defaults to `FROM_EMAIL`). Keep your personal Gmail out of customer email. |
 | `ZEPTOMAIL_TOKEN` | your ZeptoMail **Send Mail** token (secret) |
 | `ZEPTOMAIL_URL` | `https://api.zeptomail.in/v1.1/email` (use `.com` if your Zoho account is not India) |
 | `RAZORPAY_WEBHOOK_SECRET` | the secret you set on the Razorpay webhook (secret) |
@@ -87,6 +88,20 @@ Option B (external): point any scheduler (e.g. cron-job.org) at
 
 Cadence (each sent once per user): welcome on signup, day-3 nudge, 1-day-left
 nudge, and an "expired" email when the trial lapses.
+
+## 6b. Stop the old Apps Script from double-emailing
+
+All trial email now sends from ZeptoMail. To avoid trial users getting two
+welcomes and two drips, disable email sending in the existing Apps Script
+(the Google Sheet signup logger), but keep it logging signups:
+
+- In the Apps Script, **delete the `runDailyDrip` time-driven trigger** (clock
+  icon in the left sidebar), so the 14-day Gmail drip stops firing.
+- In `doPost`, comment out the `sendWelcomeEmail(...)` call so it still writes the
+  signup row but sends no Gmail welcome.
+
+The Sheet stays as your signup record; emails come from ZeptoMail only. (The old
+drip was 14-day; the ZeptoMail cadence is 7-day to match the gate.)
 
 ## 7. Verify (after deploy)
 

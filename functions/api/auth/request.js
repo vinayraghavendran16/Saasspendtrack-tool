@@ -5,7 +5,7 @@ import {
   json, badRequest, normalizeEmail, randomToken, sha256Hex,
   now, DAY, TRIAL_DAYS, TOKEN_MINUTES,
 } from '../../_shared/util.js';
-import { sendEmail, loginLinkEmail, welcomeEmail } from '../../_shared/email.js';
+import { sendEmail, loginLinkEmail } from '../../_shared/email.js';
 
 export async function onRequestPost({ request, env }) {
   let body;
@@ -37,19 +37,8 @@ export async function onRequestPost({ request, env }) {
   const mail = loginLinkEmail(link);
   const sent = await sendEmail(env, { to: email, subject: mail.subject, html: mail.html });
 
-  // Fire the welcome email once, on first signup (best-effort).
-  if (!existed) {
-    const already = await env.DB.prepare('SELECT 1 FROM email_log WHERE email=? AND kind=?')
-      .bind(email, 'welcome').first();
-    if (!already) {
-      const w = welcomeEmail();
-      const ok = await sendEmail(env, { to: email, subject: w.subject, html: w.html });
-      if (ok.ok) {
-        await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
-          .bind(email, 'welcome', t).run();
-      }
-    }
-  }
+  // The welcome email is sent on first successful sign-in (verify.js), not here,
+  // so people who never click the link don't get welcomed.
 
   // Always 200 so we don't leak which emails exist.
   return json({ ok: true, emailed: sent.ok !== false });

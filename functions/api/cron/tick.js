@@ -2,15 +2,16 @@
 // Idempotent cadence runner. Call it hourly (Cloudflare cron worker or any
 // scheduler). Each email kind is sent at most once per user via email_log.
 import { json, unauthorized, now, DAY, safeEqual } from '../../_shared/util.js';
-import { sendEmail, trialNudgeEmail, expiredEmail } from '../../_shared/email.js';
+import { sendEmail, nudgeEmail, expiredEmail } from '../../_shared/email.js';
 
 export async function onRequestGet({ request, env }) {
   const token = new URL(request.url).searchParams.get('token') || '';
   if (!env.CRON_SECRET || !safeEqual(token, env.CRON_SECRET)) return unauthorized();
 
-  const payUrl = `${(env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '')}/#pricing`;
+  const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
+  const payUrl = `${appUrl}/#pricing`;
   const t = now();
-  const sent = { day3: 0, day6: 0, expired: 0 };
+  const sent = { day2: 0, day4: 0, day6: 0, expired: 0 };
 
   // Users still on a trial track (cap the batch so a run stays quick).
   const { results = [] } = await env.DB.prepare(
@@ -41,20 +42,18 @@ export async function onRequestGet({ request, env }) {
     const daysLeft = Math.ceil((u.trial_ends_at - t) / DAY);
     const elapsed = t - u.created_at;
 
-    if (daysLeft <= 1 && !logged.has('day6')) {
-      const m = trialNudgeEmail('day6', daysLeft, payUrl);
-      if ((await sendEmail(env, { to: u.email, subject: m.subject, html: m.html })).ok) {
-        await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
-          .bind(u.email, 'day6', t).run();
-        sent.day6++;
-      }
-    } else if (elapsed >= 3 * DAY && daysLeft >= 2 && !logged.has('day3')) {
-      const m = trialNudgeEmail('day3', daysLeft, payUrl);
-      if ((await sendEmail(env, { to: u.email, subject: m.subject, html: m.html })).ok) {
-        await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
-          .bind(u.email, 'day3', t).run();
-        sent.day3++;
-      }
+    // Priority order: imminent expiry first, then earlier nudges. One per run.
+    let kind = null;
+    if (daysLeft <= 1 && !logged.has('day6')) kind = 'day6';
+    else if (elapsed >= 4 * DAY && daysLeft >= 2 && !logged.has('day4')) kind = 'day4';
+    else if (elapsed >= 2 * DAY && daysLeft >= 3 && !logged.has('day2')) kind = 'day2';
+    if (!kind) continue;
+
+    const m = nudgeEmail(kind, payUrl, appUrl);
+    if ((await sendEmail(env, { to: u.email, subject: m.subject, html: m.html })).ok) {
+      await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
+        .bind(u.email, kind, t).run();
+      sent[kind]++;
     }
   }
 

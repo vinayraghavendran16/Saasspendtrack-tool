@@ -4,6 +4,7 @@
 import {
   sha256Hex, randomToken, now, DAY, SESSION_DAYS, sessionCookie,
 } from '../../_shared/util.js';
+import { sendEmail, welcomeEmail } from '../../_shared/email.js';
 
 function redirect(location, cookie) {
   const headers = { Location: location };
@@ -35,6 +36,18 @@ export async function onRequestGet({ request, env }) {
     'INSERT INTO sessions (id, email, created_at, expires_at) VALUES (?,?,?,?)',
   ).bind(sid, row.email, t, t + SESSION_DAYS * DAY).run();
   await env.DB.prepare('UPDATE users SET last_login_at=? WHERE email=?').bind(t, row.email).run();
+
+  // Welcome email, once, on first successful sign-in (best-effort).
+  const welcomed = await env.DB.prepare('SELECT 1 FROM email_log WHERE email=? AND kind=?')
+    .bind(row.email, 'welcome').first();
+  if (!welcomed) {
+    const w = welcomeEmail('', appUrl);
+    const ok = await sendEmail(env, { to: row.email, subject: w.subject, html: w.html });
+    if (ok.ok) {
+      await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
+        .bind(row.email, 'welcome', t).run();
+    }
+  }
 
   return redirect(`${appUrl}/?auth=ok`, sessionCookie(sid));
 }
