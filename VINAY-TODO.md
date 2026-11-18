@@ -17,18 +17,6 @@ Last updated: 2026-11-18 (after Command Centre, Reporting, InfoSec, Vendors, con
 
 ## P1 — payment / compliance (money-related)
 
-### Activate Razorpay International Payments + create USD payment page
-Right now the Pay button geo-routes to Razorpay for Indian users
-but falls through to a placeholder (`rzp.io/rzp/INTERNATIONAL-PLACEHOLDER`)
-for everyone else. To fix:
-
-1. In Razorpay dashboard → Settings → International Payments → **Activate**
-2. Create a new payment page in USD at the same $3,499/year price
-3. Send me the URL (looks like `rzp.io/rzp/XXXXXXXX`)
-4. I'll replace the placeholder and redeploy
-
-Until this is done, international visitors see the Pay button but it goes nowhere.
-
 ### File LUT for FY 2026-27 on gst.gov.in (zero-rated exports)
 Required to collect international payments without charging 18% GST
 (which international customers won't pay). Standard annual filing for
@@ -185,6 +173,7 @@ These are closed. Listed here so you can see what's shipped.
 - ✅ Notice windows moved to top of dashboard; dark-mode contrast fixes (18 Nov)
 - ✅ Trial email drip trigger installed in Apps Script (17 Nov)
 - ✅ Duplicate `saasspendtrack` Worker deleted from Cloudflare (17 Nov)
+- ✅ Razorpay International USD page wired in (rzp.io/rzp/MhqdtN2a) — app Pay button now routes non-Indian users to it (18 Nov)
 
 ---
 
