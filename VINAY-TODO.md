@@ -20,7 +20,8 @@ Last updated: 2026-11-18 (session). Owner: Vinay.
 
 ## Decisions pending
 - [x] **Email cadence home: Zoho (ZeptoMail), on Cloudflare.** Decided. 7-day cadence (welcome, day-2, day-4, day-6, expired, paid) in your voice, fires from trial start.
-- [ ] **Turn off the old Apps Script emails** so trial users aren't double-emailed: delete its `runDailyDrip` trigger and comment out `sendWelcomeEmail` in `doPost`. Keep the Sheet as a signup log. (Razorpay webhook now points at Cloudflare, done.)
+- [ ] **Turn off the old Apps Script entirely** (no more Sheet): delete the `runDailyDrip` trigger, and remove the Razorpay webhook that points at the `/exec` URL. Trials/paid now live in D1 and show in the admin panel. (Razorpay webhook to Cloudflare: done.)
+- [x] **Admin command centre built** (`/admin.html`): trials, conversion, churn, ARR, revenue, pipeline, signups chart, emails-sent, recent accounts. Set `ADMIN_EMAILS` + `USD_INR` in Cloudflare. Opens/replies tracking = later.
 - [ ] Reconcile the app's cosmetic **Free/Pro plan badge** with the real trial/paid state so they don't contradict.
 - [ ] **Harden the gate:** move subscription/contract data server-side so the lock can't be bypassed in devtools (paid-backend phase).
 - [ ] Registered office on legal doc/footer: **Bengaluru → Chennai**? (confirm the registered office actually moved before changing the legal doc.)

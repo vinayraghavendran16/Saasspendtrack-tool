@@ -52,13 +52,13 @@ export async function onRequestPost({ request, env }) {
   const existing = await env.DB.prepare('SELECT email FROM users WHERE email=?').bind(email).first();
   if (existing) {
     await env.DB.prepare(
-      'UPDATE users SET status=?, plan=?, paid_at=?, rp_payment_id=? WHERE email=?',
-    ).bind('active', plan, t, paymentId, email).run();
+      'UPDATE users SET status=?, plan=?, paid_at=?, rp_payment_id=?, amount_paid=?, currency=? WHERE email=?',
+    ).bind('active', plan, t, paymentId, amount, currency, email).run();
   } else {
     // Paid without a prior trial — activate directly.
     await env.DB.prepare(
-      'INSERT INTO users (email, created_at, trial_ends_at, status, plan, paid_at, rp_payment_id) VALUES (?,?,?,?,?,?,?)',
-    ).bind(email, t, t, 'active', plan, t, paymentId).run();
+      'INSERT INTO users (email, created_at, trial_ends_at, status, plan, paid_at, rp_payment_id, amount_paid, currency) VALUES (?,?,?,?,?,?,?,?,?)',
+    ).bind(email, t, t, 'active', plan, t, paymentId, amount, currency).run();
   }
 
   // Confirmation email, once.

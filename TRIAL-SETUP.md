@@ -55,6 +55,8 @@ as **Secret**.
 | `ZEPTOMAIL_URL` | `https://api.zeptomail.in/v1.1/email` (use `.com` if your Zoho account is not India) |
 | `RAZORPAY_WEBHOOK_SECRET` | the secret you set on the Razorpay webhook (secret) |
 | `CRON_SECRET` | any long random string (secret) |
+| `ADMIN_EMAILS` | your owner email(s), comma-separated — who can open the admin command centre |
+| `USD_INR` | FX rate for showing USD revenue in ₹ (e.g. `86`) |
 
 ## 4. Zoho ZeptoMail
 
@@ -113,6 +115,19 @@ drip was 14-day; the ZeptoMail cadence is 7-day to match the gate.)
    → reload → the expiry lock appears.
 4. Make a ₹1 test payment (or fire a Razorpay test webhook) with that email →
    reload → you're back in.
+
+## Admin command centre (owner-only)
+
+Lives at **`https://app.saasspendtrack.com/admin.html`** (bookmark it; it's
+`noindex` and the data endpoint rejects anyone not in `ADMIN_EMAILS`).
+
+Sign in with your owner email (same magic-link flow). It shows: total trials,
+active trials, paid customers, conversion %, trial churn %, realised ARR, total
+revenue, trial pipeline, a 14-day signups chart, emails-sent counts, and a recent-
+accounts table. It reads live from D1 — **no Google Sheet needed** for trials/paid.
+
+Not tracked yet: email **opens** and **replies** (shows sent counts only). Adding
+opens needs ZeptoMail open-tracking + a small webhook; say the word and I'll wire it.
 
 ## Known limits (worth hardening later)
 

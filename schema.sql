@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
   plan           TEXT,                  -- e.g. 'annual' once paid
   paid_at        INTEGER,
   rp_payment_id  TEXT,                  -- Razorpay payment id (idempotency)
+  amount_paid    INTEGER,               -- smallest unit (paise / cents) as Razorpay reports
+  currency       TEXT,                  -- 'INR' | 'USD'
   last_login_at  INTEGER
 );
 

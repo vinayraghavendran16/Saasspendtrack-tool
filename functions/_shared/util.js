@@ -97,6 +97,14 @@ export async function resolveEntitlement(env, user) {
   };
 }
 
+// True if the email is listed in ADMIN_EMAILS (comma-separated).
+export function isAdmin(env, email) {
+  if (!email) return false;
+  const list = String(env.ADMIN_EMAILS || '')
+    .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+  return list.includes(email.toLowerCase());
+}
+
 // Reads the session cookie and returns the user row, or null.
 export async function getUserFromSession(request, env) {
   const sid = parseCookies(request).sst_session;
