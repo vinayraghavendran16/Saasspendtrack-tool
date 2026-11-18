@@ -1,0 +1,12 @@
+name = "sst-trial-cron"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# Runs hourly. Adjust if you want nudges checked more/less often.
+[triggers]
+crons = ["0 * * * *"]
+
+[vars]
+APP_URL = "https://app.saasspendtrack.com"
+# CRON_SECRET is set as a secret, not here:
+#   wrangler secret put CRON_SECRET
