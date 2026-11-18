@@ -2,6 +2,13 @@
 // Auth: must be signed in with an email listed in ADMIN_EMAILS.
 import { json, unauthorized, now, DAY, getUserFromSession, isAdmin } from '../../_shared/util.js';
 
+// Admin/owner emails are excluded from the funnel so your own testing
+// doesn't inflate trial numbers.
+function adminSet(env) {
+  return new Set(String(env.ADMIN_EMAILS || '')
+    .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean));
+}
+
 const INR_PRICE = 300000;   // ₹3,00,000 / year
 const USD_PRICE = 3499;     // $3,499 / year
 
@@ -13,7 +20,9 @@ export async function onRequestGet({ request, env }) {
   const usdInr = Number(env.USD_INR || 86);
   const t = now();
 
-  const users = (await env.DB.prepare('SELECT * FROM users').all()).results || [];
+  const admins = adminSet(env);
+  const users = ((await env.DB.prepare('SELECT * FROM users').all()).results || [])
+    .filter((u) => !admins.has(String(u.email).toLowerCase()));
   const emailRows = (await env.DB.prepare(
     'SELECT kind, COUNT(*) c FROM email_log GROUP BY kind',
   ).all()).results || [];

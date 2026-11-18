@@ -91,8 +91,53 @@ function invoiceStatus(inv) {
 }
 function subName(id) { return state.subscriptions.find(s => s.id === id)?.name || '—'; }
 function subTeam(id) { return state.subscriptions.find(s => s.id === id)?.team || ''; }
+// Storage: localStorage is the instant local cache; the server (D1, keyed to the
+// signed-in account) is the source of truth so data follows the user across
+// devices. save() writes the cache immediately and debounces a push to the server.
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+  scheduleServerSave();
+}
+
+let _serverSaveTimer = null;
+function scheduleServerSave() {
+  if (_serverSaveTimer) clearTimeout(_serverSaveTimer);
+  _serverSaveTimer = setTimeout(pushServerSave, 1200);
+}
+async function pushServerSave() {
+  try {
+    await fetch('/api/data', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(state),
+    });
+  } catch (_) { /* offline or not signed in: cache still holds it */ }
+}
+
+// Pull the authoritative copy from the server after first paint. If the server
+// has nothing yet (new account / first device), seed it from the local cache.
+async function syncFromServer() {
+  let res;
+  try {
+    res = await fetch('/api/data', { headers: { accept: 'application/json' } });
+  } catch (_) { return; }            // offline: stay on cache
+  if (!res.ok) return;               // 401 (not signed in): gate covers the UI
+  let j;
+  try { j = await res.json(); } catch (_) { return; }
+  if (j && j.data) {
+    state = j.data;
+    ensureStateShape();
+    renderPlanBadge();
+    renderPricing();
+    renderAll();
+    switchView(viewFromHash(), { replaceHistory: true });
+  } else if (j && j.empty) {
+    // Server is empty: migrate whatever this browser already has up to it.
+    if ((state.subscriptions && state.subscriptions.length) ||
+        (state.invoices && state.invoices.length)) {
+      pushServerSave();
+    }
+  }
 }
 
 // -------- math --------
@@ -1999,6 +2044,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderPlanBadge();
   renderPricing();
   renderAll();
+  syncFromServer();
 
   document.getElementById('plan-badge').addEventListener('click', () => switchView('pricing'));
   document.querySelectorAll('.bt-opt').forEach(b => {

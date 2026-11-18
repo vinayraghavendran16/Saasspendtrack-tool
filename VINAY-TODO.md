@@ -31,6 +31,9 @@ Last updated: 2026-11-19. Owner: Vinay. Trial = 7-day, gated, Zoho/ZeptoMail ema
 
 ## ROADMAP (post-launch)
 - **Email open + reply tracking** in the admin panel (ZeptoMail open-tracking + webhook). Panel shows sent-counts only for now.
-- **Harden the gate:** move subscription/contract data server-side so the lock can't be bypassed in devtools.
 - **Reconcile** the app's cosmetic Free/Pro plan badge with the real trial/paid state.
+
+## Done (recent)
+- [x] **Server-side data:** subscriptions/contracts save to the account (D1), follow you across devices; browser data migrates up on first load. Run the schema once more to add `app_data` (see TRIAL-SETUP §6c).
+- [x] **Admin email excluded** from trial metrics so your own testing doesn't inflate numbers.
 - Registered office on legal doc/footer: Bengaluru → Chennai (confirm the registered office actually moved first).

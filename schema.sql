@@ -35,7 +35,15 @@ CREATE INDEX IF NOT EXISTS idx_sessions_email ON sessions(email);
 -- Idempotency log for cadence + transactional emails
 CREATE TABLE IF NOT EXISTS email_log (
   email    TEXT NOT NULL,
-  kind     TEXT NOT NULL,   -- 'welcome','day3','day6','day7','expired','paid'
+  kind     TEXT NOT NULL,   -- 'welcome','day2','day4','day6','expired','paid'
   sent_at  INTEGER NOT NULL,
   PRIMARY KEY (email, kind)
+);
+
+-- Per-account application data (subscriptions, invoices, settings, etc.).
+-- Replaces browser localStorage so data follows the user across devices.
+CREATE TABLE IF NOT EXISTS app_data (
+  email       TEXT PRIMARY KEY,
+  data        TEXT,           -- JSON blob of the app state
+  updated_at  INTEGER
 );

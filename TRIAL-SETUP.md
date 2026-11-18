@@ -105,6 +105,21 @@ welcomes and two drips, disable email sending in the existing Apps Script
 The Sheet stays as your signup record; emails come from ZeptoMail only. (The old
 drip was 14-day; the ZeptoMail cadence is 7-day to match the gate.)
 
+## 6c. Add the app_data table (server-side data)
+
+Subscriptions/contracts now save to the account (D1), not just the browser, so
+data follows you across devices. The `app_data` table was added to `schema.sql`;
+re-run the schema (it uses `CREATE TABLE IF NOT EXISTS`, so it only adds the new
+table and leaves existing data alone):
+
+```bash
+wrangler d1 execute sst-trial --remote --file=./schema.sql
+```
+
+On first load in a signed-in browser, whatever is already in that browser's
+localStorage is migrated up to the server automatically. After that, every save
+pushes to the server and every load pulls from it.
+
 ## 7. Verify (after deploy)
 
 1. Open app.saasspendtrack.com in a clean browser → login screen appears.
