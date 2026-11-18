@@ -1,0 +1,47 @@
+/* Trial gate: login screen, trial banner, expiry lock. */
+.sst-gate {
+  position: fixed; inset: 0; z-index: 10000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(4px);
+  padding: 20px; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.sst-gate__card {
+  background: #fff; color: #0f172a; width: 100%; max-width: 420px;
+  border-radius: 16px; padding: 32px 28px; box-shadow: 0 24px 60px rgba(2, 6, 23, 0.35);
+}
+.sst-gate__logo { font-weight: 700; font-size: 18px; color: #16a34a; margin-bottom: 14px; }
+.sst-gate__card h2 { margin: 0 0 8px; font-size: 20px; }
+.sst-gate__card p { margin: 0 0 18px; color: #475569; line-height: 1.5; font-size: 14px; }
+.sst-gate__card input[type="email"] {
+  width: 100%; box-sizing: border-box; padding: 12px 14px; font-size: 15px;
+  border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 12px;
+}
+.sst-btn {
+  display: inline-block; width: 100%; box-sizing: border-box; text-align: center;
+  background: #16a34a; color: #fff; border: 0; cursor: pointer;
+  padding: 12px 18px; font-size: 15px; font-weight: 600; border-radius: 10px;
+  text-decoration: none; margin-bottom: 10px;
+}
+.sst-btn:hover { background: #15803d; }
+.sst-btn--ghost { background: #f1f5f9; color: #0f172a; }
+.sst-btn--ghost:hover { background: #e2e8f0; }
+.sst-btn--pair { width: calc(50% - 5px); display: inline-block; }
+.sst-btn--pair:first-of-type { margin-right: 8px; }
+.sst-gate__msg { font-size: 13px; margin: 0 0 14px; padding: 10px 12px; border-radius: 8px; }
+.sst-gate__msg--ok { background: #dcfce7; color: #166534; }
+.sst-gate__msg--err { background: #fee2e2; color: #991b1b; }
+.sst-gate__foot { margin-top: 10px; font-size: 12px; color: #94a3b8; text-align: center; }
+.sst-gate__foot a { color: #64748b; }
+
+/* Trial banner (non-blocking) */
+.sst-banner {
+  position: sticky; top: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  background: #0f172a; color: #fff; font-size: 13.5px;
+  padding: 8px 16px; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+.sst-banner strong { color: #4ade80; }
+.sst-banner a { color: #fff; font-weight: 600; text-decoration: underline; }
+.sst-banner--warn { background: #7c2d12; }
+.sst-banner--warn strong { color: #fdba74; }
+.sst-banner__x { background: transparent; border: 0; color: #cbd5e1; cursor: pointer; font-size: 16px; line-height: 1; }
