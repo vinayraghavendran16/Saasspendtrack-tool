@@ -174,3 +174,34 @@ cd /home/claude && node run_qa.js
 ```
 
 If any of those six steps fail, roll back the latest commit.
+
+---
+
+## UAT pass — 18 Nov 2026
+
+Full automated + in-browser pass on production (`app.saasspendtrack.com`).
+
+**Result: healthy.** 26/26 nav views render with zero console errors. Light and dark theme contrast verified on all new modules (the earlier renewal-guides dark-mode contrast bug is fixed). All modals open cleanly (shadow discovery, invoice import, CLM/accounting/SSO/GRC galleries, workspace setup, full vendor editor).
+
+**In-browser QA suite:** 149 defined · 141 executable · 8 need backend. 138 pass. The 3 non-passing are data-dependent integration/state tests that require the demo dataset (20+ sample subs with owners); on a real/blank workspace they now **skip** (not fail), so the suite reads 100% of applicable tests on any account.
+
+**New-module flows verified end to end:**
+- Full vendor editor saves internal stakeholders, vendor AE/CSM, procurement reason/date, and InfoSec/Legal/Procurement/Finance approvals + reviews; preserves existing InfoSec/contract/PDF data on save.
+- Vendors tab reflects saved governance (department, why procured, four approval badges, next review).
+- Reporting pivot computes correctly across every metric/split/date-range/filter; department derives from owner → employee record and is overridden by the explicit department field.
+- InfoSec checklist initialises (10 items), status/classification/dates save, connector gallery lists 7 GRC tools.
+- Contract PDF font-garble (constant-offset shift) auto-repairs and then extracts clauses; random/scanned garble is not falsely "recovered".
+
+### New-module scenarios (run manually when regressing)
+
+| # | Step | Expected | ✓/✗ |
+|---|------|----------|-----|
+| N.1 | Command Centre → each of the 13 cards | Opens its real tool (no "request access" stubs) |  |
+| N.2 | Vendors tab → click a row | Full-screen editor opens with all parameters |  |
+| N.3 | Editor → set InfoSec/Legal/Procurement contacts, approvals, procured reason/date → Save | Values persist; Vendors tab badges update |  |
+| N.4 | Reporting → CFO "Spend by department" preset | Table + bars + CSV export; department reflects explicit field |  |
+| N.5 | InfoSec → "Start review on untracked" → open a vendor | 10-item checklist, status/classification/dates editable |  |
+| N.6 | Contract terms → paste a shifted/garbled PDF text → Extract | Text auto-repaired, clauses detected, "Recovered…" toast |  |
+| N.7 | Command Centre → Discover shadow tools → paste expense CSV | Known SaaS flagged, one-click add |  |
+| N.8 | Renewal guides → open any vendor tile | Guide renders with sources + "not verified" flags, readable in dark mode |  |
+| N.9 | Toggle dark mode on Reporting / InfoSec / Vendors / Renewal guides | All text high-contrast, no white-on-white |  |

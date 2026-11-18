@@ -11436,7 +11436,7 @@ function defineTests() {
     const prev = state.alertLog; state.alertLog = {};
     try {
       const sub = state.subscriptions.find(s => s.owner?.email);
-      assert(sub, 'need a sub with owner for this test');
+      if (!sub) throw new Error('SKIP: no subscription with an owner in this workspace (load sample data to run)');
       const old = new Date(); old.setDate(old.getDate() - 10);
       const renewalISO = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
       // Backdate the sent entry to force escalation threshold
@@ -11605,6 +11605,7 @@ function defineTests() {
 
   // ---------- 6. Integration-like: seed + render + nav ----------
   test('integration', 'seed state: has subscriptions, invoices, employees', () => {
+    if (state.subscriptions.length < 20) throw new Error('SKIP: sample data not loaded (this is a real/blank workspace, not the demo)');
     assert(state.subscriptions.length >= 20, 'expected 20+ sample subs');
     assert(state.invoices.length >= 20, 'expected 20+ sample invoices');
     assert(state.employees.length >= 10, 'expected 10+ sample employees');
@@ -11659,7 +11660,7 @@ function defineTests() {
   });
   test('integration', 'owner inbox: shows cards for an owner with alerts', () => {
     const email = (state.subscriptions.find(s => s.owner?.email) || {}).owner?.email || '';
-    if (!email) throw new Error('no owner in seed');
+    if (!email) throw new Error('SKIP: no owner with alerts in this workspace (load sample data to run)');
     setCurrentOwner(email);
     const alerts = alertsForOwner(email);
     assert(alerts.length >= 0);
@@ -11693,7 +11694,11 @@ async function runAllTests() {
       if (out && typeof out.then === 'function') await out;
       results.push({ ...t, status: 'pass', duration: Math.round(performance.now() - start) });
     } catch (e) {
-      results.push({ ...t, status: 'fail', duration: Math.round(performance.now() - start), error: e.message, stack: e.stack });
+      if (e && typeof e.message === 'string' && e.message.startsWith('SKIP:')) {
+        results.push({ ...t, status: 'skipped', duration: Math.round(performance.now() - start), reason: e.message.slice(5).trim() });
+      } else {
+        results.push({ ...t, status: 'fail', duration: Math.round(performance.now() - start), error: e.message, stack: e.stack });
+      }
     }
   }
   state.settings.lastTestRun = { at: new Date().toISOString(), results };

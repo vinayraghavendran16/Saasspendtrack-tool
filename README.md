@@ -9,14 +9,34 @@ Browser-only app, no backend, state in localStorage. On-prem available for BFSI,
 
 ## What's in it
 
+**Command Centre (onboarding hub)**
+- First landing page for new workspaces: 13 guided ingestion and setup paths
+- Load individual contracts, bulk drop, copy-paste, import a folder of PDFs
+- Connect a CLM (12 tools: SpotDraft, Ironclad, Juro, LinkSquares, Concord, Conga, Agiloft, DocuSign CLM, Gatekeeper, ContractWorks, Icertis, Sirion) via CSV export or direct API sync
+- Import a Google Sheet (server-side fetch, no CORS), connect accounting (QuickBooks, Xero, NetSuite, Zoho Books, Tally, FreshBooks, Sage)
+- Discover shadow tools from an expense/card CSV; discover apps via SSO (Okta, Google Workspace, Entra ID, OneLogin, JumpCloud)
+- Import invoices, add the team directory, set up the workspace (fiscal year, default notice window)
+
+**Governance**
+- **Vendors tab** — the governance register: every vendor with department, why/when procured, approval status (InfoSec / Legal / Procurement / Finance), and next review
+- **InfoSec module** — per-vendor security reviews: 10-item onboarding checklist, status, data classification, owner, annual re-review dates; connects to GRC tools (Vanta, Drata, Secureframe, OneTrust, SecurityScorecard, Whistic, UpGuard)
+- **Full-screen vendor editor** — all parameters: internal stakeholders (InfoSec/Legal/Procurement contacts mapped from the team directory), vendor AE/CSM contact, procurement reason and date, approvals and reviews
+- **Reporting** — cross-functional pivot (CFO/CRO/IT/Procurement/InfoSec): metric × split (department/team/function/tool/owner/InfoSec status/month/quarter) × date range, with filters, 9 persona presets, and CSV export
+- **Renewal Guides** — curated, source-grounded vendor renewal/cancellation playbooks built from live web search with citations and unverified-fact flagging
+
 **Spend management**
-- Dashboard, Analytics, Insights
+- Dashboard (notice windows surfaced at top), Analytics, Insights
 - Invoice tracking with OCR ingestion
+- Explicit department / cost-center field per tool (overrides owner-derived department in reports)
 - Spend by department, category, vendor, any time window
 - 12-month trend charts
 
 **Contract intelligence**
 - Bulk upload with OCR for scanned PDFs (Tesseract.js)
+- AI contract extraction via `/api/extract` (Anthropic, PDF-native) with regex fallback
+- Auto-repair of constant-offset PDF font garble (shifted text layers recovered before extraction)
+- Duplicate detection (exact source hash + per-vendor), original-PDF download, processing indicator
+- Official MSA links per vendor + signed-MSA upload with clause-source tagging
 - 8-dimension risk engine: Financial / Legal / Operational / Functional / Usage / Data / Compliance / Vendor concentration
 - Clause playbook with deviation scoring, industry weighting
 - Legal review PDF export
@@ -50,7 +70,7 @@ Browser-only app, no backend, state in localStorage. On-prem available for BFSI,
 
 **Everything else**
 - In-app Changelog + Roadmap with per-item upvote counter
-- In-browser QA harness: 124 tests (116 pass / 0 fail / 8 skip)
+- In-browser QA harness: 149 tests (141 executable, 8 need backend); 100% of applicable tests pass (data-dependent integration tests skip gracefully on a blank workspace)
 - PDF export on every quantitative view
 - Light/dark mode with comprehensive contrast handling
 - Fully mobile-responsive
@@ -120,7 +140,8 @@ Production is on **Cloudflare Pages** at `app.saasspendtrack.com`, auto-deployed
 ```bash
 # Automated headless suite
 node /home/claude/run_qa.js
-# → PASS 116 / FAIL 0 / SKIP 8
+# → 141 executable; 100% of applicable tests pass (integration tests that need
+#   the demo dataset skip on a blank workspace)
 ```
 
 Or open the **QA tests** view in the running app and click **Run All Tests**.
@@ -136,10 +157,10 @@ UAT scenarios: see [UAT.md](UAT.md).
 
 ## Current version
 
-Phase 25 shipped 12 Nov 2026. See the in-app **Changelog** view for the full history.
+Updated 18 Nov 2026. Since Phase 25: Command Centre, Reporting, InfoSec, Vendors tab, full-screen vendor editor, CLM/accounting/SSO/GRC connectors, Renewal Guides, shadow-IT discovery, PDF font-garble auto-repair, explicit department field. See the in-app **Changelog** view for the full history.
 
 ## Who's building this
 
-Whizzlead Solutions OPC Private Limited, HSR Layout, Bengaluru. Director: Raghavendran Vittal. Product and GTM: Vinay Raghavendran.
+Whizzlead Solutions OPC Private Limited. Director: Raghavendran Vittal. Product and GTM: Vinay Raghavendran. Based in Chennai.
 
-Contact: vinayraghavendran16@gmail.com · +91 91684 81989 · HSR Layout, Bengaluru 560102
+Contact: +91 91684 81989

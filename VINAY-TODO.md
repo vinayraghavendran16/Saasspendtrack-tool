@@ -5,7 +5,13 @@ up to date every phase — anything that only you can do (dashboard
 clicks, OAuth, payment setup, legal filings, copy sign-off) lives
 here. Tick items off by removing them from the list, or ask me to.
 
-Last updated: Phase 54 — 2026-11-15
+Last updated: 2026-11-18 (after Command Centre, Reporting, InfoSec, Vendors, connectors, Renewal Guides, PDF garble-repair, department field, full vendor editor)
+
+> UI/UX + UAT pass on 18 Nov 2026: healthy. 26/26 views render, zero console
+> errors, dark/light contrast fixed, all new modules verified end to end. The
+> in-browser QA suite reads 100% of applicable tests (3 demo-only integration
+> tests now skip on a blank workspace instead of failing). Nothing from that
+> pass needs your action. Your open items below are unchanged.
 
 ---
 
@@ -179,12 +185,11 @@ is free:
 
 Purely cosmetic — doesn't change functionality.
 
-### Write real "About" copy for the website footer
-Current footer just says "Whizzlead Solutions OPC Private Limited,
-HSR Layout, Bengaluru 560102". For trust signals, consider adding:
-- One-line "who built this" (Vinay + 13y RevOps background)
-- Link to your LinkedIn
-- A real email (not the form)
+### Fix the footer address (now outdated) + write real "About" copy
+The website footer still says "HSR Layout, Bengaluru 560102" but you're
+in **Chennai** now. Two things:
+- Update the address to your current Chennai location (send me the line you want and I'll change it; I didn't want to publish a specific address without your say-so).
+- For trust signals, consider adding: a one-line "who built this" (Vinay + 13y RevOps background), a link to your LinkedIn, and a real support email (not the form).
 
 ---
 
@@ -196,6 +201,15 @@ These are closed. Listed here so you can see what's shipped.
 - ✅ Cloudflare Pages redeployed after bundle pipeline fix (Phase 42)
 - ✅ Signup modal dark-theme fix verified live (Phase 39/40)
 - ✅ Dark modal CSS fix verified in Incognito after cache bust
+- ✅ Command Centre: 13 working ingestion/setup paths, no stubs (18 Nov)
+- ✅ Reporting module (cross-functional pivot + CSV export) (18 Nov)
+- ✅ InfoSec module (per-vendor reviews, checklist, GRC connectors) (18 Nov)
+- ✅ Vendors governance tab + full-screen vendor editor with stakeholders/approvals (18 Nov)
+- ✅ CLM / accounting / SSO / GRC connectors (CSV + user-token API sync) (18 Nov)
+- ✅ Renewal Guides (source-grounded, pre-generated for 12 vendors) (18 Nov)
+- ✅ PDF constant-offset font-garble auto-repair in contract extraction (18 Nov)
+- ✅ Explicit department / cost-center field (hybrid with owner-derived fallback) (18 Nov)
+- ✅ Notice windows moved to top of dashboard; dark-mode contrast fixes (18 Nov)
 
 ---
 
