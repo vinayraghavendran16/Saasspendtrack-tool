@@ -15,33 +15,6 @@ Last updated: 2026-11-18 (after Command Centre, Reporting, InfoSec, Vendors, con
 
 ---
 
-## P0 — blocking / time-sensitive
-
-### Install the trial email drip trigger (Phase 45, 3 min)
-The code is already in `trial-tracking/drip-emails.gs`. You need to:
-
-1. Open Apps Script (**Extensions → Apps Script** from the Signups Sheet)
-2. Scroll to the bottom of `Code.gs` → paste the **entire** contents of `drip-emails.gs`
-3. Save
-4. Left sidebar → clock icon (Triggers) → **+ Add Trigger**
-   - Function: `runDailyDrip`
-   - Event source: Time-driven → Day timer → **9am to 10am** (IST)
-5. Run `testDripNow` once from the editor to verify it sends you an email
-
-Full walkthrough: `trial-tracking/DRIP-SETUP.md`.
-
-Until you install this, no drip emails go out to trial users.
-
-### Delete the standalone `saasspendtrack` Worker (cleanup from last night)
-In Cloudflare Dashboard → Workers & Pages, you now have **two**
-projects with the same name:
-- `saasspendtrack` (Worker, at `saasspendtrack.vinayraghavendran16.workers.dev`) — the one we created last night by mistake
-- `saasspendtrack` (Pages project, serving `app.saasspendtrack.com`) — the real one
-
-Delete the Worker (first row). The Pages project is unaffected.
-
----
-
 ## P1 — payment / compliance (money-related)
 
 ### Activate Razorpay International Payments + create USD payment page
@@ -210,6 +183,8 @@ These are closed. Listed here so you can see what's shipped.
 - ✅ PDF constant-offset font-garble auto-repair in contract extraction (18 Nov)
 - ✅ Explicit department / cost-center field (hybrid with owner-derived fallback) (18 Nov)
 - ✅ Notice windows moved to top of dashboard; dark-mode contrast fixes (18 Nov)
+- ✅ Trial email drip trigger installed in Apps Script (17 Nov)
+- ✅ Duplicate `saasspendtrack` Worker deleted from Cloudflare (17 Nov)
 
 ---
 
