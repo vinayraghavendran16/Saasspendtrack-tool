@@ -17,31 +17,15 @@ Last updated: 2026-11-18 (after Command Centre, Reporting, InfoSec, Vendors, con
 
 ## P1 — payment / compliance (money-related)
 
-### File LUT for FY 2026-27 on gst.gov.in (zero-rated exports)
-Required to collect international payments without charging 18% GST
-(which international customers won't pay). Standard annual filing for
-Indian exporters of services.
-
-1. Log into gst.gov.in
-2. Services → User Services → Furnish Letter of Undertaking (LUT)
-3. Form GST RFD-11, FY 2026-27
-4. Two witnesses needed (name + address)
-5. File and download the acknowledgment
-
-Without this, international Razorpay payments will trigger GST due,
-which is a mess to reconcile.
-
-### Fill in REPLY_TO and SUPPORT_PHONE in Apps Script
-In the welcome-email config at the top of `Code.gs`, there are two
-placeholder constants:
+### Set SUPPORT_PHONE in Apps Script (reply-to already done)
+`REPLY_TO` is set. One placeholder left in the welcome-email config at
+the top of `Code.gs`:
 ```
-const REPLY_TO       = 'REPLACE_WITH_YOUR_EMAIL';
 const SUPPORT_PHONE  = 'REPLACE_WITH_YOUR_PHONE';
 ```
-These control where welcome and drip emails reply-to, and what phone
-number appears in signature lines. Edit directly in the Apps Script
-editor — no deploy needed for welcome email changes; drip picks them
-up on the next scheduled run.
+Set it to +91 91684 81989 (or whichever number you want on email
+signatures). Edit directly in the Apps Script editor — no deploy needed;
+drip picks it up on the next scheduled run.
 
 ---
 
@@ -173,7 +157,10 @@ These are closed. Listed here so you can see what's shipped.
 - ✅ Notice windows moved to top of dashboard; dark-mode contrast fixes (18 Nov)
 - ✅ Trial email drip trigger installed in Apps Script (17 Nov)
 - ✅ Duplicate `saasspendtrack` Worker deleted from Cloudflare (17 Nov)
-- ✅ Razorpay International USD page wired in (rzp.io/rzp/MhqdtN2a) — app Pay button now routes non-Indian users to it (18 Nov)
+- ✅ Razorpay International USD page wired in (rzp.io/rzp/MhqdtN2a) — app + website Pay buttons now route non-Indian users to it (18 Nov)
+- ✅ LUT for FY 2026-27 filed (zero-rated exports)
+- ✅ REPLY_TO set in Apps Script welcome/drip email config
+- ✅ Website updated with governance/InfoSec/reporting/connectors/renewal-guide sections + international Pay fix (PR #2, 18 Nov)
 
 ---
 
