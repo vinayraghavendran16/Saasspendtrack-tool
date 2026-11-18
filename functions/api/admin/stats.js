@@ -1,6 +1,6 @@
 // GET /api/admin/stats  — owner-only metrics for the admin command centre.
 // Auth: must be signed in with an email listed in ADMIN_EMAILS.
-import { json, unauthorized, now, DAY, getUserFromSession, isAdmin } from '../../_shared/util.js';
+import { json, now, DAY, requireAdmin } from '../../_shared/util.js';
 
 // Admin/owner emails are excluded from the funnel so your own testing
 // doesn't inflate trial numbers.
@@ -13,9 +13,8 @@ const INR_PRICE = 300000;   // ₹3,00,000 / year
 const USD_PRICE = 3499;     // $3,499 / year
 
 export async function onRequestGet({ request, env }) {
-  const user = await getUserFromSession(request, env);
-  if (!user) return json({ error: 'auth' }, 401);
-  if (!isAdmin(env, user.email)) return unauthorized('not an admin');
+  const gate = await requireAdmin(request, env);
+  if (gate.response) return gate.response;
 
   const usdInr = Number(env.USD_INR || 86);
   const t = now();

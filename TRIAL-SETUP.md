@@ -144,6 +144,26 @@ accounts table. It reads live from D1 — **no Google Sheet needed** for trials/
 Not tracked yet: email **opens** and **replies** (shows sent counts only). Adding
 opens needs ZeptoMail open-tracking + a small webhook; say the word and I'll wire it.
 
+## Gating a new server feature (reuse for anything paid)
+
+Any new endpoint that does valuable work (AI extraction, exports, analysis)
+should sit behind the entitlement guard. Then bypassing the client overlay gets
+an expired/unpaid user nothing — the endpoint returns 403.
+
+```js
+import { requireEntitled } from '../_shared/util.js';
+
+export async function onRequestPost({ request, env }) {
+  const gate = await requireEntitled(request, env);
+  if (gate.response) return gate.response;   // 401 not signed in, 403 not entitled
+  const { user, ent } = gate;                // entitled account — do the work
+  // ...
+}
+```
+
+Owner-only endpoints use `requireAdmin` the same way. This is where "developers
+can't get the value for free" is actually enforced — on the server, per request.
+
 ## Known limits (worth hardening later)
 
 - **Data still lives in the browser (localStorage).** The gate blocks the UI and

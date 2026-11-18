@@ -3,7 +3,7 @@
 //   PUT  /api/data -> replace it (entitled users only)
 // This is what makes data follow the user across devices instead of living
 // only in one browser's localStorage.
-import { json, getUserFromSession, resolveEntitlement, now } from '../_shared/util.js';
+import { json, getUserFromSession, requireEntitled, now } from '../_shared/util.js';
 
 const MAX_BYTES = 1_500_000; // generous cap for a single account's state
 
@@ -21,12 +21,10 @@ export async function onRequestGet({ request, env }) {
 }
 
 export async function onRequestPut({ request, env }) {
-  const user = await getUserFromSession(request, env);
-  if (!user) return json({ error: 'auth' }, 401);
-
-  // Only let people with access write (expired trials are read-only).
-  const ent = await resolveEntitlement(env, user);
-  if (!ent.entitled) return json({ error: 'not_entitled' }, 403);
+  // Only entitled accounts can write (expired trials are read-only).
+  const gate = await requireEntitled(request, env);
+  if (gate.response) return gate.response;
+  const { user } = gate;
 
   const body = await request.text();
   if (body.length > MAX_BYTES) return json({ error: 'too_large' }, 413);

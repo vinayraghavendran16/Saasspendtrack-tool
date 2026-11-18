@@ -105,6 +105,32 @@ export function isAdmin(env, email) {
   return list.includes(email.toLowerCase());
 }
 
+// Reusable guards for feature endpoints.
+//
+//   export async function onRequestPost(ctx) {
+//     const gate = await requireEntitled(ctx.request, ctx.env);
+//     if (gate.response) return gate.response;   // 401 / 403, short-circuit
+//     const { user, ent } = gate;                // entitled user, proceed
+//     ...
+//   }
+//
+// Use requireEntitled for any paid/trial feature (AI extraction, exports,
+// analysis). Use requireAdmin for owner-only endpoints.
+export async function requireEntitled(request, env) {
+  const user = await getUserFromSession(request, env);
+  if (!user) return { response: unauthorized('sign in required') };
+  const ent = await resolveEntitlement(env, user);
+  if (!ent.entitled) return { response: json({ error: 'not_entitled' }, 403) };
+  return { user, ent };
+}
+
+export async function requireAdmin(request, env) {
+  const user = await getUserFromSession(request, env);
+  if (!user) return { response: unauthorized('sign in required') };
+  if (!isAdmin(env, user.email)) return { response: unauthorized('not an admin') };
+  return { user };
+}
+
 // Reads the session cookie and returns the user row, or null.
 export async function getUserFromSession(request, env) {
   const sid = parseCookies(request).sst_session;
