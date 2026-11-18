@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SaaS Spend Track — Admin Command Centre</title>
+<meta name="robots" content="noindex" />
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0b1120; color: #e6edf6; -webkit-font-smoothing: antialiased; }
+  header { display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 1px solid #1e293b; }
+  header .brand { font-weight: 700; font-size: 16px; }
+  header .brand span { color: #60a5fa; }
+  header .meta { font-size: 12px; color: #64748b; }
+  main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin: 28px 0 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+  .tile { background: #111a2e; border: 1px solid #1e293b; border-radius: 12px; padding: 16px 18px; }
+  .tile .label { font-size: 12px; color: #94a3b8; margin-bottom: 8px; }
+  .tile .value { font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
+  .tile .sub { font-size: 12px; color: #64748b; margin-top: 4px; }
+  .tile.good .value { color: #4ade80; }
+  .tile.warn .value { color: #fbbf24; }
+  .tile.money .value { color: #60a5fa; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #1a2436; }
+  th { color: #94a3b8; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+  .pill.trial { background: #1e3a5f; color: #7dd3fc; }
+  .pill.active { background: #14532d; color: #86efac; }
+  .pill.expired { background: #3f1d2e; color: #fda4af; }
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 90px; padding: 8px 0; }
+  .bars .bar { flex: 1; background: #1d4ed8; border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
+  .bars .bar span { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; color: #475569; white-space: nowrap; }
+  .emails { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { background: #111a2e; border: 1px solid #1e293b; border-radius: 999px; padding: 6px 14px; font-size: 13px; }
+  .chip b { color: #e6edf6; }
+  .note { font-size: 12px; color: #64748b; margin-top: 10px; }
+  .center { max-width: 380px; margin: 80px auto; background: #111a2e; border: 1px solid #1e293b;
+    border-radius: 14px; padding: 28px; }
+  .center h1 { font-size: 18px; margin: 0 0 8px; }
+  .center p { color: #94a3b8; font-size: 14px; margin: 0 0 16px; }
+  .center input { width: 100%; padding: 11px 13px; border-radius: 9px; border: 1px solid #334155;
+    background: #0b1120; color: #e6edf6; font-size: 14px; margin-bottom: 10px; }
+  .btn { width: 100%; padding: 11px; border: 0; border-radius: 9px; background: #2563eb; color: #fff;
+    font-weight: 600; font-size: 14px; cursor: pointer; }
+  .btn:hover { background: #1d4ed8; }
+  .msg { font-size: 13px; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
+  .msg.err { background: #3f1d2e; color: #fda4af; }
+  .msg.ok { background: #14532d; color: #86efac; }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+
+<div id="auth" class="hide">
+  <div class="center">
+    <h1>Admin Command Centre</h1>
+    <p id="auth-copy">Sign in with your owner email to view trial and revenue metrics.</p>
+    <div id="auth-msg"></div>
+    <div id="auth-body">
+      <input type="email" id="auth-email" placeholder="you@company.com" autocomplete="email" />
+      <button class="btn" id="auth-send">Email me a sign-in link</button>
+    </div>
+  </div>
+</div>
+
+<div id="dash" class="hide">
+  <header>
+    <div class="brand">SaaS <span>Spend Track</span> · Admin</div>
+    <div class="meta" id="meta"></div>
+  </header>
+  <main>
+    <h2>Trials &amp; conversion</h2>
+    <div class="grid">
+      <div class="tile"><div class="label">Total trials</div><div class="value" id="m-total">–</div></div>
+      <div class="tile"><div class="label">Active trials</div><div class="value" id="m-active">–</div><div class="sub">in 7-day window</div></div>
+      <div class="tile good"><div class="label">Paid customers</div><div class="value" id="m-paid">–</div></div>
+      <div class="tile good"><div class="label">Conversion</div><div class="value" id="m-conv">–</div><div class="sub">paid / decided trials</div></div>
+      <div class="tile warn"><div class="label">Trial churn</div><div class="value" id="m-churn">–</div><div class="sub">expired without paying</div></div>
+      <div class="tile warn"><div class="label">Expired, unpaid</div><div class="value" id="m-expired">–</div></div>
+    </div>
+
+    <h2>Revenue</h2>
+    <div class="grid">
+      <div class="tile money"><div class="label">Realised ARR</div><div class="value" id="m-arr">–</div><div class="sub">from paid customers</div></div>
+      <div class="tile money"><div class="label">Total revenue</div><div class="value" id="m-rev">–</div><div class="sub">annual plans, collected</div></div>
+      <div class="tile"><div class="label">Trial pipeline</div><div class="value" id="m-pipe">–</div><div class="sub">active trials × list price</div></div>
+    </div>
+
+    <h2>Signups (last 14 days)</h2>
+    <div class="bars" id="bars"></div>
+
+    <h2>Emails sent</h2>
+    <div class="emails" id="emails"></div>
+    <div class="note" id="email-note">Opens and replies aren't tracked yet — enable ZeptoMail open tracking + a webhook to add them.</div>
+
+    <h2>Recent accounts</h2>
+    <table>
+      <thead><tr><th>Email</th><th>Status</th><th>Plan</th><th>Signed up</th><th>Days left</th><th>Value (₹)</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="note" id="fxnote"></div>
+  </main>
+</div>
+
+<script>
+  var inr = function (n) {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+  };
+  var fdate = function (ms) { return ms ? new Date(ms).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '–'; };
+
+  function showAuth(copy, msg, msgType) {
+    document.getElementById('dash').classList.add('hide');
+    document.getElementById('auth').classList.remove('hide');
+    if (copy) document.getElementById('auth-copy').textContent = copy;
+    if (msg) document.getElementById('auth-msg').innerHTML = '<div class="msg ' + (msgType || 'err') + '">' + msg + '</div>';
+  }
+
+  function render(d) {
+    document.getElementById('auth').classList.add('hide');
+    document.getElementById('dash').classList.remove('hide');
+    var t = d.totals;
+    document.getElementById('m-total').textContent = t.totalTrials;
+    document.getElementById('m-active').textContent = t.activeTrials;
+    document.getElementById('m-paid').textContent = t.paid;
+    document.getElementById('m-conv').textContent = t.conversionPct + '%';
+    document.getElementById('m-churn').textContent = t.trialChurnPct + '%';
+    document.getElementById('m-expired').textContent = t.expiredUnpaid;
+    document.getElementById('m-arr').textContent = inr(t.arrINR);
+    document.getElementById('m-rev').textContent = inr(t.revenueINR);
+    document.getElementById('m-pipe').textContent = inr(t.pipelineINR);
+    document.getElementById('meta').textContent = 'Updated ' + new Date(d.generatedAt).toLocaleString('en-IN') + ' · USD→INR ' + d.usdInr;
+    document.getElementById('fxnote').textContent = 'USD payments converted at ₹' + d.usdInr + '/$. Set USD_INR in Cloudflare to adjust.';
+
+    var max = Math.max(1, ...d.signups.map(function (s) { return s.count; }));
+    document.getElementById('bars').innerHTML = d.signups.map(function (s) {
+      var h = Math.round((s.count / max) * 100);
+      return '<div class="bar" style="height:' + h + '%" title="' + s.date + ': ' + s.count + '"><span>' + s.date.slice(8) + '</span></div>';
+    }).join('');
+
+    var order = ['welcome', 'day2', 'day4', 'day6', 'expired', 'paid'];
+    var labels = { welcome: 'Welcome', day2: 'Day 2', day4: 'Day 4', day6: 'Day 6 (ends soon)', expired: 'Expired', paid: 'Paid confirm' };
+    var e = d.emailsSent || {};
+    document.getElementById('emails').innerHTML = order.map(function (k) {
+      return '<div class="chip">' + labels[k] + ' <b>' + (e[k] || 0) + '</b></div>';
+    }).join('');
+
+    document.getElementById('rows').innerHTML = (d.recent || []).map(function (r) {
+      return '<tr><td>' + r.email + '</td>' +
+        '<td><span class="pill ' + r.status + '">' + r.status + '</span></td>' +
+        '<td>' + (r.plan || '–') + '</td>' +
+        '<td>' + fdate(r.createdAt) + '</td>' +
+        '<td>' + (r.status === 'trial' ? r.daysLeft : '–') + '</td>' +
+        '<td>' + (r.amountINR ? inr(r.amountINR) : '–') + '</td></tr>';
+    }).join('');
+  }
+
+  function load() {
+    fetch('/api/admin/stats', { headers: { accept: 'application/json' } }).then(function (r) {
+      if (r.status === 401) { showAuth('Sign in with your owner email to view the dashboard.'); return null; }
+      if (r.status === 403) { showAuth('That account isn\'t an admin. Add it to ADMIN_EMAILS in Cloudflare.', 'Not authorized for this email.'); return null; }
+      if (!r.ok) throw new Error('stats ' + r.status);
+      return r.json();
+    }).then(function (d) { if (d) render(d); }).catch(function (err) {
+      showAuth('Could not load the dashboard.', String(err.message || err));
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    load();
+    document.getElementById('auth-send').addEventListener('click', function () {
+      var email = (document.getElementById('auth-email').value || '').trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+      var btn = this; btn.disabled = true; btn.textContent = 'Sending…';
+      fetch('/api/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: email }) }).then(function () {
+        document.getElementById('auth-body').innerHTML =
+          '<div class="msg ok">Check your inbox for the sign-in link, then reopen this page.</div>';
+      });
+    });
+  });
+</script>
+</body>
+</html>
