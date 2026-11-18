@@ -1,3 +1,4 @@
+import { requireEntitled } from '../_shared/util.js';
 // Cloudflare Pages Function — POST /api/ask
 // Ask Track AI: answers a natural-language question using ONLY an app-computed
 // snapshot of the workspace (every number is pre-calculated client-side, so the
@@ -56,6 +57,8 @@ export async function onRequestGet({ env }) {
 export async function onRequestPost({ request, env }) {
   const headers = { ...CORS, "Content-Type": "application/json" };
   try {
+    const gate = await requireEntitled(request, env);
+    if (gate.response) return gate.response;
     if (!env.ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ ok: false, error: "not_configured", message: "ANTHROPIC_API_KEY is not set on the server." }), { status: 501, headers });
     }
