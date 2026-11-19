@@ -3279,6 +3279,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
   <div class="modal">
     <button type="button" class="icon-btn modal-back" onclick="closeModal()">&larr; Back</button>
     <h2 id="modal-title">Add subscription</h2>
+    <div id="nba-block" hidden></div>
     <form id="sub-form">
       <input type="hidden" id="f-id" />
       <label>Name<input type="text" id="f-name" required placeholder="Figma" /></label>
@@ -4611,7 +4612,7 @@ function renderNoticeWindows() {
     </button>`;
   }).join('');
   box.querySelectorAll('[data-notice-sub]').forEach(el => {
-    el.onclick = () => openModal(el.dataset.noticeSub);
+    el.onclick = () => openModal(el.dataset.noticeSub, { fromNotice: true });
   });
 }
 
@@ -5006,7 +5007,7 @@ function govOf(sub) {
   return g;
 }
 function approvalMeta(key) { return APPROVAL_OPTS.find(o => o[0] === key) || APPROVAL_OPTS[0]; }
-function openModal(id) {
+function openModal(id, opts) {
   const modal = document.getElementById('modal');
   const sub = id ? state.subscriptions.find(s => s.id === id) : null;
   // Fill employee datalists (map internal stakeholders from the team directory)
@@ -5053,10 +5054,82 @@ function openModal(id) {
   setV('f-rv-infosec', (sub && sub.infosec && sub.infosec.nextReviewDate) || '');
   setV('f-rv-legal', g.reviews?.legal); setV('f-rv-proc', g.reviews?.procurement); setV('f-rv-finance', g.reviews?.finance);
   modal.querySelector('.modal')?.classList.add('modal--wide');
+  const _nbaEl = document.getElementById('nba-block');
+  if (_nbaEl) {
+    if (opts && opts.fromNotice && sub) { _nbaEl.innerHTML = nextBestActionHtml(sub); _nbaEl.hidden = false; }
+    else { _nbaEl.hidden = true; _nbaEl.innerHTML = ''; }
+  }
   modal.hidden = false;
   setTimeout(() => document.getElementById('f-name').focus(), 50);
 }
 function closeModal() { document.getElementById('modal').hidden = true; }
+
+// Next best action for a stalled renewal: what to do, by whom, by when, the
+// vendor-side contact, and why it's stalled. Used in the editor when it's
+// opened from a notice-window card.
+function nextBestAction(sub) {
+  const win = computeNoticeWindow(sub);
+  const g = sub.governance || { approvals: {}, reviews: {} };
+  const ap = g.approvals || {};
+  const blockers = [];
+  const isStatus = (sub.infosec && sub.infosec.status) || 'not_started';
+  if (['not_started', 'in_review'].includes(isStatus))
+    blockers.push({ label: isStatus === 'in_review' ? 'InfoSec review in progress, not yet cleared' : 'InfoSec review not started', who: sub.stakeholders && sub.stakeholders.infosec, action: 'Get InfoSec to finish and sign off the review' });
+  if (ap.legal === 'pending' || ap.legal === 'rejected')
+    blockers.push({ label: ap.legal === 'rejected' ? 'Legal rejected the current terms' : 'Legal approval still pending', who: sub.stakeholders && sub.stakeholders.legal, action: ap.legal === 'rejected' ? 'Re-negotiate the terms Legal flagged, then re-submit' : 'Chase Legal for sign-off' });
+  if (ap.procurement === 'pending' || ap.procurement === 'rejected')
+    blockers.push({ label: ap.procurement === 'rejected' ? 'Procurement rejected the renewal' : 'Procurement approval still pending', who: sub.stakeholders && sub.stakeholders.procurement, action: 'Resolve the Procurement approval' });
+  if (ap.finance === 'pending' || ap.finance === 'rejected')
+    blockers.push({ label: ap.finance === 'rejected' ? 'Finance rejected the spend' : 'Finance / budget approval still pending', who: sub.owner, action: 'Confirm the budget with Finance' });
+
+  let problem, action, who;
+  if (win && win.daysLeft < 0) {
+    problem = 'The notice window has already passed' + (sub.contract && sub.contract.autoRenew ? ', and this contract auto-renews, so it may have locked in for another term.' : '.');
+    action = 'Contact the vendor now to confirm the renewal status and open a conversation before the term locks.';
+    who = sub.owner;
+  } else if (blockers.length) {
+    problem = blockers.map(b => b.label).join('; ') + '. The renewal cannot close until these clear.';
+    action = blockers[0].action;
+    who = blockers[0].who || sub.owner;
+  } else if (win && win.daysLeft <= 7) {
+    problem = 'The renew-or-cancel decision is still open and the notice deadline is almost here.';
+    action = 'Decide whether to renew or cancel, then give written notice before the act-by date.';
+    who = sub.owner;
+  } else {
+    problem = 'No hard blockers, but the renewal decision has not been confirmed yet.';
+    action = 'Confirm the renewal decision and record the outcome.';
+    who = sub.owner;
+  }
+  const by = win ? win.cancelBy : (sub.renewal ? new Date(sub.renewal) : null);
+  return { problem, action, who: who || {}, by, win, vendor: sub.contactBook || {} };
+}
+
+function nextBestActionHtml(sub) {
+  const n = nextBestAction(sub);
+  const d = n.win ? n.win.daysLeft : null;
+  const chip = d == null ? '' : `<span class="nba-days ${d <= 7 ? '' : 'warn'}">${d < 0 ? Math.abs(d) + 'd overdue' : d + 'd to act'}</span>`;
+  const byStr = n.by ? n.by.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const person = (p) => {
+    const name = (p && p.name) || '', email = (p && p.email) || '';
+    if (!name && !email) return '<span style="color:var(--text-faint)">not assigned</span>';
+    const em = email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : '';
+    return [name ? escapeHtml(name) : '', em].filter(Boolean).join(' · ');
+  };
+  const vc = n.vendor;
+  const vendorStr = (!vc.name && !vc.email && !vc.phone)
+    ? '<span style="color:var(--text-faint)">no vendor contact on file</span>'
+    : [vc.name ? escapeHtml(vc.name) : '', vc.email ? `<a href="mailto:${escapeHtml(vc.email)}">${escapeHtml(vc.email)}</a>` : '', vc.phone ? escapeHtml(vc.phone) : ''].filter(Boolean).join(' · ');
+  return `<div class="nba">
+    <div class="nba-head"><span class="nba-badge">Next best action</span>${chip}</div>
+    <p class="nba-action">${escapeHtml(n.action)}</p>
+    <div class="nba-grid">
+      <div><span class="nba-k">By whom</span><span class="nba-v">${person(n.who)}</span></div>
+      <div><span class="nba-k">By when</span><span class="nba-v">${byStr}</span></div>
+      <div><span class="nba-k">Vendor contact</span><span class="nba-v">${vendorStr}</span></div>
+      <div><span class="nba-k">Why it's stalled</span><span class="nba-v">${escapeHtml(n.problem)}</span></div>
+    </div>
+  </div>`;
+}
 
 function handleSubmit(e) {
   e.preventDefault();
@@ -15312,6 +15385,27 @@ window.openInfosecConnectors = openInfosecConnectors;
 }
 .modal--wide .form-fieldset { margin-top:12px; }
 .modal-back { align-self:flex-start; margin-bottom:14px; }
+/* Pulsing red "tally light" on urgent notice cards */
+.notice-card { position: relative; }
+@keyframes tally-pulse { 0%,100%{ box-shadow:0 0 0 0 rgba(220,38,38,0); } 50%{ box-shadow:0 0 11px 1px rgba(220,38,38,.55); } }
+@keyframes tally-dot { 0%,100%{ opacity:.35; transform:scale(.85); } 50%{ opacity:1; transform:scale(1); } }
+.notice-card.urgent { animation: tally-pulse 1.4s ease-in-out infinite; }
+.notice-card.urgent::after { content:""; position:absolute; top:10px; right:10px; width:8px; height:8px; border-radius:50%; background:#dc2626; box-shadow:0 0 6px 1px rgba(220,38,38,.8); animation: tally-dot 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce){ .notice-card.urgent, .notice-card.urgent::after { animation:none; } }
+/* Next-best-action panel on the editor (shown when opened from a notice window) */
+#nba-block[hidden]{ display:none; }
+.nba { border:1px solid var(--danger); background:var(--danger-soft); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:18px; }
+.nba-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.nba-badge { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--danger-text); }
+.nba-days { font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; background:var(--danger); color:#fff; }
+.nba-days.warn { background:var(--warning); }
+.nba-action { font-size:14px; font-weight:600; color:var(--text); margin:0 0 12px; }
+.nba-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 18px; }
+.nba-grid > div { display:flex; flex-direction:column; gap:2px; }
+.nba-k { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim); font-weight:600; }
+.nba-v { font-size:13px; color:var(--text-2); line-height:1.4; }
+.nba-v a { color:var(--accent); }
+@media (max-width:720px){ .nba-grid { grid-template-columns:1fr; } }
 </style>
 <script>
 /* ==========================================================================
