@@ -33,6 +33,20 @@ html = re.sub(r'<script src="([^"]+)"></script>', inline_js, html)
 
 out_qa = '/home/claude/saasspendtrack_app.html'
 out_deploy = os.path.join(src, 'index.html')
+
+# SAFETY GUARD: index.html is the real deploy artifact and currently contains
+# content (e.g. the Command Centre) that is NOT reproducible from these sources
+# yet. Refuse to overwrite it with a substantially smaller bundle, which would
+# silently drop features. Reconcile the sources first, or pass --force.
+import sys
+if os.path.exists(out_deploy):
+    existing = os.path.getsize(out_deploy)
+    if len(html.encode()) < existing * 0.9 and '--force' not in sys.argv:
+        print(f'ABORT: new bundle ({len(html.encode())} bytes) is >10% smaller than '
+              f'existing index.html ({existing} bytes). Sources are out of sync; '
+              f'this would drop content. Re-run with --force only if you are sure.')
+        sys.exit(1)
+
 for out in (out_qa, out_deploy):
     with open(out, 'w') as f: f.write(html)
     print(f'wrote {out} ({os.path.getsize(out)} bytes)')

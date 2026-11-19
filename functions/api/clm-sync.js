@@ -69,6 +69,7 @@ export async function onRequestPost({ request, env }) {
     rows.slice(0, 50).forEach((row) => Object.keys(row).forEach((k) => { if (!keys.includes(k)) keys.push(k); }));
     return new Response(JSON.stringify({ ok: true, count: rows.length, keys: keys.slice(0, 60), rows }), { status: 200, headers });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 200) }), { status: 200, headers });
+    console.error("clm-sync exception", String((e && e.message) || e));
+    return new Response(JSON.stringify({ ok: false, error: "exception", message: "Something went wrong. Check the URL, token and path." }), { status: 200, headers });
   }
 }

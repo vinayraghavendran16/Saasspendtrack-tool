@@ -54,3 +54,5 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   count        INTEGER NOT NULL,
   window_start INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_rp_payment ON users(rp_payment_id);

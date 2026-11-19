@@ -1,3 +1,4 @@
+import { requireEntitled, rateLimit } from '../_shared/util.js';
 // Cloudflare Pages Function — GET/POST /api/sheet-csv
 // Fetches a shared Google Sheet as CSV server-side (no browser CORS limits) so
 // the client can import the rows. Works for any sheet shared as "anyone with the
@@ -30,15 +31,25 @@ async function handle(url) {
     if (!body.trim()) return new Response(JSON.stringify({ ok: false, error: "empty", message: "The sheet (or that tab) is empty." }), { status: 200, headers });
     return new Response(JSON.stringify({ ok: true, csv: body, id, gid }), { status: 200, headers });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: "fetch_failed", message: String((e && e.message) || e).slice(0, 200) }), { status: 200, headers });
+    console.error("sheet-csv fetch failed", String((e && e.message) || e));
+    return new Response(JSON.stringify({ ok: false, error: "fetch_failed", message: "Couldn't fetch the sheet." }), { status: 200, headers });
   }
 }
 
-export async function onRequestGet({ request }) {
+async function guard(request, env) {
+  const gate = await requireEntitled(request, env);
+  if (gate.response) return gate.response;
+  const rl = await rateLimit(env, "sheet:" + gate.user.email, 60, 3600000);
+  if (!rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many requests. Try again shortly." }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
+  return null;
+}
+export async function onRequestGet({ request, env }) {
+  const g = await guard(request, env); if (g) return g;
   const u = new URL(request.url).searchParams.get("url") || "";
   return handle(u);
 }
-export async function onRequestPost({ request }) {
+export async function onRequestPost({ request, env }) {
+  const g = await guard(request, env); if (g) return g;
   const body = await request.json().catch(() => ({}));
   return handle(body.url || "");
 }
