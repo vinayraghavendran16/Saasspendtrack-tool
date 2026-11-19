@@ -16916,7 +16916,7 @@ const DEMO_PRESETS = {
 /* Build state from a preset. Note: costs in presets are MONTHLY INR
    (lakh/crore scale) to match the Indian market reality. */
 function buildStateFromPreset(presetKey) {
-  const p = DEMO_PRESETS[presetKey];
+  const p = (presetKey && typeof presetKey === 'object') ? presetKey : DEMO_PRESETS[presetKey];
   if (!p) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const iso = (d) => d.toISOString().slice(0, 10);
@@ -17054,8 +17054,31 @@ function buildStateFromPreset(presetKey) {
 function renderDemoPicker() {
   const host = document.getElementById('dp-body'); if (!host) return;
   const currentPreset = state.settings.activePreset || 'acme';
+  const gp = state.settings.generatedPreset;
   host.innerHTML = `
+    <div class="dp-gen">
+      <div class="dp-gen-head">
+        <b>✨ Generate a workspace from a website</b>
+        <span class="dp-gen-sub">Paste a prospect's website. We research it and build a believable SaaS stack you can demo in seconds. Nothing is saved to their records; it's a demo workspace in your browser.</span>
+      </div>
+      <div class="dp-gen-row">
+        <input id="dp-gen-url" type="text" placeholder="prospect.com" class="dp-gen-input" autocomplete="off" spellcheck="false">
+        <button id="dp-gen-btn" class="btn-primary">Generate</button>
+      </div>
+      <div id="dp-gen-status" class="dp-gen-status" hidden></div>
+    </div>
     <div class="dp-grid">
+      ${gp ? `
+      <div class="dp-card dp-gen-card ${currentPreset === 'generated' ? 'dp-current' : ''}" data-preset="generated">
+        <div class="dp-head">
+          <b>${escapeHtml(gp.label || 'Generated workspace')}</b>
+          ${currentPreset === 'generated' ? '<span class="dp-current-tag">Loaded</span>' : '<span class="dp-gen-tag">Generated</span>'}
+        </div>
+        <div class="dp-sub">${escapeHtml(gp.company || '')}</div>
+        <div class="dp-desc">${escapeHtml(gp.description || '')}</div>
+        <div class="dp-stats"><span>${gp.count || 0} vendors</span><span>${gp.employees || '—'} employees</span><span>${escapeHtml(gp.currencyPrefix || '$')}</span></div>
+        <button class="btn-primary dp-load" data-preset="generated">${currentPreset === 'generated' ? 'Reload' : 'Load this preset'}</button>
+      </div>` : ''}
       <div class="dp-card ${currentPreset === 'acme' ? 'dp-current' : ''}" data-preset="acme">
         <div class="dp-head">
           <b>Acme Corp</b>
@@ -17080,17 +17103,69 @@ function renderDemoPicker() {
     </div>
     <div class="dp-note">⚠️ Loading a preset replaces the current workspace data (subscriptions, invoices, employees). Workspace / trial status stays. Use this between demos to show the right flavour to the next prospect.</div>
   `;
+  const presetLabel = (key) => key === 'acme' ? 'Acme Corp'
+    : key === 'generated' ? (gp?.label || 'Generated workspace')
+    : (DEMO_PRESETS[key]?.label || key);
   host.querySelectorAll('.dp-load').forEach(b => b.onclick = () => {
     const key = b.dataset.preset;
-    if (!confirm(`Load the ${key === 'acme' ? 'Acme Corp default' : DEMO_PRESETS[key].label} preset? This replaces current subscriptions, invoices and employees.`)) return;
+    if (!confirm(`Load the ${presetLabel(key)} preset? This replaces current subscriptions, invoices and employees.`)) return;
     loadPreset(key);
     renderDemoPicker();
     renderAll();
-    toast(`${key === 'acme' ? 'Acme Corp' : DEMO_PRESETS[key].label} loaded.`, 'success');
+    toast(`${presetLabel(key)} loaded.`, 'success');
   });
+
+  // Generate-from-website
+  const genBtn = document.getElementById('dp-gen-btn');
+  const genUrl = document.getElementById('dp-gen-url');
+  const genStatus = document.getElementById('dp-gen-status');
+  if (genBtn && genUrl) {
+    const run = async () => {
+      const url = (genUrl.value || '').trim();
+      if (!url) { genUrl.focus(); return; }
+      genBtn.disabled = true; genUrl.disabled = true;
+      genStatus.hidden = false; genStatus.className = 'dp-gen-status';
+      genStatus.textContent = `Researching ${url} and building a workspace… this can take 15-30s.`;
+      try {
+        const res = await fetch('/api/preset/generate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          genStatus.className = 'dp-gen-status err';
+          genStatus.textContent = data.message
+            || (res.status === 401 ? 'Please sign in again.'
+              : res.status === 403 ? 'Your trial has expired.'
+              : 'Could not generate a workspace. Try another URL.');
+          return;
+        }
+        const preset = data.preset; preset.source = data.source || '';
+        if (!confirm(`Load the generated "${preset.label || 'workspace'}"? This replaces current subscriptions, invoices and employees.`)) {
+          genStatus.hidden = true; return;
+        }
+        applyGeneratedPreset(preset);
+        renderDemoPicker();
+        renderAll();
+        toast(`${preset.label || 'Generated workspace'} loaded.`, 'success');
+      } catch (_) {
+        genStatus.className = 'dp-gen-status err';
+        genStatus.textContent = 'Network error. Try again.';
+      } finally {
+        genBtn.disabled = false; genUrl.disabled = false;
+      }
+    };
+    genBtn.onclick = run;
+    genUrl.onkeydown = (e) => { if (e.key === 'Enter') run(); };
+  }
 }
 
 function loadPreset(key) {
+  if (key === 'generated') {
+    const full = state.settings.generatedPresetFull;
+    if (full) applyGeneratedPreset(full);
+    return;
+  }
   if (key === 'acme') {
     // Call the base app's sample loader
     if (typeof buildSampleState === 'function') {
@@ -17114,6 +17189,27 @@ function loadPreset(key) {
   save();
 }
 
+/* Apply a preset generated on the server from a company website. The preset
+   object has the same shape as a DEMO_PRESETS entry (tuple vendors). */
+function applyGeneratedPreset(preset) {
+  const built = buildStateFromPreset(preset);
+  if (!built) return false;
+  state.subscriptions = built.subscriptions;
+  state.invoices = built.invoices;
+  state.employees = built.employees;
+  state.settings.activePreset = 'generated';
+  state.settings.generatedPreset = {
+    label: preset.label, description: preset.description, company: preset.company,
+    currencyPrefix: preset.currencyPrefix, employees: preset.employees,
+    count: (preset.vendors || []).length, source: preset.source || '',
+  };
+  state.settings.generatedPresetFull = preset; // full object so Reload works
+  state.settings.chatLog = [];
+  state.alertLog = {};
+  save();
+  return true;
+}
+
 /* ---------- View + nav ---------- */
 function ensureDemoView() {
   if (document.getElementById('demo-presets')) return;
@@ -17129,6 +17225,17 @@ function ensureDemoView() {
     </div>
     <div id="dp-body"></div>
     <style>
+      .dp-gen { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; }
+      .dp-gen-head { display: flex; flex-direction: column; gap: 4px; }
+      .dp-gen-head b { font-size: 15px; }
+      .dp-gen-sub { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; }
+      .dp-gen-row { display: flex; gap: 8px; }
+      .dp-gen-input { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg, var(--panel)); color: var(--ink, var(--text)); font-size: 14px; }
+      .dp-gen-input:focus { outline: none; border-color: var(--accent); }
+      .dp-gen-status { font-size: 12.5px; color: var(--text-dim); padding: 2px 2px 0; }
+      .dp-gen-status.err { color: var(--danger-text, var(--danger)); }
+      .dp-gen-tag { background: var(--accent); color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 10.5px; font-weight: 600; opacity: .85; }
+      .dp-gen-card { border-style: dashed; }
       .dp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
       .dp-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
       .dp-card.dp-current { border-color: var(--accent); background: linear-gradient(180deg, var(--panel) 0%, color-mix(in srgb, var(--accent) 5%, var(--panel)) 100%); }
