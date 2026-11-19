@@ -1,4 +1,4 @@
-import { requireEntitled } from '../_shared/util.js';
+import { requireEntitled, rateLimit } from '../_shared/util.js';
 // Cloudflare Pages Function — POST /api/extract
 // World-class contract extraction: sends contract text to the Anthropic API
 // and returns structured, schema-validated facts via tool use.
@@ -158,6 +158,8 @@ export async function onRequestPost({ request, env }) {
   try {
     const gate = await requireEntitled(request, env);
     if (gate.response) return gate.response;
+    const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000);
+    if (!_rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many AI requests. Try again shortly." }), { status: 429, headers });
     if (!env.ANTHROPIC_API_KEY) {
       return new Response(
         JSON.stringify({ ok: false, error: "not_configured", message: "ANTHROPIC_API_KEY is not set on the server." }),

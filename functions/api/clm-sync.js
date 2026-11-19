@@ -34,9 +34,15 @@ function flatten(rec, prefix = "", out = {}, depth = 0) {
   return out;
 }
 
-export async function onRequestPost({ request }) {
+import { requireEntitled, rateLimit, isPublicHttpsHost } from '../_shared/util.js';
+
+export async function onRequestPost({ request, env }) {
   const headers = { ...CORS, "Content-Type": "application/json" };
   try {
+    const gate = await requireEntitled(request, env);
+    if (gate.response) return gate.response;
+    const rl = await rateLimit(env, "clm:" + gate.user.email, 30, 3600000);
+    if (!rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many sync requests. Try again shortly." }), { status: 429, headers });
     const b = await request.json().catch(() => ({}));
     const baseUrl = String(b.baseUrl || "").trim().replace(/\/+$/, "");
     const path = String(b.path || "").trim();
@@ -45,6 +51,7 @@ export async function onRequestPost({ request }) {
     const headerName = (b.headerName || "Authorization").toString();
     const recordsPath = (b.recordsPath || "").toString();
     if (!baseUrl || !/^https:\/\//i.test(baseUrl)) return new Response(JSON.stringify({ ok: false, error: "bad_base", message: "Enter the API base URL (https://...)." }), { status: 400, headers });
+    if (!isPublicHttpsHost(baseUrl)) return new Response(JSON.stringify({ ok: false, error: "bad_host", message: "That host is not allowed." }), { status: 400, headers });
     if (!token) return new Response(JSON.stringify({ ok: false, error: "no_token", message: "Enter your API token." }), { status: 400, headers });
     const url = baseUrl + (path.startsWith("/") ? path : "/" + path);
     const reqHeaders = { accept: "application/json" };

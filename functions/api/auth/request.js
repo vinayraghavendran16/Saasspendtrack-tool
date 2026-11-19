@@ -3,7 +3,7 @@
 // magic-link token, and emails the sign-in link.
 import {
   json, badRequest, normalizeEmail, randomToken, sha256Hex,
-  now, DAY, TRIAL_DAYS, TOKEN_MINUTES,
+  now, DAY, TRIAL_DAYS, TOKEN_MINUTES, rateLimit, getClientIp,
 } from '../../_shared/util.js';
 import { sendEmail, loginLinkEmail } from '../../_shared/email.js';
 
@@ -12,6 +12,13 @@ export async function onRequestPost({ request, env }) {
   try { body = await request.json(); } catch { return badRequest('invalid json'); }
   const email = normalizeEmail(body.email);
   if (!email) return badRequest('valid email required');
+
+  // Abuse guard: cap sign-in emails per IP and per address.
+  const ipRl = await rateLimit(env, 'authreq:ip:' + getClientIp(request), 20, 3600000);
+  const emRl = await rateLimit(env, 'authreq:em:' + email, 5, 900000);
+  if (!ipRl.ok || !emRl.ok) {
+    return json({ ok: false, error: 'rate_limited', message: 'Too many sign-in requests. Please wait and try again.' }, 429);
+  }
 
   const t = now();
 

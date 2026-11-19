@@ -102,7 +102,55 @@ export function isAdmin(env, email) {
   if (!email) return false;
   const list = String(env.ADMIN_EMAILS || '')
     .toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+
   return list.includes(email.toLowerCase());
+}
+
+// Fixed-window rate limiter backed by D1. Fails OPEN on any error so a limiter
+// problem never blocks real users.
+export async function rateLimit(env, key, limit, windowMs) {
+  const t = now();
+  const threshold = t - windowMs;
+  try {
+    const row = await env.DB.prepare(
+      `INSERT INTO rate_limits (rl_key, count, window_start) VALUES (?1, 1, ?2)
+       ON CONFLICT(rl_key) DO UPDATE SET
+         count = CASE WHEN window_start < ?3 THEN 1 ELSE count + 1 END,
+         window_start = CASE WHEN window_start < ?3 THEN ?2 ELSE window_start END
+       RETURNING count`,
+    ).bind(key, t, threshold).first();
+    const count = row ? row.count : 1;
+    return { ok: count <= limit, count, limit };
+  } catch (_) {
+    return { ok: true, count: 0, limit };
+  }
+}
+
+export function getClientIp(request) {
+  return request.headers.get('CF-Connecting-IP')
+    || (request.headers.get('X-Forwarded-For') || '').split(',')[0].trim()
+    || 'unknown';
+}
+
+// Best-effort SSRF guard: reject internal / loopback / link-local hosts.
+export function isPublicHttpsHost(urlStr) {
+  let u;
+  try { u = new URL(urlStr); } catch { return false; }
+  if (u.protocol !== 'https:') return false;
+  const h = u.hostname.toLowerCase();
+  if (h.includes(':')) return false;            // raw IPv6 literal
+  if (!h.includes('.')) return false;           // bare hostname
+  if (h === 'localhost' || h.endsWith('.localhost') ||
+      h.endsWith('.local') || h.endsWith('.internal')) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) {    // literal IPv4
+    const o = h.split('.').map(Number);
+    if (o[0] === 10 || o[0] === 127 || o[0] === 0) return false;
+    if (o[0] === 169 && o[1] === 254) return false;            // link-local/metadata
+    if (o[0] === 172 && o[1] >= 16 && o[1] <= 31) return false;
+    if (o[0] === 192 && o[1] === 168) return false;
+    if (o[0] === 100 && o[1] >= 64 && o[1] <= 127) return false; // CGNAT
+  }
+  return true;
 }
 
 // Reusable guards for feature endpoints.

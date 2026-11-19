@@ -47,3 +47,10 @@ CREATE TABLE IF NOT EXISTS app_data (
   data        TEXT,           -- JSON blob of the app state
   updated_at  INTEGER
 );
+
+-- Fixed-window rate-limit counters (auth requests, AI calls, proxy calls).
+CREATE TABLE IF NOT EXISTS rate_limits (
+  rl_key       TEXT PRIMARY KEY,
+  count        INTEGER NOT NULL,
+  window_start INTEGER NOT NULL
+);
