@@ -3277,6 +3277,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 <!-- Modal -->
 <div class="modal-backdrop" id="modal" hidden>
   <div class="modal">
+    <button type="button" class="icon-btn modal-back" onclick="closeModal()">&larr; Back</button>
     <h2 id="modal-title">Add subscription</h2>
     <form id="sub-form">
       <input type="hidden" id="f-id" />
@@ -7224,6 +7225,7 @@ function openContractDetail(id) {
   back.hidden = false;
   back.querySelector('.modal')?.classList.add('modal--wide');
   back.querySelector('.modal').innerHTML = `
+    <button type="button" class="icon-btn modal-back" onclick="document.getElementById('contract-detail-modal').hidden = true">&larr; Back</button>
     <h2>${escapeHtml(sub.name)} · Contract review</h2>
     <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '—'}</p>
     <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
@@ -15309,6 +15311,7 @@ window.openInfosecConnectors = openInfosecConnectors;
   .modal--wide .row.quad { grid-template-columns:repeat(2,1fr); }
 }
 .modal--wide .form-fieldset { margin-top:12px; }
+.modal-back { align-self:flex-start; margin-bottom:14px; }
 </style>
 <script>
 /* ==========================================================================
