@@ -7222,6 +7222,7 @@ function openContractDetail(id) {
   const c = sub.contract || {};
   const back = document.getElementById('contract-detail-modal');
   back.hidden = false;
+  back.querySelector('.modal')?.classList.add('modal--wide');
   back.querySelector('.modal').innerHTML = `
     <h2>${escapeHtml(sub.name)} · Contract review</h2>
     <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '—'}</p>
@@ -8669,6 +8670,7 @@ function openVendorNav(subId) {
   } else {
     const back = document.getElementById('contract-detail-modal');
     back.hidden = false;
+    back.querySelector('.modal')?.classList.remove('modal--wide');
     back.querySelector('.modal').innerHTML = `
       <h2>${escapeHtml(sub.name)}</h2>
       <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '—'}</p>
@@ -15291,10 +15293,21 @@ window.openInfosecConnectors = openInfosecConnectors;
 .is-reqs { display:flex; flex-direction:column; gap:6px; max-height:280px; overflow:auto; }
 .is-req { display:flex; align-items:center; gap:10px; font-size:13px; }
 .is-req select { width:120px; flex:none; }
-/* Full-screen subscription editor */
-.modal--wide { max-width:min(1040px,94vw) !important; width:min(1040px,94vw); max-height:92vh; overflow:auto; }
+/* Full-screen subscription / contract editor */
+.modal--wide {
+  max-width: none !important;
+  width: calc(100vw - 32px);
+  height: calc(100vh - 32px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
+/* Keep the content in a readable, centred column inside the full-screen panel */
+.modal--wide > * { max-width: 1200px; margin-left: auto; margin-right: auto; }
 .modal--wide .row.quad { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-@media (max-width:720px){ .modal--wide .row.quad { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:720px){
+  .modal--wide { width:100vw; height:100vh; max-height:100vh; border-radius:0; }
+  .modal--wide .row.quad { grid-template-columns:repeat(2,1fr); }
+}
 .modal--wide .form-fieldset { margin-top:12px; }
 </style>
 <script>
