@@ -53,9 +53,9 @@ The international USD flow uses a Razorpay payment link
 ### Directory listings (one-time, ~30 min each; I draft copy, you submit)
 Where buyers evaluating "SaaS management tools" actually look.
 
-- [ ] **G2** - https://www.g2.com/products/new
-- [ ] **Capterra** - https://www.capterra.com/vendors/sign-up (also feeds GetApp + Software Advice)
-- [ ] **AlternativeTo.net** - submit as an alternative to Vendr, Zylo, Spendesk
+- [x] **G2** - DONE 19 Nov. Profile submitted and approved; live within minutes. Admin = you, via vinay@saasspendtrack.com. Direct link + verification results emailed to that inbox. TODO on the profile: add 3-5 real product screenshots in the admin view.
+- [x] **Capterra / GetApp / Software Advice** - covered by the G2 cross-publish (checked at submit). Subject to each site's own verification; no separate submission needed.
+- [ ] **AlternativeTo.net** - PARKED 19 Nov. Copy is ready in the listing-copy doc. Only blocker: you need to sign in to AlternativeTo (Google/GitHub/Apple) once; then I fill "Suggest new application" from the draft. Resume: open alternativeto.net, sign in, tell me, I take over.
 - [ ] **Product Hunt** - https://www.producthunt.com/posts/new (timed launch, Tue AM US; draft the post with me first)
 - [ ] **StackShare** - https://stackshare.io/apps/new
 - [ ] **Slant.co** - https://www.slant.co
@@ -77,10 +77,14 @@ Where buyers evaluating "SaaS management tools" actually look.
 ## Ready for me to do now (not blocked on you)
 
 Ask and I'll ship these:
-- [ ] **og-image.png** (1200×630) so shared links stop showing an empty card
-- [ ] **PWA PNG icon pack** from the existing `icon.svg` - `/icon-192.png`, `/icon-512.png`, `/icon-maskable-512.png` (10% safe-zone), `/apple-touch-icon.png` (180×180)
-- [ ] **Listing copy drafts** for G2 / Capterra / AlternativeTo
+- [x] **og-image.png** (1200×628) - DONE, live on the website repo
+- [x] **PWA PNG icon pack** from `icon.svg` - DONE (192/512/maskable-512/apple-touch-180), committed to the app repo
+- [x] **Listing copy drafts** - DONE, in the "SaaS Spend Track - Directory Listing Copy" doc
 - [ ] **Show HN + 4-week LinkedIn sequence** drafts
+- [ ] **AlternativeTo** submission (once you've signed in - see listings above)
+
+Also DONE 19 Nov (not originally on this list):
+- Professional email on Titan: vinay@saasspendtrack.com live, hello@/billing@/support@ aliased to it, full DNS cutover from Cloudflare Email Routing done and verified.
 
 ---
 
