@@ -24,13 +24,13 @@
   // ---- login screen ----
   function showLogin(message) {
     removeGate();
-    var gate = el('<div class="sst-gate" id="sst-gate"><div class="sst-gate__card">' +
+    var gate = el('<div class="sst-gate" id="sst-gate" role="dialog" aria-modal="true" aria-labelledby="sst-login-title"><div class="sst-gate__card">' +
       '<div class="sst-gate__logo">SaaS Spend Track</div>' +
-      '<h2>Start your free trial</h2>' +
+      '<h2 id="sst-login-title">Start your free trial</h2>' +
       '<p>Enter your work email and we’ll send you a sign-in link. 7 days of full access, no card required.</p>' +
-      (message ? '<div class="sst-gate__msg sst-gate__msg--err">' + esc(message) + '</div>' : '') +
+      (message ? '<div class="sst-gate__msg sst-gate__msg--err" role="alert">' + esc(message) + '</div>' : '') +
       '<div id="sst-login-body">' +
-      '<input type="email" id="sst-email" placeholder="you@company.com" autocomplete="email" />' +
+      '<input type="email" id="sst-email" placeholder="you@company.com" autocomplete="email" aria-label="Work email" />' +
       '<button class="sst-btn" id="sst-send">Email me a sign-in link</button>' +
       '</div>' +
       '<div class="sst-gate__foot">Already paid? Use the same email and you’re straight in.</div>' +
@@ -39,6 +39,7 @@
 
     var btn = gate.querySelector('#sst-send');
     var input = gate.querySelector('#sst-email');
+    setTimeout(function () { try { input.focus(); } catch (_) {} }, 0);
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') btn.click(); });
     btn.addEventListener('click', function () {
       var email = (input.value || '').trim();
@@ -49,7 +50,7 @@
         body: JSON.stringify({ email: email }),
       }).then(function () {
         gate.querySelector('#sst-login-body').innerHTML =
-          '<div class="sst-gate__msg sst-gate__msg--ok">Check your inbox at <b>' + esc(email) +
+          '<div class="sst-gate__msg sst-gate__msg--ok" role="status">Check your inbox at <b>' + esc(email) +
           '</b> for your sign-in link. It expires in 15 minutes.</div>';
       }).catch(function () {
         btn.disabled = false; btn.textContent = 'Email me a sign-in link';
@@ -60,9 +61,9 @@
   // ---- expiry / paywall ----
   function showPaywall() {
     removeGate();
-    var gate = el('<div class="sst-gate" id="sst-gate"><div class="sst-gate__card">' +
+    var gate = el('<div class="sst-gate" id="sst-gate" role="dialog" aria-modal="true" aria-labelledby="sst-paywall-title"><div class="sst-gate__card">' +
       '<div class="sst-gate__logo">SaaS Spend Track</div>' +
-      '<h2>Your trial has ended</h2>' +
+      '<h2 id="sst-paywall-title">Your trial has ended</h2>' +
       '<p>Your access is paused but your data is safe. Upgrade to unlock your dashboard again.</p>' +
       '<a class="sst-btn sst-btn--pair" href="' + PAY_INDIA + '" target="_blank" rel="noopener">Pay in ₹ (India)</a>' +
       '<a class="sst-btn sst-btn--pair" href="' + PAY_GLOBAL + '" target="_blank" rel="noopener">Pay in $ (Global)</a>' +
@@ -70,6 +71,7 @@
       '<div class="sst-gate__foot"><a href="#" id="sst-logout">Sign out</a></div>' +
       '</div></div>');
     document.body.appendChild(gate);
+    setTimeout(function () { try { gate.querySelector('.sst-btn').focus(); } catch (_) {} }, 0);
     gate.querySelector('#sst-paid').addEventListener('click', function () { location.reload(); });
     gate.querySelector('#sst-logout').addEventListener('click', function (e) {
       e.preventDefault();
@@ -84,10 +86,10 @@
     var label = daysLeft <= 0 ? 'Your trial ends today'
       : daysLeft === 1 ? '<strong>1 day</strong> left in your trial'
       : '<strong>' + daysLeft + ' days</strong> left in your trial';
-    var banner = el('<div class="sst-banner' + (warn ? ' sst-banner--warn' : '') + '" id="sst-banner">' +
+    var banner = el('<div class="sst-banner' + (warn ? ' sst-banner--warn' : '') + '" id="sst-banner" role="status">' +
       '<span>' + label + '</span>' +
       '<a href="#pricing" id="sst-upgrade">Upgrade now</a>' +
-      '<button class="sst-banner__x" id="sst-banner-x" title="Dismiss">×</button>' +
+      '<button class="sst-banner__x" id="sst-banner-x" title="Dismiss" aria-label="Dismiss trial banner">×</button>' +
       '</div>');
     document.body.insertBefore(banner, document.body.firstChild);
     banner.querySelector('#sst-banner-x').addEventListener('click', function () { banner.remove(); });

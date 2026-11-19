@@ -45,3 +45,10 @@
 .sst-banner--warn { background: #7c2d12; }
 .sst-banner--warn strong { color: #fdba74; }
 .sst-banner__x { background: transparent; border: 0; color: #cbd5e1; cursor: pointer; font-size: 16px; line-height: 1; }
+
+/* Keyboard focus visibility (accessibility) */
+.sst-gate input:focus-visible, .sst-btn:focus-visible,
+.sst-gate__foot a:focus-visible, .sst-banner a:focus-visible,
+.sst-banner__x:focus-visible {
+  outline: 2px solid #93c5fd; outline-offset: 2px;
+}

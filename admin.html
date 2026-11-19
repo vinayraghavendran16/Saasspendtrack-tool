@@ -63,7 +63,7 @@
     <p id="auth-copy">Sign in with your owner email to view trial and revenue metrics.</p>
     <div id="auth-msg"></div>
     <div id="auth-body">
-      <input type="email" id="auth-email" placeholder="you@company.com" autocomplete="email" />
+      <input type="email" id="auth-email" placeholder="you@company.com" autocomplete="email" aria-label="Owner email" />
       <button class="btn" id="auth-send">Email me a sign-in link</button>
     </div>
   </div>
@@ -118,7 +118,7 @@
     document.getElementById('dash').classList.add('hide');
     document.getElementById('auth').classList.remove('hide');
     if (copy) document.getElementById('auth-copy').textContent = copy;
-    if (msg) document.getElementById('auth-msg').innerHTML = '<div class="msg ' + (msgType || 'err') + '">' + msg + '</div>';
+    if (msg) document.getElementById('auth-msg').innerHTML = '<div class="msg ' + (msgType || 'err') + '" role="alert">' + msg + '</div>';
   }
 
   function render(d) {
