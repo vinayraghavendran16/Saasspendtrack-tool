@@ -143,3 +143,31 @@ export function expiredEmail(payUrl) {
     ], { url: payUrl, label: 'Upgrade and get back in' }),
   };
 }
+
+// --- Multi-user: invite + member-cap alert ---
+export function inviteEmail(link, inviterEmail) {
+  return {
+    subject: 'You have been invited to SaaS Spend Track',
+    html: shell(
+      'Join your team on SaaS Spend Track',
+      [
+        `${esc(inviterEmail) || 'A teammate'} invited you to their SaaS Spend Track workspace, where your team tracks every contract, renewal and software cost in one place.`,
+        'Accept below to join and sign in. This link is single-use and expires in 7 days.',
+      ],
+      { url: link, label: 'Accept invite' },
+    ),
+  };
+}
+
+export function memberCapEmail(accountId, ownerEmail) {
+  return {
+    subject: 'A SaaS Spend Track workspace hit the 50-member cap',
+    html: shell(
+      'Member cap reached',
+      [
+        `Workspace <b>${esc(accountId)}</b> (owner ${esc(ownerEmail)}) tried to invite a member past the 50-member limit.`,
+        'Reach out to them if they should be allowed more seats.',
+      ],
+    ),
+  };
+}

@@ -248,3 +248,11 @@ export async function requireRole(request, env, minRole = 'member') {
   if (!roleAtLeast(membership.role, minRole)) return { response: json({ error: 'forbidden' }, 403) };
   return { user, membership };
 }
+
+// Count unused, unexpired invites for an account (counts toward the member cap).
+export async function countPendingInvites(env, accountId) {
+  const row = await env.DB
+    .prepare('SELECT COUNT(*) c FROM invites WHERE account_id=? AND used=0 AND expires_at > ?')
+    .bind(accountId, now()).first();
+  return (row && row.c) || 0;
+}
