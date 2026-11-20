@@ -3555,7 +3555,32 @@ function invoiceStatus(inv) {
 }
 function subName(id) { return state.subscriptions.find(s => s.id === id)?.name || '—'; }
 function subTeam(id) { return state.subscriptions.find(s => s.id === id)?.team || ''; }
+/* ---------- Demo-mode (preset) state machine ----------
+   A workspace is in "demo mode" while state.settings.activePreset is set.
+   Preset/sample rows are tagged fromPreset:true. The moment a user adds their
+   own (untagged) subscription/contract, reconcileDemoMode() wipes the demo rows
+   and exits demo mode, so their real data stands alone. Migration-safe: it only
+   acts when a tagged preset workspace has gained an untagged row, never on
+   legacy untagged-only data. */
+function isDemoMode() { return !!(state.settings && state.settings.activePreset); }
+function clearPresetData() {
+  state.subscriptions = (state.subscriptions || []).filter(s => !s.fromPreset);
+  state.invoices = (state.invoices || []).filter(i => !i.fromPreset);
+  if (state.settings) state.settings.activePreset = null;
+}
+function reconcileDemoMode() {
+  if (!state.settings || !state.settings.activePreset) return;
+  const subs = state.subscriptions || [];
+  const hasPreset = subs.some(s => s.fromPreset);
+  const hasReal = subs.some(s => !s.fromPreset);
+  if (hasPreset && hasReal) {
+    clearPresetData();
+    try { toast('Your own data detected - demo preset cleared.', 'info'); } catch (_) {}
+    try { if (typeof renderCommandCentre === 'function') renderCommandCentre(); } catch (_) {}
+  }
+}
 function save() {
+  try { reconcileDemoMode(); } catch (_) {}
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
   scheduleServerSave();
 }
@@ -4308,6 +4333,85 @@ function ccSteps() {
     { id: 'infosec', icon: '🛡️', title: 'Set up vendor security reviews', desc: 'Track InfoSec onboarding requirements and annual reviews per vendor, and connect your GRC / vendor-risk tool.', cta: 'Open InfoSec', done: infosecReviewedSubs().length > 0, act: () => switchView('infosec') },
   ];
 }
+/* ---------- Persistent preset box (dashboard hub) ---------- */
+function ccPresetLabel(key) {
+  if (!key) return null;
+  if (key === 'acme') return 'Acme Corp (sample)';
+  if (key === 'generated') return (state.settings && state.settings.generatedPreset && state.settings.generatedPreset.label) || 'Generated workspace';
+  return (typeof DEMO_PRESETS !== 'undefined' && DEMO_PRESETS[key] && DEMO_PRESETS[key].label) || key;
+}
+function ccPresetOptions(selected) {
+  const opts = [['acme', 'Acme Corp (sample)']];
+  if (typeof DEMO_PRESETS !== 'undefined') Object.keys(DEMO_PRESETS).forEach(k => opts.push([k, DEMO_PRESETS[k].label]));
+  if (state.settings && state.settings.generatedPresetFull) opts.push(['generated', ccPresetLabel('generated')]);
+  return opts.map(([k, l]) => `<option value="${k}" ${k === selected ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('');
+}
+function ccPresetBoxHtml() {
+  const demo = isDemoMode();
+  const activeKey = state.settings && state.settings.activePreset;
+  const realCount = (state.subscriptions || []).filter(s => !s.fromPreset).length;
+  const totalSubs = (state.subscriptions || []).length;
+  const badge = (txt, color) => `<span style="display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 9px;border-radius:999px;background:color-mix(in srgb, ${color} 14%, transparent);color:${color};margin-right:8px">${txt}</span>`;
+  let status, note, showClear;
+  if (demo) {
+    status = `${badge('Demo mode', 'var(--accent)')} Loaded: <b>${escapeHtml(ccPresetLabel(activeKey))}</b> · ${totalSubs} vendors`;
+    note = 'Load or clear presets freely while you explore. The moment you upload your own contract, this demo data is replaced by your real data.';
+    showClear = true;
+  } else if (realCount > 0) {
+    status = `${badge('Your data', 'var(--success, #16a34a)')} ${realCount} of your own vendors`;
+    note = 'You are on your own data. Loading a preset will delete your current data, so we will ask you to type to confirm.';
+    showClear = false;
+  } else {
+    status = `${badge('Empty', 'var(--text-dim)')} No data yet`;
+    note = 'Load a ready-made industry preset to explore, or upload your own contracts.';
+    showClear = false;
+  }
+  const btn = 'padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--panel-2);color:var(--text)';
+  const primary = 'padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;border:0;background:var(--accent);color:#fff';
+  return `
+  <div class="panel" id="cc-preset-box" style="margin-bottom:16px;display:flex;flex-direction:column;gap:10px">
+    <div style="font-size:13.5px">${status}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select id="ccp-select" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);font-size:13px;max-width:260px">${ccPresetOptions(demo ? activeKey : 'acme')}</select>
+      <button type="button" id="ccp-load" style="${primary}">${demo ? 'Switch preset' : 'Load preset'}</button>
+      ${showClear ? `<button type="button" id="ccp-clear" style="${btn}">Clear data</button>` : ''}
+      <button type="button" id="ccp-browse" class="link" style="font-size:12.5px">Browse all presets →</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);line-height:1.5">${note}</div>
+  </div>`;
+}
+function wireCcPresetBox(root) {
+  const sel = root.querySelector('#ccp-select');
+  const load = root.querySelector('#ccp-load');
+  if (load && sel) load.onclick = () => ccLoadPreset(sel.value);
+  const clr = root.querySelector('#ccp-clear');
+  if (clr) clr.onclick = ccClearPreset;
+  const br = root.querySelector('#ccp-browse');
+  if (br) br.onclick = () => { try { switchView('demo-presets'); } catch (_) {} };
+}
+function ccLoadPreset(key) {
+  const realCount = (state.subscriptions || []).filter(s => !s.fromPreset).length;
+  if (!isDemoMode() && realCount > 0) {
+    const v = prompt(`This permanently deletes your current workspace data and loads the "${ccPresetLabel(key)}" preset.\n\nType  confirm delete  to proceed:`);
+    if (!v || v.trim().toLowerCase() !== 'confirm delete') { try { toast('Cancelled - your data is unchanged.', 'info'); } catch (_) {} return; }
+  }
+  try { loadPreset(key); } catch (e) { try { toast('Could not load that preset.', 'error'); } catch (_) {} return; }
+  try { renderAll(); } catch (_) {}
+  try { renderCommandCentre(); } catch (_) {}
+  try { toast(`${ccPresetLabel(key)} loaded.`, 'success'); } catch (_) {}
+}
+function ccClearPreset() {
+  if (!isDemoMode()) return;
+  if (!confirm('Clear the demo data and empty the workspace? You can load another preset anytime.')) return;
+  state.subscriptions = [];
+  state.invoices = [];
+  if (state.settings) state.settings.activePreset = null;
+  try { save(); } catch (_) {}
+  try { renderAll(); } catch (_) {}
+  try { renderCommandCentre(); } catch (_) {}
+  try { toast('Demo data cleared. Workspace is empty.', 'info'); } catch (_) {}
+}
+
 function renderCommandCentre() {
   const root = document.getElementById('cc-root'); if (!root) return;
   const steps = ccSteps();
@@ -4321,6 +4425,7 @@ function renderCommandCentre() {
       </div>
       <button class="icon-btn" id="cc-to-dashboard">Go to dashboard →</button>
     </div>
+    ${ccPresetBoxHtml()}
     <div class="cc-progress"><div class="cc-progress-fill" style="width:${Math.round(done / steps.length * 100)}%"></div></div>
     <div class="cc-grid">
       ${steps.map(s => `
@@ -4335,6 +4440,7 @@ function renderCommandCentre() {
   if (dash) dash.onclick = () => { state.settings = state.settings || {}; state.settings.ccDismissed = true; save(); switchView('dashboard'); };
   const map = {}; steps.forEach(s => { map[s.id] = s.act; });
   root.querySelectorAll('[data-cc-act]').forEach(b => b.onclick = () => { const f = map[b.dataset.ccAct]; if (f) f(); });
+  wireCcPresetBox(root);
 }
 
 /* Empty-workspace guidance: when there are no subscriptions, show a card
@@ -6221,7 +6327,7 @@ function buildSampleState() {
   const subs = SAMPLE_VENDORS.map(v => {
     const [name, cost, cycle, category, team, off, ownerId, mgrId, lic, asg, util, c, notes, url, active] = v;
     const sub = {
-      id: crypto.randomUUID(), name, cost, cycle, category, team, renewal: shift(off), notes, url, active,
+      id: crypto.randomUUID(), fromPreset: true, name, cost, cycle, category, team, renewal: shift(off), notes, url, active,
       owner: EMP[ownerId], manager: EMP[mgrId],
     };
     if (lic) { sub.licenses = lic; sub.assigned = asg; sub.utilized = util; }
@@ -6233,7 +6339,7 @@ function buildSampleState() {
   const invoices = [];
   let seq = 4100;
   const inv = (vendor, amount, issuedAgo, dueInDays, paidAgo, notes = '') => {
-    invoices.push({ id: crypto.randomUUID(), subId: byName(vendor), amount,
+    invoices.push({ id: crypto.randomUUID(), fromPreset: true, subId: byName(vendor), amount,
       invoiceNumber: `${prefix(vendor)}-${seq++}`, issueDate: shift(-issuedAgo), dueDate: shift(-issuedAgo + dueInDays),
       paidDate: paidAgo === null ? null : shift(-paidAgo), notes });
   };
@@ -6280,6 +6386,7 @@ function seed(opts = {}) {
   state.alertLog = {};
   state.settings.autoSentAlerts = {};
   state.settings.seededOnce = true;
+  state.settings.activePreset = 'acme';
   // Acknowledge most already-fired alerts so the queue reflects a team that mostly keeps up.
   const liveVendors = new Set(['Zendesk', 'Figma', 'Greenhouse', 'LinkedIn Sales Navigator', 'Datadog']);
   computeAlerts().forEach(a => {
@@ -16956,7 +17063,7 @@ function buildStateFromPreset(presetKey) {
     if (monthlyCost > 0) {
       [[-62, -60], [-32, -30], [-2, null]].forEach(([iss, paid], i) => {
         invoices.push({
-          id: crypto.randomUUID(), subId, amount: monthlyCost,
+          id: crypto.randomUUID(), fromPreset: true, subId, amount: monthlyCost,
           invoiceNumber: `${slug(name).slice(0, 4).toUpperCase() || 'INV'}-${String(i + 1).padStart(4, '0')}`,
           issueDate: shift(iss), dueDate: shift(iss + 28),
           paidDate: paid != null ? shift(paid) : null,
@@ -16966,6 +17073,7 @@ function buildStateFromPreset(presetKey) {
 
     return {
       id: subId,
+      fromPreset: true,
       name,
       cost: monthlyCost,
       cycle: 'monthly',
@@ -17027,6 +17135,7 @@ function buildStateFromPreset(presetKey) {
       const ownerEmail = `owner-${(a.team || 'general').toLowerCase().replace(/\W+/g, '-')}@${slug(p.company)}.com`;
       subs.push({
         id: subId,
+        fromPreset: true,
         name: parent ? `${parent} - ${a.name}` : a.name,
         productName: a.name,
         parentVendor: parent,
@@ -17075,6 +17184,7 @@ function buildStateFromPreset(presetKey) {
       (a.invoices || []).forEach((inv, i) => {
         invoices.push({
           id: crypto.randomUUID(),
+          fromPreset: true,
           subId,
           amount: inv.amount,
           invoiceNumber: inv.number || `${a.name.slice(0, 3).toUpperCase()}-${String(i + 1).padStart(4, '0')}`,
