@@ -1,4 +1,4 @@
-import { requireEntitled, rateLimit } from '../_shared/util.js';
+import { requireEntitledRole, rateLimit } from '../_shared/util.js';
 // Cloudflare Pages Function - POST /api/ask
 // Ask Track AI: answers a natural-language question using ONLY an app-computed
 // snapshot of the workspace (every number is pre-calculated client-side, so the
@@ -57,7 +57,7 @@ export async function onRequestGet({ env }) {
 export async function onRequestPost({ request, env }) {
   const headers = { ...CORS, "Content-Type": "application/json" };
   try {
-    const gate = await requireEntitled(request, env);
+    const gate = await requireEntitledRole(request, env, 'member');
     if (gate.response) return gate.response;
     const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000);
     if (!_rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many AI requests. Try again shortly." }), { status: 429, headers });

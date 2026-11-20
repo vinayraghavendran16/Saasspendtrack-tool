@@ -34,12 +34,12 @@ function flatten(rec, prefix = "", out = {}, depth = 0) {
   return out;
 }
 
-import { requireEntitled, rateLimit, isPublicHttpsHost } from '../_shared/util.js';
+import { requireEntitledRole, rateLimit, isPublicHttpsHost } from '../_shared/util.js';
 
 export async function onRequestPost({ request, env }) {
   const headers = { ...CORS, "Content-Type": "application/json" };
   try {
-    const gate = await requireEntitled(request, env);
+    const gate = await requireEntitledRole(request, env, 'member');
     if (gate.response) return gate.response;
     const rl = await rateLimit(env, "clm:" + gate.user.email, 30, 3600000);
     if (!rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many sync requests. Try again shortly." }), { status: 429, headers });

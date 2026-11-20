@@ -3,7 +3,7 @@
 //   PUT  /api/data -> replace it (entitled users only)
 // This is what makes data follow the user across devices instead of living
 // only in one browser's localStorage.
-import { json, getUserFromSession, requireEntitled, getAccountContext, now } from '../_shared/util.js';
+import { json, getUserFromSession, requireEntitledRole, getAccountContext, now } from '../_shared/util.js';
 
 const MAX_BYTES = 1_500_000; // generous cap for a single account's state
 
@@ -13,6 +13,9 @@ export async function onRequestGet({ request, env }) {
   // Key app_data by the account owner so every member shares one workspace.
   // For a solo user, the owner email is their own email (zero change).
   const ctx = await getAccountContext(env, user);
+  // A removed/suspended member can't read the shared workspace (reads stay open for
+  // expired-but-active members, which is why this checks status, not entitlement).
+  if (ctx && ctx.membership && ctx.membership.status !== 'active') return json({ error: 'no_account' }, 403);
   const key = (ctx && ctx.ownerEmail) || user.email;
   const row = await env.DB.prepare('SELECT data FROM app_data WHERE email=?')
     .bind(key).first();
@@ -25,8 +28,8 @@ export async function onRequestGet({ request, env }) {
 }
 
 export async function onRequestPut({ request, env }) {
-  // Only entitled accounts can write (expired trials are read-only).
-  const gate = await requireEntitled(request, env);
+  // Only entitled, active members can write (expired trials are read-only).
+  const gate = await requireEntitledRole(request, env, 'member');
   if (gate.response) return gate.response;
   const { user } = gate;
 
