@@ -3,15 +3,19 @@
 //   PUT  /api/data -> replace it (entitled users only)
 // This is what makes data follow the user across devices instead of living
 // only in one browser's localStorage.
-import { json, getUserFromSession, requireEntitled, now } from '../_shared/util.js';
+import { json, getUserFromSession, requireEntitled, getAccountContext, now } from '../_shared/util.js';
 
 const MAX_BYTES = 1_500_000; // generous cap for a single account's state
 
 export async function onRequestGet({ request, env }) {
   const user = await getUserFromSession(request, env);
   if (!user) return json({ error: 'auth' }, 401);
+  // Key app_data by the account owner so every member shares one workspace.
+  // For a solo user, the owner email is their own email (zero change).
+  const ctx = await getAccountContext(env, user);
+  const key = (ctx && ctx.ownerEmail) || user.email;
   const row = await env.DB.prepare('SELECT data FROM app_data WHERE email=?')
-    .bind(user.email).first();
+    .bind(key).first();
   if (!row || !row.data) return json({ empty: true });
   try {
     return json({ data: JSON.parse(row.data) });
@@ -30,10 +34,13 @@ export async function onRequestPut({ request, env }) {
   if (body.length > MAX_BYTES) return json({ error: 'too_large' }, 413);
   try { JSON.parse(body); } catch { return json({ error: 'bad_json' }, 400); }
 
+  // Write to the account owner's row so all members share one workspace.
+  const ctx = await getAccountContext(env, user);
+  const key = (ctx && ctx.ownerEmail) || user.email;
   await env.DB.prepare(
     `INSERT INTO app_data (email, data, updated_at) VALUES (?,?,?)
      ON CONFLICT(email) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at`,
-  ).bind(user.email, body, now()).run();
+  ).bind(key, body, now()).run();
 
   return json({ ok: true });
 }

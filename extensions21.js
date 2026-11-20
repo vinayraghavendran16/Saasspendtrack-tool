@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 35
+   SaaS Spend Track - Phase 35
    Trial signup capture
    ---------------------------------------------------------------------------
    Problem: the tool is browser-only. Every trial signup disappears into
@@ -101,7 +101,7 @@ async function submitSignup(payload) {
   }
   try {
     // Apps Script Web Apps need no-cors + form-encoded body to avoid
-    // the CORS preflight. The response will be opaque; that's fine —
+    // the CORS preflight. The response will be opaque; that's fine -
     // we just need the row to land in the Sheet.
     const body = new URLSearchParams();
     Object.entries(payload).forEach(([k, v]) => body.append(k, String(v ?? '')));
@@ -321,7 +321,7 @@ function refreshIdentityChip() {
 
 function maybeShowSignupModal() {
   if (!needsSignupCapture()) return;
-  // Do not show in the artifact preview (claudeusercontent.com) or local file:// — keep the demo experience clean
+  // Do not show in the artifact preview (claudeusercontent.com) or local file:// - keep the demo experience clean
   try {
     if (location.hostname.endsWith('claudeusercontent.com')) return;
     if (location.protocol === 'file:') return;

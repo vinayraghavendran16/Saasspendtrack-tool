@@ -1,5 +1,5 @@
 /* ================================================================
-   Phase 52 — Diagnostics + hardening
+   Phase 52 - Diagnostics + hardening
    ================================================================
    Three jobs:
 
@@ -285,7 +285,7 @@ function renderDiagnostics() {
       </span>
     </div>
     <div class="diag-verdict ${allOk ? 'ok' : 'warn'}">
-      ${allOk ? '✓ All systems look healthy.' : '⚠ Something needs attention — expand Module details below.'}
+      ${allOk ? '✓ All systems look healthy.' : '⚠ Something needs attention - expand Module details below.'}
     </div>
   `;
 
@@ -420,7 +420,7 @@ window.Diag = {
 /* ---------------- Hook CmdPal to add Diagnostics entry ---------------- */
 
 /* CmdPal doesn't expose its CMDS array, so we can't push to it.
-   But we CAN register via Help launcher — easier. Also a global
+   But we CAN register via Help launcher - easier. Also a global
    shortcut via Shift+? for help / diagnostics. */
 document.addEventListener('keydown', (e) => {
   // Ctrl+Shift+D or Cmd+Shift+D → open diagnostics

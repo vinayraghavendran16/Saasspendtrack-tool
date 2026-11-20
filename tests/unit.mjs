@@ -108,6 +108,201 @@ ok(rbCap.args && rbCap.args[1] === 'Ada Lovelace' && rbCap.args[2] === 'CTO' && 
   'rb2b maps name/title/company');
 rb = await RB2B.onRequestPost({ request: rbReq(null, '{}', 'https://x/api/rb2b/ingest?key=s3cret'), env: rbEnv('s3cret') });
 ok(rb.status === 200, 'rb2b accepts secret via query param');
+// ---- accounts / roles (Phase 1 helpers; mocked D1) ----
+section('accounts & roles');
+ok(U.ROLE_RANK.owner > U.ROLE_RANK.admin && U.ROLE_RANK.admin > U.ROLE_RANK.member, 'role hierarchy owner>admin>member');
+ok(U.MAX_MEMBERS === 50, 'member cap is 50');
+ok(U.roleAtLeast('admin', 'member') && U.roleAtLeast('owner', 'admin') && U.roleAtLeast('member', 'member'), 'roleAtLeast meets');
+ok(!U.roleAtLeast('member', 'admin') && !U.roleAtLeast('admin', 'owner'), 'roleAtLeast blocks lower');
+ok(!U.roleAtLeast('bogus', 'member'), 'roleAtLeast unknown role denied');
+function roleEnv(sessionEmail, userRow, membershipRow) {
+  return { DB: { prepare(sql) { return { bind: () => ({
+    first: async () => {
+      if (/FROM sessions/i.test(sql)) return sessionEmail ? { email: sessionEmail, expires_at: Date.now() + 1e9 } : null;
+      if (/FROM users/i.test(sql)) return userRow;
+      if (/FROM memberships/i.test(sql)) return membershipRow;
+      if (/COUNT/i.test(sql)) return { c: 1 };
+      return null;
+    },
+    run: async () => {},
+  }) }; } } };
+}
+const rReq = { headers: { get: () => 'sst_session=s' } };
+let g = await U.requireRole({ headers: { get: () => '' } }, roleEnv(null), 'member');
+ok(g.response && g.response.status === 401, 'requireRole 401 without session');
+g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account_id: 'A', role: 'member', status: 'active' }), 'admin');
+ok(g.response && g.response.status === 403, 'requireRole 403 member needs admin');
+g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account_id: 'A', role: 'admin', status: 'active' }), 'admin');
+ok(!g.response && g.membership.role === 'admin', 'requireRole admin passes admin gate');
+g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account_id: 'A', role: 'owner', status: 'active' }), 'admin');
+ok(!g.response && g.membership.role === 'owner', 'requireRole owner passes admin gate');
+g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account_id: 'A', role: 'member', status: 'suspended' }), 'member');
+ok(g.response && g.response.status === 403, 'requireRole 403 suspended member');
+// New user with no membership is lazily made owner of their own account.
+g = await U.requireRole(rReq, roleEnv('new@x.com', { email: 'new@x.com' }, null), 'member');
+ok(!g.response && g.membership.role === 'owner', 'requireRole lazily provisions owner for new user');
+
+// ---- preset generator endpoint (validation + gating; no network) ----
+section('preset generator');
+import * as PRESET from '../functions/api/preset/generate.js';
+function presetEnv(user, key) {
+  let rl = 0;
+  return { ANTHROPIC_API_KEY: key, ADMIN_EMAILS: '', DB: { prepare(sql) { return { bind: (...a) => ({
+    first: async () => {
+      if (/sessions/i.test(sql)) return user ? { email: user.email, expires_at: Date.now() + 1e9 } : null;
+      if (/rate/i.test(sql)) return { count: ++rl };
+      if (/users/i.test(sql)) return user;
+      return user;
+    },
+    run: async () => {},
+  }) }; } } };
+}
+const pReq = (body) => ({ headers: { get: () => 'sst_session=s' }, json: async () => body });
+let pr = await PRESET.onRequestGet({ env: { ANTHROPIC_API_KEY: 'x' } });
+ok((await pr.json()).configured === true, 'GET reports configured');
+pr = await PRESET.onRequestPost({ request: { headers: { get: () => '' }, json: async () => ({ url: 'acme.com' }) }, env: presetEnv(null, 'x') });
+ok(pr.status === 401, 'POST 401 without session');
+pr = await PRESET.onRequestPost({ request: pReq({}), env: presetEnv(active, 'x') });
+ok(pr.status === 400 && (await pr.json()).error === 'no_url', 'POST 400 when no url');
+pr = await PRESET.onRequestPost({ request: pReq({ url: 'http://10.0.0.1' }), env: presetEnv(active, 'x') });
+ok(pr.status === 400 && (await pr.json()).error === 'bad_url', 'POST 400 on SSRF/private url');
+pr = await PRESET.onRequestPost({ request: pReq({ url: 'acme.com' }), env: presetEnv(active, undefined) });
+ok(pr.status === 501 && (await pr.json()).error === 'not_configured', 'POST 501 when API key missing');
+pr = await PRESET.onRequestPost({ request: pReq({ url: 'acme.com' }), env: presetEnv({ email: 'e', status: 'trial', trial_ends_at: Date.now() - 1 }, 'x') });
+ok(pr.status === 403, 'POST 403 when trial expired');
+
+// ---- accounts Phase 3: invite / accept / members (mocked; no network) ----
+section('accounts phase 3 (invites)');
+import * as INVITE from '../functions/api/account/invite.js';
+import * as ACCEPT from '../functions/api/account/accept.js';
+import * as MEMBERS from '../functions/api/account/members.js';
+function acct3Env(o) {
+  o = o || {};
+  return { ADMIN_EMAILS: o.adminEmails || '', DB: { prepare(sql) { let b;
+    return { bind: (...a) => { b = a; return {
+      first: async () => {
+        if (/FROM sessions/i.test(sql)) return o.sessionEmail ? { email: o.sessionEmail, expires_at: Date.now() + 1e9 } : null;
+        if (/FROM users WHERE email/i.test(sql)) return (o.users || {})[b[0]] || null;
+        if (/FROM memberships WHERE email/i.test(sql)) return (o.members || {})[b[0]] || null;
+        if (/FROM accounts WHERE id/i.test(sql)) return (o.accounts || {})[b[0]] || null;
+        if (/COUNT\(\*\) c FROM memberships/i.test(sql)) return { c: o.memberCount || 0 };
+        if (/COUNT\(\*\) c FROM invites/i.test(sql)) return { c: o.pendingCount || 0 };
+        if (/FROM invites WHERE token_hash/i.test(sql)) return (o.invitesByHash || {})[b[0]] || null;
+        return null;
+      },
+      all: async () => {
+        if (/FROM memberships WHERE account_id/i.test(sql)) return { results: o.roster || [] };
+        if (/FROM invites WHERE account_id/i.test(sql)) return { results: o.pendingList || [] };
+        return { results: [] };
+      },
+      run: async () => {},
+    }; }, };
+  } } };
+}
+const admEnv = (over) => acct3Env(Object.assign({
+  sessionEmail: 'adm@x.com', users: { 'adm@x.com': { email: 'adm@x.com', status: 'active' } },
+  members: { 'adm@x.com': { email: 'adm@x.com', account_id: 'A', role: 'admin', status: 'active' } },
+  accounts: { A: { id: 'A', owner_email: 'own@x.com' } }, memberCount: 2, pendingCount: 0,
+}, over || {}));
+const iReq = (bodyObj) => ({ headers: { get: () => 'sst_session=s' }, json: async () => bodyObj });
+// A plain member cannot invite.
+let ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com' }), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': {} }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } } }) });
+ok(ra3.status === 403, 'invite 403 when caller is only a member');
+// Admin inviting themselves is rejected.
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'adm@x.com' }), env: admEnv() });
+ok(ra3.status === 400 && (await ra3.json()).error === 'self', 'invite 400 on self');
+// Email already in another account.
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'other@x.com' }), env: admEnv({ members: { 'adm@x.com': { account_id: 'A', role: 'admin', status: 'active' }, 'other@x.com': { account_id: 'B', role: 'member', status: 'active' } } }) });
+ok(ra3.status === 409 && (await ra3.json()).error === 'other_account', 'invite 409 when email in another account');
+// 50-member cap blocks.
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'member' }), env: admEnv({ memberCount: 50 }) });
+ok(ra3.status === 403 && (await ra3.json()).error === 'member_cap', 'invite 403 at member cap');
+// Happy path (no ZEPTOMAIL_TOKEN -> email no-ops, no network).
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'admin' }), env: admEnv() });
+let jx3 = await ra3.json();
+ok(jx3.ok === true && jx3.invited === 'new@x.com' && jx3.role === 'admin', 'invite ok creates invite');
+// Accept: no token -> redirect invalid.
+ra3 = await ACCEPT.onRequestGet({ request: { url: 'https://app.saasspendtrack.com/api/account/accept' }, env: acct3Env({}) });
+ok(ra3.status === 302 && ra3.headers.get('Location').includes('invite=invalid'), 'accept 302 invalid without token');
+// Accept: valid single-use invite -> session + redirect ok.
+const tok = 'tok-123';
+const th = await U.sha256Hex(tok);
+ra3 = await ACCEPT.onRequestGet({
+  request: { url: 'https://app.saasspendtrack.com/api/account/accept?token=' + tok },
+  env: acct3Env({ invitesByHash: { [th]: { account_id: 'A', email: 'inv@x.com', role: 'member', used: 0, expires_at: Date.now() + 1e9, invited_by: 'own@x.com' } }, accounts: { A: { id: 'A', owner_email: 'own@x.com' } }, users: { 'own@x.com': { status: 'active', trial_ends_at: Date.now() + 9e9 } }, memberCount: 1 }),
+});
+ok(ra3.status === 302 && ra3.headers.get('Location').includes('invite=ok') && !!ra3.headers.get('Set-Cookie'), 'accept 302 ok + session cookie');
+// Members list: member sees roster, no manage; admin can manage + sees invites.
+ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': { email: 'm@x.com', status: 'active' } }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } }, roster: [{ email: 'm@x.com', role: 'member', status: 'active' }], pendingList: [{ email: 'p@x.com' }] }) });
+jx3 = await ra3.json();
+ok(jx3.members.length === 1 && jx3.canManage === false && jx3.invites.length === 0, 'members: plain member sees roster, no invites');
+ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: admEnv({ roster: [{ email: 'adm@x.com', role: 'admin', status: 'active' }], pendingList: [{ email: 'p@x.com', role: 'member' }] }) });
+jx3 = await ra3.json();
+ok(jx3.canManage === true && jx3.invites.length === 1 && jx3.cap === 50, 'members: admin can manage + sees invites + cap 50');
+// Degraded path: accounts tables not migrated yet -> roster query throws -> sole-owner + pendingSetup, not a 500.
+function acctThrowEnv() {
+  return { ADMIN_EMAILS: '', DB: { prepare(sql) { let b;
+    return { bind: (...a) => { b = a; return {
+      first: async () => {
+        if (/FROM sessions/i.test(sql)) return { email: 'own@x.com', expires_at: Date.now() + 1e9 };
+        if (/FROM users WHERE email/i.test(sql)) return { email: 'own@x.com', status: 'active' };
+        if (/FROM memberships WHERE email/i.test(sql)) throw new Error('no such table: memberships');
+        if (/INTO accounts|INTO memberships/i.test(sql)) throw new Error('no such table');
+        return null;
+      },
+      all: async () => { if (/FROM memberships WHERE account_id/i.test(sql)) throw new Error('no such table: memberships'); return { results: [] }; },
+      run: async () => { throw new Error('no such table'); },
+    }; }, };
+  } } };
+}
+ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acctThrowEnv() });
+jx3 = await ra3.json();
+ok(ra3.status === 200 && jx3.pendingSetup === true && jx3.members.length === 1 && jx3.members[0].email === 'own@x.com', 'members: degrades to sole owner + pendingSetup when tables missing (no 500)');
+// ---- accounts Phase 2: shared-workspace data keying + /api/me account ----
+section('accounts phase 2 (shared workspace)');
+import * as ME from '../functions/api/me.js';
+function acctEnv(user, membership, account, store) {
+  return { DB: { prepare(sql) { let bound;
+    return { bind: (...a) => { bound = a; return {
+      first: async () => {
+        if (/FROM sessions/i.test(sql)) return user ? { email: user.email, expires_at: Date.now() + 1e9 } : null;
+        if (/FROM users/i.test(sql)) return user;
+        if (/FROM memberships/i.test(sql)) return membership;
+        if (/FROM accounts/i.test(sql)) return account;
+        if (/FROM app_data/i.test(sql)) return store[bound[0]] != null ? { data: store[bound[0]] } : null;
+        return null;
+      },
+      run: async () => { if (/INTO app_data/i.test(sql)) store[bound[0]] = bound[1]; },
+    }; } };
+  } } };
+}
+const p2member = { email: 'member@x.com', status: 'active', trial_ends_at: Date.now() + 9e9 };
+const p2owner = { email: 'owner@x.com', status: 'active', trial_ends_at: Date.now() + 9e9 };
+const p2acct = { id: 'A', owner_email: 'owner@x.com', name: 'Acme' };
+const p2memMember = { email: 'member@x.com', account_id: 'A', role: 'member', status: 'active' };
+const p2memOwner = { email: 'owner@x.com', account_id: 'A', role: 'owner', status: 'active' };
+const p2req = { headers: { get: () => 'sst_session=s' }, text: async () => JSON.stringify({ hi: 1 }) };
+// Member reads the OWNER's app_data row (shared workspace).
+let p2store = { 'owner@x.com': JSON.stringify({ shared: true }) };
+let p2res = await DATA.onRequestGet({ request: p2req, env: acctEnv(p2member, p2memMember, p2acct, p2store) });
+ok((await p2res.json()).data.shared === true, 'member reads owner shared workspace');
+// Member WRITES land on the owner's row, not their own email.
+p2store = {};
+p2res = await DATA.onRequestPut({ request: p2req, env: acctEnv(p2member, p2memMember, p2acct, p2store) });
+ok((await p2res.json()).ok === true, 'member put ok');
+ok(p2store['owner@x.com'] && !p2store['member@x.com'], 'member write lands on shared owner row');
+// Solo user with no account row keys by own email (zero change for existing users).
+p2store = { 'solo@x.com': JSON.stringify({ solo: 1 }) };
+const solo = { email: 'solo@x.com', status: 'active', trial_ends_at: Date.now() + 9e9 };
+const soloMem = { email: 'solo@x.com', account_id: 'S', role: 'owner', status: 'active' };
+p2res = await DATA.onRequestGet({ request: p2req, env: acctEnv(solo, soloMem, { id: 'S', owner_email: 'solo@x.com' }, p2store) });
+ok((await p2res.json()).data.solo === 1, 'solo owner reads own row unchanged');
+// /api/me returns account + role.
+p2res = await ME.onRequestGet({ request: p2req, env: acctEnv(p2member, p2memMember, p2acct, {}) });
+let meb = await p2res.json();
+ok(meb.account && meb.account.id === 'A' && meb.account.role === 'member' && meb.account.isOwner === false, 'me returns account+role (member)');
+p2res = await ME.onRequestGet({ request: p2req, env: acctEnv(p2owner, p2memOwner, p2acct, {}) });
+ok((await p2res.json()).account.isOwner === true, 'me marks owner isOwner');
 
 // ---- result ----
 console.log(`\n${pass} passed, ${fail} failed`);

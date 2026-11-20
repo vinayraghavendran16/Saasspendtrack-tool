@@ -18,11 +18,11 @@ Browser-only app, no backend, state in localStorage. On-prem available for BFSI,
 - Import invoices, add the team directory, set up the workspace (fiscal year, default notice window)
 
 **Governance**
-- **Vendors tab** — the governance register: every vendor with department, why/when procured, approval status (InfoSec / Legal / Procurement / Finance), and next review
-- **InfoSec module** — per-vendor security reviews: 10-item onboarding checklist, status, data classification, owner, annual re-review dates; connects to GRC tools (Vanta, Drata, Secureframe, OneTrust, SecurityScorecard, Whistic, UpGuard)
-- **Full-screen vendor editor** — all parameters: internal stakeholders (InfoSec/Legal/Procurement contacts mapped from the team directory), vendor AE/CSM contact, procurement reason and date, approvals and reviews
-- **Reporting** — cross-functional pivot (CFO/CRO/IT/Procurement/InfoSec): metric × split (department/team/function/tool/owner/InfoSec status/month/quarter) × date range, with filters, 9 persona presets, and CSV export
-- **Renewal Guides** — curated, source-grounded vendor renewal/cancellation playbooks built from live web search with citations and unverified-fact flagging
+- **Vendors tab** - the governance register: every vendor with department, why/when procured, approval status (InfoSec / Legal / Procurement / Finance), and next review
+- **InfoSec module** - per-vendor security reviews: 10-item onboarding checklist, status, data classification, owner, annual re-review dates; connects to GRC tools (Vanta, Drata, Secureframe, OneTrust, SecurityScorecard, Whistic, UpGuard)
+- **Full-screen vendor editor** - all parameters: internal stakeholders (InfoSec/Legal/Procurement contacts mapped from the team directory), vendor AE/CSM contact, procurement reason and date, approvals and reviews
+- **Reporting** - cross-functional pivot (CFO/CRO/IT/Procurement/InfoSec): metric × split (department/team/function/tool/owner/InfoSec status/month/quarter) × date range, with filters, 9 persona presets, and CSV export
+- **Renewal Guides** - curated, source-grounded vendor renewal/cancellation playbooks built from live web search with citations and unverified-fact flagging
 
 **Spend management**
 - Dashboard (notice windows surfaced at top), Analytics, Insights
@@ -49,12 +49,12 @@ Browser-only app, no backend, state in localStorage. On-prem available for BFSI,
 - Mobile owner inbox with direct-link mode
 
 **AI and forecasting**
-- **Ask Track** — natural-language Q&A with 20 intents over vendors, contracts, invoices, licences, departments
+- **Ask Track** - natural-language Q&A with 20 intents over vendors, contracts, invoices, licences, departments
 - Voice input via Web Speech API (en-IN + 11 other languages)
 - Voice replies with Indian female voice preference, Natural/Neural voice picker
 - Fuzzy vendor matching (hotspot → HubSpot) via Levenshtein
 - Cmd+K global command palette with suggestions
-- **Licence Forecast** — capacity planning model projects Q+1 to Q+4 demand per vendor with headcount growth, utilisation target, confidence buffer
+- **Licence Forecast** - capacity planning model projects Q+1 to Q+4 demand per vendor with headcount growth, utilisation target, confidence buffer
 
 **Workspace**
 - 6 roles (Owner/Admin/Finance/Legal/IT/Viewer), invite tokens
@@ -64,7 +64,7 @@ Browser-only app, no backend, state in localStorage. On-prem available for BFSI,
 
 **Sales enablement**
 - Distributor one-pager PDF (branded A4 with prospect personalisation and QR code)
-- Three demo seed presets: Indian SaaS startup, Mid-market BFSI, Manufacturing — one-click load between prospects
+- Three demo seed presets: Indian SaaS startup, Mid-market BFSI, Manufacturing - one-click load between prospects
 - Vendor contact book with AE/CSM details, outreach tracking, pre-drafted renewal emails
 - Trial reset / force-expire / mark-paid controls for clean demo cycles
 
@@ -131,9 +131,9 @@ cd /home/claude && python3 bundle.py
 ## Hosting
 
 Production is on **Cloudflare Pages** at `app.saasspendtrack.com`, auto-deployed from `main` on every push. Setup files in the repo:
-- `wrangler.toml` — static-assets config with SPA fallback
-- `_headers` — security headers (Permissions-Policy allows microphone, strict cache for assets, no-cache for HTML)
-- `_redirects` — SPA fallback
+- `wrangler.toml` - static-assets config with SPA fallback
+- `_headers` - security headers (Permissions-Policy allows microphone, strict cache for assets, no-cache for HTML)
+- `_redirects` - SPA fallback
 
 ## Testing
 
@@ -150,10 +150,10 @@ UAT scenarios: see [UAT.md](UAT.md).
 
 ## Hosting-related docs
 
-- `README-hosting.md` — Cloudflare Pages setup walkthrough
-- `OnPrem_System_Requirements_Guide.pdf` (in distributor dossier) — on-prem requirements
-- `India_IP_Trademark_Costs_Timelines.pdf` — IP filing costs and timelines
-- `SaaSSpendTrack_IP_Filing_Dossier.pdf` — complete IP dossier
+- `README-hosting.md` - Cloudflare Pages setup walkthrough
+- `OnPrem_System_Requirements_Guide.pdf` (in distributor dossier) - on-prem requirements
+- `India_IP_Trademark_Costs_Timelines.pdf` - IP filing costs and timelines
+- `SaaSSpendTrack_IP_Filing_Dossier.pdf` - complete IP dossier
 
 ## Current version
 

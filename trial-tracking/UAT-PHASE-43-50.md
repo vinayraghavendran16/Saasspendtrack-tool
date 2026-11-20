@@ -1,25 +1,25 @@
 # UAT checklist: Phases 43-50 (new since last night)
 
 Run through this when you're at your computer. Should take ~15
-minutes end-to-end. Order matters — later tests depend on earlier
+minutes end-to-end. Order matters - later tests depend on earlier
 state.
 
 ## Setup
 
 1. Hard-reload `app.saasspendtrack.com` in a **fresh Incognito
    window** (so no stale localStorage from previous testing).
-2. Open DevTools Console (⌥⌘I on Mac) and keep it visible —
+2. Open DevTools Console (⌥⌘I on Mac) and keep it visible -
    handy for `window.*` helpers if anything misbehaves.
 
 ---
 
-## Phase 43 — Onboarding (checklist, tour, beacons, help)
+## Phase 43 - Onboarding (checklist, tour, beacons, help)
 
 ### Signup → tour
 - [ ] Signup takeover appears, dark screen, white text (not blue)
 - [ ] Enter your email, click "Start my 14-day trial"
 - [ ] Welcome toast appears mentioning your email
-- [ ] ~1-2 seconds later, the **welcome tour** kicks off — 5 steps
+- [ ] ~1-2 seconds later, the **welcome tour** kicks off - 5 steps
 - [ ] Each step shows a cutout spotlight on a sidebar item + a
       floating tooltip card with Next / Back / Skip
 - [ ] `Esc` key closes the tour
@@ -49,14 +49,14 @@ state.
 
 ---
 
-## Phase 44 — Bulk CSV import
+## Phase 44 - Bulk CSV import
 
 ### Entry
-- [ ] Go to Subscriptions view — big blue "Bulk import" button
+- [ ] Go to Subscriptions view - big blue "Bulk import" button
       sits above the table
 - [ ] Click it
 
-### Step 1 — Paste
+### Step 1 - Paste
 - [ ] "Download template CSV" link downloads
       `saas-spend-track-template.csv` (3 rows: Salesforce / Zoom /
       Figma)
@@ -69,21 +69,21 @@ state.
       ```
 - [ ] Next → enables
 
-### Step 2 — Mapping
+### Step 2 - Mapping
 - [ ] Auto-detects: Vendor → name, Annual cost → cost, Cycle →
       cycle, Owner → owner, Renewal → renewal
-- [ ] "Currency" row appears (Phase 50 addition) — leave as "—
-      skip —" for now
+- [ ] "Currency" row appears (Phase 50 addition) - leave as "-
+      skip -" for now
 - [ ] Preview table shows the first 3 rows
 - [ ] Next → enables
 
-### Step 3 — Preview
+### Step 3 - Preview
 - [ ] Summary tiles show: 3 New / 0 Possible dupes / 0 Exact
       dupes / 0 Missing
 - [ ] Per-row preview tagged "New"
 - [ ] Click "Import 3 rows"
 - [ ] Toast: "Imported 3 subscriptions"
-- [ ] Navigates to Subscriptions — 3 new rows visible
+- [ ] Navigates to Subscriptions - 3 new rows visible
 
 ### Duplicate detection
 - [ ] Open Bulk import again, paste **only** `Vendor\nZoom`
@@ -102,26 +102,26 @@ state.
       Date Test IST,14/05/2026
       ```
 - [ ] At step 3, row should show "renews May 14, 2026" (NOT May
-      13 — the TZ bug we killed)
+      13 - the TZ bug we killed)
 
 ---
 
-## Phase 45 — Email drip (requires Apps Script setup first)
+## Phase 45 - Email drip (requires Apps Script setup first)
 
 This phase has NO browser UI. Testing is Apps Script side:
 - [ ] Follow `trial-tracking/DRIP-SETUP.md` to install the
       trigger (one-time)
 - [ ] In the Apps Script editor, run `testDripNow()` from the
       function dropdown
-- [ ] Check your inbox within 10s — you should receive whichever
+- [ ] Check your inbox within 10s - you should receive whichever
       email matches your current trial day (likely day 1 or 2
       depending on your signup timestamp)
-- [ ] Check the Signups sheet — a new row should have
+- [ ] Check the Signups sheet - a new row should have
       `event_type=drip_dXX_sent`
 
 ---
 
-## Phase 46 — Reports
+## Phase 46 - Reports
 
 - [ ] Sidebar shows "Reports" tab (between Risk and Playbook)
 - [ ] Click it → 3 cards: Spend Summary (PDF), Renewal Roster
@@ -164,7 +164,7 @@ This phase has NO browser UI. Testing is Apps Script side:
 
 ---
 
-## Phase 47 — Settings + multi-currency
+## Phase 47 - Settings + multi-currency
 
 - [ ] Sidebar shows "Settings" tab (last position, cog icon)
 - [ ] Click it
@@ -180,7 +180,7 @@ This phase has NO browser UI. Testing is Apps Script side:
       set to INR"
 - [ ] Rates list now shows all 8 non-USD currencies with numeric
       rates
-- [ ] Go to Dashboard — all $ amounts now show ₹ with converted
+- [ ] Go to Dashboard - all $ amounts now show ₹ with converted
       values
 - [ ] Settings card shows "Rates last refreshed just now · base
       USD · source frankfurter.app"
@@ -202,7 +202,7 @@ This phase has NO browser UI. Testing is Apps Script side:
 
 ---
 
-## Phase 48 — Payment detection
+## Phase 48 - Payment detection
 
 ### Browser-side detection
 - [ ] In DevTools console:
@@ -216,12 +216,12 @@ This phase has NO browser UI. Testing is Apps Script side:
 - [ ] Click "Got it" → modal dismisses
 - [ ] Plan badge somewhere now says "Paid plan · Active" (green)
 - [ ] Settings → trial controls card is gone, but a new "I've
-      paid — unlock my workspace" card is also gone (since you're
+      paid - unlock my workspace" card is also gone (since you're
       already paid)
 - [ ] In DevTools: `MarkPaid.undo()` → back to trial state
 
 ### Manual override
-- [ ] Click Settings → scroll to "I've paid — unlock my workspace"
+- [ ] Click Settings → scroll to "I've paid - unlock my workspace"
 - [ ] Type a reference like `test123` → click "Mark as paid"
 - [ ] Confirm the prompt
 - [ ] Payment received modal appears with your reference echoed
@@ -229,7 +229,7 @@ This phase has NO browser UI. Testing is Apps Script side:
 
 ---
 
-## Phase 49 — Command palette (⌘K)
+## Phase 49 - Command palette (⌘K)
 
 - [ ] Press `⌘K` (Mac) or `Ctrl+K` (Win) anywhere in the tool
 - [ ] Palette opens, focused on the search input
@@ -241,12 +241,12 @@ This phase has NO browser UI. Testing is Apps Script side:
 - [ ] Reopen, type "ask: what renews next month" → one row
       "Ask Track: 'what renews next month'"
 - [ ] Enter → opens Ask Track with the query submitted
-- [ ] Reopen, click the ⌘K chip in the header — same palette opens
+- [ ] Reopen, click the ⌘K chip in the header - same palette opens
 - [ ] Esc closes
 
 ---
 
-## Phase 50 — Per-subscription currency
+## Phase 50 - Per-subscription currency
 
 - [ ] ⌘K → "Edit per-subscription currency…" → editor opens
 - [ ] Shows every vendor with a currency dropdown
@@ -265,7 +265,7 @@ This phase has NO browser UI. Testing is Apps Script side:
       ```
 - [ ] Step 2: Currency column auto-selected
 - [ ] Step 3: commit
-- [ ] Both subs now have currency set — check with
+- [ ] Both subs now have currency set - check with
       `SubCurrency.get(state.subscriptions[state.subscriptions.length - 2].id)`
 
 ---
@@ -274,7 +274,7 @@ This phase has NO browser UI. Testing is Apps Script side:
 
 - [ ] Note the phase + step
 - [ ] Open DevTools Console and copy any error messages
-- [ ] Tell me — I'll push a fix and we re-run that section
+- [ ] Tell me - I'll push a fix and we re-run that section
 
 ---
 

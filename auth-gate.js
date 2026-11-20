@@ -1,4 +1,4 @@
-/* SaaS Spend Track — trial gate (client side).
+/* SaaS Spend Track - trial gate (client side).
    Entitlement is decided server-side by /api/me; this only renders the UI.
    Fails OPEN: if the backend can't be reached, the app is left usable so a
    bad deploy never bricks it. */
@@ -67,7 +67,7 @@
       '<p>Your access is paused but your data is safe. Upgrade to unlock your dashboard again.</p>' +
       '<a class="sst-btn sst-btn--pair" href="' + PAY_INDIA + '" target="_blank" rel="noopener">Pay in ₹ (India)</a>' +
       '<a class="sst-btn sst-btn--pair" href="' + PAY_GLOBAL + '" target="_blank" rel="noopener">Pay in $ (Global)</a>' +
-      '<button class="sst-btn sst-btn--ghost" id="sst-paid">I’ve paid — refresh my access</button>' +
+      '<button class="sst-btn sst-btn--ghost" id="sst-paid">I’ve paid - refresh my access</button>' +
       '<div class="sst-gate__foot"><a href="#" id="sst-logout">Sign out</a></div>' +
       '</div></div>');
     document.body.appendChild(gate);

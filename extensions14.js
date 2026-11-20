@@ -1,6 +1,6 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 13
-   Licence Forecasting — capacity-planning module
+   SaaS Spend Track - Phase 13
+   Licence Forecasting - capacity-planning module
    ---------------------------------------------------------------------------
    Projects licence demand per vendor for the next 1 / 2 / 4 quarters based
    on headcount, growth plan, department utilisation and vendor-specific
@@ -8,7 +8,7 @@
    downgrade), a quarter-by-quarter table, portfolio cost impact, and a
    capacity curve chart.
 
-   Model — kept simple and auditable, not a black box:
+   Model - kept simple and auditable, not a black box:
    demand(q) = ceil(
      activeUsers_today
      × (1 + headcountGrowth)^q
@@ -167,7 +167,7 @@ function renderForecast() {
             </div>`;
           }).join('')}
         </div>
-        <div class="dim" style="font-size:11px;margin-top:8px">Set per-department growth % OR a target headcount — the module derives per-quarter growth from either.</div>
+        <div class="dim" style="font-size:11px;margin-top:8px">Set per-department growth % OR a target headcount - the module derives per-quarter growth from either.</div>
 
         <div style="display:flex;gap:6px;margin-top:12px">
           <button class="btn-primary" id="fc-apply">Recalculate</button>
@@ -189,14 +189,14 @@ function renderForecast() {
                 const impact = perSeat * r.delta;
                 return `<tr class="fc-row fc-rec-${r.rec}">
                   <td><b>${escapeHtml(r.v.name)}</b></td>
-                  <td class="dim">${escapeHtml(r.v.department || '—')}</td>
+                  <td class="dim">${escapeHtml(r.v.department || '-')}</td>
                   <td style="text-align:right">${r.seats}</td>
                   <td style="text-align:right">${r.active}</td>
                   <td style="text-align:right ${r.util < 60 ? 'style=\"color:#f59e0b\"' : ''}">${r.util}%</td>
                   ${r.quarters.map(q => `<td style="text-align:right">${q.demand}</td>`).join('')}
                   <td style="text-align:right"><b>${r.terminal}</b></td>
                   <td style="text-align:right;color:${r.delta > 0 ? 'var(--accent)' : r.delta < 0 ? '#10b981' : 'var(--text-dim)'}">${r.delta > 0 ? '+' : ''}${r.delta}</td>
-                  <td style="text-align:right">${impact ? (impact >= 0 ? '+' : '') + formatMoney(impact) : '—'}</td>
+                  <td style="text-align:right">${impact ? (impact >= 0 ? '+' : '') + formatMoney(impact) : '-'}</td>
                   <td><span class="badge badge-rec-${r.rec}">${r.rec === 'add' ? 'Add seats' : r.rec === 'downgrade' ? 'Reclaim' : 'Hold'}</span></td>
                 </tr>`;
               }).join('')}

@@ -1,7 +1,7 @@
 # Hosting SaaS Spend Track on Cloudflare Pages
 
 Static site, no build step, deploys from `main` in this repo. Serving the
-single `index.html` is all that's needed — everything is inlined-friendly
+single `index.html` is all that's needed - everything is inlined-friendly
 and all state lives in the user's browser.
 
 ## One-time setup
@@ -16,7 +16,7 @@ and all state lives in the user's browser.
    - Build command: *(leave empty)*
    - Build output directory: `/`
    - Root directory: `/`
-4. **Save and Deploy** — first build takes ~15 seconds.
+4. **Save and Deploy** - first build takes ~15 seconds.
 
 ## Custom domain
 
@@ -25,7 +25,7 @@ After the first deploy succeeds:
 1. Open the project → **Custom domains** → **Set up a custom domain**
 2. Enter `app.saasspendtrack.com`
 3. Cloudflare auto-creates the CNAME because `saasspendtrack.com` is already
-   on Cloudflare nameservers — click Activate
+   on Cloudflare nameservers - click Activate
 4. SSL cert issues in ~60 seconds
 
 ## Automatic deploys
@@ -35,8 +35,8 @@ No CI config needed.
 
 ## Files that make this work
 
-- `_headers` — security headers, cache policy
-- `_redirects` — SPA-style fallback to index.html
+- `_headers` - security headers, cache policy
+- `_redirects` - SPA-style fallback to index.html
 - All `*.js` and `styles.css` served as-is
 
 ## On-prem variant

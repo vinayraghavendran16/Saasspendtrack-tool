@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 8
+   SaaS Spend Track - Phase 8
    Workspace, users, invites, trials
    - Workspace model with owner, members, roles, trial dates
    - Owner invites by email with role; generates a signed-looking token
@@ -168,7 +168,7 @@ function renderWorkspace() {
       <div class="stat-card"><span class="stat-label">Active users</span><span class="stat-value">${usersList.filter(u => u.status === 'active').length}</span><span class="stat-sub">${usersList.length} total</span></div>
       <div class="stat-card"><span class="stat-label">Pending invites</span><span class="stat-value" style="color:${pending.length ? 'var(--warning-text)' : 'var(--text)'}">${pending.length}</span><span class="stat-sub">${pending.length === 1 ? 'invitation' : 'invitations'} out</span></div>
       <div class="stat-card"><span class="stat-label">Roles represented</span><span class="stat-value">${new Set(usersList.filter(u => u.status === 'active').map(u => u.role)).size}</span><span class="stat-sub">${Object.keys(ROLES).length} available</span></div>
-      <div class="stat-card"><span class="stat-label">Trial</span><span class="stat-value" style="color:${trialDays != null && trialDays <= 3 ? 'var(--danger-text)' : trialDays != null && trialDays <= 7 ? 'var(--warning-text)' : 'var(--text)'}">${trialDays != null ? (trialDays > 0 ? trialDays + 'd' : 'ended') : '—'}</span><span class="stat-sub">${w.plan === 'trial' ? 'contact to activate' : 'paid'}</span></div>
+      <div class="stat-card"><span class="stat-label">Trial</span><span class="stat-value" style="color:${trialDays != null && trialDays <= 3 ? 'var(--danger-text)' : trialDays != null && trialDays <= 7 ? 'var(--warning-text)' : 'var(--text)'}">${trialDays != null ? (trialDays > 0 ? trialDays + 'd' : 'ended') : '-'}</span><span class="stat-sub">${w.plan === 'trial' ? 'contact to activate' : 'paid'}</span></div>
     </div>
 
     <div class="panel-grid">
@@ -178,7 +178,7 @@ function renderWorkspace() {
         <div class="table-wrap">
           <table class="sub-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Added</th><th></th></tr></thead>
           <tbody>${usersList.map(u => `<tr>
-            <td><b>${escapeHtml(u.name || '—')}</b><div class="rc-meta">${escapeHtml(u.email)}</div></td>
+            <td><b>${escapeHtml(u.name || '-')}</b><div class="rc-meta">${escapeHtml(u.email)}</div></td>
             <td>
               ${u.role === 'owner' ? '<span class="badge warn">Owner</span>' : `<select class="rc-select" data-ws-role="${u.id}">${Object.entries(ROLES).filter(([k]) => k !== 'owner').map(([k, v]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select>`}
             </td>
@@ -249,7 +249,7 @@ function openInviteModal() {
         <form onsubmit="event.preventDefault()">
           <label>Email address<input type="email" id="ws-i-email" placeholder="colleague@yourcompany.com" required></label>
           <label>Role
-            <select id="ws-i-role">${Object.entries(ROLES).filter(([k]) => k !== 'owner').map(([k, v]) => `<option value="${k}" ${k === 'finance' ? 'selected' : ''}>${v.label} &mdash; ${v.description}</option>`).join('')}</select>
+            <select id="ws-i-role">${Object.entries(ROLES).filter(([k]) => k !== 'owner').map(([k, v]) => `<option value="${k}" ${k === 'finance' ? 'selected' : ''}>${v.label} - ${v.description}</option>`).join('')}</select>
           </label>
           <p style="font-size:12px;color:var(--text-dim);margin:-4px 0 4px">An invitation link is generated and your mail client opens with a pre-filled message. You can also copy the link and send it yourself.</p>
           <div class="actions">

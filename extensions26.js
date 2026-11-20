@@ -1,5 +1,5 @@
 /* ================================================================
-   Phase 48 — Payment-return detection + Paid state
+   Phase 48 - Payment-return detection + Paid state
    ================================================================
    What this closes:
 
@@ -14,7 +14,7 @@
 
    This phase:
 
-   1. Detects payment on return — several triggers:
+   1. Detects payment on return - several triggers:
       - URL params: ?paid=1, ?razorpay_payment_id=..., #paid
       - sessionStorage flag set when the Pay button is clicked
         (so even if Razorpay strips query params on return,
@@ -32,7 +32,7 @@
 
    4. Manual override: Settings → "I've paid, mark my workspace
       as active" button (with payment ref input) for the case
-      where auto-detection missed — paid via bank transfer,
+      where auto-detection missed - paid via bank transfer,
       different browser, etc.
 
    Zero backend. The Sheet is the source of truth for the drip's
@@ -183,7 +183,7 @@ function showPaidAck() {
         <ul>
           <li>Trial countdown removed from the sidebar</li>
           <li>Paywalls (Pay button prompts) hidden</li>
-          <li>Your data, contracts, and settings stay exactly where they are — nothing moves</li>
+          <li>Your data, contracts, and settings stay exactly where they are - nothing moves</li>
           <li>Welcome email with receipt sent to your inbox within a few minutes</li>
         </ul>
       </div>
@@ -269,7 +269,7 @@ function injectManualPaidButton() {
   card.className = 'st-card';
   card.id = 'pay-manual-card';
   card.innerHTML = `
-    <h3>I've paid — unlock my workspace</h3>
+    <h3>I've paid - unlock my workspace</h3>
     <p class="st-note">If auto-detection missed your payment (bank transfer, different browser, or Razorpay redirect didn't bring you back), enter your payment reference here to mark the workspace paid. Fires the same confirmation flow.</p>
     <label class="st-field">
       <span>Payment reference (optional)</span>

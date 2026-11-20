@@ -1,4 +1,4 @@
--- SaaS Spend Track — trial gating / auth schema (Cloudflare D1, SQLite)
+-- SaaS Spend Track - trial gating / auth schema (Cloudflare D1, SQLite)
 -- Apply with:  wrangler d1 execute sst-trial --remote --file=./schema.sql
 
 CREATE TABLE IF NOT EXISTS users (
@@ -75,3 +75,42 @@ CREATE TABLE IF NOT EXISTS rb2b_visitors (
   created_at     INTEGER NOT NULL    -- when we ingested it
 );
 CREATE INDEX IF NOT EXISTS idx_rb2b_identified ON rb2b_visitors(identified_at);
+-- ===================================================================
+-- Multi-user accounts (Phase 1: tables ship dark, not yet wired).
+-- An account is a shared workspace. One account per member: an email
+-- belongs to exactly one account. Roles: 'owner' | 'admin' | 'member'.
+-- Flat billing per account regardless of seat count; soft cap 50 members.
+-- ===================================================================
+CREATE TABLE IF NOT EXISTS accounts (
+  id           TEXT PRIMARY KEY,        -- uuid
+  name         TEXT,                    -- display/company name
+  owner_email  TEXT NOT NULL,           -- founding owner (lowercased)
+  plan         TEXT,                    -- carried from owner billing
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_accounts_owner ON accounts(owner_email);
+
+-- One row per email (email PK = one account per member).
+CREATE TABLE IF NOT EXISTS memberships (
+  email       TEXT PRIMARY KEY,         -- lowercased
+  account_id  TEXT NOT NULL,
+  role        TEXT NOT NULL DEFAULT 'member',  -- 'owner' | 'admin' | 'member'
+  status      TEXT NOT NULL DEFAULT 'active',  -- 'invited' | 'active' | 'suspended'
+  invited_by  TEXT,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_memberships_account ON memberships(account_id);
+
+-- Single-use, hashed invite tokens (magic-link style), 7-day TTL.
+CREATE TABLE IF NOT EXISTS invites (
+  token_hash  TEXT PRIMARY KEY,
+  account_id  TEXT NOT NULL,
+  email       TEXT NOT NULL,            -- invitee (lowercased)
+  role        TEXT NOT NULL DEFAULT 'member',
+  invited_by  TEXT,
+  expires_at  INTEGER NOT NULL,
+  used        INTEGER NOT NULL DEFAULT 0,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_invites_account ON invites(account_id);
+CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(email);

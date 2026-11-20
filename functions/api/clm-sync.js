@@ -1,4 +1,4 @@
-// Cloudflare Pages Function — POST /api/clm-sync
+// Cloudflare Pages Function - POST /api/clm-sync
 // A generic, authenticated REST proxy for pulling contracts out of a CLM's API.
 // It does not hard-code any vendor's schema: the caller gives the base URL, the
 // endpoint path, the auth token/scheme, and (optionally) the JSON path to the

@@ -1,4 +1,4 @@
-// GET /api/admin/stats  — owner-only metrics for the admin command centre.
+// GET /api/admin/stats  - owner-only metrics for the admin command centre.
 // Auth: must be signed in with an email listed in ADMIN_EMAILS.
 import { json, now, DAY, requireAdmin } from '../../_shared/util.js';
 

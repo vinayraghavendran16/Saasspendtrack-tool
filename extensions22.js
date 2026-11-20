@@ -1,13 +1,13 @@
 /* ================================================================
-   Phase 43 — In-app Onboarding (Whatfix-style)
+   Phase 43 - In-app Onboarding (Whatfix-style)
    ================================================================
    Five surfaces, all browser-only, state in localStorage:
 
-   1. Onboarding checklist   — persistent floating widget, bottom-right
-   2. Guided tour            — spotlight overlay + tooltip, first visit
-   3. Beacons                — pulsing dots on key UI, dismiss on click
-   4. Smart tips             — data-tip hover tooltips on labels
-   5. Help launcher          — replay tour, list of how-to flows
+   1. Onboarding checklist   - persistent floating widget, bottom-right
+   2. Guided tour            - spotlight overlay + tooltip, first visit
+   3. Beacons                - pulsing dots on key UI, dismiss on click
+   4. Smart tips             - data-tip hover tooltips on labels
+   5. Help launcher          - replay tour, list of how-to flows
 
    Boots after signup capture (not before). Hidden on
    claudeusercontent.com and file:// so demos stay clean.
@@ -85,7 +85,7 @@ const CHECKLIST = [
   },
 ];
 
-/* Guided flows — each is an ordered list of spotlight steps.
+/* Guided flows - each is an ordered list of spotlight steps.
    `selector` is tried in order; first match is spotlit. If none
    match, the step is skipped (graceful degradation). */
 const FLOWS = {
@@ -120,7 +120,7 @@ const FLOWS = {
     {
       selector: '#plan-badge, .trial-banner, header',
       title: 'Your trial',
-      body: 'You have 14 days. Everything runs in your browser — no data leaves this device. Upgrade anytime from Plans.',
+      body: 'You have 14 days. Everything runs in your browser - no data leaves this device. Upgrade anytime from Plans.',
       placement: 'bottom',
     },
   ],
@@ -198,7 +198,7 @@ const FLOWS = {
   ],
 };
 
-/* Pulsing beacons — small animated dots on key UI, dismissed on click. */
+/* Pulsing beacons - small animated dots on key UI, dismissed on click. */
 const BEACONS = [
   { id: 'mic', selector: '#ai-mic, [data-mic]', title: 'Try asking by voice' },
   { id: 'forecast', selector: '.tab[data-view="consumption"]', title: 'New: 12-month forecast' },
@@ -278,7 +278,7 @@ function onboardingHidden() {
     if (location.hostname.endsWith('claudeusercontent.com')) return true;
     if (location.protocol === 'file:') return true;
   } catch (_) {}
-  // Don't run before signup is captured — don't stack two modals at once.
+  // Don't run before signup is captured - don't stack two modals at once.
   if (typeof needsSignupCapture === 'function' && needsSignupCapture()) return true;
   return false;
 }
@@ -398,7 +398,7 @@ function advanceTour() {
   }
   const step = tourState.steps[tourState.index];
 
-  // Pure action step (no selector / title) — run it, advance after 350ms.
+  // Pure action step (no selector / title) - run it, advance after 350ms.
   if (step.act && !step.selector) {
     try { step.act(); } catch (_) {}
     tourState.index++;
@@ -427,7 +427,7 @@ function advanceTour() {
   setTimeout(() => {
     const freshEl = findFirst(step.selector) || el;
     if (!freshEl || !freshEl.isConnected || freshEl.offsetParent === null) {
-      // Target was removed or is hidden now — skip this step rather than
+      // Target was removed or is hidden now - skip this step rather than
       // pointing at nothing.
       tourState.index++;
       advanceTour();
@@ -725,7 +725,7 @@ function wireHooks() {
       if (['consumption', 'renewals', 'risk', 'chat'].includes(name)) {
         markViewed(name);
         if (name === 'chat') {
-          // Ask Track flag — set on next input event in the chat input.
+          // Ask Track flag - set on next input event in the chat input.
           wireChatInputFlag();
         }
       }
@@ -753,7 +753,7 @@ function safeSwitchView(name) {
   try { if (typeof switchView === 'function') switchView(name); } catch (_) {}
 }
 
-/* Periodic tick — cheap check for completion conditions we can't event-hook. */
+/* Periodic tick - cheap check for completion conditions we can't event-hook. */
 function tick() {
   try {
     const o = ob();
@@ -790,7 +790,7 @@ function bootOnboarding() {
   setInterval(tick, 2500);
 }
 
-/* Hook after signup is captured — called from extensions21's markSignupCaptured
+/* Hook after signup is captured - called from extensions21's markSignupCaptured
    via a window event. If that event never fires, boot on DOMContentLoaded
    when the signup gate is already satisfied. */
 document.addEventListener('DOMContentLoaded', () => {

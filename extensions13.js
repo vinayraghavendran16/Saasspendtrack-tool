@@ -1,12 +1,12 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 12
-   AI Chat on the contract corpus — text + voice
+   SaaS Spend Track - Phase 12
+   AI Chat on the contract corpus - text + voice
    ---------------------------------------------------------------------------
    A natural-language Q&A surface over the whole state: vendors, contracts,
    invoices, licences, departments, risk, renewals, clauses, approvals,
    employees, utilisation. Text input with autocomplete suggestions, plus
    voice input via the Web Speech API (SpeechRecognition) and voice output
-   (SpeechSynthesis). Grounded answers only — every number comes from state
+   (SpeechSynthesis). Grounded answers only - every number comes from state
    with a source trail; no hallucination.
 
    Design:
@@ -26,7 +26,7 @@
 /* ---------- Intent catalogue (what the router can answer) ---------- */
 const CHAT_INTENTS = [
   /* Dept+vendor must come AFTER spend_on_vendor and REQUIRE an explicit
-     dept keyword — otherwise "what is the total spend on hotspot this year"
+     dept keyword - otherwise "what is the total spend on hotspot this year"
      wrongly matches with "total"=dept, "hotspot"=vendor, "year"=qtr. */
   { id: 'spend_by_dept_vendor', desc: 'How much is <department> spending on <vendor> <timeframe>?',
     tests: [/(?:how much|what('?s)?)\s+(?:is|are|does)?\s*(?:the\s+)?(.+?)\s+(?:team|dept|department)\s+(?:spending|paying|pay|spend)\s+on\s+(.+?)(?:\s+this\s+(quarter|month|year)|\s+last\s+(\d+)\s+(?:days?|months?))?$/i,
@@ -138,7 +138,7 @@ function findVendor(q) {
     hit = vs.find(v => toks.some(tok => v.name.toLowerCase().includes(tok)));
     if (hit) return hit;
   }
-  // Fuzzy — Levenshtein against each vendor name (and tokens inside it)
+  // Fuzzy - Levenshtein against each vendor name (and tokens inside it)
   // Accept distance up to 2 for short names, 3 for longer. Scores ties by
   // shorter distance then name length.
   const candidates = [];
@@ -196,7 +196,7 @@ function spendForVendor(v, tf) {
 function routeChatQuery(raw) {
   const q = raw.trim();
   const tf = parseTimeframe(q);
-  // priority ordering matters — most specific first
+  // priority ordering matters - most specific first
   for (const intent of CHAT_INTENTS) {
     for (const re of intent.tests) {
       const m = q.match(re);
@@ -234,7 +234,7 @@ const _ANSWERERS = {
     const total = rows.reduce((a, r) => a + r.spend.amount, 0);
     return {
       headline: `${dept || 'All departments'}${vend ? ' on ' + vend.name : ''}: <b>${formatMoney(total)}</b> ${basis ? basis.label : 'per year'}`,
-      body: rows.map(r => `<div class="ai-grid-row"><span>${escapeHtml(r.s.name)}</span><span class="dim">${escapeHtml(r.s.department || '—')}</span><b>${formatMoney(r.spend.amount)}</b></div>`).join(''),
+      body: rows.map(r => `<div class="ai-grid-row"><span>${escapeHtml(r.s.name)}</span><span class="dim">${escapeHtml(r.s.department || '-')}</span><b>${formatMoney(r.spend.amount)}</b></div>`).join(''),
       trace: `intent=spend_by_dept_vendor dept=${dept || '-'} vendor=${vend ? vend.name : '-'} tf=${basis ? basis.label : 'annual'}`,
       sources: rows.map(r => ({ view: 'subscriptions', id: r.s.id, label: r.s.name })),
     };
@@ -259,7 +259,7 @@ const _ANSWERERS = {
     const pending = inv.filter(i => i.status !== 'paid').reduce((a, i) => a + (+i.amount || 0), 0);
     return {
       headline: `${escapeHtml(vend.name)}: <b>${formatMoney(sp.amount)}</b> <span class="dim">(${sp.basis})</span>`,
-      body: `<div class="ai-grid-row"><span>Department</span><b>${escapeHtml(vend.department || '—')}</b></div>
+      body: `<div class="ai-grid-row"><span>Department</span><b>${escapeHtml(vend.department || '-')}</b></div>
              <div class="ai-grid-row"><span>Monthly</span><b>${formatMoney(monthlyCost(vend))}</b></div>
              <div class="ai-grid-row"><span>Annual run-rate</span><b>${formatMoney(annualCost(vend))}</b></div>
              <div class="ai-grid-row"><span>Paid invoices</span><b>${formatMoney(paid)}</b> <span class="dim">(${inv.filter(i=>i.status==='paid').length})</span></div>
@@ -283,8 +283,8 @@ const _ANSWERERS = {
       headline: `${escapeHtml(vend.name)}: estimate <b>${demand}</b> licences for next quarter <span class="dim">(you have ${seats})</span>`,
       body: `<div class="ai-grid-row"><span>Current seats</span><b>${seats}</b></div>
              <div class="ai-grid-row"><span>Active users</span><b>${used}</b> <span class="dim">${util}% utilisation</span></div>
-             <div class="ai-grid-row"><span>Team size</span><b>${emps}</b> in ${escapeHtml(vend.department || '—')}</div>
-             <div class="ai-grid-row"><span>Assumed growth</span><b>+8%</b> (default — override in Licence Forecast)</div>
+             <div class="ai-grid-row"><span>Team size</span><b>${emps}</b> in ${escapeHtml(vend.department || '-')}</div>
+             <div class="ai-grid-row"><span>Assumed growth</span><b>+8%</b> (default - override in Licence Forecast)</div>
              <div class="ai-grid-row"><span>Projected demand</span><b>${demand} seats</b></div>
              <div class="dim" style="margin-top:8px;font-size:11.5px">Open the <a href="#forecast" data-nav="forecast">Licence Forecast</a> view to tune growth, utilisation threshold, and confidence.</div>`,
       trace: `intent=licence_demand vendor=${vend.name} seats=${seats} active=${used} util=${util}% growth=8%`,
@@ -346,7 +346,7 @@ const _ANSWERERS = {
     const scored = vs.map(v => ({ v, score: v.riskScore ?? (typeof calcRiskScore === 'function' ? calcRiskScore(v).total : 0) })).sort((a, b) => b.score - a.score).slice(0, 10);
     return {
       headline: `Top risk contracts`,
-      body: scored.map(x => `<div class="ai-grid-row"><span>${escapeHtml(x.v.name)}</span><span class="dim">${escapeHtml(x.v.department || '—')}</span><b>${Math.round(x.score)}/100</b></div>`).join(''),
+      body: scored.map(x => `<div class="ai-grid-row"><span>${escapeHtml(x.v.name)}</span><span class="dim">${escapeHtml(x.v.department || '-')}</span><b>${Math.round(x.score)}/100</b></div>`).join(''),
       trace: `intent=top_risk n=${scored.length}`,
     };
   },
@@ -358,7 +358,7 @@ const _ANSWERERS = {
     });
     return {
       headline: `<b>${vs.length}</b> contracts without "${escapeHtml(term)}"`,
-      body: vs.slice(0, 15).map(v => `<div class="ai-grid-row"><span>${escapeHtml(v.name)}</span><span class="dim">${escapeHtml(v.department || '—')}</span></div>`).join('') || '<p class="dim">All contracts cover that clause.</p>',
+      body: vs.slice(0, 15).map(v => `<div class="ai-grid-row"><span>${escapeHtml(v.name)}</span><span class="dim">${escapeHtml(v.department || '-')}</span></div>`).join('') || '<p class="dim">All contracts cover that clause.</p>',
       trace: `intent=missing_clause term="${term}"`,
     };
   },
@@ -383,7 +383,7 @@ const _ANSWERERS = {
     const v = findVendor(tok);
     if (!v) return { headline: "Couldn't find that vendor.", body: '', trace: '' };
     return {
-      headline: `${escapeHtml(v.name)} owner: <b>${escapeHtml(v.owner || v.ownerEmail || '—')}</b>`,
+      headline: `${escapeHtml(v.name)} owner: <b>${escapeHtml(v.owner || v.ownerEmail || '-')}</b>`,
       body: v.ownerEmail ? `<div class="ai-grid-row"><span>Email</span><b>${escapeHtml(v.ownerEmail)}</b></div>` : '',
       trace: `intent=owner_of vendor=${v.name}`,
     };
@@ -393,7 +393,7 @@ const _ANSWERERS = {
     const total = overdue.reduce((a, i) => a + (+i.amount || 0), 0);
     return {
       headline: `<b>${overdue.length}</b> overdue invoices · <b>${formatMoney(total)}</b>`,
-      body: overdue.slice(0, 10).map(i => `<div class="ai-grid-row"><span>${escapeHtml(i.vendor || i.subscriptionName || 'Invoice')}</span><span class="dim">${i.dueDate || i.date || '—'}</span><b>${formatMoney(+i.amount || 0)}</b></div>`).join('') || '<p class="dim">No overdue invoices.</p>',
+      body: overdue.slice(0, 10).map(i => `<div class="ai-grid-row"><span>${escapeHtml(i.vendor || i.subscriptionName || 'Invoice')}</span><span class="dim">${i.dueDate || i.date || '-'}</span><b>${formatMoney(+i.amount || 0)}</b></div>`).join('') || '<p class="dim">No overdue invoices.</p>',
       trace: `intent=invoice_status overdue=${overdue.length}`,
     };
   },
@@ -428,7 +428,7 @@ const _ANSWERERS = {
     const vs = _vendors().filter(v => v.status !== 'cancelled').sort((a, b) => annualCost(b) - annualCost(a));
     return {
       headline: `<b>${vs.length}</b> vendors in your portfolio`,
-      body: vs.map(v => `<div class="ai-grid-row" data-nav-vendor="${v.id}" style="cursor:pointer"><span>${escapeHtml(v.name)}</span><span class="dim">${escapeHtml(v.department || '—')} · ${escapeHtml(v.category || '—')}</span><b>${formatMoney(annualCost(v))}/yr</b></div>`).join(''),
+      body: vs.map(v => `<div class="ai-grid-row" data-nav-vendor="${v.id}" style="cursor:pointer"><span>${escapeHtml(v.name)}</span><span class="dim">${escapeHtml(v.department || '-')} · ${escapeHtml(v.category || '-')}</span><b>${formatMoney(annualCost(v))}/yr</b></div>`).join(''),
       trace: `intent=list_vendors n=${vs.length}`,
     };
   },
@@ -509,7 +509,7 @@ const _ANSWERERS = {
     }
     return {
       headline: `Found ${vendors.length} matches`,
-      body: vendors.slice(0, 10).map(v => `<div class="ai-grid-row" data-nav-vendor="${v.id}" style="cursor:pointer"><span>${escapeHtml(v.name)}</span><span class="dim">${escapeHtml(v.department || '—')}</span><b>${formatMoney(annualCost(v))}/yr</b></div>`).join(''),
+      body: vendors.slice(0, 10).map(v => `<div class="ai-grid-row" data-nav-vendor="${v.id}" style="cursor:pointer"><span>${escapeHtml(v.name)}</span><span class="dim">${escapeHtml(v.department || '-')}</span><b>${formatMoney(annualCost(v))}/yr</b></div>`).join(''),
       trace: `intent=search query="${p.raw}"`,
     };
   },
@@ -621,11 +621,11 @@ function stopVoice() { try { _rec && _rec.stop(); } catch (_) {} _recOn = false;
 /* ---------- Voice output (SpeechSynthesis) ----------
    Prefer an Indian English female voice, soft cadence. Fall back
    gracefully if none installed on this platform. Voices load async
-   in Chrome — refresh the selected voice once voiceschanged fires. */
+   in Chrome - refresh the selected voice once voiceschanged fires. */
 let _preferredVoice = null;
 
 /* Score voices, but ONLY within the requested language family.
-   The scorer never crosses language families — if user picks English,
+   The scorer never crosses language families - if user picks English,
    it will never fall back to a Hindi voice (and vice versa). */
 function _scoreVoiceForLang(v, targetLangStem) {
   const n = (v.name || '').toLowerCase();
@@ -633,7 +633,7 @@ function _scoreVoiceForLang(v, targetLangStem) {
   // Hard filter: must match target language family (e.g. "en" or "hi")
   if (!l.startsWith(targetLangStem.toLowerCase())) return -1;
   let s = 0;
-  // Quality tier — biggest lever
+  // Quality tier - biggest lever
   if (/neural|natural/i.test(n)) s += 100;           // Microsoft Edge Natural (best in browser)
   if (/online/i.test(n)) s += 80;                    // Edge Online
   if (/wavenet|studio|news|polyglot/i.test(n)) s += 70;  // Google premium
@@ -846,7 +846,7 @@ function ensureChatModal() {
     <div class="ai-modal-panel">
       <form class="ai-modal-form" id="ai-modal-form">
         <svg class="ai-modal-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="ai-modal-input" placeholder="Ask Track — e.g. how much is marketing spending on Salesforce this quarter?" autocomplete="off" spellcheck="false"/>
+        <input id="ai-modal-input" placeholder="Ask Track - e.g. how much is marketing spending on Salesforce this quarter?" autocomplete="off" spellcheck="false"/>
         <button type="button" class="ai-mic ai-mic-modal" id="ai-mic-modal" title="Voice input">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
         </button>
@@ -901,7 +901,7 @@ function openChatModal() {
   const input = m.querySelector('#ai-modal-input');
   setTimeout(() => input.focus(), 50);
   renderModalSuggestions(input.value);
-  // Global Esc — bind at document capture phase so it works regardless of focus
+  // Global Esc - bind at document capture phase so it works regardless of focus
   document.addEventListener('keydown', _modalEscHandler, true);
 }
 function closeChatModal() {
@@ -1067,7 +1067,7 @@ function ensureChatView() {
           <button type="button" class="ai-mic" id="ai-mic-full">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
           </button>
-          <input id="ai-input-full" placeholder="Ask Track — anything about your SaaS portfolio…" autocomplete="off"/>
+          <input id="ai-input-full" placeholder="Ask Track - anything about your SaaS portfolio…" autocomplete="off"/>
           <label class="ai-voice-toggle"><input type="checkbox" id="ai-voice-reply-full" data-voice-pref="full"/> <span>🔊 Speak</span></label>
           <button type="submit" class="btn-primary">Send</button>
         </form>
@@ -1167,7 +1167,7 @@ function renderChatMessages(surface) {
   if (!log.length) {
     host.innerHTML = `<div class="ai-welcome">
       <h3>Ask Track anything about your SaaS portfolio.</h3>
-      <p class="dim">Grounded answers with a source trail. Nothing is sent to a third party — everything runs locally on your workspace.</p>
+      <p class="dim">Grounded answers with a source trail. Nothing is sent to a third party - everything runs locally on your workspace.</p>
       <div class="ai-quick-chips">
         <button class="chip" data-chip="Total SaaS spend this year">Total spend this year</button>
         <button class="chip" data-chip="Top risk contracts">Top risk</button>
@@ -1223,7 +1223,7 @@ function renderVoicePane(section) {
   const sttLangSel = section.querySelector('#vp-stt-lang');
 
   // Language options (same list for TTS and STT)
-  const opts = VOICE_LANGS.map(l => `<option value="${l.code}">${escapeHtml(l.label)}${l.native !== l.label.split(' ')[0] ? ' — ' + escapeHtml(l.native) : ''}</option>`).join('');
+  const opts = VOICE_LANGS.map(l => `<option value="${l.code}">${escapeHtml(l.label)}${l.native !== l.label.split(' ')[0] ? ' - ' + escapeHtml(l.native) : ''}</option>`).join('');
   ttsLangSel.innerHTML = opts;
   sttLangSel.innerHTML = opts;
   ttsLangSel.value = vs.ttsLang;

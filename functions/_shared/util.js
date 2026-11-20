@@ -189,3 +189,86 @@ export async function getUserFromSession(request, env) {
   if (!session) return null;
   return env.DB.prepare('SELECT * FROM users WHERE email=?').bind(session.email).first();
 }
+
+// ===================================================================
+// Multi-user accounts (Phase 1: helpers ship dark - defined and tested,
+// but not yet called by any live endpoint). Roles: owner > admin > member.
+// One account per member. Soft cap of 50 members per account.
+// ===================================================================
+export const ROLE_RANK = { member: 1, admin: 2, owner: 3 };
+export const MAX_MEMBERS = 50;
+
+// True if `role` meets or exceeds `min` in the hierarchy.
+export function roleAtLeast(role, min) {
+  return (ROLE_RANK[role] || 0) >= (ROLE_RANK[min] || 99);
+}
+
+// Membership row for an email, or null.
+export async function getMembership(env, email) {
+  const e = normalizeEmail(email);
+  if (!e) return null;
+  // Fail open if the accounts tables are not migrated yet: no membership, not a 500.
+  try {
+    return await env.DB.prepare('SELECT * FROM memberships WHERE email=?').bind(e).first();
+  } catch (_) { return null; }
+}
+
+// Count active members of an account.
+export async function countAccountMembers(env, accountId) {
+  const row = await env.DB
+    .prepare("SELECT COUNT(*) c FROM memberships WHERE account_id=? AND status='active'")
+    .bind(accountId).first();
+  return (row && row.c) || 0;
+}
+
+// Ensure an email has an account. If it has no membership, create an account
+// owned by this email plus an owner membership (idempotent). Used to migrate
+// existing solo users lazily. Returns the membership row.
+export async function ensureAccountForUser(env, user) {
+  const email = normalizeEmail(user && user.email);
+  if (!email) return null;
+  const existing = await getMembership(env, email);
+  if (existing) return existing;
+  const accountId = crypto.randomUUID();
+  const ts = now();
+  try {
+    await env.DB.prepare('INSERT INTO accounts (id, name, owner_email, plan, created_at) VALUES (?,?,?,?,?)')
+      .bind(accountId, null, email, (user && user.plan) || null, ts).run();
+    await env.DB.prepare('INSERT INTO memberships (email, account_id, role, status, invited_by, created_at) VALUES (?,?,?,?,?,?)')
+      .bind(email, accountId, 'owner', 'active', null, ts).run();
+  } catch (_) { /* race: another request created it; re-read below */ }
+  return (await getMembership(env, email)) || { email, account_id: accountId, role: 'owner', status: 'active' };
+}
+
+// Gate: require the session user to be an active member of their account with at
+// least `minRole`. Returns { user, membership } or { response }. NOT yet wired
+// into endpoints (Phase 1 ships dark); Phase 4 adds enforcement everywhere.
+export async function requireRole(request, env, minRole = 'member') {
+  const user = await getUserFromSession(request, env);
+  if (!user) return { response: unauthorized('sign in required') };
+  const membership = await ensureAccountForUser(env, user);
+  if (!membership || membership.status !== 'active') return { response: json({ error: 'no_account' }, 403) };
+  if (!roleAtLeast(membership.role, minRole)) return { response: json({ error: 'forbidden' }, 403) };
+  return { user, membership };
+}
+
+// Count unused, unexpired invites for an account (counts toward the member cap).
+export async function countPendingInvites(env, accountId) {
+  const row = await env.DB
+    .prepare('SELECT COUNT(*) c FROM invites WHERE account_id=? AND used=0 AND expires_at > ?')
+    .bind(accountId, now()).first();
+  return (row && row.c) || 0;
+}
+
+// Resolve the account context for a session user: membership, account row, and
+// the owner email that app_data is keyed by. All members of an account share
+// the owner's app_data row, so one account = one shared workspace. Falls back to
+// the user's own email when the account row is missing (defensive).
+export async function getAccountContext(env, user) {
+  const membership = await ensureAccountForUser(env, user);
+  if (!membership) return null;
+  let account = null;
+  try { account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?').bind(membership.account_id).first(); } catch (_) {}
+  const ownerEmail = (account && account.owner_email) || normalizeEmail(user && user.email);
+  return { membership, account, ownerEmail };
+}

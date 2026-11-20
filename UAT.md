@@ -1,4 +1,4 @@
-# SaaS Spend Track — UAT Scenarios
+# SaaS Spend Track - UAT Scenarios
 
 Last updated: 12 Nov 2026 · Phase 25 · Covers tool + marketing site.
 
@@ -177,7 +177,7 @@ If any of those six steps fail, roll back the latest commit.
 
 ---
 
-## UAT pass — 18 Nov 2026
+## UAT pass - 18 Nov 2026
 
 Full automated + in-browser pass on production (`app.saasspendtrack.com`).
 

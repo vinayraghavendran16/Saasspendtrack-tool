@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 3.1
+   SaaS Spend Track - Phase 3.1
    - Custom multiselect (fixes the native-dropdown visibility bug)
    - UX / bug sweep (modal close, keyboard, listener guards)
    - PDF export with configurable date range for every dashboard

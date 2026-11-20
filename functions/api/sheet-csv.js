@@ -1,5 +1,5 @@
 import { requireEntitled, rateLimit } from '../_shared/util.js';
-// Cloudflare Pages Function — GET/POST /api/sheet-csv
+// Cloudflare Pages Function - GET/POST /api/sheet-csv
 // Fetches a shared Google Sheet as CSV server-side (no browser CORS limits) so
 // the client can import the rows. Works for any sheet shared as "anyone with the
 // link can view". Private sheets return a sign-in page, which we detect and

@@ -90,7 +90,7 @@ export function welcomeEmail(company, appUrl) {
 
 export function paidEmail() {
   return {
-    subject: "You're all set — welcome to SaaS Spend Track",
+    subject: "You're all set - welcome to SaaS Spend Track",
     html: shell("You're in", [
       'Payment received and your account is active. Thank you.',
       'Your GST invoice will follow separately. Reply to this email if you need anything at all.',
@@ -136,10 +136,38 @@ export function nudgeEmail(kind, payUrl, appUrl) {
 
 export function expiredEmail(payUrl) {
   return {
-    subject: 'Your trial has ended — upgrade to get back in',
+    subject: 'Your trial has ended - upgrade to get back in',
     html: shell('Your trial has ended', [
       'Your 7-day trial is up and access is paused. Nothing is deleted, your data is waiting for you.',
       'Upgrade and you are back in immediately.',
     ], { url: payUrl, label: 'Upgrade and get back in' }),
+  };
+}
+
+// --- Multi-user: invite + member-cap alert ---
+export function inviteEmail(link, inviterEmail) {
+  return {
+    subject: 'You have been invited to SaaS Spend Track',
+    html: shell(
+      'Join your team on SaaS Spend Track',
+      [
+        `${esc(inviterEmail) || 'A teammate'} invited you to their SaaS Spend Track workspace, where your team tracks every contract, renewal and software cost in one place.`,
+        'Accept below to join and sign in. This link is single-use and expires in 7 days.',
+      ],
+      { url: link, label: 'Accept invite' },
+    ),
+  };
+}
+
+export function memberCapEmail(accountId, ownerEmail) {
+  return {
+    subject: 'A SaaS Spend Track workspace hit the 50-member cap',
+    html: shell(
+      'Member cap reached',
+      [
+        `Workspace <b>${esc(accountId)}</b> (owner ${esc(ownerEmail)}) tried to invite a member past the 50-member limit.`,
+        'Reach out to them if they should be allowed more seats.',
+      ],
+    ),
   };
 }

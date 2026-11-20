@@ -1,13 +1,13 @@
 /* ================================================================
-   Phase 46 — Export deliverables (Reports view)
+   Phase 46 - Export deliverables (Reports view)
    ================================================================
    Three artifacts, each one click:
 
-   1. Monthly Spend Summary (PDF)   — one-page, branded, with
+   1. Monthly Spend Summary (PDF)   - one-page, branded, with
       headline numbers, top 10 vendors, category breakdown.
-   2. Renewal Roster (CSV)          — every renewal in the next
+   2. Renewal Roster (CSV)          - every renewal in the next
       12 months, with notice dates and $ exposure.
-   3. Savings Opportunities (PDF)   — ranked findings with
+   3. Savings Opportunities (PDF)   - ranked findings with
       estimated $ savings per item.
 
    All reports pull live from state. Uses html2pdf.js (already
@@ -20,15 +20,15 @@
 /* ---------------- Helpers ---------------- */
 
 function moneyFmt(n) {
-  if (n == null || isNaN(n)) return '—';
+  if (n == null || isNaN(n)) return '-';
   if (typeof formatMoney === 'function') return formatMoney(n);
   return '$' + Math.round(n).toLocaleString();
 }
 
 function fmtDate(d) {
-  if (!d) return '—';
+  if (!d) return '-';
   const dt = (d instanceof Date) ? d : new Date(d);
-  if (isNaN(dt.getTime())) return '—';
+  if (isNaN(dt.getTime())) return '-';
   return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -128,7 +128,7 @@ function buildRenewalRoster() {
         Team: s.team || '',
         'Renewal date': fmtDate(renewal),
         'Days until': days,
-        'Notice date': noticeDays ? fmtDate(noticeDate) : '—',
+        'Notice date': noticeDays ? fmtDate(noticeDate) : '-',
         'Notice period (days)': noticeDays || '',
         'Auto-renew': (s.contract && s.contract.autoRenew) ? 'Yes' : 'No',
         'Annual cost': annualCost.toFixed(2),
@@ -204,7 +204,7 @@ function buildSavings() {
     findings.push({
       type: 'Orphan contract',
       vendor: s.name,
-      detail: `No owner assigned. Audit before the next renewal — orphan tools are the #1 source of ghost spend.`,
+      detail: `No owner assigned. Audit before the next renewal - orphan tools are the #1 source of ghost spend.`,
       savings: monthlySpendOf(s) * 12 * 0.1,  // conservative 10% risk
     });
   });
@@ -299,10 +299,10 @@ async function exportSpendSummary() {
         ${d.top10.map(s => `
           <tr style="border-bottom:1px solid #f1f5f9;">
             <td style="padding:8px 10px; font-weight:500; color:#101828;">${escapeHtml(s.name)}</td>
-            <td style="padding:8px 10px; color:#475467;">${escapeHtml(s.category || '—')}</td>
+            <td style="padding:8px 10px; color:#475467;">${escapeHtml(s.category || '-')}</td>
             <td style="padding:8px 10px; text-align:right; color:#101828;">${moneyFmt(monthlySpendOf(s))}</td>
             <td style="padding:8px 10px; text-align:right; color:#101828;">${moneyFmt(monthlySpendOf(s) * 12)}</td>
-            <td style="padding:8px 10px; color:#475467;">${s.renewal ? fmtDate(s.renewal) : '—'}</td>
+            <td style="padding:8px 10px; color:#475467;">${s.renewal ? fmtDate(s.renewal) : '-'}</td>
           </tr>
         `).join('')}
       </tbody>
@@ -380,7 +380,7 @@ function exportRenewalRoster() {
 async function exportSavingsReport() {
   const d = buildSavings();
   if (!d.findings.length) {
-    alert('No savings opportunities detected. Your spend looks tight — nothing to flag.');
+    alert('No savings opportunities detected. Your spend looks tight - nothing to flag.');
     return;
   }
   const body = `
@@ -413,7 +413,7 @@ async function exportSavingsReport() {
     }).join('')}
 
     <div style="margin-top:28px; padding:16px; background:#f8fafc; border-radius:8px; font-size:11.5px; color:#667085; line-height:1.5;">
-      <b style="color:#101828;">How to read this.</b> Savings are estimates based on current contract terms, usage data, and typical negotiation outcomes. Underused-licence savings assume you right-size at renewal. Auto-renew trap savings are the <i>annual commitment at risk</i>, not guaranteed recovery. Overlap savings assume full consolidation onto one tool. Orphan contract savings are a 10% risk reserve — orphan tools are the single largest source of shadow spend.
+      <b style="color:#101828;">How to read this.</b> Savings are estimates based on current contract terms, usage data, and typical negotiation outcomes. Underused-licence savings assume you right-size at renewal. Auto-renew trap savings are the <i>annual commitment at risk</i>, not guaranteed recovery. Overlap savings assume full consolidation onto one tool. Orphan contract savings are a 10% risk reserve - orphan tools are the single largest source of shadow spend.
     </div>
   `;
   await renderPdf(`savings-opportunities-${todayISO()}.pdf`, body, { title: 'Savings opportunities' });
