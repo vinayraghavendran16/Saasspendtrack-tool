@@ -108,6 +108,36 @@ ok(res.status === 403, 'data GET blocked for suspended member');
 res = await DATA.onRequestGet({ request: req, env: dataEnv({ row: null }, active, { email: active.email, account_id: 'A', role: 'member', status: 'active' }) });
 ok((await res.json()).empty === true, 'data GET ok for active member');
 
+// ---- Phase 5: member management (change role / remove) ----
+section('accounts phase 5 (member management)');
+import * as MROLE from '../functions/api/account/member-role.js';
+import * as MREMOVE from '../functions/api/account/member-remove.js';
+const ownerCaller = { sessionEmail: 'own@x.com', users: { 'own@x.com': { email: 'own@x.com', status: 'active' } }, members: { 'own@x.com': { email: 'own@x.com', account_id: 'A', role: 'owner', status: 'active' } }, accounts: { A: { id: 'A', owner_email: 'own@x.com' } } };
+const adminCaller = { sessionEmail: 'ad@x.com', users: { 'ad@x.com': { email: 'ad@x.com', status: 'active' } }, members: { 'ad@x.com': { email: 'ad@x.com', account_id: 'A', role: 'admin', status: 'active' } }, accounts: { A: { id: 'A', owner_email: 'own@x.com' } } };
+const withMembers = (base, extra) => Object.assign({}, base, { members: Object.assign({}, base.members, extra) });
+const jReq = (b) => ({ headers: { get: () => 'sst_session=s' }, json: async () => b });
+// member-role: non-admin caller blocked
+let r5 = await MROLE.onRequestPost({ request: jReq({ email: 'x@x.com', role: 'admin' }), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': {} }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } } }) });
+ok(r5.status === 403, 'member-role 403 for non-admin caller');
+r5 = await MROLE.onRequestPost({ request: jReq({ email: 'own@x.com', role: 'member' }), env: acct3Env(ownerCaller) });
+ok(r5.status === 400 && (await r5.json()).error === 'self', 'member-role 400 on self');
+r5 = await MROLE.onRequestPost({ request: jReq({ email: 't@x.com', role: 'owner' }), env: acct3Env(withMembers(ownerCaller, { 't@x.com': { account_id: 'A', role: 'member', status: 'active' } })) });
+ok(r5.status === 400 && (await r5.json()).error === 'bad_role', 'member-role rejects setting owner');
+r5 = await MROLE.onRequestPost({ request: jReq({ email: 't@x.com', role: 'admin' }), env: acct3Env(withMembers(ownerCaller, { 't@x.com': { account_id: 'B', role: 'member', status: 'active' } })) });
+ok(r5.status === 404, 'member-role 404 for other-account target');
+r5 = await MROLE.onRequestPost({ request: jReq({ email: 't@x.com', role: 'admin' }), env: acct3Env(withMembers(ownerCaller, { 't@x.com': { account_id: 'A', role: 'member', status: 'active' } })) });
+ok(r5.status === 200 && (await r5.json()).role === 'admin', 'member-role owner promotes member to admin');
+r5 = await MROLE.onRequestPost({ request: jReq({ email: 't@x.com', role: 'member' }), env: acct3Env(withMembers(adminCaller, { 't@x.com': { account_id: 'A', role: 'admin', status: 'active' } })) });
+ok(r5.status === 403, 'member-role admin cannot change an admin');
+// member-remove
+let r6 = await MREMOVE.onRequestPost({ request: jReq({ email: 'own2@x.com' }), env: acct3Env(withMembers(ownerCaller, { 'own2@x.com': { account_id: 'A', role: 'owner', status: 'active' } })) });
+ok(r6.status === 403, 'member-remove 403 removing an owner');
+r6 = await MREMOVE.onRequestPost({ request: jReq({ email: 'own@x.com' }), env: acct3Env(ownerCaller) });
+ok(r6.status === 400, 'member-remove 400 on self');
+r6 = await MREMOVE.onRequestPost({ request: jReq({ email: 't@x.com' }), env: acct3Env(withMembers(ownerCaller, { 't@x.com': { account_id: 'A', role: 'member', status: 'active' } })) });
+ok(r6.status === 200 && (await r6.json()).removed === 't@x.com', 'member-remove owner removes member');
+r6 = await MREMOVE.onRequestPost({ request: jReq({ email: 't@x.com' }), env: acct3Env(withMembers(adminCaller, { 't@x.com': { account_id: 'A', role: 'admin', status: 'active' } })) });
+ok(r6.status === 403, 'member-remove admin cannot remove an admin');
 // ---- Self-provisioning: ensureAccountSchema ----
 section('accounts self-provision (ensureAccountSchema)');
 let schemaThrew = false;

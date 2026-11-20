@@ -21,7 +21,7 @@ export async function onRequestGet({ request, env }) {
     // Accounts tables not migrated yet: degrade to the signed-in user as sole owner
     // rather than 500-ing the whole panel. Invites need the tables, so flag setup.
     console.error('members: roster query failed', err && err.message);
-    return json({ members: [selfRow], invites: [], count: 1, cap: MAX_MEMBERS, role: membership.role, canManage: isManager, pendingSetup: true });
+    return json({ members: [selfRow], invites: [], count: 1, cap: MAX_MEMBERS, role: membership.role, canManage: isManager, self: selfRow.email, pendingSetup: true });
   }
   if (!members.length) members = [selfRow];
 
@@ -42,5 +42,6 @@ export async function onRequestGet({ request, env }) {
     cap: MAX_MEMBERS,
     role: membership.role,
     canManage: isManager,
+    self: normalizeEmail(user && user.email),
   });
 }
