@@ -1,5 +1,5 @@
 import { requireEntitled, rateLimit } from '../_shared/util.js';
-// Cloudflare Pages Function — POST /api/extract
+// Cloudflare Pages Function - POST /api/extract
 // World-class contract extraction: sends contract text to the Anthropic API
 // and returns structured, schema-validated facts via tool use.
 //
@@ -53,7 +53,7 @@ const EXTRACT_TOOL = {
       vendor_name: {
         type: "string",
         description:
-          "Short common name of the VENDOR/supplier — the party providing the software or service (often defined as 'us'/'we'/'our' or shown in the header/logo), e.g. 'Outreach'. NEVER the customer.",
+          "Short common name of the VENDOR/supplier - the party providing the software or service (often defined as 'us'/'we'/'our' or shown in the header/logo), e.g. 'Outreach'. NEVER the customer.",
       },
       vendor_legal_name: { type: "string" },
       customer_name: { type: "string" },
@@ -76,7 +76,7 @@ const EXTRACT_TOOL = {
       },
       payment_terms_days: { type: "integer", description: "Net payment days (e.g. 30 for 'Net 30')." },
       term_start_date: { type: "string", description: "ISO date YYYY-MM-DD." },
-      term_end_date: { type: "string", description: "ISO date YYYY-MM-DD — the renewal/expiry date." },
+      term_end_date: { type: "string", description: "ISO date YYYY-MM-DD - the renewal/expiry date." },
       term_months: { type: "integer" },
       auto_renews: { type: "boolean" },
       renewal_notice_days: { type: "integer", description: "Notice days required to cancel / not renew." },
@@ -147,7 +147,7 @@ export async function onRequestOptions() {
 // GET /api/extract?test=1     → also runs a minimal Anthropic call and reports
 //                               the upstream status + a short body snippet, so
 //                               we can see exactly why the main path fails.
-// Minimal, safe health check — no secrets, no model list, no billable calls.
+// Minimal, safe health check - no secrets, no model list, no billable calls.
 export async function onRequestGet({ env }) {
   const headers = { ...CORS, "Content-Type": "application/json" };
   return new Response(JSON.stringify({ ok: true, configured: !!env.ANTHROPIC_API_KEY }), { status: 200, headers });

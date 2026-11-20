@@ -1,5 +1,5 @@
 /* ================================================================
-   Phase 47 — Settings view + multi-currency display
+   Phase 47 - Settings view + multi-currency display
    ================================================================
    Adds:
    - Settings sidebar tab (last position)
@@ -11,7 +11,7 @@
    - Trial-reset helper (for your distributor demos)
 
    Multi-currency works by MONKEY-PATCHING the global formatMoney()
-   so every existing view picks up conversion automatically — no
+   so every existing view picks up conversion automatically - no
    refactor of 120+ formatMoney call sites needed.
 
    FX rates fetched from frankfurter.app (free, no API key,
@@ -111,7 +111,7 @@ function patchFormatters() {
       if (code === 'USD') return origFormatMoney(n);
       const converted = convert(n, code);
       const def = currencyDef(code);
-      if (converted == null || isNaN(converted)) return def.symbol + '—';
+      if (converted == null || isNaN(converted)) return def.symbol + '-';
       const formatted = Math.abs(converted) < 1
         ? converted.toLocaleString(def.locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : Math.round(converted).toLocaleString(def.locale);
@@ -126,7 +126,7 @@ function patchFormatters() {
       if (code === 'USD') return origFormatMoneyShort(n);
       const converted = convert(n, code);
       const def = currencyDef(code);
-      if (converted == null || isNaN(converted)) return def.symbol + '—';
+      if (converted == null || isNaN(converted)) return def.symbol + '-';
       if (Math.abs(converted) >= 1000000) return def.symbol + (converted / 1000000).toFixed(1) + 'M';
       if (Math.abs(converted) >= 1000)    return def.symbol + (converted / 1000).toFixed(1) + 'k';
       return def.symbol + Math.round(converted);

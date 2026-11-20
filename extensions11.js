@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 10
+   SaaS Spend Track - Phase 10
    Data Sources: unified collection surface across 5 collection phases
    Phase 1: SSO / IdP (Okta, Entra ID, Google Workspace, JumpCloud)
    Phase 2: Direct vendor APIs (top 15 with usage endpoints)
@@ -210,12 +210,12 @@ function renderDataSources() {
           const options = matchesForVendor(s.name);
           return `<tr>
             <td><b><a href="#" class="vendor-link" data-vendor-nav="${s.id}">${escapeHtml(s.name)}</a></b></td>
-            <td><span class="team-chip">${escapeHtml(s.team || '—')}</span></td>
-            <td>${escapeHtml(s.category || '—')}</td>
+            <td><span class="team-chip">${escapeHtml(s.team || '-')}</span></td>
+            <td>${escapeHtml(s.category || '-')}</td>
             <td class="num">${formatMoney(monthlyCost(s))}</td>
             <td>${src ? `<span class="badge info">${escapeHtml(src.connectorName)}</span>` : '<span class="badge warn">Not instrumented</span>'}</td>
-            <td>${src ? `<span class="badge ${src.confidence === 'high' ? 'ok' : src.confidence === 'medium' ? 'info' : 'warn'}">${src.confidence}</span>` : '—'}</td>
-            <td>${src ? new Date(src.lastSyncAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
+            <td>${src ? `<span class="badge ${src.confidence === 'high' ? 'ok' : src.confidence === 'medium' ? 'info' : 'warn'}">${src.confidence}</span>` : '-'}</td>
+            <td>${src ? new Date(src.lastSyncAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</td>
             <td>${options.length ? options.map(o => `<span class="badge ${isConnected(o.id) ? 'ok' : ''}" style="margin-right:3px">${escapeHtml(o.name)}</span>`).join('') : '<span style="color:var(--text-dim);font-size:11.5px">No connector yet · <a href="#" data-manual-sub="' + s.id + '" class="link">enter seats manually</a></span>'}</td>
           </tr>`;
         }).join('')}</tbody></table>
@@ -245,10 +245,10 @@ function renderDataSources() {
   host.querySelectorAll('[data-manual-sub]').forEach(a => a.addEventListener('click', e => {
     e.preventDefault();
     const sub = state.subscriptions.find(s => s.id === a.dataset.manualSub); if (!sub) return;
-    const total = prompt(`${sub.name} — total licence count?`, sub.licenses || 10);
+    const total = prompt(`${sub.name} - total licence count?`, sub.licenses || 10);
     if (total === null) return;
-    const assigned = prompt(`${sub.name} — assigned seats?`, sub.assigned || Math.round(parseInt(total,10)*0.9));
-    const used = prompt(`${sub.name} — actively used (last 30d)?`, sub.utilized || Math.round(parseInt(assigned||total,10)*0.6));
+    const assigned = prompt(`${sub.name} - assigned seats?`, sub.assigned || Math.round(parseInt(total,10)*0.9));
+    const used = prompt(`${sub.name} - actively used (last 30d)?`, sub.utilized || Math.round(parseInt(assigned||total,10)*0.6));
     sub.licenses = parseInt(total,10) || 0;
     sub.assigned = parseInt(assigned,10) || 0;
     sub.utilized = parseInt(used,10) || 0;
@@ -260,7 +260,7 @@ function renderDataSources() {
 function renderConnectorCard(c) {
   const conn = connection(c.id);
   const connected = isConnected(c.id);
-  const lastSync = conn?.lastSyncAt ? new Date(conn.lastSyncAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+  const lastSync = conn?.lastSyncAt ? new Date(conn.lastSyncAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
   const touches = state.subscriptions.filter(s => s.dataSource?.connectorId === c.id).length;
   return `<div class="ds-tile ${connected ? 'connected' : ''}">
     <div class="ds-tile-head">
@@ -304,7 +304,7 @@ function openConnectModal(connectorId) {
     <p style="font-size:13px;line-height:1.6;color:var(--text-2);margin-bottom:10px">Clicking <b>Authorise</b> opens the OAuth consent page at the provider. You'll be asked to approve read access to:</p>
     <ul class="ds-scope-list">${cat.dataTypes.map(d => `<li><span class="ds-scope-dot"></span>${d.replace(/_/g,' ')}</li>`).join('')}</ul>
     <p style="font-size:13px;line-height:1.6;color:var(--text-2);margin:14px 0 6px">This connector will populate seats and utilisation for:</p>
-    ${options.length ? `<ul class="ds-match-list">${options.map(s => `<li><b>${escapeHtml(s.name)}</b><span>${formatMoney(monthlyCost(s))}/mo · ${escapeHtml(s.team || '—')}</span></li>`).join('')}</ul>` : '<p style="font-size:13px;color:var(--text-dim);padding:10px;background:var(--panel-2);border-radius:var(--radius-sm)">No matched subscriptions in your register yet. The connection will still be saved; vendors matched later will be sourced from it automatically.</p>'}
+    ${options.length ? `<ul class="ds-match-list">${options.map(s => `<li><b>${escapeHtml(s.name)}</b><span>${formatMoney(monthlyCost(s))}/mo · ${escapeHtml(s.team || '-')}</span></li>`).join('')}</ul>` : '<p style="font-size:13px;color:var(--text-dim);padding:10px;background:var(--panel-2);border-radius:var(--radius-sm)">No matched subscriptions in your register yet. The connection will still be saved; vendors matched later will be sourced from it automatically.</p>'}
     <div style="padding:10px 12px;background:var(--warning-soft);color:var(--warning-text);border-radius:var(--radius-sm);font-size:12px;margin-top:14px"><b>Demo build:</b> clicking Authorise simulates the OAuth handshake and populates realistic utilisation data. In production this launches the real OAuth popup.</div>
     <div class="actions" style="margin-top:14px">
       <button type="button" id="ds-c-cancel">Cancel</button>

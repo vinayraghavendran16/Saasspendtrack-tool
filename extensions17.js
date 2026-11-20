@@ -1,9 +1,9 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 23
+   SaaS Spend Track - Phase 23
    Trial expiry enforcement
    ---------------------------------------------------------------------------
    The workspace tier already tracks trialStartedAt + trialDays, exposes
-   isTrialExpired() and trialRemainingDays(). The banner was cosmetic —
+   isTrialExpired() and trialRemainingDays(). The banner was cosmetic -
    this file adds real enforcement:
 
    1. Expired trial: full-screen modal blocks any view below the pricing
@@ -11,7 +11,7 @@
    2. Owner can start a new 14-day trial once (for demos), extend trial
       (owner-only), or mark as "paid customer" to clear the state.
    3. Grace mode: when ≤3 days remain, the banner turns orange and shows
-      "X days left — upgrade now" with a button that opens the plan modal.
+      "X days left - upgrade now" with a button that opens the plan modal.
    4. Fully bypass-able for demos via the Settings → Developer → "Reset
       trial" control, so the distributor can re-demo cleanly.
    ========================================================================== */
@@ -45,7 +45,7 @@ function refreshPayGeoLinks() {
 }
 document.addEventListener('DOMContentLoaded', () => setTimeout(refreshPayGeoLinks, 50));
 
-// IP confirmation on first load — used only to set the right Razorpay URL
+// IP confirmation on first load - used only to set the right Razorpay URL
 (function geoIpBackfill() {
   let has = false;
   try { has = !!localStorage.getItem('sst-geo'); } catch (_) {}
@@ -124,7 +124,7 @@ function ensureExpiryGate() {
 
         <div class="eg-actions">
           <a href="${payUrl()}" data-pay-geo="1" target="_blank" rel="noopener" class="btn-primary btn-lg">Upgrade now</a>
-          <button class="btn-link" id="eg-paid">I've already paid — mark as active</button>
+          <button class="btn-link" id="eg-paid">I've already paid - mark as active</button>
         </div>
 
         <div class="eg-footer">
@@ -156,7 +156,7 @@ function ensureExpiryGate() {
     save();
     closeGate();
     renderAll();
-    toast('Trial reset — 14 days.', 'success');
+    toast('Trial reset - 14 days.', 'success');
   };
   g.querySelector('#eg-view').onclick = () => {
     closeGate();
@@ -186,7 +186,7 @@ function ensureTrialBanner() {
     <span>
       ${t.inGrace ? '⚠️' : '✨'}
       <b>${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'}</b> left in your trial
-      ${t.inGrace ? ' — upgrade now to keep access' : ''}
+      ${t.inGrace ? ' - upgrade now to keep access' : ''}
     </span>
     <a href="${payUrl()}" data-pay-geo="1" target="_blank" rel="noopener" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade ' + priceWithPeriod()}</a>
   `;
@@ -205,8 +205,8 @@ function ensureTrialDevControls() {
     <h4>Workspace status</h4>
     <div class="td-grid">
       <div><div class="td-label">Current plan</div><div class="td-val"><b>${t.isPaid ? 'Paid customer' : 'Trial'}</b></div></div>
-      <div><div class="td-label">Days remaining</div><div class="td-val"><b>${t.daysLeft != null ? t.daysLeft : '—'}</b></div></div>
-      <div><div class="td-label">Trial started</div><div class="td-val">${t.trialStartedAt ? new Date(t.trialStartedAt).toLocaleDateString('en-IN') : '—'}</div></div>
+      <div><div class="td-label">Days remaining</div><div class="td-val"><b>${t.daysLeft != null ? t.daysLeft : '-'}</b></div></div>
+      <div><div class="td-label">Trial started</div><div class="td-val">${t.trialStartedAt ? new Date(t.trialStartedAt).toLocaleDateString('en-IN') : '-'}</div></div>
     </div>
     <div class="td-actions">
       <button class="icon-btn" id="td-reset">Reset to fresh 14-day trial</button>

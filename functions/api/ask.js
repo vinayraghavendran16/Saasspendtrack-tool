@@ -1,8 +1,8 @@
 import { requireEntitled, rateLimit } from '../_shared/util.js';
-// Cloudflare Pages Function — POST /api/ask
+// Cloudflare Pages Function - POST /api/ask
 // Ask Track AI: answers a natural-language question using ONLY an app-computed
 // snapshot of the workspace (every number is pre-calculated client-side, so the
-// model selects/explains rather than doing raw arithmetic — keeps answers
+// model selects/explains rather than doing raw arithmetic - keeps answers
 // accurate). Requires ANTHROPIC_API_KEY. Shares the model-discovery approach
 // with /api/extract.
 

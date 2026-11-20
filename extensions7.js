@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 6
+   SaaS Spend Track - Phase 6
    Scenario Planner
    - Drag vendors into a Proposed Changes tray
    - Apply actions: cancel, downgrade %, renegotiate price %, consolidate
@@ -157,7 +157,7 @@ function renderScenarioPlanner() {
               <div class="rc-vendor">
                 <div class="avatar" style="background:${avatarColor(d.sub.name)}">${initials(d.sub.name)}</div>
                 <div><div class="rc-name"><a href="#" class="vendor-link" data-vendor-nav="${d.sub.id}">${escapeHtml(d.sub.name)}</a></div>
-                     <div class="rc-meta">${escapeHtml(d.sub.team || '—')} · ${escapeHtml(d.sub.category || '—')}</div></div>
+                     <div class="rc-meta">${escapeHtml(d.sub.team || '-')} · ${escapeHtml(d.sub.category || '-')}</div></div>
               </div>
               <div class="sc-change-delta ${d.deltaMonthly < 0 ? 'save' : d.deltaMonthly > 0 ? 'add' : ''}">
                 <div>${d.deltaMonthly < 0 ? '-' : d.deltaMonthly > 0 ? '+' : ''}${formatMoney(Math.abs(d.deltaMonthly * 12))}/yr</div>
@@ -187,7 +187,7 @@ function renderScenarioPlanner() {
                 <div class="rc-vendor">
                   <div class="avatar" style="background:${avatarColor(s.name)}">${initials(s.name)}</div>
                   <div><div class="rc-name"><a href="#" class="vendor-link" data-vendor-nav="${s.id}">${escapeHtml(s.name)}</a></div>
-                       <div class="rc-meta">${escapeHtml(s.team || '—')} · ${formatMoney(monthlyCost(s))}/mo · ${formatMoney(monthlyCost(s)*12)}/yr${risk != null ? ` · risk ${risk}` : ''}</div></div>
+                       <div class="rc-meta">${escapeHtml(s.team || '-')} · ${formatMoney(monthlyCost(s))}/mo · ${formatMoney(monthlyCost(s)*12)}/yr${risk != null ? ` · risk ${risk}` : ''}</div></div>
                 </div>
               </div>
               <div class="sc-row-actions">

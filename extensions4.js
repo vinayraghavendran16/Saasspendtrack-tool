@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 3.2
+   SaaS Spend Track - Phase 3.2
    - Department-weighted risk inside Analytics
    - Legal-review PDF for the Clause playbook
    ========================================================================== */
@@ -79,9 +79,9 @@ function renderDeptRiskPanel() {
             <td class="num">${r.contracts}</td>
             <td class="num"><span class="badge ${riskBand(r.avgRisk).cls}">${r.avgRisk}</span></td>
             <td class="num">${formatMoney(r.exposure)}</td>
-            <td>${r.topVendor ? `<a href="#" class="link" data-vendor-nav="${r.topSubId}">${escapeHtml(r.topVendor)}</a> · <span style="color:var(--text-dim)">${r.topRisk}</span>` : '—'}</td>
+            <td>${r.topVendor ? `<a href="#" class="link" data-vendor-nav="${r.topSubId}">${escapeHtml(r.topVendor)}</a> · <span style="color:var(--text-dim)">${r.topRisk}</span>` : '-'}</td>
           </tr>`).join('')}
-          <tr style="background:var(--panel-2);font-weight:700"><td>Portfolio total</td><td class="num">${rows.reduce((s, r) => s + r.contracts, 0)}</td><td class="num">—</td><td class="num">${formatMoney(totalExposure)}</td><td>—</td></tr>
+          <tr style="background:var(--panel-2);font-weight:700"><td>Portfolio total</td><td class="num">${rows.reduce((s, r) => s + r.contracts, 0)}</td><td class="num">-</td><td class="num">${formatMoney(totalExposure)}</td><td>-</td></tr>
           </tbody>
         </table>
       </div>
@@ -193,10 +193,10 @@ async function exportPlaybookReview() {
           const scoreColour = e.score >= 90 ? '#067647' : e.score >= 70 ? '#b45308' : '#b42318';
           return `<tr>
             <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec"><b>${escapeHtml(s.name)}</b></td>
-            <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;color:#475467">${escapeHtml(s.team || '—')}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;color:#475467">${escapeHtml(s.team || '-')}</td>
             <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;text-align:right;font-variant-numeric:tabular-nums">${formatMoney(monthlyCost(s) * 12)}</td>
             <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;text-align:right;color:${scoreColour};font-weight:600">${e.score}%</td>
-            <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;text-align:right">${deviations || '—'}</td>
+            <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;text-align:right">${deviations || '-'}</td>
           </tr>`;
         }).join('')}</tbody>
       </table>
@@ -214,7 +214,7 @@ async function exportPlaybookReview() {
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px">
             <div>
               <div style="font-size:16px;font-weight:700;color:#101828">${escapeHtml(s.name)}</div>
-              <div style="font-size:12px;color:#667085;margin-top:2px">${escapeHtml(s.team || '—')} · ${escapeHtml(s.category || '—')} · ${formatMoney(s.cost)} ${s.cycle} · renewal ${s.renewal || '—'}</div>
+              <div style="font-size:12px;color:#667085;margin-top:2px">${escapeHtml(s.team || '-')} · ${escapeHtml(s.category || '-')} · ${formatMoney(s.cost)} ${s.cycle} · renewal ${s.renewal || '-'}</div>
             </div>
             <div style="text-align:right">
               <div style="font-size:11px;color:#667085;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">Compliance</div>
@@ -231,7 +231,7 @@ async function exportPlaybookReview() {
             <tbody>${issues.map(iss => `<tr>
               <td style="padding:6px 10px;border-bottom:1px solid #e4e7ec"><b>${escapeHtml(iss.label)}</b></td>
               <td style="padding:6px 10px;border-bottom:1px solid #e4e7ec;color:#344054">${escapeHtml(iss.expected || 'present')}</td>
-              <td style="padding:6px 10px;border-bottom:1px solid #e4e7ec;color:${iss.state === 'missing' ? '#b42318' : '#b45308'};font-weight:${iss.state === 'missing' ? '600' : '500'}">${iss.state === 'missing' ? 'MISSING' : escapeHtml(iss.actual || '—')}</td>
+              <td style="padding:6px 10px;border-bottom:1px solid #e4e7ec;color:${iss.state === 'missing' ? '#b42318' : '#b45308'};font-weight:${iss.state === 'missing' ? '600' : '500'}">${iss.state === 'missing' ? 'MISSING' : escapeHtml(iss.actual || '-')}</td>
               <td style="padding:6px 10px;border-bottom:1px solid #e4e7ec"><span style="font-size:11px;padding:2px 8px;background:#f2f4f7;color:${severityColour[iss.severity || 'warn']};border-radius:4px;font-weight:600">${severityLabel[iss.severity || 'warn']}</span></td>
             </tr>`).join('')}</tbody>
           </table>
@@ -254,9 +254,9 @@ async function exportPlaybookReview() {
         </tr></thead>
         <tbody>${compliant.map(({ s }) => `<tr>
           <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec"><b>${escapeHtml(s.name)}</b></td>
-          <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;color:#475467">${escapeHtml(s.team || '—')}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;color:#475467">${escapeHtml(s.team || '-')}</td>
           <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;text-align:right;font-variant-numeric:tabular-nums">${formatMoney(monthlyCost(s) * 12)}</td>
-          <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;color:#475467">${s.renewal || '—'}</td>
+          <td style="padding:7px 10px;border-bottom:1px solid #e4e7ec;color:#475467">${s.renewal || '-'}</td>
         </tr>`).join('')}</tbody>
       </table>
     </div>

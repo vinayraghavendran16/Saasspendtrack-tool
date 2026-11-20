@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — QA tests for Phases 22-25
+   SaaS Spend Track - QA tests for Phases 22-25
    Extends the existing TESTS registry from extensions10.js.
    ========================================================================== */
 
@@ -8,7 +8,7 @@
     console.warn('QA harness not loaded; skipping Phase 22-25 tests');
     return;
   }
-  // Ensure the base 88 tests are registered first — defineTests() guards
+  // Ensure the base 88 tests are registered first - defineTests() guards
   // against double-registration via TESTS.length, so we must populate
   // the base before adding ours.
   if (typeof defineTests === 'function') defineTests();

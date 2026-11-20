@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 25
+   SaaS Spend Track - Phase 25
    Vendor contact book
    ---------------------------------------------------------------------------
    Capture the vendor-side context that makes renewals real conversations:
@@ -56,7 +56,7 @@ function renderContactBook() {
             const lastDays = c.lastOutreach ? Math.round((Date.now() - new Date(c.lastOutreach).getTime()) / 86400000) : null;
             const lastClass = lastDays === null ? 'cb-stale' : lastDays > 60 ? 'cb-stale' : lastDays > 30 ? 'cb-aging' : '';
             return `<tr class="${lastClass}" data-vendor-id="${v.id}">
-              <td><b>${escapeHtml(v.name)}</b><div class="dim" style="font-size:11px">${escapeHtml(v.department || '—')}</div></td>
+              <td><b>${escapeHtml(v.name)}</b><div class="dim" style="font-size:11px">${escapeHtml(v.department || '-')}</div></td>
               <td><input class="cb-edit" data-field="name" data-vendor="${v.id}" value="${escapeHtml(c.name || '')}" placeholder="AE or CSM name"/></td>
               <td><input class="cb-edit" data-field="email" data-vendor="${v.id}" value="${escapeHtml(c.email || '')}" placeholder="name@vendor.com" type="email"/></td>
               <td><input class="cb-edit" data-field="phone" data-vendor="${v.id}" value="${escapeHtml(c.phone || '')}" placeholder="+91 ..."/></td>
@@ -94,7 +94,7 @@ function draftRenewalEmail(vendorId) {
   if (!sub) return;
   const c = vendorContact(sub);
   if (!c.email) {
-    toast(`Add an email for ${sub.name} first — then the draft can address it to the right person.`, 'warn');
+    toast(`Add an email for ${sub.name} first - then the draft can address it to the right person.`, 'warn');
     return;
   }
   const annual = annualCost(sub);
@@ -104,7 +104,7 @@ function draftRenewalEmail(vendorId) {
   const renewal = sub.renewal || 'our next renewal';
   const contactFirstName = (c.name || '').split(' ')[0] || 'there';
 
-  const subject = `${sub.name} renewal — a few questions before ${renewal}`;
+  const subject = `${sub.name} renewal - a few questions before ${renewal}`;
   const body = [
     `Hi ${contactFirstName},`,
     ``,
@@ -190,7 +190,7 @@ function ensureContactBookView() {
     <div class="section-head">
       <div>
         <h2>Vendor contacts</h2>
-        <p class="page-sub">Every vendor's rep, direct line, and last touch date in one place. Draft renegotiation emails with one click — context from your contract is pre-filled.</p>
+        <p class="page-sub">Every vendor's rep, direct line, and last touch date in one place. Draft renegotiation emails with one click - context from your contract is pre-filled.</p>
       </div>
       <div style="display:flex;gap:8px">
         <button class="icon-btn" data-pdf-export="cb-body" data-pdf-title="Vendor contacts">Download PDF</button>

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 5
+   SaaS Spend Track - Phase 5
    Clause commenting + approval chains
    - Per-clause threads keyed by subId + clauseId
    - Approval policy: thresholds trigger required sign-off by named roles
@@ -42,7 +42,7 @@ function threadMetrics(subId) {
   return { open, resolved, total: open.length + resolved.length };
 }
 
-/* Default authors — in production these would come from the directory/SSO */
+/* Default authors - in production these would come from the directory/SSO */
 function currentAuthor() {
   return state.settings.currentAuthor || { name: 'You (Finance)', role: 'Finance' };
 }
@@ -205,7 +205,7 @@ function approvalCard(sub, status) {
       <div class="rc-vendor">
         <div class="avatar" style="background:${avatarColor(sub.name)}">${initials(sub.name)}</div>
         <div><div class="rc-name"><a href="#" class="vendor-link" data-vendor-nav="${sub.id}">${escapeHtml(sub.name)}</a></div>
-             <div class="rc-meta">${escapeHtml(sub.team || '—')} · ${escapeHtml(sub.category || '—')}</div></div>
+             <div class="rc-meta">${escapeHtml(sub.team || '-')} · ${escapeHtml(sub.category || '-')}</div></div>
       </div>
       <div class="rc-cost"><div class="rc-cost-main">${formatMoney(annual)}</div><div class="rc-cost-sub">annual</div></div>
     </div>
@@ -329,7 +329,7 @@ function ensureApprovalsView() {
   section.id = 'approvals';
   section.className = 'view';
   section.innerHTML = `
-    <div class="section-head"><div><h2>Approvals</h2><p class="page-sub">Contracts queued for sign-off per the active approval policy. Finance, Legal, Security, CFO — each sees what they need to approve.</p></div></div>
+    <div class="section-head"><div><h2>Approvals</h2><p class="page-sub">Contracts queued for sign-off per the active approval policy. Finance, Legal, Security, CFO - each sees what they need to approve.</p></div></div>
     <div id="approvals-body"></div>
   `;
   main.appendChild(section);

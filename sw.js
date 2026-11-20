@@ -1,4 +1,4 @@
-/* Service Worker — SaaS Spend Track PWA
+/* Service Worker - SaaS Spend Track PWA
  * Minimal: cache the app shell, serve stale-while-revalidate for
  * the one index.html file (everything else is inlined into it).
  *
@@ -32,7 +32,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
 
   // Don't cache cross-origin (Google Fonts, Apps Script, Frankfurter, CDNs)
-  // — let the browser handle them normally. Only cache same-origin.
+  // - let the browser handle them normally. Only cache same-origin.
   if (url.origin !== self.location.origin) return;
 
   // Stale-while-revalidate for the app shell.

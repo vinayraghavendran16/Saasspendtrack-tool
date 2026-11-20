@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 22
+   SaaS Spend Track - Phase 22
    Distributor one-pager
    ---------------------------------------------------------------------------
    Branded A4 leave-behind the distributor can print or email to each
@@ -88,7 +88,7 @@ function renderOnepager() {
     // tag appears in this file's own text. HTML parsers close any script
     // block on the first end-script tag they see, regardless of context.
     const printSnippet = '<' + 'script>setTimeout(()=>window.print(),500);</' + 'script>';
-    w.document.write(`<!doctype html><html><head><title>SaaS Spend Track — ${escapeHtml(s.prospectName || 'One-pager')}</title>
+    w.document.write(`<!doctype html><html><head><title>SaaS Spend Track - ${escapeHtml(s.prospectName || 'One-pager')}</title>
       <style>${getOnepagerPrintCss()}</style>
       </head><body>${document.getElementById('op-page').outerHTML}${printSnippet}</body></html>`);
     w.document.close();
@@ -114,14 +114,14 @@ function onepagerHtml(s) {
       </div>
       ${prospect ? `<div class="op-prospect">Prepared for <b>${prospect}</b></div>` : ''}
       <div class="op-hero-value">
-        Built for Indian and APAC mid-market. Spend tracking, contract intelligence, renewals, approvals, licence forecasting, and natural-language search — in one tool, on your browser or on-prem.
+        Built for Indian and APAC mid-market. Spend tracking, contract intelligence, renewals, approvals, licence forecasting, and natural-language search - in one tool, on your browser or on-prem.
       </div>
     </div>
 
     <!-- Band 2: Problem + 3 pillars -->
     <div class="op-section">
       <div class="op-problem">
-        <b>The problem.</b> SaaS spend at 50-500 person companies is scattered across cards, invoices, emails and Google sheets. Vendors auto-renew before anyone notices. Legal terms are buried in PDFs. Nobody owns the full picture — finance, procurement, legal and IT each see a fragment.
+        <b>The problem.</b> SaaS spend at 50-500 person companies is scattered across cards, invoices, emails and Google sheets. Vendors auto-renew before anyone notices. Legal terms are buried in PDFs. Nobody owns the full picture - finance, procurement, legal and IT each see a fragment.
       </div>
       <div class="op-pillars">
         <div class="op-pillar">
@@ -153,11 +153,11 @@ function onepagerHtml(s) {
       <div class="op-diff">
         <div class="op-diff-title">Why this, not Zluri or Spendflo?</div>
         <ul>
-          <li><b>Built for India &amp; APAC</b> — lakh/crore, Indian SaaS stack seeded, INR invoicing supported</li>
+          <li><b>Built for India &amp; APAC</b> - lakh/crore, Indian SaaS stack seeded, INR invoicing supported</li>
           <li><b>On-prem available</b> for BFSI, healthcare, public sector and other regulated industries</li>
           <li><b>10× cheaper</b> than US enterprise alternatives (Zluri starts at ~$30,000/year)</li>
-          <li><b>Browser-only</b> — data never leaves your organisation unless you choose to sync a connector</li>
-          <li><b>Live in minutes</b>, not months — no implementation team</li>
+          <li><b>Browser-only</b> - data never leaves your organisation unless you choose to sync a connector</li>
+          <li><b>Live in minutes</b>, not months - no implementation team</li>
         </ul>
       </div>
     </div>
@@ -190,7 +190,7 @@ function onepagerHtml(s) {
   `;
 }
 
-/* PDF render path — uses the html2pdf lib loaded by extensions3.js,
+/* PDF render path - uses the html2pdf lib loaded by extensions3.js,
    routed through the universal download bridge. */
 async function _onepagerDirectPdf(el, filename) {
   const lib = await (window.loadHtml2Pdf ? window.loadHtml2Pdf() : window.html2pdf);

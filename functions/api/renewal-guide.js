@@ -1,5 +1,5 @@
 import { requireEntitled, rateLimit } from '../_shared/util.js';
-// Cloudflare Pages Function — POST /api/renewal-guide
+// Cloudflare Pages Function - POST /api/renewal-guide
 // Produces a vendor renewal/cancellation guide grounded in LIVE web search, so
 // it reflects terms valid at request time and never relies on model memory.
 // Claude is required to cite sources and to mark anything it cannot verify
@@ -52,10 +52,10 @@ export async function onRequestPost({ request, env }) {
     const model = await resolveModel(env);
 
     const system = `You write accurate, source-grounded SaaS renewal and cancellation guides for a procurement tool. Today is ${today}.
-STRICT RULES — accuracy over completeness:
+STRICT RULES - accuracy over completeness:
 - Use the web_search tool to find the vendor's CURRENT, official terms (master subscription agreement, order-form boilerplate, auto-renewal and cancellation policy) and reputable, recent third-party guidance. Prefer the vendor's own domain.
 - Base every factual statement on a source you actually retrieved in this session. Do NOT use prior knowledge for specifics like notice-period length, auto-renewal behaviour, cancellation method, or where to send notice.
-- If you cannot find and verify a specific detail, say "Not verified — confirm in your signed contract or with the vendor." NEVER guess a number, duration, date, email, or URL.
+- If you cannot find and verify a specific detail, say "Not verified - confirm in your signed contract or with the vendor." NEVER guess a number, duration, date, email, or URL.
 - Note that terms vary by contract date, region and negotiated order form, and that the customer's signed order form overrides the public defaults.
 - Keep it practical and concise: what the default renewal behaviour appears to be, the notice window if stated, the concrete steps to cancel or give notice, and the key caveats. Add inline source references.
 - End with a one-line reminder to check their own signed order form/MSA.`;
@@ -67,7 +67,7 @@ STRICT RULES — accuracy over completeness:
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 6 }],
       messages: [{
         role: "user",
-        content: `Write a renewal and cancellation guide for ${vendor}.${officialUrl ? ` Their official terms page is ${officialUrl} — check it first.` : ""} Search for current sources, cite them, and mark anything you can't verify.`,
+        content: `Write a renewal and cancellation guide for ${vendor}.${officialUrl ? ` Their official terms page is ${officialUrl} - check it first.` : ""} Search for current sources, cite them, and mark anything you can't verify.`,
       }],
     };
 

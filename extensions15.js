@@ -1,10 +1,10 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 14
+   SaaS Spend Track - Phase 14
    Download bridge + artifact-safe PDF export
    ---------------------------------------------------------------------------
    The Claude artifact viewer blocks ordinary <a download> and script-driven
-   saves (the warning on every publish calls this out). On any other host —
-   Cloudflare Pages, Vercel, Netlify, self-hosted — the normal browser save
+   saves (the warning on every publish calls this out). On any other host -
+   Cloudflare Pages, Vercel, Netlify, self-hosted - the normal browser save
    works, so this bridge is transparent there.
 
    Strategy:

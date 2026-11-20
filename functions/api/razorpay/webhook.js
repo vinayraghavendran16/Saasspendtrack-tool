@@ -55,7 +55,7 @@ export async function onRequestPost({ request, env }) {
       'UPDATE users SET status=?, plan=?, paid_at=?, rp_payment_id=?, amount_paid=?, currency=? WHERE email=?',
     ).bind('active', plan, t, paymentId, amount, currency, email).run();
   } else {
-    // Paid without a prior trial — activate directly.
+    // Paid without a prior trial - activate directly.
     await env.DB.prepare(
       'INSERT INTO users (email, created_at, trial_ends_at, status, plan, paid_at, rp_payment_id, amount_paid, currency) VALUES (?,?,?,?,?,?,?,?,?)',
     ).bind(email, t, t, 'active', plan, t, paymentId, amount, currency).run();

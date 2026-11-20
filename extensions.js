@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 2 extensions
+   SaaS Spend Track - Phase 2 extensions
    - Expanded clause taxonomy (18 clauses) with industry-aware weighting
    - Portfolio risk engine (8 dimensions)
    - Bulk ingestion with OCR (Tesseract.js, lazy-loaded)
@@ -448,15 +448,15 @@ function renderContractsV2() {
       const b = riskBand(r.overall);
       return `<tr>
         <td><div class="name-cell"><div class="avatar" style="background:${avatarColor(s.name)}">${initials(s.name)}</div>
-          <div><div style="font-weight:600">${escapeHtml(s.name)}</div><div style="color:var(--text-dim);font-size:11px">${escapeHtml(s.contract.termLength || '—')} · ${escapeHtml(s.contract.renewalType || '—')}</div></div></div></td>
+          <div><div style="font-weight:600">${escapeHtml(s.name)}</div><div style="color:var(--text-dim);font-size:11px">${escapeHtml(s.contract.termLength || '-')} · ${escapeHtml(s.contract.renewalType || '-')}</div></div></div></td>
         <td>${INDUSTRIES[customerIndustry()].label.split(' ')[0]}</td>
         <td class="num"><span class="badge ${b.cls}">${r.overall}</span></td>
         ${RISK_DIMS.map(d => {
           const sc = r.perDim[d.id].score;
           const band = riskBand(sc);
-          return `<td class="num"><span class="risk-cell ${band.cls}" title="${d.label}: ${sc}/100${r.perDim[d.id].signals[0] ? ' — ' + r.perDim[d.id].signals[0].reason : ''}">${sc}</span></td>`;
+          return `<td class="num"><span class="risk-cell ${band.cls}" title="${d.label}: ${sc}/100${r.perDim[d.id].signals[0] ? ' - ' + r.perDim[d.id].signals[0].reason : ''}">${sc}</span></td>`;
         }).join('')}
-        <td>${win ? `${win.cancelBy.toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${win.daysLeft}d` : '—'}</td>
+        <td>${win ? `${win.cancelBy.toLocaleDateString('en-US',{month:'short',day:'numeric'})} · ${win.daysLeft}d` : '-'}</td>
         <td class="actions-cell"><button class="icon-btn" data-contract-detail="${s.id}">Review</button></td>
       </tr>`;
     }).join('')}</tbody></table>${rows.length === 0 ? '<p class="empty">No contracts ingested yet. Upload one above or paste the text into the extractor.</p>' : ''}</div>`;
@@ -471,12 +471,12 @@ function openContractDetail(id) {
   back.hidden = false;
   back.querySelector('.modal').innerHTML = `
     <h2>${escapeHtml(sub.name)} · Contract review</h2>
-    <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '—'}</p>
+    <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}</p>
     <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
       <div class="stat-card" style="cursor:default"><span class="stat-label">Overall risk</span><span class="stat-value" style="color:var(--${riskBand(r.overall).cls}-text,var(--text))">${r.overall}</span><span class="stat-sub">${riskBand(r.overall).label}</span></div>
       <div class="stat-card" style="cursor:default"><span class="stat-label">Clauses captured</span><span class="stat-value">${Object.values(c).filter(v => v).length}</span><span class="stat-sub">of ${CLAUSE_LIBRARY.length}</span></div>
       <div class="stat-card" style="cursor:default"><span class="stat-label">Signals flagged</span><span class="stat-value">${Object.values(r.signals).flat().length}</span><span class="stat-sub">across all dimensions</span></div>
-      <div class="stat-card" style="cursor:default"><span class="stat-label">Notice window</span><span class="stat-value">${computeNoticeWindow(sub)?.daysLeft ?? '—'}</span><span class="stat-sub">days to act by</span></div>
+      <div class="stat-card" style="cursor:default"><span class="stat-label">Notice window</span><span class="stat-value">${computeNoticeWindow(sub)?.daysLeft ?? '-'}</span><span class="stat-sub">days to act by</span></div>
     </div>
     <h3 style="font-size:13px;margin:0 0 10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Risk by dimension</h3>
     <div class="risk-dim-grid">${RISK_DIMS.map(d => {
@@ -546,14 +546,14 @@ function renderRiskAnalytics() {
           <thead><tr><th>Vendor</th><th>Team</th><th class="num">Annual spend</th><th class="num">Risk</th><th>Top signal</th></tr></thead>
           <tbody>${top.map(({ s, r }) => {
             const topSig = Object.values(r.signals).flat().sort((a, b) => b.score - a.score)[0];
-            return `<tr><td><b>${escapeHtml(s.name)}</b></td><td>${escapeHtml(s.team || '—')}</td><td class="num">${formatMoney(monthlyCost(s) * 12)}</td>
+            return `<tr><td><b>${escapeHtml(s.name)}</b></td><td>${escapeHtml(s.team || '-')}</td><td class="num">${formatMoney(monthlyCost(s) * 12)}</td>
               <td class="num"><span class="badge ${riskBand(r.overall).cls}">${r.overall}</span></td>
-              <td style="color:var(--text-dim);font-size:12.5px">${topSig ? escapeHtml(topSig.reason) : '—'}</td></tr>`;
+              <td style="color:var(--text-dim);font-size:12.5px">${topSig ? escapeHtml(topSig.reason) : '-'}</td></tr>`;
           }).join('')}</tbody>
         </table></div>
       </div>
       <div class="panel span-2">
-        <h2>Gap heatmap &mdash; critical clauses missing across the portfolio</h2>
+        <h2>Gap heatmap - critical clauses missing across the portfolio</h2>
         <div class="heatmap">${CLAUSE_LIBRARY.filter(c => c.critical).map(c => {
           const missing = rows.filter(({ s }) => { const v = s.contract[c.id === 'renewal' ? 'renewalType' : c.id === 'notice' ? 'noticeDays' : c.id === 'term' ? 'termLength' : c.id === 'priceCap' ? 'priceCapPct' : c.id]; return v == null || v === ''; }).length;
           const pct = Math.round((missing / rows.length) * 100);
@@ -820,9 +820,9 @@ async function bulkContractUpload(files) {
   const log = (msg) => { const p = document.createElement('div'); p.textContent = msg; p.style.fontSize = '12px'; status.appendChild(p); status.scrollTop = status.scrollHeight; };
   status.innerHTML = '';
   for (const file of files) {
-    const bar = document.createElement('div'); bar.textContent = '• ' + file.name + ' — reading…'; status.appendChild(bar);
+    const bar = document.createElement('div'); bar.textContent = '• ' + file.name + ' - reading…'; status.appendChild(bar);
     try {
-      const { text, ocrUsed } = await readAndOcrIfNeeded(file, (stage, pct) => { bar.textContent = `• ${file.name} — ${stage} (${pct}%)`; });
+      const { text, ocrUsed } = await readAndOcrIfNeeded(file, (stage, pct) => { bar.textContent = `• ${file.name} - ${stage} (${pct}%)`; });
       const ex = deepExtract(text);
       const name = file.name.replace(/\.(pdf|txt|png|jpg|jpeg)$/i, '').replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
       const existing = state.subscriptions.find(s => s.name.toLowerCase() === name.toLowerCase());
@@ -856,7 +856,7 @@ async function bulkContractUpload(files) {
       };
       bar.textContent = `✓ ${file.name} → ${sub.name} · ${ex.confidence}% confidence${ocrUsed ? ' · OCR' : ''}`;
     } catch (e) {
-      bar.textContent = `✗ ${file.name} — ${e.message || e}`;
+      bar.textContent = `✗ ${file.name} - ${e.message || e}`;
       bar.style.color = 'var(--danger-text)';
     }
   }
@@ -981,7 +981,7 @@ function buildPerEmployeeTemplate() {
     ['E-1006','Finance','M1','CC-FIN-01','Bengaluru','2021-09','TRUE'],
   ].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const notes = [
-    '# SaaS Spend Track — Non-PII employee template (per-employee shape)',
+    '# SaaS Spend Track - Non-PII employee template (per-employee shape)',
     '# One row per person. Carries NO names, emails or phone numbers.',
     '# Columns:',
     '#   employee_code    Opaque identifier of your choice. Not the real HR system ID; can be a random code.',
@@ -1010,8 +1010,8 @@ function buildAggregatedTemplate() {
     ['IT','IC3-IC4','5','CC-IT-01','Bengaluru'],
   ].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const notes = [
-    '# SaaS Spend Track — Non-PII employee template (aggregated shape)',
-    '# One row per department+band. Just a headcount — no individual rows.',
+    '# SaaS Spend Track - Non-PII employee template (aggregated shape)',
+    '# One row per department+band. Just a headcount - no individual rows.',
     '# Columns:',
     '#   department       Must match the Team field on your subscriptions.',
     '#   role_band        Range like IC1-IC3, M1-M3. No titles.',

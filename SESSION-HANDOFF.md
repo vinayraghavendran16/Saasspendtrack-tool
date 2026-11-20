@@ -1,11 +1,11 @@
-# SaaS Spend Track — Session Handoff (context for a new chat)
+# SaaS Spend Track - Session Handoff (context for a new chat)
 
 Paste or attach this file at the start of a new chat to carry full context.
 Last updated: 2026-11-18.
 
 ## What the project is
-**SaaS Spend Track** — a SaaS spend + contract-management product.
-- **App (product):** https://app.saasspendtrack.com — single-file HTML SPA.
+**SaaS Spend Track** - a SaaS spend + contract-management product.
+- **App (product):** https://app.saasspendtrack.com - single-file HTML SPA.
 - **Marketing site:** https://saasspendtrack.com
 - **Owner:** Vinay Raghavendran / **Whizzlead Solutions OPC Private Limited** (no parens). Director & signatory: **Raghavendran Vittal**. Phone: **+91 91684 81989**. Based in Chennai.
 - Data lives in the browser (localStorage) for the current tier; AI features call Cloudflare Pages Functions.
@@ -34,7 +34,7 @@ Last updated: 2026-11-18.
 - **Vendors tab** (governance register): department, why/when procured, 4-function approval badges (InfoSec/Legal/Procurement/Finance), next review.
 - **Full-screen vendor editor**: all parameters incl. internal stakeholders (InfoSec/Legal/Procurement contacts from team directory), vendor AE/CSM contact, procurement reason/date, approvals + reviews. Fixed a latent bug where saving wiped infosec/contactBook/PDF data (now spreads existing record).
 - **Explicit department / cost-center field** (hybrid with owner-derived fallback), in the form and CSV importers.
-- Dashboard: **Notice windows moved to top**; dark-mode contrast fixes across new modules (they'd used undefined `--card`/`--bg-soft` vars — now defined for both themes).
+- Dashboard: **Notice windows moved to top**; dark-mode contrast fixes across new modules (they'd used undefined `--card`/`--bg-soft` vars - now defined for both themes).
 - Workspace setup: company, domain, fiscal year, default renewal-notice window.
 - QA harness: dynamic SKIP support; demo-only integration tests skip on blank workspace. Current: **138 pass / 0 fail / 11 skip** (8 need backend, 3 demo-data-dependent).
 - **Razorpay International USD page wired** (`rzp.io/rzp/MhqdtN2a`) in app + website (India stays `rzp.io/rzp/NCGW9GyD`).
@@ -42,7 +42,7 @@ Last updated: 2026-11-18.
 - Docs refreshed: `README.md`, `UAT.md`, `VINAY-TODO.md`.
 
 ## Current to-do (Vinay's part)
-- **P1:** set `SUPPORT_PHONE` in Apps Script config; set up Razorpay `payment.captured` webhook (then ask Claude to wire the `doPost` branch — Apps Script can't read the signature header, so use a `?token=<secret>` on the `/exec` URL).
+- **P1:** set `SUPPORT_PHONE` in Apps Script config; set up Razorpay `payment.captured` webhook (then ask Claude to wire the `doPost` branch - Apps Script can't read the signature header, so use a `?token=<secret>` on the `/exec` URL).
 - **Merge website PR #2.**
 - **P1.5 launches:** directory listings (G2, Capterra, AlternativeTo, Product Hunt, StackShare, Slant), distribution (Show HN, Reddit, 4 weeks LinkedIn, Indian SaaS media), assets (og-image 1200x630, 5-6 screenshots, founder headshot, first customer logo/testimonial).
 - **P2 polish:** PWA icon PNGs (from `icon.svg`), `vinay@saasspendtrack.com` email forwarding, update footer address Bengaluru → Chennai.
@@ -58,5 +58,5 @@ Last updated: 2026-11-18.
 - Private (never publish): `vinayraghavendran16@gmail.com`.
 - Legal entity name: **Whizzlead Solutions OPC Private Limited** (no parentheses). Signatory: Raghavendran Vittal.
 - Git: branch before pushing if on default; end commit messages with the Co-Authored-By: Claude + Claude-Session lines; end PR bodies with the Generated-with-Claude-Code line.
-- **Cloudflare cache:** after a deploy, hard-refresh (Cmd/Ctrl+Shift+R) — the browser serves the old build otherwise (hit this repeatedly).
+- **Cloudflare cache:** after a deploy, hard-refresh (Cmd/Ctrl+Shift+R) - the browser serves the old build otherwise (hit this repeatedly).
 - Verify changes live in the built-in browser; mutate state in-memory for tests and restore without `save()` so the real workspace isn't polluted.

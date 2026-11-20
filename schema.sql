@@ -1,4 +1,4 @@
--- SaaS Spend Track — trial gating / auth schema (Cloudflare D1, SQLite)
+-- SaaS Spend Track - trial gating / auth schema (Cloudflare D1, SQLite)
 -- Apply with:  wrangler d1 execute sst-trial --remote --file=./schema.sql
 
 CREATE TABLE IF NOT EXISTS users (
