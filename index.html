@@ -16922,15 +16922,55 @@ function buildStateFromPreset(presetKey) {
   const iso = (d) => d.toISOString().slice(0, 10);
   const shift = (days) => { const d = new Date(today); d.setDate(d.getDate() + days); return iso(d); };
 
-  const subs = p.vendors.map(v => {
+  const invoices = [];
+  const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z]+/g, '');
+  // Flat tuple vendors are enriched to the same architecture as rich agreements:
+  // a price schedule (a deterministic subset ramps across 2 years), an occasional
+  // amendment, and recent invoices. This runs for every tuple preset AND for
+  // generated presets (they arrive here as tuple vendors), so none ship empty.
+  const subs = p.vendors.map((v, vi) => {
     const [name, monthlyCost, category, team, lic, active, renewalOffset] = v;
-    const ownerEmail = `owner-${(team || 'general').toLowerCase().replace(/\W+/g, '-')}@${p.company.toLowerCase().replace(/[^a-z]+/g, '')}.com`;
+    const ownerEmail = `owner-${(team || 'general').toLowerCase().replace(/\W+/g, '-')}@${slug(p.company)}.com`;
+    const subId = crypto.randomUUID();
+    const annual = Math.round((monthlyCost || 0) * 12);
+
+    // Price schedule: single year by default; ~1 in 5 vendors ramp over 2 years.
+    let priceSchedule = [];
+    if (annual > 0 && vi % 5 === 0) {
+      priceSchedule = [
+        { year: 1, label: 'Year 1', annual, current: true, start: shift(renewalOffset - 365), end: shift(renewalOffset) },
+        { year: 2, label: 'Year 2 (+8%)', annual: Math.round(annual * 1.08), current: false, start: shift(renewalOffset + 1), end: shift(renewalOffset + 365) },
+      ];
+    } else if (annual > 0) {
+      priceSchedule = [{ year: 1, label: 'Year 1', annual, current: true, start: shift(renewalOffset - 365), end: shift(renewalOffset) }];
+    }
+
+    // Amendments: a deterministic subset of seat-based vendors has one mid-term change.
+    const amendments = [];
+    if (lic && active && vi % 7 === 3) {
+      const added = Math.max(5, Math.round(lic * 0.15));
+      amendments.push({ date: shift(-100), kind: 'add-seats', summary: `Added ${added} seats mid-term (${lic} total)`, deltaValue: Math.round(annual * 0.1), effectiveDate: shift(-100) });
+    }
+
+    // Invoices: recent monthly invoices (2 paid, 1 pending) whenever there is a cost.
+    if (monthlyCost > 0) {
+      [[-62, -60], [-32, -30], [-2, null]].forEach(([iss, paid], i) => {
+        invoices.push({
+          id: crypto.randomUUID(), subId, amount: monthlyCost,
+          invoiceNumber: `${slug(name).slice(0, 4).toUpperCase() || 'INV'}-${String(i + 1).padStart(4, '0')}`,
+          issueDate: shift(iss), dueDate: shift(iss + 28),
+          paidDate: paid != null ? shift(paid) : null,
+        });
+      });
+    }
+
     return {
-      id: crypto.randomUUID(),
+      id: subId,
       name,
       cost: monthlyCost,
       cycle: 'monthly',
       billingCycle: 'monthly',
+      annualCost: annual,
       category,
       team,
       department: team,
@@ -16943,13 +16983,15 @@ function buildStateFromPreset(presetKey) {
       utilizationPct: lic && active ? Math.round((active / lic) * 100) : null,
       owner: ownerEmail,
       ownerEmail,
+      priceSchedule,
+      amendments,
       contract: {
         autoRenew: true,
         noticeDays: renewalOffset > 180 ? 90 : renewalOffset > 60 ? 60 : 30,
-        termLength: '12 months',
+        termLength: priceSchedule.length > 1 ? '24 months' : '12 months',
         priceCapPct: 7,
       },
-      url: `https://${name.toLowerCase().replace(/[^a-z]+/g, '')}.com`,
+      url: `https://${slug(name)}.com`,
       notes: `Loaded from ${p.label} preset.`,
     };
   });
@@ -16971,10 +17013,7 @@ function buildStateFromPreset(presetKey) {
   });
 
   // ---- Rich agreements: hierarchy, price schedules, amendments, invoices ----
-  // These are additive. Flat tuple vendors above are untouched; agreements only
-  // run when a preset defines them. Costs in agreements are ANNUAL INR.
-  const invoices = [];
-  const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z]+/g, '');
+  // Costs in agreements are ANNUAL INR. invoices[] and slug() are declared above.
   if (Array.isArray(p.agreements)) {
     p.agreements.forEach(a => {
       const sched = (a.priceSchedule && a.priceSchedule.length)
