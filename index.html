@@ -1691,6 +1691,19 @@ body.readonly-mode .kpi-value::after {
 /* When the checklist is visible, move the Help launcher up to make room. */
 body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 
+/* Floatable widgets: drag to reposition, close to dismiss. */
+.float-draggable { cursor: grab; }
+.float-dragging { opacity: 0.92; cursor: grabbing !important; user-select: none; }
+.float-x {
+  appearance: none; background: rgba(255,255,255,0.14); border: 0; color: #fff;
+  cursor: pointer; width: 18px; height: 18px; border-radius: 50%; font-size: 13px;
+  line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+  font-family: inherit; padding: 0; flex: 0 0 auto;
+}
+.float-x:hover { background: rgba(255,255,255,0.3); }
+.ob-help .float-x { margin-left: 6px; }
+.ob-checklist .float-x { position: absolute; top: 8px; right: 8px; z-index: 3; }
+
 .ob-help-panel {
   position: fixed; right: 20px; bottom: 80px; z-index: 460;
   width: 340px; max-width: calc(100vw - 32px); max-height: 70vh;
@@ -18692,6 +18705,7 @@ function ob() {
       completed: {},     // { item_id: iso_timestamp }
       dismissedBeacons: {},
       dismissedChecklist: false,
+      dismissedHelp: false,
       panelOpen: false,
       viewed: {},        // { view_name: iso_timestamp } - for see_* checklist items
       // Baselines set once, when onboarding state is first created. Phase 53:
@@ -18840,6 +18854,11 @@ function renderChecklist() {
       e.stopPropagation();
       runFlow(b.dataset.flow);
     };
+  });
+
+  makeFloatable(el, 'checklist', {
+    closable: true,
+    onClose: () => { o.dismissedChecklist = true; save(); el.remove(); postEvent('onboarding_checklist_dismissed'); },
   });
 }
 
@@ -19105,8 +19124,77 @@ function initSmartTips() {
 
 /* ---------------- UI: Help launcher ---------------- */
 
+/* Make a fixed widget draggable (position persisted in localStorage) and, if
+   opts.closable, give it a × that calls opts.onClose. Safe to call repeatedly:
+   position is restored each call, the × is re-added if innerHTML wiped it, and
+   drag listeners attach only once per element. */
+function floatPosKey(key) { return 'sst_float_' + key; }
+function applyFloatPos(el, left, top) {
+  const w = el.offsetWidth || 160, h = el.offsetHeight || 48;
+  const l = Math.max(4, Math.min(window.innerWidth - w - 4, left));
+  const t = Math.max(4, Math.min(window.innerHeight - h - 4, top));
+  el.style.left = l + 'px'; el.style.top = t + 'px';
+  el.style.setProperty('right', 'auto', 'important');
+  el.style.setProperty('bottom', 'auto', 'important');
+}
+function makeFloatable(el, key, opts) {
+  if (!el) return;
+  opts = opts || {};
+  try {
+    const p = JSON.parse(localStorage.getItem(floatPosKey(key)) || 'null');
+    if (p && Number.isFinite(p.left) && Number.isFinite(p.top)) applyFloatPos(el, p.left, p.top);
+  } catch (_) {}
+  if (opts.closable && !el.querySelector('.float-x')) {
+    const x = document.createElement('span');
+    x.className = 'float-x'; x.textContent = '×';
+    x.setAttribute('role', 'button'); x.setAttribute('aria-label', 'Hide'); x.title = 'Hide';
+    x.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
+    x.addEventListener('click', (e) => {
+      e.stopPropagation(); e.preventDefault();
+      if (typeof opts.onClose === 'function') opts.onClose(); else el.remove();
+    });
+    el.appendChild(x);
+  }
+  if (el.dataset.floatDrag === '1') return;
+  el.dataset.floatDrag = '1';
+  el.classList.add('float-draggable');
+  let sx = 0, sy = 0, ox = 0, oy = 0, dragging = false, moved = false;
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button != null && e.button !== 0) return;
+    if (e.target.closest('.float-x')) return;
+    const r = el.getBoundingClientRect();
+    sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+    dragging = true; moved = false;
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!moved && Math.hypot(dx, dy) < 4) return;
+    moved = true; el.classList.add('float-dragging');
+    applyFloatPos(el, ox + dx, oy + dy);
+    e.preventDefault();
+  });
+  const endDrag = (e) => {
+    if (!dragging) return;
+    dragging = false; el.classList.remove('float-dragging');
+    try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (moved) {
+      const r = el.getBoundingClientRect();
+      try { localStorage.setItem(floatPosKey(key), JSON.stringify({ left: r.left, top: r.top })); } catch (_) {}
+      const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); el.removeEventListener('click', swallow, true); };
+      el.addEventListener('click', swallow, true);
+      setTimeout(() => el.removeEventListener('click', swallow, true), 60);
+    }
+  };
+  el.addEventListener('pointerup', endDrag);
+  el.addEventListener('pointercancel', endDrag);
+  el.style.touchAction = 'none';
+}
+
 function renderHelpLauncher() {
   if (onboardingHidden()) return;
+  if (ob().dismissedHelp) return;
   if (document.getElementById('ob-help')) return;
   const btn = document.createElement('button');
   btn.id = 'ob-help';
@@ -19115,6 +19203,7 @@ function renderHelpLauncher() {
   btn.innerHTML = '<span class="ob-help-icon">?</span><span class="ob-help-txt">Help</span>';
   btn.onclick = openHelpPanel;
   document.body.appendChild(btn);
+  makeFloatable(btn, 'help', { closable: true, onClose: () => { ob().dismissedHelp = true; save(); btn.remove(); } });
 }
 
 function openHelpPanel() {
@@ -19179,12 +19268,21 @@ function helpItems() {
 window.OnboardHelp = {
   open: openHelpPanel,
   runFlow,
-  resetChecklist: () => { ob().dismissedChecklist = false; ob().panelOpen = true; save(); renderChecklist(); },
+  resetChecklist: () => {
+    ob().dismissedChecklist = false; ob().dismissedHelp = false; ob().panelOpen = true; save();
+    try { localStorage.removeItem('sst_float_checklist'); localStorage.removeItem('sst_float_help'); } catch (_) {}
+    renderChecklist();
+    document.getElementById('ob-help')?.remove();
+    renderHelpLauncher();
+  },
   resetAll: () => {
     state.settings.onboarding = null;
     save();
+    try { localStorage.removeItem('sst_float_checklist'); localStorage.removeItem('sst_float_help'); } catch (_) {}
     document.getElementById('ob-checklist')?.remove();
+    document.getElementById('ob-help')?.remove();
     renderChecklist();
+    renderHelpLauncher();
     renderBeacons();
   },
 };
