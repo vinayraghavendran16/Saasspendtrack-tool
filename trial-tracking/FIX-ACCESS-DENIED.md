@@ -48,7 +48,7 @@ deployment, click the **pencil (Edit)** icon on the right.
 Click **Deploy**. If it asks for authorization, grant it (it needs
 Mail + Sheets permissions now).
 
-The URL stays the same — you do NOT need to change it in the app.
+The URL stays the same - you do NOT need to change it in the app.
 
 ### 4. Confirm
 
@@ -72,7 +72,7 @@ If you see JSON instead of the HTML "Access Denied" page, you're done.
 - In a Private/Incognito window, open the app and enter your email
 - Row lands in the Sheet within 2 seconds
 - Welcome email lands in your inbox within 10 seconds (check Spam
-  the first time — the first email from a new sender often gets
+  the first time - the first email from a new sender often gets
   held there, after which Gmail learns)
 
 If the row still doesn't land, open **Apps Script → Executions** and
@@ -82,7 +82,7 @@ you'll see the exact error for every POST.
 
 You can't. "Who has access" is a deployment-time setting, not something
 the code can change. Pasting new code without a new deployment also
-does nothing — Web App deployments are versioned, and only the version
+does nothing - Web App deployments are versioned, and only the version
 pinned to the deployment runs.
 
 ## Email deliverability notes

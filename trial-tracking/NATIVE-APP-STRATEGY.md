@@ -1,4 +1,4 @@
-# iOS + Android native apps — honest options
+# iOS + Android native apps - honest options
 
 You asked about building SaaS Spend Track as a real app on the
 Apple + Google ecosystems. Here are the real paths with honest
@@ -8,7 +8,7 @@ users who ask.
 
 ---
 
-## Option A — PWA (Progressive Web App) — shipped tonight
+## Option A - PWA (Progressive Web App) - shipped tonight
 
 **What it is:** The browser app you already have, upgraded with a
 manifest + service worker + iOS install meta tags. Users on iPhone,
@@ -17,10 +17,10 @@ screen or app launcher and run it standalone, no browser chrome,
 offline-capable after first load.
 
 **What landed in Phase 54:**
-- `manifest.webmanifest` — tells browsers what name + icon + colours
+- `manifest.webmanifest` - tells browsers what name + icon + colours
   to use for the install
-- `sw.js` — service worker caches the app shell for offline use
-- `icon.svg` — maskable icon (you'll want to replace this with a
+- `sw.js` - service worker caches the app shell for offline use
+- `icon.svg` - maskable icon (you'll want to replace this with a
   proper PNG set; see Vinay-TODO)
 - iOS-specific meta tags in the `<head>` so Safari supports
   Add-to-Home-Screen
@@ -35,14 +35,14 @@ offline-capable after first load.
   app launcher
 - Mac / Windows Chrome: install icon in URL bar → runs in own window
 
-**Not in the App Store / Play Store** — users have to install via
+**Not in the App Store / Play Store** - users have to install via
 the browser themselves. The install card in Settings explains how.
 
 **Pros:**
 - Shipped tonight. Zero native-development time.
 - Same codebase, same release cycle, no App Store review.
 - Full offline support, push notifications (coming later), file
-  system access, background sync — all available.
+  system access, background sync - all available.
 - No 30% Apple tax.
 - Works on every platform including desktop.
 
@@ -50,7 +50,7 @@ the browser themselves. The install card in Settings explains how.
 - Not discoverable in the App Store.
 - iOS has some PWA limits (no scheduled background notifications,
   limited to Safari to install, no Siri shortcuts).
-- Perception — some users still think "real app = App Store".
+- Perception - some users still think "real app = App Store".
 - Can't deep-link from other iOS apps via `your-app://` URLs.
 
 **My take:** This is the right call for 95% of SaaS-tool PWAs today.
@@ -60,7 +60,7 @@ only if users genuinely ask.
 
 ---
 
-## Option B — Capacitor (native wrapper, same codebase)
+## Option B - Capacitor (native wrapper, same codebase)
 
 **What it is:** Wrap the existing HTML+JS+CSS in a thin native
 container built by Ionic (now part of OutSystems). Ship to the
@@ -75,7 +75,7 @@ stores. ~2-3 days per update after that (versioning + build + submit
 **Cost:**
 - Apple Developer account: $99/year
 - Google Play developer account: $25 one-time
-- No other hosting cost — the app loads your own site in the WebView
+- No other hosting cost - the app loads your own site in the WebView
 - My time to build + submit: 10-15 hours including icon packs, screenshots,
   App Store listing copy, privacy nutrition labels, Play Store listing
 
@@ -98,7 +98,7 @@ stores. ~2-3 days per update after that (versioning + build + submit
   now require some native functionality beyond just loading a URL).
 - Need to maintain app-store listings, screenshots, release notes
   per version.
-- Distribution lag — users who want the latest version wait for
+- Distribution lag - users who want the latest version wait for
   app store review (can be 24h per release).
 
 **When to do this:** Once you have ~100 paying customers OR a
@@ -108,7 +108,7 @@ real push).
 
 ---
 
-## Option C — React Native / Flutter (ground-up rebuild)
+## Option C - React Native / Flutter (ground-up rebuild)
 
 **What it is:** Rebuild SaaS Spend Track in a true cross-platform
 native framework. React Native is Meta/Microsoft; Flutter is Google.
@@ -123,7 +123,7 @@ your entire founding-engineer attention for 3+ months.
 
 **Pros:**
 - Truly native performance (not WebView).
-- Deep platform integration — background sync, widgets, watchOS
+- Deep platform integration - background sync, widgets, watchOS
   companion, Android Wear.
 - Can diverge from web UI where mobile requires different UX.
 
@@ -161,7 +161,7 @@ prop, it's over-engineering.
 
 - [ ] Do you want an Apple Developer account set up? If yes, do
       it under Whizzlead Solutions OPC Private Limited (needs
-      D-U-N-S number for organization accounts — Apple can get
+      D-U-N-S number for organization accounts - Apple can get
       you one free via the signup, takes 2 weeks).
 - [ ] Do you want a Google Play developer account? Much simpler;
       $25 one-time, personal or org, instant approval.
@@ -173,10 +173,10 @@ prop, it's over-engineering.
 
 ---
 
-## Phase 54 — what shipped tonight for the mobile ask
+## Phase 54 - what shipped tonight for the mobile ask
 
 - Fixed the broken mobile layout (topbar overflow, urgency chips
-  colliding with dashboard content) — the screenshot you sent is
+  colliding with dashboard content) - the screenshot you sent is
   what triggered this
 - Horizontally-scrollable urgency strip on mobile
 - Tighter padding / font sizing across phones
@@ -192,7 +192,7 @@ prop, it's over-engineering.
 
 **You'll want to add to VINAY-TODO.md:**
 - Create proper PNG icons (192×192, 512×512, maskable 512×512)
-  for the manifest — the SVG works but real PWAs want PNG for
+  for the manifest - the SVG works but real PWAs want PNG for
   all platforms. Rough brief: dark navy #0f1829 rounded square,
   blue #2563eb inner square, white "SST" text, 10% padding for
   maskable version.

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 3
+   SaaS Spend Track - Phase 3
    - Centralised Analytics (department pie, grouped spend bars, filter chip row)
    - Clause Playbook (define approved terms, score deviation across portfolio)
    - Global vendor-name navigation (click vendor anywhere → contract review)
@@ -105,7 +105,7 @@ function renderAnalytics() {
   const tvMax = Math.max(1, ...topVendors.map(v => monthlyCost(v)));
   const tvChart = topVendors.map(s => `<div class="chart-row"><span class="chart-label"><a href="#" class="link" data-vendor-nav="${s.id}">${escapeHtml(s.name)}</a></span><div class="chart-bar"><div class="chart-bar-fill" style="--w:${(monthlyCost(s) / tvMax * 100).toFixed(1)}%"></div></div><span class="chart-value">${formatMoney(monthlyCost(s))}</span></div>`).join('');
 
-  // Invoice trend — monthly paid totals for the chosen range (defaults to 12 months)
+  // Invoice trend - monthly paid totals for the chosen range (defaults to 12 months)
   const r = (typeof rangeToDates === 'function') ? rangeToDates(state.settings.analyticsRange || { preset: '12m' }) : { from: null, to: new Date() };
   const now = new Date(); const trend = [];
   const monthsBack = r.from ? Math.max(1, Math.min(24, Math.round((now - r.from) / (86400000 * 30)))) : 12;
@@ -171,7 +171,7 @@ function renderAnalytics() {
         <div class="chart">${tvChart || '<p class="empty">No data</p>'}</div>
       </div>
       <div class="panel span-2">
-        <h2>Paid invoices &mdash; last 12 months</h2>
+        <h2>Paid invoices - last 12 months</h2>
         ${trendBars.legend}
         ${trendBars.svg}
       </div>
@@ -238,7 +238,7 @@ function renderPlaybook() {
   host.innerHTML = `
     <div class="stat-grid">
       <div class="stat-card"><span class="stat-label">Rules on the playbook</span><span class="stat-value">${requiredCount}</span><span class="stat-sub">of ${PLAYBOOK_ITEMS.length} clauses covered</span></div>
-      <div class="stat-card"><span class="stat-label">Portfolio compliance</span><span class="stat-value">${avg == null ? '—' : avg + '%'}</span><span class="stat-sub">avg across ${evals.length} scored contracts</span></div>
+      <div class="stat-card"><span class="stat-label">Portfolio compliance</span><span class="stat-value">${avg == null ? '-' : avg + '%'}</span><span class="stat-sub">avg across ${evals.length} scored contracts</span></div>
       <div class="stat-card"><span class="stat-label">Contracts with deviation</span><span class="stat-value" style="color:var(--danger-text)">${evals.filter(x => x.e.results.some(r => r.state === 'deviation' || r.state === 'missing')).length}</span><span class="stat-sub">at least one rule failing</span></div>
       <div class="stat-card"><span class="stat-label">Deviation signals</span><span class="stat-value">${evals.reduce((a, x) => a + x.e.results.filter(r => r.state === 'deviation' || r.state === 'missing').length, 0)}</span><span class="stat-sub">across the portfolio</span></div>
     </div>
@@ -346,7 +346,7 @@ function openVendorNav(subId) {
     back.hidden = false;
     back.querySelector('.modal').innerHTML = `
       <h2>${escapeHtml(sub.name)}</h2>
-      <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '—'}</p>
+      <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}</p>
       <div class="panel" style="background:var(--warning-soft);border:none">
         <h2 style="font-size:14px;color:var(--warning-text);margin-bottom:6px">No contract on file</h2>
         <p style="font-size:13px;color:var(--text-2);margin:0">This vendor has a subscription record but no contract has been ingested yet. Upload the contract to see the extracted clauses and the risk score.</p>
@@ -382,7 +382,7 @@ function wireVendorLinks() {
   document.querySelectorAll('#sub-tbody tr .name-cell > div:last-child > div:first-child').forEach(div => tryBind(div, div.textContent.trim()));
   // Dashboard vendor-totals
   document.querySelectorAll('#vendor-tbody tr .vendor-name').forEach(div => tryBind(div, div.textContent.trim()));
-  // Invoices table — first <td><b> element contains vendor name via subName helper
+  // Invoices table - first <td><b> element contains vendor name via subName helper
   document.querySelectorAll('#inv-tbody tr td:first-child').forEach(td => tryBind(td, td.textContent.trim()));
   // Consumption table first col
   document.querySelectorAll('#cons-tbody tr td:first-child b, #cons-tbody tr td:first-child').forEach(el => tryBind(el, el.textContent.trim()));

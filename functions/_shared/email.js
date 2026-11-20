@@ -90,7 +90,7 @@ export function welcomeEmail(company, appUrl) {
 
 export function paidEmail() {
   return {
-    subject: "You're all set — welcome to SaaS Spend Track",
+    subject: "You're all set - welcome to SaaS Spend Track",
     html: shell("You're in", [
       'Payment received and your account is active. Thank you.',
       'Your GST invoice will follow separately. Reply to this email if you need anything at all.',
@@ -136,7 +136,7 @@ export function nudgeEmail(kind, payUrl, appUrl) {
 
 export function expiredEmail(payUrl) {
   return {
-    subject: 'Your trial has ended — upgrade to get back in',
+    subject: 'Your trial has ended - upgrade to get back in',
     html: shell('Your trial has ended', [
       'Your 7-day trial is up and access is paused. Nothing is deleted, your data is waiting for you.',
       'Upgrade and you are back in immediately.',

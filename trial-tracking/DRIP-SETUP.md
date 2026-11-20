@@ -1,7 +1,7 @@
-# Phase 45: Trial email nurture drip — setup
+# Phase 45: Trial email nurture drip - setup
 
 Five-email sequence over 14 days. Runs entirely out of your
-existing Apps Script project — no new backend, no third-party ESP,
+existing Apps Script project - no new backend, no third-party ESP,
 no CRM. Uses the Gmail quota of the Google account that owns the
 script (100/day free, 1,500/day Workspace).
 
@@ -62,7 +62,7 @@ From the Apps Script editor's function dropdown (next to Debug), select
 
 You should see a log line like `runDailyDrip: {"eligible":2,"sent":2,"skipped":5,"errors":0}` in the execution log at the bottom of the editor.
 
-To see the raw state table without sending anything, run **previewTrialState** instead — it logs every user's current day-number and completion flags to the console.
+To see the raw state table without sending anything, run **previewTrialState** instead - it logs every user's current day-number and completion flags to the console.
 
 ## Turn it off temporarily
 
@@ -73,9 +73,9 @@ In the Triggers panel, click the three-dot menu next to the drip trigger → **D
 When a user replies with "stop":
 
 1. Open your Signups Sheet
-2. Add a new sheet named exactly **Opt Out** (no other sheet name — the drip looks for this specific name)
+2. Add a new sheet named exactly **Opt Out** (no other sheet name - the drip looks for this specific name)
 3. Paste the email address into column A
-4. Done — next daily run excludes them
+4. Done - next daily run excludes them
 
 You can also add multiple emails on multiple rows, and the drip ignores empty cells.
 
@@ -84,11 +84,11 @@ You can also add multiple emails on multiple rows, and the drip ignores empty ce
 All five emails are defined at the top of `drip-emails.gs` in the
 `DRIP_EMAILS` array. Each one has a `plain` function (plain-text
 version) and an `html` function (HTML version for most mail
-clients). Edit either. No deployment or trigger reconfig needed —
+clients). Edit either. No deployment or trigger reconfig needed -
 Apps Script picks up changes on the next scheduled run.
 
 If you want to change the pricing CTA destination, search for
-`#pricing` in the drip file — it appears in three emails.
+`#pricing` in the drip file - it appears in three emails.
 
 ## Adding a new email (e.g. day 7)
 
@@ -111,8 +111,8 @@ matching the `when` rule.
 ## Deliverability notes
 
 - First-time emails to a new recipient commonly go to **Promotions** in Gmail. They'll sort to Inbox from the second or third email as Gmail learns the address.
-- Your sending reputation lives on the Google account that owns the Apps Script. If you plan to send > 50 trial starts a day, consider migrating to Resend / Postmark / MailerSend — the drip code would stay the same shape; only the `MailApp.sendEmail(...)` call would change.
-- Keep the plaintext version meaningful — some corporate email systems strip HTML.
+- Your sending reputation lives on the Google account that owns the Apps Script. If you plan to send > 50 trial starts a day, consider migrating to Resend / Postmark / MailerSend - the drip code would stay the same shape; only the `MailApp.sendEmail(...)` call would change.
+- Keep the plaintext version meaningful - some corporate email systems strip HTML.
 
 ## How the state detection works
 
@@ -121,7 +121,7 @@ The drip reads the Signups sheet (which is now also the Events sheet, since ever
 ```
 {
   email:         user@company.com
-  signupAt:      Date — earliest trial_started event
+  signupAt:      Date - earliest trial_started event
   paid:          true if any payment_completed / paid_marked / manual_paid cell
   hasContract:   true if onboarding_item_completed with item_id=upload_contract
   bulkImported:  true if bulk_import_completed or add_vendor completed
@@ -131,16 +131,16 @@ The drip reads the Signups sheet (which is now also the Events sheet, since ever
 ```
 
 Each day's rule inspects that state and decides. The browser code
-in Phase 43/44 already fires the events this needs — no additional
+in Phase 43/44 already fires the events this needs - no additional
 client-side work required.
 
 ## What's NOT in Phase 45 (deliberate)
 
-- **A/B testing on subject lines**. Add later — needs an experiment table in the sheet.
+- **A/B testing on subject lines**. Add later - needs an experiment table in the sheet.
 - **Per-email open/click tracking**. Needs pixel hosting + redirect, which is a different set of problems and often gets blocked by corporate mail anyway. Rely on reply-rate as the quality signal for now.
 - **Segmentation by company size / industry**. The signup form only collects email + optional company name, so there's nothing to segment on. If you add firmographics later, extend the `when` functions.
 - **A second sequence for paid users (customer-success drip)**. Easy to add once you have paying customers. Not needed yet.
-- **Webhooks from Razorpay**. When a user pays, you'd ideally fire a `payment_completed` event into the sheet so the drip stops instantly instead of waiting until the next day. Razorpay supports this via webhooks — a future phase can wire that up.
+- **Webhooks from Razorpay**. When a user pays, you'd ideally fire a `payment_completed` event into the sheet so the drip stops instantly instead of waiting until the next day. Razorpay supports this via webhooks - a future phase can wire that up.
 
 ## Testing locally without waiting for 9am
 
@@ -148,4 +148,4 @@ The `testDripNow()` function sends immediately based on the current date. But th
 
 To force a specific user to receive a specific email, temporarily backdate their `trial_started` row's timestamp in the sheet (e.g. subtract 4 days to test the day-4 email), then run `testDripNow`. Restore the timestamp after.
 
-Or: add a `DRIP_FORCE_SEND = true` constant and skip the `already sent` check — but remember to revert before the real trigger runs the next day, or every active trial will get spammed with every email at once.
+Or: add a `DRIP_FORCE_SEND = true` constant and skip the `already sent` check - but remember to revert before the real trigger runs the next day, or every active trial will get spammed with every email at once.

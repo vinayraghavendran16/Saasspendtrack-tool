@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 7
+   SaaS Spend Track - Phase 7
    Mobile owner flow
    - Dedicated mobile-first view at #owner (or ?owner=email)
    - Shows just one owner's pending alerts as swipeable cards
@@ -102,7 +102,7 @@ function renderOwnerView() {
               <div class="avatar" style="background:${avatarColor(sub.name)};width:40px;height:40px;border-radius:9px;font-size:13px">${initials(sub.name)}</div>
               <div style="min-width:0">
                 <div class="ow-vendor">${escapeHtml(sub.name)}</div>
-                <div class="ow-meta">${escapeHtml(sub.team || '—')} · ${formatMoney(monthlyCost(sub) * 12)}/yr</div>
+                <div class="ow-meta">${escapeHtml(sub.team || '-')} · ${formatMoney(monthlyCost(sub) * 12)}/yr</div>
               </div>
             </div>
             <div class="ow-urgency ${status === 'escalated' ? 'danger' : status === 'sent' || status === 'due' ? 'warn' : 'info'}">
@@ -112,12 +112,12 @@ function renderOwnerView() {
           <div class="ow-fact-row">
             <div class="ow-fact">
               <div class="ow-fact-label">Act by</div>
-              <div class="ow-fact-value ${win && win.daysLeft < 7 ? 'urgent' : ''}">${win ? win.cancelBy.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}</div>
+              <div class="ow-fact-value ${win && win.daysLeft < 7 ? 'urgent' : ''}">${win ? win.cancelBy.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-'}</div>
               <div class="ow-fact-sub">${win ? (win.daysLeft < 0 ? `${Math.abs(win.daysLeft)} days overdue` : `${win.daysLeft} days`) : 'no notice period'}</div>
             </div>
             <div class="ow-fact">
               <div class="ow-fact-label">Risk</div>
-              <div class="ow-fact-value">${risk != null ? risk : '—'}</div>
+              <div class="ow-fact-value">${risk != null ? risk : '-'}</div>
               <div class="ow-fact-sub">${risk != null ? riskBand(risk).label : 'no contract'}</div>
             </div>
             <div class="ow-fact">
@@ -138,10 +138,10 @@ function renderOwnerView() {
           <details class="ow-more">
             <summary>More details</summary>
             <div class="ow-detail">
-              <div><b>Category:</b> ${escapeHtml(sub.category || '—')}</div>
-              <div><b>Renewal:</b> ${sub.renewal || '—'}</div>
-              <div><b>Notes:</b> ${escapeHtml(sub.notes || '—')}</div>
-              <div><b>Manager:</b> ${escapeHtml(sub.manager?.name || '—')} ${sub.manager?.email ? `(${escapeHtml(sub.manager.email)})` : ''}</div>
+              <div><b>Category:</b> ${escapeHtml(sub.category || '-')}</div>
+              <div><b>Renewal:</b> ${sub.renewal || '-'}</div>
+              <div><b>Notes:</b> ${escapeHtml(sub.notes || '-')}</div>
+              <div><b>Manager:</b> ${escapeHtml(sub.manager?.name || '-')} ${sub.manager?.email ? `(${escapeHtml(sub.manager.email)})` : ''}</div>
             </div>
           </details>
         </div>`;

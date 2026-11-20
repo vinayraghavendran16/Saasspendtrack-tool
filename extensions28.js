@@ -1,5 +1,5 @@
 /* ================================================================
-   Phase 50 — Per-subscription source currency
+   Phase 50 - Per-subscription source currency
    ================================================================
    Delivers on the promise in Phase 47's limitation:
    "This phase treats all contract costs as USD. For tools priced
@@ -56,7 +56,7 @@ function toUSD(amount, from) {
   if (from === 'USD') return amount;
   const rates = getFxRates();
   const r = rates[from];
-  if (!r) return amount; // no rate yet — treat as USD (safe fallback)
+  if (!r) return amount; // no rate yet - treat as USD (safe fallback)
   return amount / r;
 }
 
@@ -64,7 +64,7 @@ function toUSD(amount, from) {
 
 /* Existing monthlyCost() returns sub.cost normalized to monthly,
    assuming USD. We wrap it so the returned value is MONTHLY USD
-   — the natural intermediary that downstream formatters (Phase 47)
+   - the natural intermediary that downstream formatters (Phase 47)
    then convert to the user's display currency.
 
    Sub.cost is now in sub.currency; we convert to USD here. */
@@ -103,7 +103,7 @@ if (typeof window.monthlyCost === 'function' && !window.monthlyCost._p50) {
   if (window.BulkImport._p50) return;
 
   // Replace parseCSV with a pass-through that also leaves the original
-  // cost cell accessible. Actually we don't need to touch parseCSV —
+  // cost cell accessible. Actually we don't need to touch parseCSV -
   // we patch state.subscriptions.push during commit via a Proxy-free
   // approach: tap into the renderAll cycle right after commit to
   // enrich new rows that lack a currency.
@@ -182,7 +182,7 @@ function patchImportCommit() {
   btn.onclick = (ev) => {
     // Capture the raw CSV rows + currency column index for use inside push()
     // extensions23 stores biState in a closure we can't reach, but the DOM
-    // preview rows have name + raw cost — we parse the cost cells to detect
+    // preview rows have name + raw cost - we parse the cost cells to detect
     // symbols as a fallback.
     const colIdx = (typeof window._p50_currencyCol === 'number') ? window._p50_currencyCol : null;
 
@@ -210,7 +210,7 @@ function patchImportCommit() {
 /* Infer currency from a sub's cost string / notes. If sub.cost
    is itself a formatted string with a symbol, use that. */
 function detectCurrency(sub) {
-  // Try to look at the raw cost field — bulk import coerces to number
+  // Try to look at the raw cost field - bulk import coerces to number
   // so we may not have the symbol anymore. Fallback: notes field.
   const text = String(sub.notes || '') + ' ' + String(sub.name || '');
   if (/₹|\bINR\b|\bRs\.?\b|rupees?/i.test(text)) return 'INR';
@@ -238,7 +238,7 @@ function annotateSubRows() {
     if (!sub) return;
     const ccy = subCcy(sub);
     if (ccy === display || ccy === 'USD') { row._p50 = 'skip'; return; }
-    // Find the name cell — usually the first td
+    // Find the name cell - usually the first td
     const nameCell = row.querySelector('td, .sub-name, .name');
     if (!nameCell) return;
     const tag = document.createElement('span');

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 9
+   SaaS Spend Track - Phase 9
    In-browser test harness + QA results tab
 
    Scope (adapted to client-side architecture; items that need a backend
@@ -27,7 +27,7 @@ function test(group, name, fn, opts = {}) { TESTS.push({ group, name, fn, skip: 
 function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
 function assertEq(actual, expected, msg) { if (actual !== expected) throw new Error((msg ? msg + ': ' : '') + `expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`); }
 function assertClose(actual, expected, eps, msg) { if (Math.abs(actual - expected) > (eps || 0.01)) throw new Error((msg ? msg + ': ' : '') + `expected ≈${expected}, got ${actual}`); }
-function assertThrows(fn, msg) { try { fn(); throw new Error((msg || 'expected throw') + ' — did not throw'); } catch (e) { if (/did not throw/.test(e.message)) throw e; } }
+function assertThrows(fn, msg) { try { fn(); throw new Error((msg || 'expected throw') + ' - did not throw'); } catch (e) { if (/did not throw/.test(e.message)) throw e; } }
 
 /* ---------------- Define the suite ---------------- */
 function defineTests() {
@@ -529,7 +529,7 @@ function renderQaView() {
 
     <div class="stat-grid">
       <div class="stat-card"><span class="stat-label">Tests defined</span><span class="stat-value">${TESTS.length}</span><span class="stat-sub">${TESTS.filter(t => !t.skip).length} executable · ${TESTS.filter(t => t.skip).length} needs backend</span></div>
-      <div class="stat-card"><span class="stat-label">Pass rate</span><span class="stat-value" style="color:${passRate === 100 ? 'var(--success-text)' : passRate >= 80 ? 'var(--warning-text)' : 'var(--danger-text)'}">${totalRan ? passRate + '%' : '—'}</span><span class="stat-sub">${passCount} / ${totalRan} ran</span></div>
+      <div class="stat-card"><span class="stat-label">Pass rate</span><span class="stat-value" style="color:${passRate === 100 ? 'var(--success-text)' : passRate >= 80 ? 'var(--warning-text)' : 'var(--danger-text)'}">${totalRan ? passRate + '%' : '-'}</span><span class="stat-sub">${passCount} / ${totalRan} ran</span></div>
       <div class="stat-card"><span class="stat-label">Failures</span><span class="stat-value" style="color:${failCount ? 'var(--danger-text)' : 'var(--text)'}">${failCount}</span><span class="stat-sub">${skipCount} skipped</span></div>
       <div class="stat-card"><span class="stat-label">Duration</span><span class="stat-value">${totalDuration}ms</span><span class="stat-sub">across the suite</span></div>
     </div>
@@ -537,7 +537,7 @@ function renderQaView() {
     ${Object.entries(groups).map(([g, rows]) => {
       const groupPass = rows.filter(r => r.status === 'pass').length;
       const groupFail = rows.filter(r => r.status === 'fail').length;
-      const groupLabel = { sanity: 'Static &amp; sanity', unit: 'Unit tests', state: 'State machines', validation: 'Validation &amp; parsers', saas: 'SaaS-specific', integration: 'Integration (in-browser)', skip: 'Skipped — backend required' };
+      const groupLabel = { sanity: 'Static &amp; sanity', unit: 'Unit tests', state: 'State machines', validation: 'Validation &amp; parsers', saas: 'SaaS-specific', integration: 'Integration (in-browser)', skip: 'Skipped - backend required' };
       return `<section class="qa-group">
         <h3>${groupLabel[g] || g} <span class="badge">${rows.length}</span>
           ${results.length ? `<span style="font-weight:400;color:var(--text-dim);font-size:12px;margin-left:8px">${groupPass} pass · ${groupFail} fail</span>` : ''}

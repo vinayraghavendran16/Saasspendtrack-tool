@@ -1,4 +1,4 @@
-// SaaS Spend Track — vanilla JS app with localStorage persistence.
+// SaaS Spend Track - vanilla JS app with localStorage persistence.
 
 const STORAGE_KEY = 'saasspendtrack.v1';
 const CYCLE_MONTHS = { weekly: 1/4.345, monthly: 1, quarterly: 3, yearly: 12 };
@@ -84,7 +84,7 @@ function invoiceStatus(inv) {
   if (due && due < today) return 'overdue';
   return 'pending';
 }
-function subName(id) { return state.subscriptions.find(s => s.id === id)?.name || '—'; }
+function subName(id) { return state.subscriptions.find(s => s.id === id)?.name || '-'; }
 function subTeam(id) { return state.subscriptions.find(s => s.id === id)?.team || ''; }
 // Storage: localStorage is the instant local cache; the server (D1, keyed to the
 // signed-in account) is the source of truth so data follows the user across
@@ -194,7 +194,7 @@ function nextRenewalISO(sub) {
 }
 function formatDate(dateStr) {
   const d = parseDate(dateStr);
-  if (!d) return '—';
+  if (!d) return '-';
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 // -------- interactivity: toast + animated numbers --------
@@ -334,7 +334,7 @@ function renderDashboard() {
     </li>`;
   }).join('') : '<p class="empty" style="padding:20px 0">Nothing due.</p>';
 
-  // Upcoming renewals — projected forward for stale dates
+  // Upcoming renewals - projected forward for stale dates
   const upcoming = withDates.filter(x => { const d = daysUntil(x.next); return d !== null && d >= 0 && d <= 30; }).slice(0, 6);
   const ul = document.getElementById('upcoming-list');
   ul.innerHTML = upcoming.length ? upcoming.map(({ s, next }) => {
@@ -408,12 +408,12 @@ function renderSubscriptions() {
         <div class="avatar" style="background:${avatarColor(s.name)}">${initials(s.name)}</div>
         <div><div style="font-weight:600">${escapeHtml(s.name)}</div>${s.notes ? `<div style="color:var(--text-dim);font-size:11px">${escapeHtml(s.notes)}</div>` : ''}</div>
       </div></td>
-      <td>${s.team ? `<span class="team-chip">${escapeHtml(s.team)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
-      <td>${escapeHtml(s.category || '—')}</td>
+      <td>${s.team ? `<span class="team-chip">${escapeHtml(s.team)}</span>` : '<span style="color:var(--text-dim)">-</span>'}</td>
+      <td>${escapeHtml(s.category || '-')}</td>
       <td class="num">${formatMoney(s.cost)}</td>
       <td style="text-transform:capitalize">${s.cycle}</td>
       <td class="num">${formatMoney(monthlyCost(s))}</td>
-      <td>${next ? formatDate(next) : '—'}${projected ? ' <span class="badge" style="font-size:10px" title="Original date passed; projected forward one cycle">projected</span>' : ''}${renderCancelBy(s)}</td>
+      <td>${next ? formatDate(next) : '-'}${projected ? ' <span class="badge" style="font-size:10px" title="Original date passed; projected forward one cycle">projected</span>' : ''}${renderCancelBy(s)}</td>
       <td>${s.active !== false ? '<span class="badge ok">Active</span>' : '<span class="badge">Paused</span>'}${renderContractBadges(s)}</td>
       <td class="actions-cell">
         <button class="icon-btn" data-edit="${s.id}">Edit</button>
@@ -499,7 +499,7 @@ function renderConsumption() {
   const licenseCost  = rows.reduce((s, x) => s + monthlyCost(x.s), 0);
   const utilizedCost = rows.reduce((s, x) => s + (x.c.utilized / x.c.total) * monthlyCost(x.s), 0);
   const weightedPct  = licenseCost > 0 ? Math.round((utilizedCost / licenseCost) * 100) : 0;
-  document.getElementById('cons-util').textContent = licenseCost > 0 ? `${weightedPct}%` : '—';
+  document.getElementById('cons-util').textContent = licenseCost > 0 ? `${weightedPct}%` : '-';
   const wastedMonthly = rows.reduce((s, x) => s + x.c.unusedCostMonthly, 0);
   document.getElementById('cons-wasted').textContent = formatMoney(wastedMonthly);
   document.getElementById('cons-wasted-sub').textContent = wastedMonthly > 0
@@ -514,7 +514,7 @@ function renderConsumption() {
     const rowCls = c.unusedCostMonthly > 0 ? 'wasted' : '';
     return `<tr class="${rowCls}">
       <td><span class="vendor-name">${escapeHtml(s.name)}</span>${s.active === false ? ' <span class="badge">Paused</span>' : ''}</td>
-      <td>${s.team ? `<span class="team-chip">${escapeHtml(s.team)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td>${s.team ? `<span class="team-chip">${escapeHtml(s.team)}</span>` : '<span style="color:var(--text-dim)">-</span>'}</td>
       <td class="num">${c.total}</td>
       <td class="num">${c.assigned}</td>
       <td class="num">${c.utilized}</td>
@@ -552,8 +552,8 @@ function renderVendorTotals() {
 
   tbody.innerHTML = rows.map(r => {
     const c = consumption(r.s);
-    let seatsCell = '<span style="color:var(--text-dim)">—</span>';
-    let unusedCell = '<span style="color:var(--text-dim)">—</span>';
+    let seatsCell = '<span style="color:var(--text-dim)">-</span>';
+    let unusedCell = '<span style="color:var(--text-dim)">-</span>';
     if (c) {
       const cls = c.utilizationPct < 60 ? 'danger' : c.utilizationPct < 80 ? 'warn' : 'ok';
       seatsCell = `<span title="Assigned ${c.assigned} of ${c.total}">${c.utilized}/${c.total}</span> <span class="badge ${cls}">${c.utilizationPct}%</span>`;
@@ -563,7 +563,7 @@ function renderVendorTotals() {
     return `
     <tr>
       <td><span class="vendor-name">${escapeHtml(r.s.name)}</span>${r.s.active === false ? ' <span class="badge">Paused</span>' : ''}</td>
-      <td>${r.s.team ? `<span class="team-chip">${escapeHtml(r.s.team)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td>${r.s.team ? `<span class="team-chip">${escapeHtml(r.s.team)}</span>` : '<span style="color:var(--text-dim)">-</span>'}</td>
       <td class="num">${formatMoney(r.monthly)}</td>
       <td class="num">${formatMoney(r.monthly * 12)}</td>
       <td class="num">${seatsCell}</td>
@@ -608,10 +608,10 @@ function renderInvoices() {
     const badgeText = st === 'paid' ? `Paid ${formatDate(i.paidDate)}` : st === 'overdue' ? 'Overdue' : 'Pending';
     return `<tr>
       <td>${escapeHtml(subName(i.subId))}</td>
-      <td>${subTeam(i.subId) ? `<span class="team-chip">${escapeHtml(subTeam(i.subId))}</span>` : '—'}</td>
-      <td>${escapeHtml(i.invoiceNumber || '—')}</td>
+      <td>${subTeam(i.subId) ? `<span class="team-chip">${escapeHtml(subTeam(i.subId))}</span>` : '-'}</td>
+      <td>${escapeHtml(i.invoiceNumber || '-')}</td>
       <td>${formatMoney(i.amount)}</td>
-      <td>${i.issueDate ? formatDate(i.issueDate) : '—'}</td>
+      <td>${i.issueDate ? formatDate(i.issueDate) : '-'}</td>
       <td>${formatDate(i.dueDate)}</td>
       <td><span class="badge ${badgeCls}">${badgeText}</span></td>
       <td class="actions-cell">
@@ -769,13 +769,13 @@ function renderInsights() {
     const today = new Date(); today.setHours(0,0,0,0);
     const days = Math.round((cancelBy - today) / 86400000);
     if (days >= 0 && days <= 21) {
-      recos.push(`📄 <b>${escapeHtml(s.name)}</b> auto-renews and requires ${s.contract.noticeDays} days' notice — decide by <b>${cancelBy.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}</b>.`);
+      recos.push(`📄 <b>${escapeHtml(s.name)}</b> auto-renews and requires ${s.contract.noticeDays} days' notice - decide by <b>${cancelBy.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}</b>.`);
     }
   });
-  // Missing renewal dates — the silent failure that breaks everything downstream
+  // Missing renewal dates - the silent failure that breaks everything downstream
   const missingRenewal = active.filter(s => !s.renewal);
   if (missingRenewal.length) {
-    recos.push(`🗓️ <b>${missingRenewal.length} subscription${missingRenewal.length === 1 ? '' : 's'} missing a renewal date</b> — add one to enable countdowns and reminders: ${missingRenewal.slice(0,5).map(s => escapeHtml(s.name)).join(', ')}${missingRenewal.length > 5 ? '…' : ''}.`);
+    recos.push(`🗓️ <b>${missingRenewal.length} subscription${missingRenewal.length === 1 ? '' : 's'} missing a renewal date</b> - add one to enable countdowns and reminders: ${missingRenewal.slice(0,5).map(s => escapeHtml(s.name)).join(', ')}${missingRenewal.length > 5 ? '…' : ''}.`);
   }
 
   // Price-hike detection: an unpaid invoice > expected per-period cost by ≥5%
@@ -791,13 +791,13 @@ function renderInsights() {
       const cap = s.contract?.priceCapPct;
       const capBreached = cap != null && pctOver * 100 > cap;
       const msg = capBreached
-        ? `🚨 <b>${escapeHtml(s.name)}</b> latest invoice ${formatMoney(latest.amount)} is ${(pctOver*100).toFixed(1)}% over expected ${formatMoney(per)} — <b>above the ${cap}% contract cap</b>. Push back.`
+        ? `🚨 <b>${escapeHtml(s.name)}</b> latest invoice ${formatMoney(latest.amount)} is ${(pctOver*100).toFixed(1)}% over expected ${formatMoney(per)} - <b>above the ${cap}% contract cap</b>. Push back.`
         : `📈 <b>${escapeHtml(s.name)}</b> latest invoice ${formatMoney(latest.amount)} is ${(pctOver*100).toFixed(1)}% over your saved rate ${formatMoney(per)}${cap != null ? ` (contract cap ${cap}%)` : ''}. Confirm this isn't a stealth increase.`;
       recos.push(msg);
     }
   });
 
-  // Utilization — unused seats
+  // Utilization - unused seats
   const wasted = active.map(s => ({ s, c: consumption(s) })).filter(x => x.c && x.c.unusedCostMonthly > 0);
   if (wasted.length) {
     const total = wasted.reduce((sum, x) => sum + x.c.unusedCostMonthly, 0);
@@ -812,7 +812,7 @@ function renderInsights() {
     recos.push(`❗ <b>${od.length} overdue invoice${od.length === 1 ? '' : 's'}</b> totaling ${formatMoney(total)}. Clear or dispute before finance closes the month.`);
   }
 
-  if (!recos.length) recos.push('✅ Nothing jumping out — your subscription mix looks lean.');
+  if (!recos.length) recos.push('✅ Nothing jumping out - your subscription mix looks lean.');
   document.getElementById('recos').innerHTML = recos.map(r => `<li style="background:var(--panel-2);padding:12px 14px;border-radius:8px;font-size:13px;line-height:1.5">${r}</li>`).join('');
 }
 
@@ -1029,7 +1029,7 @@ function alertSubject(a) {
 function alertBody(a) {
   const win = computeNoticeWindow(a.sub);
   const lines = [
-    `${a.sub.name} renews on ${formatDate(a.renewalOn.toISOString().slice(0,10))} — ${a.trigger} days from ${formatDate(a.fireOn.toISOString().slice(0,10))}.`,
+    `${a.sub.name} renews on ${formatDate(a.renewalOn.toISOString().slice(0,10))} - ${a.trigger} days from ${formatDate(a.fireOn.toISOString().slice(0,10))}.`,
     ``,
     `Amount: ${formatMoney(a.sub.cost)} / ${a.sub.cycle}`,
     a.sub.team ? `Team: ${a.sub.team}` : null,
@@ -1039,7 +1039,7 @@ function alertBody(a) {
     win && win.daysLeft >= 0 ? `Act by: ${formatDate(win.cancelBy.toISOString().slice(0,10))} (${win.daysLeft} days from today)` : null,
     ``,
     `Please decide: renew, renegotiate, or cancel. Reply to acknowledge.`,
-    a.status === 'escalated' ? `\nThis is an ESCALATION — the owner did not acknowledge within ${ACK_GRACE_DAYS} days.` : ``,
+    a.status === 'escalated' ? `\nThis is an ESCALATION - the owner did not acknowledge within ${ACK_GRACE_DAYS} days.` : ``,
   ].filter(x => x !== null);
   return lines.join('\n');
 }
@@ -1056,16 +1056,16 @@ function alertSlackPayload(a) {
   const r = alertRecipients(a);
   const audience = r.primary ? `<@${r.primary.name || 'owner'}>` : '';
   return {
-    text: `Renewal decision needed — ${a.sub.name}`,
+    text: `Renewal decision needed - ${a.sub.name}`,
     blocks: [
       { type: 'header', text: { type: 'plain_text', text: `${a.status === 'escalated' ? '🚨 ESCALATION · ' : ''}${a.sub.name} renews in ${a.trigger} days` } },
       { type: 'section', fields: [
         { type: 'mrkdwn', text: `*Amount:*\n${formatMoney(a.sub.cost)} / ${a.sub.cycle}` },
         { type: 'mrkdwn', text: `*Renews:*\n${formatDate(a.renewalOn.toISOString().slice(0,10))}` },
-        { type: 'mrkdwn', text: `*Owner:*\n${a.sub.owner?.name || a.sub.owner?.email || '—'}` },
-        { type: 'mrkdwn', text: `*Team:*\n${a.sub.team || '—'}` },
+        { type: 'mrkdwn', text: `*Owner:*\n${a.sub.owner?.name || a.sub.owner?.email || '-'}` },
+        { type: 'mrkdwn', text: `*Team:*\n${a.sub.team || '-'}` },
       ] },
-      { type: 'section', text: { type: 'mrkdwn', text: `${audience} Please decide — renew, renegotiate, or cancel. Then acknowledge in SaaS Spend Track.` } },
+      { type: 'section', text: { type: 'mrkdwn', text: `${audience} Please decide - renew, renegotiate, or cancel. Then acknowledge in SaaS Spend Track.` } },
     ],
   };
 }
@@ -1428,7 +1428,7 @@ function detectDelimiter(text) {
   const tabs   = (line.match(/\t/g) || []).length;
   return tabs > commas ? '\t' : ',';
 }
-// Fuzzy column-name matcher — accepts "employee_id", "Employee ID", "EmpID", etc.
+// Fuzzy column-name matcher - accepts "employee_id", "Employee ID", "EmpID", etc.
 function pickColumn(headers, candidates) {
   const norm = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
   for (const cand of candidates) {
@@ -1541,10 +1541,10 @@ function renderTeam() {
   empty.style.display = rowsE.length ? 'none' : 'block';
   tbody.innerHTML = rowsE.map(e => `
     <tr>
-      <td>${escapeHtml(e.employeeId || '—')}</td>
-      <td><b>${escapeHtml(e.email || '—')}</b>${e.name ? `<div class="alert-contact">${escapeHtml(e.name)}</div>` : ''}</td>
-      <td>${escapeHtml(e.title || '—')}</td>
-      <td>${e.department ? `<span class="emp-dept-chip">${escapeHtml(e.department)}</span>` : '<span style="color:var(--text-dim)">—</span>'}</td>
+      <td>${escapeHtml(e.employeeId || '-')}</td>
+      <td><b>${escapeHtml(e.email || '-')}</b>${e.name ? `<div class="alert-contact">${escapeHtml(e.name)}</div>` : ''}</td>
+      <td>${escapeHtml(e.title || '-')}</td>
+      <td>${e.department ? `<span class="emp-dept-chip">${escapeHtml(e.department)}</span>` : '<span style="color:var(--text-dim)">-</span>'}</td>
       <td class="actions-cell"><button class="icon-btn danger" data-drop-emp="${e.id}">Remove</button></td>
     </tr>
   `).join('');
@@ -1565,7 +1565,7 @@ function renderTeam() {
       <td class="num">${r.tools}</td>
       <td class="num">${formatMoney(r.monthly)}</td>
       <td class="num">${r.employees > 0 ? formatMoney(r.perEmp) : '<span class="rollup-orphan">n/a</span>'}</td>
-      <td>${r.top ? `<span class="rollup-top">${escapeHtml(r.top)}</span>` : '—'}</td>
+      <td>${r.top ? `<span class="rollup-top">${escapeHtml(r.top)}</span>` : '-'}</td>
     </tr>
   `).join('');
 }
@@ -1578,7 +1578,7 @@ function seedTeam() {
 
 // -------- integrations: SSO / ERP request stub --------
 function requestEnterprise(kind, statusEl) {
-  statusEl.textContent = `Request logged — we'll reach out to enable ${kind}.`;
+  statusEl.textContent = `Request logged - we'll reach out to enable ${kind}.`;
   statusEl.className = 'integ-status ok';
 }
 function exportErpCsv() {
@@ -1666,7 +1666,7 @@ async function extractTextFromPdf(arrayBuffer) {
   if (!(bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46)) {
     throw new Error('Not a PDF file (missing %PDF header)');
   }
-  // Latin-1 view of the binary — every byte becomes one JS char so regex works
+  // Latin-1 view of the binary - every byte becomes one JS char so regex works
   let raw = '';
   const CHUNK = 65536;
   for (let i = 0; i < bytes.length; i += CHUNK) {
@@ -1693,7 +1693,7 @@ async function extractTextFromPdf(arrayBuffer) {
         }
       } catch (_) { continue; } // skip streams we can't decompress
     } else if (/\/Filter\s*\//.test(dict) && !/\/FlateDecode/.test(dict)) {
-      // Non-Flate filter (LZW / DCT / JBIG2) — image or exotic, skip
+      // Non-Flate filter (LZW / DCT / JBIG2) - image or exotic, skip
       continue;
     }
     if (/Tj|TJ|'|"/.test(body)) {
@@ -1704,7 +1704,7 @@ async function extractTextFromPdf(arrayBuffer) {
   let text = parts.join('\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 
   if (!text || text.length < 40) {
-    throw new Error("Couldn't extract text — the PDF may be a scanned image or use unsupported encoding. Try copying the text into the box, or use a text-based export.");
+    throw new Error("Couldn't extract text - the PDF may be a scanned image or use unsupported encoding. Try copying the text into the box, or use a text-based export.");
   }
   return text;
 }
@@ -1819,10 +1819,10 @@ function extractContract(text) {
 
 function renderExtract(result) {
   const items = [
-    { key: 'renewalType', label: 'Renewal type', missing: 'Not detected — assume auto-renew and confirm with counterparty.' },
+    { key: 'renewalType', label: 'Renewal type', missing: 'Not detected - assume auto-renew and confirm with counterparty.' },
     { key: 'noticePeriod', label: 'Notice period to cancel', missing: 'Not detected.' },
     { key: 'termLength', label: 'Term length', missing: 'Not detected.' },
-    { key: 'priceCap', label: 'Price-escalation cap', missing: 'No cap detected — renewal price could rise unlimited.' },
+    { key: 'priceCap', label: 'Price-escalation cap', missing: 'No cap detected - renewal price could rise unlimited.' },
   ];
   const box = document.getElementById('extract-results');
   box.innerHTML = items.map(it => {
@@ -1846,7 +1846,7 @@ function renderExtract(result) {
     const sel = document.getElementById('attach-sub');
     const btn = document.getElementById('attach-btn');
     if (state.subscriptions.length === 0) {
-      sel.innerHTML = '<option value="">No subscriptions yet — add one first</option>';
+      sel.innerHTML = '<option value="">No subscriptions yet - add one first</option>';
       sel.disabled = true;
       btn.disabled = true;
     } else {
@@ -2071,7 +2071,7 @@ function importJson(file) {
     try {
       const data = JSON.parse(reader.result);
       if (!Array.isArray(data.subscriptions)) throw new Error('Bad file: no subscriptions');
-      // Preserve current settings (Slack webhook, plan, Drive folder) —
+      // Preserve current settings (Slack webhook, plan, Drive folder) -
       // an import is data-level, not a factory reset.
       const preservedSettings = state.settings;
       state = {
@@ -2092,7 +2092,7 @@ function importJson(file) {
 }
 function clearAll() {
   if (!confirm('Delete ALL subscriptions and invoices? This cannot be undone.')) return;
-  // Preserve settings — clearing data shouldn't disconnect Slack or reset the plan.
+  // Preserve settings - clearing data shouldn't disconnect Slack or reset the plan.
   const preservedSettings = state.settings;
   state = { subscriptions: [], invoices: [], employees: [], alertLog: {}, settings: preservedSettings };
   ensureStateShape();

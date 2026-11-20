@@ -7,7 +7,7 @@ layout, tables and clauses), returned as a strict schema.
 
 It runs as a **Cloudflare Pages Function** in this repo at
 `functions/api/extract.js`, served same-origin as `/api/extract`. The API key
-lives only on Cloudflare — it never reaches the browser.
+lives only on Cloudflare - it never reaches the browser.
 
 ## One-time setup
 
@@ -18,7 +18,7 @@ lives only on Cloudflare — it never reaches the browser.
    - `ANTHROPIC_API_KEY` = `sk-ant-...`  → click **Encrypt** (store as a secret).
    - *(optional)* `EXTRACT_MODEL` = a model your key can use. Default is
      `claude-3-5-sonnet-20241022`. Set a newer Sonnet here if your account has
-     access — this is the single biggest lever on quality.
+     access - this is the single biggest lever on quality.
 4. **Save**, then redeploy (push any commit, or "Retry deployment"). Pages
    Functions deploy automatically with the site.
 5. In the app: **Contract terms → toggle "AI extraction" on** (top right). Upload

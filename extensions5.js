@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — Phase 4
+   SaaS Spend Track - Phase 4
    Renewal Command Center
    One working surface: every renewal in the next 120 days as cards.
    Each card shows act-by, risk, playbook deviations, owner, and three actions.
@@ -114,7 +114,7 @@ function renewalCard({ s, renewal, win, risk, ev, deviations, lane, decision }) 
         <div class="avatar" style="background:${avatarColor(s.name)}">${initials(s.name)}</div>
         <div>
           <div class="rc-name"><a href="#" class="vendor-link" data-vendor-nav="${s.id}">${escapeHtml(s.name)}</a></div>
-          <div class="rc-meta">${escapeHtml(s.team || '—')} · ${escapeHtml(s.category || '—')}</div>
+          <div class="rc-meta">${escapeHtml(s.team || '-')} · ${escapeHtml(s.category || '-')}</div>
         </div>
       </div>
       <div class="rc-cost">
@@ -126,7 +126,7 @@ function renewalCard({ s, renewal, win, risk, ev, deviations, lane, decision }) 
     <div class="rc-timeline">
       <div class="rc-time">
         <div class="rc-time-label">Act by</div>
-        <div class="rc-time-value ${actByDays != null && actByDays < 0 ? 'overdue' : actByDays != null && actByDays <= 14 ? 'urgent' : ''}">${win ? win.cancelBy.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</div>
+        <div class="rc-time-value ${actByDays != null && actByDays < 0 ? 'overdue' : actByDays != null && actByDays <= 14 ? 'urgent' : ''}">${win ? win.cancelBy.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}</div>
         <div class="rc-time-sub">${actByDays != null ? (actByDays < 0 ? `${Math.abs(actByDays)} days overdue` : `${actByDays} days left`) : 'notice period not on file'}</div>
       </div>
       <div class="rc-time">
@@ -154,7 +154,7 @@ function renewalCard({ s, renewal, win, risk, ev, deviations, lane, decision }) 
 
     ${deviations.length ? `<div class="rc-deviations">
       <div class="rc-dev-head">Playbook deviations</div>
-      <ul>${deviations.slice(0, 3).map(d => `<li><b>${escapeHtml(d.label)}:</b> ${d.state === 'missing' ? 'missing' : `expected ${escapeHtml(d.expected || '—')}, got ${escapeHtml(d.actual || '—')}`}</li>`).join('')}${deviations.length > 3 ? `<li class="rc-dev-more">+ ${deviations.length - 3} more</li>` : ''}</ul>
+      <ul>${deviations.slice(0, 3).map(d => `<li><b>${escapeHtml(d.label)}:</b> ${d.state === 'missing' ? 'missing' : `expected ${escapeHtml(d.expected || '-')}, got ${escapeHtml(d.actual || '-')}`}</li>`).join('')}${deviations.length > 3 ? `<li class="rc-dev-more">+ ${deviations.length - 3} more</li>` : ''}</ul>
     </div>` : ''}
 
     <div class="rc-foot">

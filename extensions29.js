@@ -1,9 +1,9 @@
 /* ================================================================
-   Phase 51 — Expanded test coverage for Phases 43-50
+   Phase 51 - Expanded test coverage for Phases 43-50
    ================================================================
    API-boundary tests: verify handles exist, modules loaded, patches
    applied. No state mutations, no modal opens, no renderAll calls
-   — those caused the Puppeteer test runner to hang mid-evaluation.
+   - those caused the Puppeteer test runner to hang mid-evaluation.
 
    Deeper behavioural testing lives in trial-tracking/UAT-PHASE-43-50.md
    for the human to walk through.
@@ -22,7 +22,7 @@ if (!_origDefineTests) {
 
 window.defineTests = function () {
   _origDefineTests.apply(this, arguments);
-  // Idempotency guard — match the Phase 10 pattern (TESTS.length short-circuit).
+  // Idempotency guard - match the Phase 10 pattern (TESTS.length short-circuit).
   // Without this, our tests get re-registered every time defineTests is called
   // (which the test-report UI re-does on button clicks).
   if (window._p51_tests_registered) return;
@@ -116,7 +116,7 @@ window.defineTests = function () {
   });
 
   test('phase47.settings', 'formatMoney USD returns dollar prefix', () => {
-    // Don't mutate state. Just check the USD passthrough — if no fx or
+    // Don't mutate state. Just check the USD passthrough - if no fx or
     // currency setting is set, the patch should fall back to the original.
     const r = formatMoney(100);
     assert(typeof r === 'string' && r.length > 0, 'formatMoney returned invalid');

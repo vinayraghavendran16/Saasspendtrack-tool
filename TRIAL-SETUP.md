@@ -1,4 +1,4 @@
-# Trial gating + auth — setup
+# Trial gating + auth - setup
 
 This PR adds a traditional gated trial to the app: magic-link sign-in, a 7-day
 trial, a hard lock on day 8, instant unlock on payment (Razorpay webhook), and a
@@ -11,16 +11,16 @@ if `/api/me` isn't reachable.
 
 ## What's in the code
 
-- `functions/api/auth/request.js` — email a one-time sign-in link (starts trial on first sight)
-- `functions/api/auth/verify.js` — consume link, create session cookie, redirect to app
-- `functions/api/me.js` — entitlement source of truth (the gate reads this)
+- `functions/api/auth/request.js` - email a one-time sign-in link (starts trial on first sight)
+- `functions/api/auth/verify.js` - consume link, create session cookie, redirect to app
+- `functions/api/me.js` - entitlement source of truth (the gate reads this)
 - `functions/api/auth/logout.js`
-- `functions/api/razorpay/webhook.js` — on payment, flip user to `active`
-- `functions/api/cron/tick.js` — idempotent email cadence runner
+- `functions/api/razorpay/webhook.js` - on payment, flip user to `active`
+- `functions/api/cron/tick.js` - idempotent email cadence runner
 - `functions/_shared/util.js`, `functions/_shared/email.js`
-- `auth-gate.js` / `auth-gate.css` — login screen, trial banner, expiry lock (wired into `index.html`)
-- `schema.sql` — D1 tables
-- `cron-worker/` — optional hourly Cloudflare worker that pings the cadence runner
+- `auth-gate.js` / `auth-gate.css` - login screen, trial banner, expiry lock (wired into `index.html`)
+- `schema.sql` - D1 tables
+- `cron-worker/` - optional hourly Cloudflare worker that pings the cadence runner
 
 ## 1. Create the D1 database + tables
 
@@ -55,7 +55,7 @@ as **Secret**.
 | `ZEPTOMAIL_URL` | `https://api.zeptomail.in/v1.1/email` (use `.com` if your Zoho account is not India) |
 | `RAZORPAY_WEBHOOK_SECRET` | the secret you set on the Razorpay webhook (secret) |
 | `CRON_SECRET` | any long random string (secret) |
-| `ADMIN_EMAILS` | your owner email(s), comma-separated — who can open the admin command centre |
+| `ADMIN_EMAILS` | your owner email(s), comma-separated - who can open the admin command centre |
 | `USD_INR` | FX rate for showing USD revenue in ₹ (e.g. `86`) |
 
 ## 4. Zoho ZeptoMail
@@ -139,7 +139,7 @@ Lives at **`https://app.saasspendtrack.com/admin.html`** (bookmark it; it's
 Sign in with your owner email (same magic-link flow). It shows: total trials,
 active trials, paid customers, conversion %, trial churn %, realised ARR, total
 revenue, trial pipeline, a 14-day signups chart, emails-sent counts, and a recent-
-accounts table. It reads live from D1 — **no Google Sheet needed** for trials/paid.
+accounts table. It reads live from D1 - **no Google Sheet needed** for trials/paid.
 
 Not tracked yet: email **opens** and **replies** (shows sent counts only). Adding
 opens needs ZeptoMail open-tracking + a small webhook; say the word and I'll wire it.
@@ -148,7 +148,7 @@ opens needs ZeptoMail open-tracking + a small webhook; say the word and I'll wir
 
 Any new endpoint that does valuable work (AI extraction, exports, analysis)
 should sit behind the entitlement guard. Then bypassing the client overlay gets
-an expired/unpaid user nothing — the endpoint returns 403.
+an expired/unpaid user nothing - the endpoint returns 403.
 
 ```js
 import { requireEntitled } from '../_shared/util.js';
@@ -156,13 +156,13 @@ import { requireEntitled } from '../_shared/util.js';
 export async function onRequestPost({ request, env }) {
   const gate = await requireEntitled(request, env);
   if (gate.response) return gate.response;   // 401 not signed in, 403 not entitled
-  const { user, ent } = gate;                // entitled account — do the work
+  const { user, ent } = gate;                // entitled account - do the work
   // ...
 }
 ```
 
 Owner-only endpoints use `requireAdmin` the same way. This is where "developers
-can't get the value for free" is actually enforced — on the server, per request.
+can't get the value for free" is actually enforced - on the server, per request.
 
 ## Known limits (worth hardening later)
 

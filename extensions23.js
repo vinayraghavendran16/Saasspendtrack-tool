@@ -1,5 +1,5 @@
 /* ================================================================
-   Phase 44 — Bulk CSV import for subscriptions
+   Phase 44 - Bulk CSV import for subscriptions
    ================================================================
    Three-step modal:
      1. Paste CSV / upload .csv / .tsv file
@@ -107,19 +107,19 @@ function coerceDate(raw) {
   if (!raw) return null;
   const s = String(raw).trim();
   // Always format from (y,m,d) components to dodge TZ drift on
-  // toISOString() — 14/05/2026 in IST must stay 2026-05-14, not 2026-05-13.
+  // toISOString() - 14/05/2026 in IST must stay 2026-05-14, not 2026-05-13.
   const pad = (n) => String(n).padStart(2, '0');
   const fmt = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
   // ISO first
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return fmt(+iso[1], +iso[2], +iso[3]);
-  // DD/MM/YYYY or DD-MM-YYYY (prefer DMY — our ICP is India + APAC)
+  // DD/MM/YYYY or DD-MM-YYYY (prefer DMY - our ICP is India + APAC)
   const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (dmy) {
     let dd = +dmy[1], mm = +dmy[2], yy = +dmy[3];
     if (yy < 100) yy += 2000;
     // If day > 12, this cannot be MDY so DMY is unambiguous. If month > 12,
-    // it must actually be MDY — swap. Otherwise default to DMY.
+    // it must actually be MDY - swap. Otherwise default to DMY.
     if (mm > 12 && dd <= 12) { const t = dd; dd = mm; mm = t; }
     if (dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12) return fmt(yy, mm, dd);
   }
@@ -294,7 +294,7 @@ function step2Html() {
               <span class="bi-map-hint">${escapeHtml(f.hint)}</span>
             </label>
             <select class="bi-map-select" data-field="${f.key}">
-              <option value="">— skip —</option>
+              <option value="">- skip -</option>
               ${headers.map((h, i) => `<option value="${i}" ${map[f.key] === i ? 'selected' : ''}>${escapeHtml(h || `Column ${i + 1}`)}</option>`).join('')}
             </select>
           </div>
@@ -369,13 +369,13 @@ function step3Html() {
       <div class="bi-preview-rows">
         ${rows.slice(0, 50).map(r => {
           let status = 'new', label = 'New';
-          if (r._issue === 'missing_name') { status = 'bad'; label = 'No name — skip'; }
+          if (r._issue === 'missing_name') { status = 'bad'; label = 'No name - skip'; }
           else if (r._dup && r._dup.match === 'exact') { status = 'skip'; label = `Exact dupe: ${escapeHtml(r._dup.sub.name)}`; }
           else if (r._dup && r._dup.match === 'fuzzy') { status = 'warn'; label = `Possible dupe: ${escapeHtml(r._dup.sub.name)}`; }
           return `
             <div class="bi-prow bi-prow-${status}">
               <span class="bi-prow-name">${escapeHtml(r.name || '(no name)')}</span>
-              <span class="bi-prow-meta">${r.cost != null ? '$' + r.cost.toLocaleString() : '—'} · ${escapeHtml(r.cycle)} ${r.renewal ? ' · renews ' + escapeHtml(r.renewal) : ''}</span>
+              <span class="bi-prow-meta">${r.cost != null ? '$' + r.cost.toLocaleString() : '-'} · ${escapeHtml(r.cycle)} ${r.renewal ? ' · renews ' + escapeHtml(r.renewal) : ''}</span>
               <span class="bi-prow-tag bi-prow-tag-${status}">${label}</span>
             </div>
           `;
@@ -575,7 +575,7 @@ function injectImportButton() {
   btn.className = 'bi-launch';
   btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span>Bulk import</span>`;
   btn.onclick = open;
-  // Find a sensible anchor — a heading, a toolbar, otherwise prepend to view.
+  // Find a sensible anchor - a heading, a toolbar, otherwise prepend to view.
   const anchor = view.querySelector('h1, h2, .view-head, .toolbar');
   if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(btn, anchor.nextSibling);
   else view.prepend(btn);

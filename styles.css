@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SaaS Spend Track — design system
+   SaaS Spend Track - design system
    Principles: neutral canvas, one accent, dense-but-legible data tables,
    consistent 4/8px spacing, status by colour-coded pills, left-rail nav.
    ========================================================================== */
@@ -1281,7 +1281,7 @@ html.owner-only #owner { display: block !important; }
   .ai-modal-foot { font-size: 10.5px; }
 }
 
-/* Hide the old drawer on desktop — modal is primary */
+/* Hide the old drawer on desktop - modal is primary */
 @media (min-width: 721px) {
   .ai-drawer { display: none !important; }
 }
@@ -1413,7 +1413,7 @@ body.readonly-mode .kpi-value::after {
 .signup-modal.sm-change .sm-backdrop { background: rgba(0,0,0,0.6); }
 
 /* ====================================================================
-   Phase 43 — In-app Onboarding (Whatfix-style)
+   Phase 43 - In-app Onboarding (Whatfix-style)
    ==================================================================== */
 
 /* ---------- Checklist widget (bottom-right) ---------- */
@@ -1644,7 +1644,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 .ob-help-foot a:hover { text-decoration: underline; }
 
 /* ====================================================================
-   Phase 44 — Bulk CSV import
+   Phase 44 - Bulk CSV import
    ==================================================================== */
 
 /* Launch button in the Subscriptions view */
@@ -1731,7 +1731,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 .bi-link:hover { color: #ffffff; }
 .bi-hint { font-size: 12px; color: rgba(255,255,255,0.5); }
 
-/* Step 2 — mapping grid */
+/* Step 2 - mapping grid */
 .bi-map-grid {
   display: grid; grid-template-columns: 1fr 240px; gap: 10px 20px;
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
@@ -1759,7 +1759,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 .bi-table-wrap th { background: rgba(255,255,255,0.04); font-weight: 600; color: #ffffff; }
 .bi-table-wrap td { color: rgba(255,255,255,0.75); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 
-/* Step 3 — summary + preview rows */
+/* Step 3 - summary + preview rows */
 .bi-summary {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
 }
@@ -1843,7 +1843,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 }
 
 /* ====================================================================
-   Phase 46 — Reports view (exports)
+   Phase 46 - Reports view (exports)
    ==================================================================== */
 
 .view[data-view="reports"] { padding: 20px 28px 40px; }
@@ -1909,7 +1909,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 .rpt-foot b { color: var(--text, #ffffff); }
 
 /* ====================================================================
-   Phase 47 — Settings view + multi-currency
+   Phase 47 - Settings view + multi-currency
    ==================================================================== */
 
 .view[data-view="settings"] { padding: 20px 28px 40px; }
@@ -2011,7 +2011,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 }
 
 /* ====================================================================
-   Phase 48 — Payment acknowledgment modal
+   Phase 48 - Payment acknowledgment modal
    ==================================================================== */
 
 .pay-ack {
@@ -2108,7 +2108,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 }
 
 /* ====================================================================
-   Phase 49 — Command palette (⌘K)
+   Phase 49 - Command palette (⌘K)
    ==================================================================== */
 
 /* Trigger chip (in header) */
@@ -2215,7 +2215,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 .cp-foot span { display: inline-flex; align-items: center; gap: 5px; }
 
 /* ====================================================================
-   Phase 50 — Per-subscription currency editor + row tag
+   Phase 50 - Per-subscription currency editor + row tag
    ==================================================================== */
 
 /* Tiny currency tag next to subscription names when source != display */
@@ -2267,7 +2267,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 .ccy-ed-save:hover { background: #1d4ed8; }
 
 /* ====================================================================
-   Phase 52 — Diagnostics card (in Settings)
+   Phase 52 - Diagnostics card (in Settings)
    ==================================================================== */
 
 .diag-summary { margin: 4px 0 12px; }
@@ -2353,10 +2353,10 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 }
 
 /* ====================================================================
-   Phase 54 — Mobile layout rescue
+   Phase 54 - Mobile layout rescue
    Fixes the topbar collapse (urgency chips overflowing the fixed-height
    topbar and visually colliding with the view content underneath).
-   Observed on iOS Safari + Chrome on mobile — screenshot sent by Vinay
+   Observed on iOS Safari + Chrome on mobile - screenshot sent by Vinay
    showed the "4 escalated · 1 awaiting · 6 act-by soon · $14,189 wasted"
    chips stacking over the Dashboard view.
    ==================================================================== */
@@ -2479,7 +2479,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
   .cp-trigger { display: none !important; }
 }
 
-/* Ultra-narrow (< 420px) — phones in portrait */
+/* Ultra-narrow (< 420px) - phones in portrait */
 @media (max-width: 420px) {
   .stat-grid { grid-template-columns: 1fr !important; }
   .diag-tiles { grid-template-columns: 1fr !important; }
@@ -2487,7 +2487,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
   .crumb b { display: none; }  /* just show "Dashboard" not "Acme / Dashboard" */
 }
 
-/* Phase 54 — install card extras */
+/* Phase 54 - install card extras */
 .pwa-steps {
   margin: 10px 0; padding-left: 20px;
   font-size: 12.5px; color: var(--text, #ffffff);

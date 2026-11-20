@@ -1,5 +1,5 @@
 /* ================================================================
-   Phase 49 — Command palette (⌘K)
+   Phase 49 - Command palette (⌘K)
    ================================================================
    One-keystroke launcher for every meaningful action in the tool.
 
@@ -12,7 +12,7 @@
    - Open any onboarding flow
    - Open settings / bulk import / data export
    - Direct Ask Track query: type `ask: how many renewals this quarter`
-     and hit Enter — opens Ask Track with the query pre-populated.
+     and hit Enter - opens Ask Track with the query pre-populated.
 
    Fuzzy matches on title + keywords. Ranks exact prefix matches
    highest. Keyboard-first: ↑↓ to move, Enter to run, Esc to close.
