@@ -75,6 +75,40 @@ ok(res.status === 403, 'PUT blocked when expired');
 res = await DATA.onRequestGet({ request: { headers: { get: () => '' } }, env: dataEnv({}, null) });
 ok(res.status === 401, 'GET 401 without session');
 
+// ---- accounts / roles (Phase 1 helpers; mocked D1) ----
+section('accounts & roles');
+ok(U.ROLE_RANK.owner > U.ROLE_RANK.admin && U.ROLE_RANK.admin > U.ROLE_RANK.member, 'role hierarchy owner>admin>member');
+ok(U.MAX_MEMBERS === 50, 'member cap is 50');
+ok(U.roleAtLeast('admin', 'member') && U.roleAtLeast('owner', 'admin') && U.roleAtLeast('member', 'member'), 'roleAtLeast meets');
+ok(!U.roleAtLeast('member', 'admin') && !U.roleAtLeast('admin', 'owner'), 'roleAtLeast blocks lower');
+ok(!U.roleAtLeast('bogus', 'member'), 'roleAtLeast unknown role denied');
+function roleEnv(sessionEmail, userRow, membershipRow) {
+  return { DB: { prepare(sql) { return { bind: () => ({
+    first: async () => {
+      if (/FROM sessions/i.test(sql)) return sessionEmail ? { email: sessionEmail, expires_at: Date.now() + 1e9 } : null;
+      if (/FROM users/i.test(sql)) return userRow;
+      if (/FROM memberships/i.test(sql)) return membershipRow;
+      if (/COUNT/i.test(sql)) return { c: 1 };
+      return null;
+    },
+    run: async () => {},
+  }) }; } } };
+}
+const rReq = { headers: { get: () => 'sst_session=s' } };
+let g = await U.requireRole({ headers: { get: () => '' } }, roleEnv(null), 'member');
+ok(g.response && g.response.status === 401, 'requireRole 401 without session');
+g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account_id: 'A', role: 'member', status: 'active' }), 'admin');
+ok(g.response && g.response.status === 403, 'requireRole 403 member needs admin');
+g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account_id: 'A', role: 'admin', status: 'active' }), 'admin');
+ok(!g.response && g.membership.role === 'admin', 'requireRole admin passes admin gate');
+g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account_id: 'A', role: 'owner', status: 'active' }), 'admin');
+ok(!g.response && g.membership.role === 'owner', 'requireRole owner passes admin gate');
+g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account_id: 'A', role: 'member', status: 'suspended' }), 'member');
+ok(g.response && g.response.status === 403, 'requireRole 403 suspended member');
+// New user with no membership is lazily made owner of their own account.
+g = await U.requireRole(rReq, roleEnv('new@x.com', { email: 'new@x.com' }, null), 'member');
+ok(!g.response && g.membership.role === 'owner', 'requireRole lazily provisions owner for new user');
+
 // ---- preset generator endpoint (validation + gating; no network) ----
 section('preset generator');
 import * as PRESET from '../functions/api/preset/generate.js';
