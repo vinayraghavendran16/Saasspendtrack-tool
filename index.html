@@ -16107,7 +16107,16 @@ function renderTeamAccess(section, data, err) {
   const invites = data.invites || [];
   const cap = data.cap || 50;
   const canManage = !!data.canManage;
+  const callerRole = data.role || 'member';
+  const selfEmail = data.self || '';
   const used = members.length + invites.length;
+  const canManageRow = (m) => {
+    if (!canManage) return false;
+    if (m.email === selfEmail) return false;                         // not yourself
+    if (m.role === 'owner') return false;                           // owner is untouchable here
+    if (callerRole !== 'owner' && m.role === 'admin') return false; // admins can't manage admins
+    return true;
+  };
   const inviteForm = canManage ? `
     <div class="panel" style="margin-top:14px">
       <h2 style="margin-bottom:4px">Invite a teammate</h2>
@@ -16138,10 +16147,18 @@ function renderTeamAccess(section, data, err) {
     ${data.pendingSetup ? '<div class="panel" style="margin-top:12px;border-color:#f59e0b55"><p class="dim" style="margin:0;font-size:13px">Team provisioning is still finishing on the server, so the roster shows just you for now. Inviting teammates will work once setup completes.</p></div>' : ''}
     ${inviteForm}
     <div class="table-wrap" style="margin-top:14px"><table class="sub-table"><thead><tr>
-      <th>Member</th><th>Role</th><th>Status</th>
-    </tr></thead><tbody>${members.map(m => `
-      <tr><td><b>${escapeHtml(m.email)}</b></td><td>${taRoleBadge(m.role)}</td><td>${taStatusBadge(m.status)}</td></tr>
-    `).join('') || '<tr><td colspan="3" class="dim" style="padding:14px">No members yet.</td></tr>'}</tbody></table></div>
+      <th>Member</th><th>Role</th><th>Status</th>${canManage ? '<th></th>' : ''}
+    </tr></thead><tbody>${members.map(m => {
+      const manage = canManageRow(m);
+      const roleSel = (manage && callerRole === 'owner')
+        ? `<select class="ta-role-sel" data-email="${escapeHtml(m.email)}" style="font-size:12px;padding:3px 6px">
+             <option value="member"${m.role === 'member' ? ' selected' : ''}>Member</option>
+             <option value="admin"${m.role === 'admin' ? ' selected' : ''}>Admin</option>
+           </select>` : '';
+      const removeBtn = manage ? `<button class="ta-remove" data-email="${escapeHtml(m.email)}" style="font-size:12px;padding:3px 10px;margin-left:8px;color:#ef4444;border:1px solid #ef444455;background:transparent;border-radius:6px;cursor:pointer">Remove</button>` : '';
+      const actions = canManage ? `<td style="text-align:right">${manage ? roleSel + removeBtn : '<span class="dim">—</span>'}</td>` : '';
+      return `<tr><td><b>${escapeHtml(m.email)}</b>${m.email === selfEmail ? ' <span class="dim" style="font-size:11px">you</span>' : ''}</td><td>${taRoleBadge(m.role)}</td><td>${taStatusBadge(m.status)}</td>${actions}</tr>`;
+    }).join('') || `<tr><td colspan="${canManage ? 4 : 3}" class="dim" style="padding:14px">No members yet.</td></tr>`}</tbody></table></div>
     ${invites.length ? `<h2 style="margin:22px 0 8px;font-size:15px">Pending invites</h2>
     <div class="table-wrap"><table class="sub-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th></tr></thead><tbody>${invites.map(i => `
       <tr><td>${escapeHtml(i.email)}</td><td>${taRoleBadge(i.role)}</td><td><span class="badge" style="background:#f59e0b22;color:#f59e0b">Invited</span></td></tr>
@@ -16173,6 +16190,32 @@ function renderTeamAccess(section, data, err) {
       btn.disabled = false; btn.textContent = 'Send invite';
     };
     if (emailEl) emailEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); btn.click(); } });
+    // Per-member management: change role (owner only) and remove (owner/admin).
+    section.querySelectorAll('.ta-role-sel').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const email = sel.dataset.email, role = sel.value;
+        sel.disabled = true;
+        try {
+          const res = await fetch('/api/account/member-role', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, role }) });
+          let b = {}; try { b = await res.json(); } catch (_) {}
+          if (res.ok && b.ok) { setMsg(`${email} is now ${role}.`, '#16a34a'); setTimeout(loadTeamAccess, 500); }
+          else { setMsg(b.message || 'Could not change the role.', '#ef4444'); loadTeamAccess(); }
+        } catch (_) { setMsg('Could not change the role.', '#ef4444'); loadTeamAccess(); }
+      });
+    });
+    section.querySelectorAll('.ta-remove').forEach(b => {
+      b.addEventListener('click', async () => {
+        const email = b.dataset.email;
+        if (!window.confirm(`Remove ${email} from this workspace? They lose access immediately. You can re-invite them later.`)) return;
+        b.disabled = true; b.textContent = 'Removing…';
+        try {
+          const res = await fetch('/api/account/member-remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+          let bd = {}; try { bd = await res.json(); } catch (_) {}
+          if (res.ok && bd.ok) { setMsg(`${email} removed.`, '#16a34a'); setTimeout(loadTeamAccess, 500); }
+          else { setMsg(bd.message || 'Could not remove the teammate.', '#ef4444'); b.disabled = false; b.textContent = 'Remove'; }
+        } catch (_) { setMsg('Could not remove the teammate.', '#ef4444'); b.disabled = false; b.textContent = 'Remove'; }
+      });
+    });
   }
 }
 function ensureTeamAccessNav() {
