@@ -7413,7 +7413,7 @@ function contractExtrasHtml(sub) {
       + (sub.parentVendor ? `<span class="ce-chip">↳ under <b>${escapeHtml(sub.parentVendor)}</b></span>` : '')
       + `<span class="ce-chip">${escapeHtml(type)}</span>`
       + (sub.coTerm ? `<span class="ce-chip ce-chip-accent">co-termed</span>` : '')
-      + (sub.termStart ? `<span class="ce-chip">${sub.termStart} → ${sub.termEnd || sub.renewal || '—'}</span>` : '')
+      + (sub.termStart ? `<span class="ce-chip">${sub.termStart} → ${sub.termEnd || sub.renewal || '-'}</span>` : '')
       + `</div>`;
   }
 
@@ -7424,7 +7424,7 @@ function contractExtrasHtml(sub) {
       + `<th>Year</th><th>Period</th><th class="num">Annual</th><th></th></tr></thead><tbody>`
       + sub.priceSchedule.map(r => `<tr class="${r.current ? 'ce-current' : ''}">`
         + `<td><b>${escapeHtml(r.label || ('Year ' + r.year))}</b></td>`
-        + `<td style="color:var(--text-dim);font-size:12.5px">${r.start || '—'} → ${r.end || '—'}</td>`
+        + `<td style="color:var(--text-dim);font-size:12.5px">${r.start || '-'} → ${r.end || '-'}</td>`
         + `<td class="num">${formatMoney(r.annual)}</td>`
         + `<td>${r.current ? '<span class="badge ok">current</span>' : ''}</td></tr>`).join('')
       + `</tbody></table></div>`;
@@ -7450,8 +7450,8 @@ function contractExtrasHtml(sub) {
       + invs.map(i => {
         const st = (typeof invoiceStatus === 'function') ? invoiceStatus(i) : (i.paidDate ? 'paid' : 'pending');
         const cls = st === 'paid' ? 'ok' : st === 'overdue' ? 'danger' : 'warn';
-        return `<tr><td>${escapeHtml(i.invoiceNumber || '—')}</td>`
-          + `<td style="color:var(--text-dim);font-size:12.5px">${i.issueDate || '—'}</td>`
+        return `<tr><td>${escapeHtml(i.invoiceNumber || '-')}</td>`
+          + `<td style="color:var(--text-dim);font-size:12.5px">${i.issueDate || '-'}</td>`
           + `<td class="num">${formatMoney(i.amount)}</td>`
           + `<td><span class="badge ${cls}">${st}</span></td></tr>`;
       }).join('')
@@ -17225,7 +17225,7 @@ function renderDemoPicker() {
         </div>
         <div class="dp-sub">${escapeHtml(gp.company || '')}</div>
         <div class="dp-desc">${escapeHtml(gp.description || '')}</div>
-        <div class="dp-stats"><span>${gp.count || 0} vendors</span><span>${gp.employees || '—'} employees</span><span>${escapeHtml(gp.currencyPrefix || '$')}</span></div>
+        <div class="dp-stats"><span>${gp.count || 0} vendors</span><span>${gp.employees || '-'} employees</span><span>${escapeHtml(gp.currencyPrefix || '$')}</span></div>
         <button class="btn-primary dp-load" data-preset="generated">${currentPreset === 'generated' ? 'Reload' : 'Load this preset'}</button>
       </div>` : ''}
       <div class="dp-card ${currentPreset === 'acme' ? 'dp-current' : ''}" data-preset="acme">
