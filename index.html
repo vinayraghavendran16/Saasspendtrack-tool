@@ -586,6 +586,8 @@ button.stat-card { cursor: pointer; }
 .modal .check input { height: auto; width: auto; }
 .modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 .form-fieldset { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px 12px; margin: 0; }
+.req { color: #ef4444; margin-left: 2px; font-weight: 600; }
+.form-req-note { font-size: 12px; color: var(--text-2); margin: 0 0 4px; }
 .form-fieldset legend { font-size: 11.5px; font-weight: 600; color: var(--text-dim); padding: 0 6px; }
 
 /* ---------- toasts ---------- */
@@ -3298,9 +3300,10 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
     <div id="nba-block" hidden></div>
     <form id="sub-form">
       <input type="hidden" id="f-id" />
-      <label>Name<input type="text" id="f-name" required placeholder="Figma" /></label>
+      <p class="form-req-note">Fields marked <span class="req" aria-hidden="true">*</span> are required.</p>
+      <label>Name<span class="req" aria-hidden="true">*</span><input type="text" id="f-name" required placeholder="Figma" /></label>
       <div class="row">
-        <label>Cost (USD)<input type="number" id="f-cost" min="0" step="0.01" required placeholder="12.00" /></label>
+        <label>Cost (USD)<span class="req" aria-hidden="true">*</span><input type="number" id="f-cost" min="0" step="0.01" required placeholder="12.00" /></label>
         <label>Billing cycle
           <select id="f-cycle">
             <option value="monthly">Monthly</option>
@@ -15939,7 +15942,7 @@ function patchSwitchViewForVendors() {
 if (window.PAGE_TITLES) window.PAGE_TITLES['vendors'] = 'Vendors';
 (function () {
   const boot = () => { try { ensureVendorsView(); ensureVendorsNav(); patchSwitchViewForVendors(); } catch (e) { console.warn(e); } };
-  if (window.renderAll) { const _p = window.renderAll; window.renderAll = function () { _p(); boot(); }; }
+  if (window.renderAll) { const _p = window.renderAll; window.renderAll = function () { _p(); boot(); try { if (document.getElementById('vendors')) renderVendors(); } catch (_) {} }; }
   document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 760));
 })();
 </script>
