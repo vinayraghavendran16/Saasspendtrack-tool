@@ -26,6 +26,7 @@
    ========================================================================== */
 
 :root {
+  color-scheme: light;
   /* canvas + surfaces */
   --bg: #f5f6f8;
   --bg-2: #eef0f3;
@@ -72,6 +73,7 @@
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0b0e14;
   --bg-2: #0f131b;
   --panel: #12161f;
@@ -141,6 +143,14 @@ code { font-family: var(--mono); font-size: 12px; background: var(--bg-2); paddi
 h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
 button { font-family: inherit; font-size: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; font-size: inherit; color: var(--text); }
+/* Theme-match text controls so bare (non-modal) selects/inputs never fall back to a
+   white UA background in dark mode (white-on-white). Checkboxes/radios are excluded
+   so their native rendering is untouched; higher-specificity component rules still win. */
+select, textarea,
+input[type="text"], input[type="email"], input[type="number"], input[type="date"],
+input[type="search"], input[type="url"], input[type="password"], input[type="tel"], input:not([type]) {
+  background-color: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); box-sizing: border-box;
+}
 [hidden] { display: none !important; }
 ::selection { background: var(--accent-soft); }
 
