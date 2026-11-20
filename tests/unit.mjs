@@ -108,6 +108,20 @@ ok(res.status === 403, 'data GET blocked for suspended member');
 res = await DATA.onRequestGet({ request: req, env: dataEnv({ row: null }, active, { email: active.email, account_id: 'A', role: 'member', status: 'active' }) });
 ok((await res.json()).empty === true, 'data GET ok for active member');
 
+// ---- Self-provisioning: ensureAccountSchema ----
+section('accounts self-provision (ensureAccountSchema)');
+let schemaThrew = false;
+try { await U.ensureAccountSchema({ DB: { prepare: () => ({ run: async () => { throw new Error('no ddl'); } }) } }); } catch (_) { schemaThrew = true; }
+ok(!schemaThrew, 'ensureAccountSchema fails open when DDL throws');
+const ddl = [];
+const recDB = { prepare: (s) => ({ run: async () => { ddl.push(s); } }) };
+await U.ensureAccountSchema({ DB: recDB });
+const firstCount = ddl.length;
+await U.ensureAccountSchema({ DB: recDB });
+const joined = ddl.join('|');
+ok(/CREATE TABLE IF NOT EXISTS accounts/.test(joined) && /memberships/.test(joined) && /invites/.test(joined), 'ensureAccountSchema creates accounts/memberships/invites');
+ok(ddl.length === firstCount && firstCount === 7, 'ensureAccountSchema runs its 7 statements once per DB');
+
 // ---- rb2b ingest (secret gate + field mapping) ----
 section('rb2b ingest');
 function rbReq(authHeader, body, urlStr) {
