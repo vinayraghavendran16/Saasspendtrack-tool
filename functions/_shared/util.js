@@ -179,6 +179,23 @@ export async function requireAdmin(request, env) {
   return { user };
 }
 
+// Entitlement + active account membership + role, in one call. Use on member-scoped
+// data and compute endpoints so a removed or suspended member (or a non-entitled
+// session) is blocked server-side, not just hidden in the UI. Backward compatible:
+// a solo user is the active owner of their own account, so minRole 'member' always
+// passes for them, and if the accounts tables are not migrated yet getMembership
+// fails open to that same solo-owner, so this never bricks a single-user install.
+// Returns { response } on failure, or { user, ent, membership } on success.
+export async function requireEntitledRole(request, env, minRole = 'member') {
+  const gate = await requireEntitled(request, env);
+  if (gate.response) return gate;                       // 401 anon / 403 not_entitled
+  const { user, ent } = gate;
+  const membership = await ensureAccountForUser(env, user);
+  if (!membership || membership.status !== 'active') return { response: json({ error: 'no_account' }, 403) };
+  if (!roleAtLeast(membership.role, minRole)) return { response: json({ error: 'forbidden' }, 403) };
+  return { user, ent, membership };
+}
+
 // Reads the session cookie and returns the user row, or null.
 export async function getUserFromSession(request, env) {
   const sid = parseCookies(request).sst_session;

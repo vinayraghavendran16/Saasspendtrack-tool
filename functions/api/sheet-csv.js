@@ -1,4 +1,4 @@
-import { requireEntitled, rateLimit } from '../_shared/util.js';
+import { requireEntitledRole, rateLimit } from '../_shared/util.js';
 // Cloudflare Pages Function - GET/POST /api/sheet-csv
 // Fetches a shared Google Sheet as CSV server-side (no browser CORS limits) so
 // the client can import the rows. Works for any sheet shared as "anyone with the
@@ -37,7 +37,7 @@ async function handle(url) {
 }
 
 async function guard(request, env) {
-  const gate = await requireEntitled(request, env);
+  const gate = await requireEntitledRole(request, env, 'member');
   if (gate.response) return gate.response;
   const rl = await rateLimit(env, "sheet:" + gate.user.email, 60, 3600000);
   if (!rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many requests. Try again shortly." }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });

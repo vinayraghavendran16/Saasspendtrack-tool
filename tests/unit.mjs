@@ -56,10 +56,15 @@ ok(r.ok, 'rate limiter fails open on error');
 
 // ---- data endpoint (entitled-gated writes) ----
 section('data endpoint');
-function dataEnv(store, user) {
+function dataEnv(store, user, membership) {
+  // membership defaults to an active owner so role gating passes for a solo user.
+  const mem = membership === undefined ? (user ? { email: user.email, account_id: 'A', role: 'owner', status: 'active' } : null) : membership;
   return { DB: { prepare(sql) { return { bind: (...a) => ({
     first: async () => sql.includes('sessions') ? (user ? { email: user.email, expires_at: Date.now() + 1e9 } : null)
-      : sql.includes('app_data') ? store.row : user,
+      : sql.includes('app_data') ? store.row
+      : sql.includes('memberships') ? mem
+      : sql.includes('accounts') ? (user ? { id: 'A', owner_email: user.email } : null)
+      : user,
     run: async () => { if (sql.includes('INSERT INTO app_data')) { store.row = { data: a[1] }; store.saved = a[1]; } },
   }) }; } } };
 }
@@ -75,6 +80,33 @@ res = await DATA.onRequestPut({ request: { ...req, text: async () => '{}' },
 ok(res.status === 403, 'PUT blocked when expired');
 res = await DATA.onRequestGet({ request: { headers: { get: () => '' } }, env: dataEnv({}, null) });
 ok(res.status === 401, 'GET 401 without session');
+
+// ---- Phase 4: requireEntitledRole + member-scoped endpoint enforcement ----
+section('accounts phase 4 (role-gated endpoints)');
+// requireEntitledRole: anon -> 401
+let g4 = await U.requireEntitledRole({ headers: { get: () => '' } }, dataEnv({}, null), 'member');
+ok(g4.response && g4.response.status === 401, 'requireEntitledRole 401 for anon');
+// expired entitlement -> 403 (blocked before role check)
+g4 = await U.requireEntitledRole(req, dataEnv({}, { email: 'e@x.com', status: 'trial', trial_ends_at: Date.now() - 1 }), 'member');
+ok(g4.response && g4.response.status === 403, 'requireEntitledRole 403 when not entitled');
+// active owner -> passes with membership
+g4 = await U.requireEntitledRole(req, dataEnv({}, active), 'member');
+ok(!g4.response && g4.user && g4.membership && g4.membership.role === 'owner', 'requireEntitledRole passes for active owner');
+// suspended member -> no_account 403
+g4 = await U.requireEntitledRole(req, dataEnv({}, active, { email: active.email, account_id: 'A', role: 'member', status: 'suspended' }), 'member');
+ok(g4.response && g4.response.status === 403, 'requireEntitledRole 403 for suspended member');
+// member calling an admin-only guard -> forbidden 403
+g4 = await U.requireEntitledRole(req, dataEnv({}, active, { email: active.email, account_id: 'A', role: 'member', status: 'active' }), 'admin');
+ok(g4.response && g4.response.status === 403, 'requireEntitledRole 403 when role below required');
+// data PUT by a suspended member is blocked
+res = await DATA.onRequestPut({ request: { ...req, text: async () => '{}' }, env: dataEnv({}, active, { email: active.email, account_id: 'A', role: 'member', status: 'suspended' }) });
+ok(res.status === 403, 'data PUT blocked for suspended member');
+// data GET by a suspended member is blocked
+res = await DATA.onRequestGet({ request: req, env: dataEnv({ row: null }, active, { email: active.email, account_id: 'A', role: 'member', status: 'suspended' }) });
+ok(res.status === 403, 'data GET blocked for suspended member');
+// an active member can still read/write (shared workspace)
+res = await DATA.onRequestGet({ request: req, env: dataEnv({ row: null }, active, { email: active.email, account_id: 'A', role: 'member', status: 'active' }) });
+ok((await res.json()).empty === true, 'data GET ok for active member');
 
 // ---- rb2b ingest (secret gate + field mapping) ----
 section('rb2b ingest');
@@ -151,6 +183,8 @@ function presetEnv(user, key) {
     first: async () => {
       if (/sessions/i.test(sql)) return user ? { email: user.email, expires_at: Date.now() + 1e9 } : null;
       if (/rate/i.test(sql)) return { count: ++rl };
+      if (/memberships/i.test(sql)) return user ? { email: user.email, account_id: 'A', role: 'owner', status: 'active' } : null;
+      if (/accounts/i.test(sql)) return user ? { id: 'A', owner_email: user.email } : null;
       if (/users/i.test(sql)) return user;
       return user;
     },
