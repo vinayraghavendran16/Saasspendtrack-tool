@@ -138,6 +138,74 @@ ok(pr.status === 501 && (await pr.json()).error === 'not_configured', 'POST 501 
 pr = await PRESET.onRequestPost({ request: pReq({ url: 'acme.com' }), env: presetEnv({ email: 'e', status: 'trial', trial_ends_at: Date.now() - 1 }, 'x') });
 ok(pr.status === 403, 'POST 403 when trial expired');
 
+// ---- accounts Phase 3: invite / accept / members (mocked; no network) ----
+section('accounts phase 3 (invites)');
+import * as INVITE from '../functions/api/account/invite.js';
+import * as ACCEPT from '../functions/api/account/accept.js';
+import * as MEMBERS from '../functions/api/account/members.js';
+function acct3Env(o) {
+  o = o || {};
+  return { ADMIN_EMAILS: o.adminEmails || '', DB: { prepare(sql) { let b;
+    return { bind: (...a) => { b = a; return {
+      first: async () => {
+        if (/FROM sessions/i.test(sql)) return o.sessionEmail ? { email: o.sessionEmail, expires_at: Date.now() + 1e9 } : null;
+        if (/FROM users WHERE email/i.test(sql)) return (o.users || {})[b[0]] || null;
+        if (/FROM memberships WHERE email/i.test(sql)) return (o.members || {})[b[0]] || null;
+        if (/FROM accounts WHERE id/i.test(sql)) return (o.accounts || {})[b[0]] || null;
+        if (/COUNT\(\*\) c FROM memberships/i.test(sql)) return { c: o.memberCount || 0 };
+        if (/COUNT\(\*\) c FROM invites/i.test(sql)) return { c: o.pendingCount || 0 };
+        if (/FROM invites WHERE token_hash/i.test(sql)) return (o.invitesByHash || {})[b[0]] || null;
+        return null;
+      },
+      all: async () => {
+        if (/FROM memberships WHERE account_id/i.test(sql)) return { results: o.roster || [] };
+        if (/FROM invites WHERE account_id/i.test(sql)) return { results: o.pendingList || [] };
+        return { results: [] };
+      },
+      run: async () => {},
+    }; }, };
+  } } };
+}
+const admEnv = (over) => acct3Env(Object.assign({
+  sessionEmail: 'adm@x.com', users: { 'adm@x.com': { email: 'adm@x.com', status: 'active' } },
+  members: { 'adm@x.com': { email: 'adm@x.com', account_id: 'A', role: 'admin', status: 'active' } },
+  accounts: { A: { id: 'A', owner_email: 'own@x.com' } }, memberCount: 2, pendingCount: 0,
+}, over || {}));
+const iReq = (bodyObj) => ({ headers: { get: () => 'sst_session=s' }, json: async () => bodyObj });
+// A plain member cannot invite.
+let ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com' }), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': {} }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } } }) });
+ok(ra3.status === 403, 'invite 403 when caller is only a member');
+// Admin inviting themselves is rejected.
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'adm@x.com' }), env: admEnv() });
+ok(ra3.status === 400 && (await ra3.json()).error === 'self', 'invite 400 on self');
+// Email already in another account.
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'other@x.com' }), env: admEnv({ members: { 'adm@x.com': { account_id: 'A', role: 'admin', status: 'active' }, 'other@x.com': { account_id: 'B', role: 'member', status: 'active' } } }) });
+ok(ra3.status === 409 && (await ra3.json()).error === 'other_account', 'invite 409 when email in another account');
+// 50-member cap blocks.
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'member' }), env: admEnv({ memberCount: 50 }) });
+ok(ra3.status === 403 && (await ra3.json()).error === 'member_cap', 'invite 403 at member cap');
+// Happy path (no ZEPTOMAIL_TOKEN -> email no-ops, no network).
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'admin' }), env: admEnv() });
+let jx3 = await ra3.json();
+ok(jx3.ok === true && jx3.invited === 'new@x.com' && jx3.role === 'admin', 'invite ok creates invite');
+// Accept: no token -> redirect invalid.
+ra3 = await ACCEPT.onRequestGet({ request: { url: 'https://app.saasspendtrack.com/api/account/accept' }, env: acct3Env({}) });
+ok(ra3.status === 302 && ra3.headers.get('Location').includes('invite=invalid'), 'accept 302 invalid without token');
+// Accept: valid single-use invite -> session + redirect ok.
+const tok = 'tok-123';
+const th = await U.sha256Hex(tok);
+ra3 = await ACCEPT.onRequestGet({
+  request: { url: 'https://app.saasspendtrack.com/api/account/accept?token=' + tok },
+  env: acct3Env({ invitesByHash: { [th]: { account_id: 'A', email: 'inv@x.com', role: 'member', used: 0, expires_at: Date.now() + 1e9, invited_by: 'own@x.com' } }, accounts: { A: { id: 'A', owner_email: 'own@x.com' } }, users: { 'own@x.com': { status: 'active', trial_ends_at: Date.now() + 9e9 } }, memberCount: 1 }),
+});
+ok(ra3.status === 302 && ra3.headers.get('Location').includes('invite=ok') && !!ra3.headers.get('Set-Cookie'), 'accept 302 ok + session cookie');
+// Members list: member sees roster, no manage; admin can manage + sees invites.
+ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': { email: 'm@x.com', status: 'active' } }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } }, roster: [{ email: 'm@x.com', role: 'member', status: 'active' }], pendingList: [{ email: 'p@x.com' }] }) });
+jx3 = await ra3.json();
+ok(jx3.members.length === 1 && jx3.canManage === false && jx3.invites.length === 0, 'members: plain member sees roster, no invites');
+ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: admEnv({ roster: [{ email: 'adm@x.com', role: 'admin', status: 'active' }], pendingList: [{ email: 'p@x.com', role: 'member' }] }) });
+jx3 = await ra3.json();
+ok(jx3.canManage === true && jx3.invites.length === 1 && jx3.cap === 50, 'members: admin can manage + sees invites + cap 50');
 // ---- accounts Phase 2: shared-workspace data keying + /api/me account ----
 section('accounts phase 2 (shared workspace)');
 import * as ME from '../functions/api/me.js';

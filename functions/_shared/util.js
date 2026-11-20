@@ -249,6 +249,14 @@ export async function requireRole(request, env, minRole = 'member') {
   return { user, membership };
 }
 
+// Count unused, unexpired invites for an account (counts toward the member cap).
+export async function countPendingInvites(env, accountId) {
+  const row = await env.DB
+    .prepare('SELECT COUNT(*) c FROM invites WHERE account_id=? AND used=0 AND expires_at > ?')
+    .bind(accountId, now()).first();
+  return (row && row.c) || 0;
+}
+
 // Resolve the account context for a session user: membership, account row, and
 // the owner email that app_data is keyed by. All members of an account share
 // the owner's app_data row, so one account = one shared workspace. Falls back to
