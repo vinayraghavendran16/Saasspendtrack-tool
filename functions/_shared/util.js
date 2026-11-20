@@ -248,3 +248,16 @@ export async function requireRole(request, env, minRole = 'member') {
   if (!roleAtLeast(membership.role, minRole)) return { response: json({ error: 'forbidden' }, 403) };
   return { user, membership };
 }
+
+// Resolve the account context for a session user: membership, account row, and
+// the owner email that app_data is keyed by. All members of an account share
+// the owner's app_data row, so one account = one shared workspace. Falls back to
+// the user's own email when the account row is missing (defensive).
+export async function getAccountContext(env, user) {
+  const membership = await ensureAccountForUser(env, user);
+  if (!membership) return null;
+  const account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?')
+    .bind(membership.account_id).first();
+  const ownerEmail = (account && account.owner_email) || normalizeEmail(user && user.email);
+  return { membership, account, ownerEmail };
+}
