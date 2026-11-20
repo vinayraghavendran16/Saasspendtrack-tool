@@ -4345,6 +4345,7 @@ function ccSteps() {
     { id: 'drive', icon: '🗂️', title: 'Import a folder of contracts', desc: 'Pick a whole folder of contract PDFs or scans and run them through the bulk extractor in one go.', cta: 'Select a folder', done: false, act: () => openDriveFolder() },
     { id: 'shadow', icon: '🕵️', title: 'Discover shadow tools', desc: "Upload an expense or card-statement CSV and we'll flag recurring SaaS charges you aren't already tracking - scanned locally, nothing uploaded.", cta: 'Scan an expense CSV', done: false, act: () => openShadowDiscovery() },
     { id: 'team', icon: '👥', title: 'Add your team directory', desc: 'Import people and departments so spend and licences roll up by team.', cta: teamCount ? 'Review team' : 'Add team', done: teamCount > 0, act: () => switchView('team') },
+    { id: 'invite-users', icon: '✉️', title: 'Invite your team', desc: 'Give owners, admins and members access to this workspace. Each gets a secure sign-in link - no password to share.', cta: 'Add users', done: false, act: () => switchView('team-access') },
     { id: 'workspace', icon: '⚙️', title: 'Set up your workspace', desc: 'Company, fiscal year and a default renewal-notice window so spend, renewals and alerts roll up correctly.', cta: w.setupDone ? 'Review setup' : 'Set up', done: !!w.setupDone, act: () => openWorkspaceSetup() },
     { id: 'invoices', icon: '🧾', title: 'Import invoices', desc: 'Bring in invoices or payments and reconcile real spend against contracts. Vendors are matched or created automatically.', cta: (state.settings && state.settings.invoicesImported) ? 'Imported ✓ · import more' : 'Import invoices', done: !!(state.settings && state.settings.invoicesImported), act: () => openInvoiceImport() },
     { id: 'accounting', icon: '💳', title: 'Connect accounting', desc: 'Pull spend from QuickBooks, Xero, NetSuite, Zoho Books and more - CSV export, or direct API sync where available.', cta: 'Connect accounting', done: false, act: () => openAcctGallery() },
@@ -4457,7 +4458,7 @@ function renderCommandCentre() {
       const groups = [
         { title: 'Bring in your contracts & spend', ids: ['individual', 'bulk', 'paste', 'drive', 'shadow', 'invoices'] },
         { title: 'Connect your systems', ids: ['clm', 'sheet', 'accounting', 'sso'] },
-        { title: 'Set up your org', ids: ['team', 'workspace', 'infosec'] },
+        { title: 'Set up your org', ids: ['team', 'invite-users', 'workspace', 'infosec'] },
       ];
       const seen = new Set();
       let html = groups.map(g => {
@@ -15944,6 +15945,156 @@ if (window.PAGE_TITLES) window.PAGE_TITLES['vendors'] = 'Vendors';
   const boot = () => { try { ensureVendorsView(); ensureVendorsNav(); patchSwitchViewForVendors(); } catch (e) { console.warn(e); } };
   if (window.renderAll) { const _p = window.renderAll; window.renderAll = function () { _p(); boot(); try { if (document.getElementById('vendors')) renderVendors(); } catch (_) {} }; }
   document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 760));
+})();
+</script>
+<script>
+/* ==========================================================================
+   Team & access - account member provisioning UI (Phase 5)
+   A self-contained view (same injection pattern as Vendors) that drives the
+   /api/account/* endpoints: list members, invite member/admin, see pending
+   invites. Managers (owner/admin) get the invite form; members see read-only.
+   ========================================================================== */
+const TA_ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member' };
+function taRoleBadge(role) {
+  const color = role === 'owner' ? '#7c3aed' : role === 'admin' ? '#2563eb' : '#64748b';
+  return `<span class="badge" style="background:${color}22;color:${color}">${TA_ROLE_LABEL[role] || escapeHtml(role || '')}</span>`;
+}
+function taStatusBadge(status) {
+  const ok = status === 'active';
+  return `<span class="badge" style="background:${ok ? '#16a34a22' : '#f59e0b22'};color:${ok ? '#16a34a' : '#f59e0b'}">${ok ? 'Active' : escapeHtml(status || 'pending')}</span>`;
+}
+function ensureTeamAccessView() {
+  if (document.getElementById('team-access')) return;
+  const main = document.querySelector('.main-area main'); if (!main) return;
+  const section = document.createElement('section'); section.id = 'team-access'; section.className = 'view';
+  section.innerHTML = '<div class="section-head"><div><h2>Team &amp; access</h2><p class="page-sub">Loading your workspace…</p></div></div>';
+  main.appendChild(section);
+}
+async function loadTeamAccess() {
+  ensureTeamAccessView();
+  const section = document.getElementById('team-access'); if (!section) return;
+  let data = null, err = null;
+  try {
+    const res = await fetch('/api/account/members', { headers: { 'Accept': 'application/json' } });
+    if (res.status === 401) { err = 'signin'; }
+    else if (!res.ok) { err = 'load'; }
+    else { data = await res.json(); }
+  } catch (_) { err = 'load'; }
+  renderTeamAccess(section, data, err);
+}
+function renderTeamAccess(section, data, err) {
+  if (err === 'signin') {
+    section.innerHTML = '<div class="section-head"><div><h2>Team &amp; access</h2><p class="page-sub">Sign in to manage who can access this workspace.</p></div></div>';
+    return;
+  }
+  if (err || !data) {
+    section.innerHTML = '<div class="section-head"><div><h2>Team &amp; access</h2><p class="page-sub">Could not load your team right now. Please try again in a moment.</p></div></div><div style="margin-top:12px"><button class="btn-primary" id="ta-retry">Retry</button></div>';
+    const r = section.querySelector('#ta-retry'); if (r) r.onclick = () => loadTeamAccess();
+    return;
+  }
+  const members = data.members || [];
+  const invites = data.invites || [];
+  const cap = data.cap || 50;
+  const canManage = !!data.canManage;
+  const used = members.length + invites.length;
+  const inviteForm = canManage ? `
+    <div class="panel" style="margin-top:14px">
+      <h2 style="margin-bottom:4px">Invite a teammate</h2>
+      <p class="dim" style="font-size:13px;margin:0 0 12px">They get an email with a secure link that signs them straight into this workspace. No password to share.</p>
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px">
+        <label style="flex:2;min-width:200px;display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:500;color:var(--text-2)">Work email<input type="email" id="ta-email" placeholder="teammate@company.com" style="width:100%" /></label>
+        <label style="flex:1;min-width:120px;display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:500;color:var(--text-2)">Role
+          <select id="ta-role" style="width:100%">
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+        </label>
+        <button class="btn-primary" id="ta-invite-btn" style="height:38px">Send invite</button>
+      </div>
+      <p class="dim" style="font-size:12px;margin:10px 0 0"><b>Member</b> can use the workspace. <b>Admin</b> can also invite and manage people. Only an owner can hand off ownership.</p>
+      <div id="ta-invite-msg" style="margin-top:10px;font-size:13px"></div>
+    </div>` : `
+    <div class="panel" style="margin-top:14px"><p class="dim" style="font-size:13px;margin:0">Only an owner or admin can invite people. Ask one of them to add you teammates.</p></div>`;
+  section.innerHTML = `
+    <div class="section-head">
+      <div><h2>Team &amp; access</h2><p class="page-sub">Everyone who can see this workspace. All members share the same contracts, spend and renewals.</p></div>
+    </div>
+    <div class="is-tiles">
+      <div class="is-tile"><span class="is-n">${members.length}</span><span class="is-l">Members</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#f59e0b">${invites.length}</span><span class="is-l">Pending invites</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#2563eb">${used} / ${cap}</span><span class="is-l">Seats used</span></div>
+    </div>
+    ${inviteForm}
+    <div class="table-wrap" style="margin-top:14px"><table class="sub-table"><thead><tr>
+      <th>Member</th><th>Role</th><th>Status</th>
+    </tr></thead><tbody>${members.map(m => `
+      <tr><td><b>${escapeHtml(m.email)}</b></td><td>${taRoleBadge(m.role)}</td><td>${taStatusBadge(m.status)}</td></tr>
+    `).join('') || '<tr><td colspan="3" class="dim" style="padding:14px">No members yet.</td></tr>'}</tbody></table></div>
+    ${invites.length ? `<h2 style="margin:22px 0 8px;font-size:15px">Pending invites</h2>
+    <div class="table-wrap"><table class="sub-table"><thead><tr><th>Email</th><th>Role</th><th>Status</th></tr></thead><tbody>${invites.map(i => `
+      <tr><td>${escapeHtml(i.email)}</td><td>${taRoleBadge(i.role)}</td><td><span class="badge" style="background:#f59e0b22;color:#f59e0b">Invited</span></td></tr>
+    `).join('')}</tbody></table></div>` : ''}`;
+  if (canManage) {
+    const btn = section.querySelector('#ta-invite-btn');
+    const emailEl = section.querySelector('#ta-email');
+    const roleEl = section.querySelector('#ta-role');
+    const msg = section.querySelector('#ta-invite-msg');
+    const setMsg = (text, color) => { msg.innerHTML = `<span style="color:${color}">${escapeHtml(text)}</span>`; };
+    btn.onclick = async () => {
+      const email = (emailEl.value || '').trim();
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setMsg('Enter a valid work email.', '#ef4444'); return; }
+      btn.disabled = true; btn.textContent = 'Sending…'; setMsg('', '#64748b');
+      try {
+        const res = await fetch('/api/account/invite', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, role: roleEl.value })
+        });
+        let body = {}; try { body = await res.json(); } catch (_) {}
+        if (res.ok && body.ok) {
+          emailEl.value = '';
+          setMsg(body.already ? (body.message || 'Already a member.') : `Invite sent to ${email}.`, '#16a34a');
+          setTimeout(loadTeamAccess, 700);
+        } else {
+          setMsg(body.message || 'Could not send the invite. Please try again.', '#ef4444');
+        }
+      } catch (_) { setMsg('Could not send the invite. Please try again.', '#ef4444'); }
+      btn.disabled = false; btn.textContent = 'Send invite';
+    };
+    if (emailEl) emailEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); btn.click(); } });
+  }
+}
+function ensureTeamAccessNav() {
+  const ref = document.querySelector('.sidebar [data-view="team"]');
+  const anchor = ref || document.querySelector('.sidebar [data-view="vendors"]');
+  if (!anchor || !anchor.parentElement || anchor.parentElement.querySelector('[data-view="team-access"]')) return;
+  const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  const btn = document.createElement('button'); btn.className = 'tab'; btn.dataset.view = 'team-access';
+  btn.innerHTML = anchor.querySelector('span') ? `${svg}<span>Team &amp; access</span>` : 'Team & access';
+  anchor.parentElement.insertBefore(btn, anchor.nextSibling);
+  btn.addEventListener('click', () => switchView('team-access'));
+}
+function patchSwitchViewForTeamAccess() {
+  if (window._taSwitchPatched) return;
+  const _orig = window.switchView;
+  window.switchView = function (name, opts = {}) {
+    if (name === 'team-access') {
+      ensureTeamAccessView(); loadTeamAccess();
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === name));
+      window.scrollTo({ top: 0 });
+      const crumb = document.getElementById('page-crumb'); if (crumb) crumb.textContent = 'Team & access';
+      if (!opts.replaceHistory) { const t = '#team-access'; if (location.hash !== t) history.pushState({ view: name }, '', t); }
+      return;
+    }
+    return _orig(name, opts);
+  };
+  window._taSwitchPatched = true;
+}
+if (window.PAGE_TITLES) window.PAGE_TITLES['team-access'] = 'Team & access';
+(function () {
+  const boot = () => { try { ensureTeamAccessView(); ensureTeamAccessNav(); patchSwitchViewForTeamAccess(); } catch (e) { console.warn(e); } };
+  if (window.renderAll) { const _p = window.renderAll; window.renderAll = function () { _p(); boot(); }; }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(boot, 820));
 })();
 </script>
 <script>
