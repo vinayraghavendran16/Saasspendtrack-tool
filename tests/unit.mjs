@@ -206,6 +206,51 @@ ok(jx3.members.length === 1 && jx3.canManage === false && jx3.invites.length ===
 ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: admEnv({ roster: [{ email: 'adm@x.com', role: 'admin', status: 'active' }], pendingList: [{ email: 'p@x.com', role: 'member' }] }) });
 jx3 = await ra3.json();
 ok(jx3.canManage === true && jx3.invites.length === 1 && jx3.cap === 50, 'members: admin can manage + sees invites + cap 50');
+// ---- accounts Phase 2: shared-workspace data keying + /api/me account ----
+section('accounts phase 2 (shared workspace)');
+import * as ME from '../functions/api/me.js';
+function acctEnv(user, membership, account, store) {
+  return { DB: { prepare(sql) { let bound;
+    return { bind: (...a) => { bound = a; return {
+      first: async () => {
+        if (/FROM sessions/i.test(sql)) return user ? { email: user.email, expires_at: Date.now() + 1e9 } : null;
+        if (/FROM users/i.test(sql)) return user;
+        if (/FROM memberships/i.test(sql)) return membership;
+        if (/FROM accounts/i.test(sql)) return account;
+        if (/FROM app_data/i.test(sql)) return store[bound[0]] != null ? { data: store[bound[0]] } : null;
+        return null;
+      },
+      run: async () => { if (/INTO app_data/i.test(sql)) store[bound[0]] = bound[1]; },
+    }; } };
+  } } };
+}
+const p2member = { email: 'member@x.com', status: 'active', trial_ends_at: Date.now() + 9e9 };
+const p2owner = { email: 'owner@x.com', status: 'active', trial_ends_at: Date.now() + 9e9 };
+const p2acct = { id: 'A', owner_email: 'owner@x.com', name: 'Acme' };
+const p2memMember = { email: 'member@x.com', account_id: 'A', role: 'member', status: 'active' };
+const p2memOwner = { email: 'owner@x.com', account_id: 'A', role: 'owner', status: 'active' };
+const p2req = { headers: { get: () => 'sst_session=s' }, text: async () => JSON.stringify({ hi: 1 }) };
+// Member reads the OWNER's app_data row (shared workspace).
+let p2store = { 'owner@x.com': JSON.stringify({ shared: true }) };
+let p2res = await DATA.onRequestGet({ request: p2req, env: acctEnv(p2member, p2memMember, p2acct, p2store) });
+ok((await p2res.json()).data.shared === true, 'member reads owner shared workspace');
+// Member WRITES land on the owner's row, not their own email.
+p2store = {};
+p2res = await DATA.onRequestPut({ request: p2req, env: acctEnv(p2member, p2memMember, p2acct, p2store) });
+ok((await p2res.json()).ok === true, 'member put ok');
+ok(p2store['owner@x.com'] && !p2store['member@x.com'], 'member write lands on shared owner row');
+// Solo user with no account row keys by own email (zero change for existing users).
+p2store = { 'solo@x.com': JSON.stringify({ solo: 1 }) };
+const solo = { email: 'solo@x.com', status: 'active', trial_ends_at: Date.now() + 9e9 };
+const soloMem = { email: 'solo@x.com', account_id: 'S', role: 'owner', status: 'active' };
+p2res = await DATA.onRequestGet({ request: p2req, env: acctEnv(solo, soloMem, { id: 'S', owner_email: 'solo@x.com' }, p2store) });
+ok((await p2res.json()).data.solo === 1, 'solo owner reads own row unchanged');
+// /api/me returns account + role.
+p2res = await ME.onRequestGet({ request: p2req, env: acctEnv(p2member, p2memMember, p2acct, {}) });
+let meb = await p2res.json();
+ok(meb.account && meb.account.id === 'A' && meb.account.role === 'member' && meb.account.isOwner === false, 'me returns account+role (member)');
+p2res = await ME.onRequestGet({ request: p2req, env: acctEnv(p2owner, p2memOwner, p2acct, {}) });
+ok((await p2res.json()).account.isOwner === true, 'me marks owner isOwner');
 
 // ---- result ----
 console.log(`\n${pass} passed, ${fail} failed`);
