@@ -299,7 +299,10 @@ button.primary:disabled { opacity: 0.45; cursor: not-allowed; }
 /* Command Centre */
 .cc-progress { height: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 99px; overflow: hidden; margin: 2px 0 18px; }
 .cc-progress-fill { height: 100%; background: var(--accent); transition: width .3s ease; }
-.cc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.cc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.cc-group { margin-bottom: 22px; }
+.cc-group-head { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-dim); margin: 0 0 10px; }
+.cc-group-head .cc-group-count { font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-dim); opacity: .8; }
 .cc-card { display: flex; flex-direction: column; gap: 8px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 18px 16px; transition: border-color .15s, transform .15s, box-shadow .15s; }
 .cc-card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
 .cc-card.cc-done { border-color: var(--success); background: var(--panel); }
@@ -4427,15 +4430,31 @@ function renderCommandCentre() {
     </div>
     ${ccPresetBoxHtml()}
     <div class="cc-progress"><div class="cc-progress-fill" style="width:${Math.round(done / steps.length * 100)}%"></div></div>
-    <div class="cc-grid">
-      ${steps.map(s => `
+    ${(() => {
+      const card = (s) => `
         <div class="cc-card ${s.done ? 'cc-done' : ''}">
           <div class="cc-ic">${s.icon}</div>
           <div class="cc-title">${escapeHtml(s.title)}${s.done ? ' <span class="cc-check">✓</span>' : ''}</div>
           <div class="cc-desc">${escapeHtml(s.desc)}</div>
           <button type="button" class="cc-cta" data-cc-act="${s.id}">${escapeHtml(s.cta)}</button>
-        </div>`).join('')}
-    </div>`;
+        </div>`;
+      const groups = [
+        { title: 'Bring in your contracts & spend', ids: ['individual', 'bulk', 'paste', 'drive', 'shadow', 'invoices'] },
+        { title: 'Connect your systems', ids: ['clm', 'sheet', 'accounting', 'sso'] },
+        { title: 'Set up your org', ids: ['team', 'workspace', 'infosec'] },
+      ];
+      const seen = new Set();
+      let html = groups.map(g => {
+        const items = g.ids.map(id => steps.find(s => s.id === id)).filter(Boolean);
+        items.forEach(s => seen.add(s.id));
+        if (!items.length) return '';
+        const gdone = items.filter(s => s.done).length;
+        return `<div class="cc-group"><div class="cc-group-head">${g.title}<span class="cc-group-count">${gdone}/${items.length}</span></div><div class="cc-grid">${items.map(card).join('')}</div></div>`;
+      }).join('');
+      const leftover = steps.filter(s => !seen.has(s.id));
+      if (leftover.length) html += `<div class="cc-group"><div class="cc-group-head">More</div><div class="cc-grid">${leftover.map(card).join('')}</div></div>`;
+      return html;
+    })()}`;
   const dash = root.querySelector('#cc-to-dashboard');
   if (dash) dash.onclick = () => { state.settings = state.settings || {}; state.settings.ccDismissed = true; save(); switchView('dashboard'); };
   const map = {}; steps.forEach(s => { map[s.id] = s.act; });
