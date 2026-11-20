@@ -241,9 +241,36 @@ export async function countAccountMembers(env, accountId) {
 // Ensure an email has an account. If it has no membership, create an account
 // owned by this email plus an owner membership (idempotent). Used to migrate
 // existing solo users lazily. Returns the membership row.
+// Self-provision the accounts tables on first use, so the multi-user system works
+// without a separate manual migration step. Keyed by the D1 binding so it runs at
+// most once per worker isolate (and once per distinct env in tests). Every CREATE
+// is IF NOT EXISTS (idempotent), and the whole thing fails open: if it can't run,
+// getMembership stays hardened and the user is treated as a solo owner, exactly as
+// before. schema.sql remains the source of truth; this just keeps prod in step.
+const _accountSchemaReady = new WeakSet();
+export async function ensureAccountSchema(env) {
+  if (!env || !env.DB || _accountSchemaReady.has(env.DB)) return;
+  const stmts = [
+    "CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, name TEXT, owner_email TEXT NOT NULL, plan TEXT, created_at INTEGER NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS idx_accounts_owner ON accounts(owner_email)",
+    "CREATE TABLE IF NOT EXISTS memberships (email TEXT PRIMARY KEY, account_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member', status TEXT NOT NULL DEFAULT 'active', invited_by TEXT, created_at INTEGER NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS idx_memberships_account ON memberships(account_id)",
+    "CREATE TABLE IF NOT EXISTS invites (token_hash TEXT PRIMARY KEY, account_id TEXT NOT NULL, email TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member', invited_by TEXT, expires_at INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS idx_invites_account ON invites(account_id)",
+    "CREATE INDEX IF NOT EXISTS idx_invites_email ON invites(email)",
+  ];
+  try {
+    for (const s of stmts) { const st = env.DB.prepare(s); await (st.bind ? st.bind() : st).run(); }
+    _accountSchemaReady.add(env.DB);
+  } catch (err) {
+    console.error('ensureAccountSchema failed (continuing in solo mode)', err && err.message);
+  }
+}
+
 export async function ensureAccountForUser(env, user) {
   const email = normalizeEmail(user && user.email);
   if (!email) return null;
+  await ensureAccountSchema(env);
   const existing = await getMembership(env, email);
   if (existing) return existing;
   const accountId = crypto.randomUUID();

@@ -138,6 +138,19 @@ r6 = await MREMOVE.onRequestPost({ request: jReq({ email: 't@x.com' }), env: acc
 ok(r6.status === 200 && (await r6.json()).removed === 't@x.com', 'member-remove owner removes member');
 r6 = await MREMOVE.onRequestPost({ request: jReq({ email: 't@x.com' }), env: acct3Env(withMembers(adminCaller, { 't@x.com': { account_id: 'A', role: 'admin', status: 'active' } })) });
 ok(r6.status === 403, 'member-remove admin cannot remove an admin');
+// ---- Self-provisioning: ensureAccountSchema ----
+section('accounts self-provision (ensureAccountSchema)');
+let schemaThrew = false;
+try { await U.ensureAccountSchema({ DB: { prepare: () => ({ run: async () => { throw new Error('no ddl'); } }) } }); } catch (_) { schemaThrew = true; }
+ok(!schemaThrew, 'ensureAccountSchema fails open when DDL throws');
+const ddl = [];
+const recDB = { prepare: (s) => ({ run: async () => { ddl.push(s); } }) };
+await U.ensureAccountSchema({ DB: recDB });
+const firstCount = ddl.length;
+await U.ensureAccountSchema({ DB: recDB });
+const joined = ddl.join('|');
+ok(/CREATE TABLE IF NOT EXISTS accounts/.test(joined) && /memberships/.test(joined) && /invites/.test(joined), 'ensureAccountSchema creates accounts/memberships/invites');
+ok(ddl.length === firstCount && firstCount === 7, 'ensureAccountSchema runs its 7 statements once per DB');
 
 // ---- rb2b ingest (secret gate + field mapping) ----
 section('rb2b ingest');
