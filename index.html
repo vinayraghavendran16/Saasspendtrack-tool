@@ -3301,7 +3301,9 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
     <form id="sub-form">
       <input type="hidden" id="f-id" />
       <p class="form-req-note">Fields marked <span class="req" aria-hidden="true">*</span> are required.</p>
-      <label>Name<span class="req" aria-hidden="true">*</span><input type="text" id="f-name" required placeholder="Figma" /></label>
+      <label>Name<span class="req" aria-hidden="true">*</span><input type="text" id="f-name" required placeholder="Figma - Organization plan" /></label>
+      <label>Vendor / company<input type="text" id="f-vendor" list="vendor-list" placeholder="Figma" /><span class="dim" style="font-size:11px">Leave blank to use the name above. Set it to group several contracts under one vendor.</span></label>
+      <datalist id="vendor-list"></datalist>
       <div class="row">
         <label>Cost (USD)<span class="req" aria-hidden="true">*</span><input type="number" id="f-cost" min="0" step="0.01" required placeholder="12.00" /></label>
         <label>Billing cycle
@@ -3331,6 +3333,15 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
         </label>
         <label>Next renewal<input type="date" id="f-renewal" /></label>
       </div>
+      <fieldset class="form-fieldset">
+        <legend>Contract term</legend>
+        <div class="row triple">
+          <label>Start date<input type="date" id="f-start" /></label>
+          <label>End date<input type="date" id="f-end" /></label>
+          <label>Total contract value (USD)<input type="number" id="f-tcv" min="0" step="0.01" placeholder="Whole of term" /></label>
+        </div>
+        <span class="dim" style="font-size:11px">For multi-year or fixed-term deals. Start and end flag multi-year terms and show the full timeline; total value is the whole-of-term amount.</span>
+      </fieldset>
       <div class="row">
         <label>Team / owner
           <input type="text" id="f-team" list="team-list" placeholder="Engineering" />
@@ -5165,6 +5176,11 @@ function openModal(id, opts) {
   document.getElementById('f-cycle').value = sub?.cycle || 'monthly';
   document.getElementById('f-category').value = sub?.category || '';
   document.getElementById('f-renewal').value = sub?.renewal || '';
+  document.getElementById('f-vendor').value = sub?.vendor || '';
+  document.getElementById('f-start').value = sub?.startDate || '';
+  document.getElementById('f-end').value = sub?.endDate || '';
+  document.getElementById('f-tcv').value = sub?.totalValue ?? '';
+  { const vdl = document.getElementById('vendor-list'); if (vdl) { const keys = [...new Set((state.subscriptions || []).map(s => (s.vendor && s.vendor.trim()) || s.name).filter(Boolean))].sort(); vdl.innerHTML = keys.map(k => `<option value="${escapeHtml(k)}"></option>`).join(''); } }
   document.getElementById('f-team').value = sub?.team || '';
   document.getElementById('f-department').value = sub?.department || '';
   document.getElementById('f-url').value = sub?.url || '';
@@ -5326,6 +5342,15 @@ function handleSubmit(e) {
   ensureInfosec(sub);
   sub.infosec.status = document.getElementById('f-ap-infosec').value || 'not_started';
   sub.infosec.nextReviewDate = document.getElementById('f-rv-infosec').value || null;
+  // Vendor grouping key + contract term (multi-year)
+  sub.vendor = (document.getElementById('f-vendor')?.value || '').trim() || null;
+  sub.startDate = document.getElementById('f-start')?.value || null;
+  sub.endDate = document.getElementById('f-end')?.value || null;
+  { const _tcv = parseFloat(document.getElementById('f-tcv')?.value); sub.totalValue = isNaN(_tcv) ? null : _tcv; }
+  if (sub.startDate && sub.endDate) {
+    const _m = Math.round((new Date(sub.endDate) - new Date(sub.startDate)) / (1000 * 60 * 60 * 24 * 30.44));
+    if (_m > 0 && !(sub.contract && sub.contract.termLength)) sub.contract = Object.assign({}, sub.contract, { termLength: _m + ' months' });
+  }
   const idx = state.subscriptions.findIndex(s => s.id === id);
   const isNew = idx < 0;
   if (isNew) {
@@ -7507,7 +7532,7 @@ function openContractDetail(id) {
   back.querySelector('.modal').innerHTML = `
     <button type="button" class="icon-btn modal-back" onclick="document.getElementById('contract-detail-modal').hidden = true">&larr; Back</button>
     <h2>${escapeHtml(sub.name)} · Contract review</h2>
-    <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}</p>
+    <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}${(sub.startDate && sub.endDate) ? ` · term ${sub.startDate} → ${sub.endDate}` : ''}${sub.totalValue ? ` · TCV ${formatMoney(sub.totalValue)}` : ''}</p>
     <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
       <div class="stat-card" style="cursor:default"><span class="stat-label">Overall risk</span><span class="stat-value" style="color:var(--${riskBand(r.overall).cls}-text,var(--text))">${r.overall}</span><span class="stat-sub">${riskBand(r.overall).label}</span></div>
       <div class="stat-card" style="cursor:default"><span class="stat-label">Clauses captured</span><span class="stat-value">${Object.values(c).filter(v => v).length}</span><span class="stat-sub">of ${CLAUSE_LIBRARY.length}</span></div>
@@ -8956,7 +8981,7 @@ function openVendorNav(subId) {
     back.querySelector('.modal')?.classList.remove('modal--wide');
     back.querySelector('.modal').innerHTML = `
       <h2>${escapeHtml(sub.name)}</h2>
-      <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}</p>
+      <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}${(sub.startDate && sub.endDate) ? ` · term ${sub.startDate} → ${sub.endDate}` : ''}${sub.totalValue ? ` · TCV ${formatMoney(sub.totalValue)}` : ''}</p>
       <div class="panel" style="background:var(--warning-soft);border:none">
         <h2 style="font-size:14px;color:var(--warning-text);margin-bottom:6px">No contract on file</h2>
         <p style="font-size:13px;color:var(--text-2);margin:0">This vendor has a subscription record but no contract has been ingested yet. Upload the contract to see the extracted clauses and the risk score.</p>
@@ -15874,45 +15899,81 @@ function ensureVendorsView() {
   const section = document.createElement('section'); section.id = 'vendors'; section.className = 'view';
   main.appendChild(section); renderVendors();
 }
+function vendorKeyOf(s) { return ((s.vendor && String(s.vendor).trim()) || s.name || 'Unknown').trim(); }
+function vendorTermLabel(s) {
+  if (s.startDate && s.endDate) return `${s.startDate} → ${s.endDate}`;
+  if (s.contract && s.contract.termLength) return escapeHtml(s.contract.termLength);
+  return '-';
+}
 function renderVendors() {
   const section = document.getElementById('vendors'); if (!section) return;
-  const subs = (state.subscriptions || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const subs = (state.subscriptions || []).slice();
   const apOf = (sub, key) => sub.governance && sub.governance.approvals ? approvalMeta(sub.governance.approvals[key]) : approvalMeta('');
   const pendingCount = subs.filter(s => {
     const is = s.infosec && ['not_started', 'in_review'].includes(s.infosec.status);
     const g = s.governance && s.governance.approvals || {};
     return is || [g.legal, g.procurement, g.finance].some(v => !v || v === 'pending');
   }).length;
+  // Group subscriptions by vendor (vendor field, falling back to the name).
+  const map = new Map();
+  subs.forEach(s => { const k = vendorKeyOf(s); if (!map.has(k)) map.set(k, []); map.get(k).push(s); });
+  const groups = [...map.entries()].map(([name, items]) => {
+    const annual = items.filter(s => s.active !== false).reduce((t, s) => t + monthlyCost(s) * 12, 0);
+    const depts = [...new Set(items.map(vendorDept).filter(d => d && d !== '-'))];
+    const future = items.map(vendorNextReview).filter(Boolean).filter(d => d >= new Date()).sort((a, b) => a - b);
+    return { name, items, annual, depts, nextReview: future[0] || null };
+  }).sort((a, b) => b.annual - a.annual || a.name.localeCompare(b.name));
+  const multi = groups.filter(g => g.items.length > 1).length;
+  const childRow = (s) => {
+    const isMeta = (typeof infosecStatusMeta === 'function') ? infosecStatusMeta((s.infosec && s.infosec.status) || 'not_started') : ['', '-', '#94a3b8'];
+    return `<tr class="v-child" data-vendor-edit="${s.id}" hidden style="cursor:pointer;background:color-mix(in srgb,var(--text) 3%,transparent)">
+      <td style="padding-left:30px">${escapeHtml(s.name)}${s.active === false ? ' <span class="badge" style="background:#64748b22;color:#64748b">inactive</span>' : ''}</td>
+      <td class="num">${formatMoney(monthlyCost(s) * 12)}</td>
+      <td class="dim" style="font-size:12px">${vendorTermLabel(s)}</td>
+      <td>${apBadge(isMeta)}</td>
+      <td>${apBadge(apOf(s, 'legal'))}</td>
+      <td>${apBadge(apOf(s, 'procurement'))}</td>
+      <td>${apBadge(apOf(s, 'finance'))}</td>
+    </tr>`;
+  };
+  const headRow = (grp) => {
+    const nr = grp.nextReview; const nrDue = nr && (nr - new Date()) / 86400000 <= 90; const many = grp.items.length > 1;
+    const caret = many ? '<span class="v-caret" style="display:inline-block;width:14px;color:var(--text-dim)">▸</span>' : '<span style="display:inline-block;width:14px"></span>';
+    const isMeta = (typeof infosecStatusMeta === 'function') ? infosecStatusMeta((grp.items[0].infosec && grp.items[0].infosec.status) || 'not_started') : ['', '-', '#94a3b8'];
+    return `<tr class="v-group" ${many ? '' : `data-vendor-edit="${grp.items[0].id}"`} style="cursor:pointer">
+      <td>${caret} <b>${escapeHtml(grp.name)}</b>${many ? ` <span class="badge" style="background:#2563eb22;color:#2563eb">${grp.items.length} contracts</span>` : ''}</td>
+      <td class="num">${formatMoney(grp.annual)}</td>
+      <td class="dim" style="font-size:12px;max-width:200px;white-space:normal">${grp.depts.length ? escapeHtml(grp.depts.join(', ')) : '<span class="dim">-</span>'}</td>
+      ${many ? `<td colspan="4" class="dim" style="font-size:12px">${grp.items.length} agreements · expand to see each</td>`
+             : `<td>${vendorTermLabel(grp.items[0])}</td><td>${apBadge(isMeta)}</td><td>${apBadge(apOf(grp.items[0], 'legal'))}</td><td>${apBadge(apOf(grp.items[0], 'finance'))}</td>`}
+    </tr>`;
+  };
   section.innerHTML = `
     <div class="section-head">
-      <div><h2>Vendors</h2><p class="page-sub">The governance register: every vendor, why and when it was procured, approvals across InfoSec, Legal, Procurement and Finance, and the next review.</p></div>
+      <div><h2>Vendors</h2><p class="page-sub">Every vendor and the contracts under it, with total annual spend, term and approvals. Multiple agreements with the same vendor roll up into one row - click to expand.</p></div>
       <button class="btn-primary" id="vn-add">Add vendor</button>
     </div>
     <div class="is-tiles">
-      <div class="is-tile"><span class="is-n">${subs.length}</span><span class="is-l">Vendors</span></div>
-      <div class="is-tile"><span class="is-n" style="color:#f59e0b">${pendingCount}</span><span class="is-l">With an approval pending</span></div>
-      <div class="is-tile"><span class="is-n" style="color:#2563eb">${subs.filter(s => { const d = vendorNextReview(s); return d && (d - new Date()) / 86400000 <= 90 && d >= new Date(); }).length}</span><span class="is-l">Reviews due ≤90d</span></div>
+      <div class="is-tile"><span class="is-n">${groups.length}</span><span class="is-l">Vendors</span></div>
+      <div class="is-tile"><span class="is-n">${subs.length}</span><span class="is-l">Contracts</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#2563eb">${multi}</span><span class="is-l">Vendors with 2+ contracts</span></div>
+      <div class="is-tile"><span class="is-n" style="color:#f59e0b">${pendingCount}</span><span class="is-l">Approvals pending</span></div>
     </div>
     <div class="table-wrap" style="margin-top:14px"><table class="sub-table"><thead><tr>
-      <th>Vendor</th><th>Department</th><th>Why procured</th><th>Procured</th><th>InfoSec</th><th>Legal</th><th>Procurement</th><th>Finance</th><th>Next review</th>
-    </tr></thead><tbody>${subs.map(s => {
-      const g = s.governance || {}; const nr = vendorNextReview(s);
-      const isMeta = (typeof infosecStatusMeta === 'function') ? infosecStatusMeta((s.infosec && s.infosec.status) || 'not_started') : ['', '-', '#94a3b8'];
-      const nrDue = nr && (nr - new Date()) / 86400000 <= 90 && nr >= new Date();
-      return `<tr data-vendor-edit="${s.id}" style="cursor:pointer">
-        <td><b>${escapeHtml(s.name)}</b></td>
-        <td>${escapeHtml(vendorDept(s))}</td>
-        <td class="dim" style="max-width:220px;white-space:normal">${g.reason ? escapeHtml(g.reason) : '<span class="dim">-</span>'}</td>
-        <td>${g.procuredDate ? new Date(g.procuredDate).toLocaleDateString() : '<span class="dim">-</span>'}</td>
-        <td>${apBadge(isMeta)}</td>
-        <td>${apBadge(apOf(s, 'legal'))}</td>
-        <td>${apBadge(apOf(s, 'procurement'))}</td>
-        <td>${apBadge(apOf(s, 'finance'))}</td>
-        <td>${nr ? `${nr.toLocaleDateString()}${nrDue ? ` <span class="badge warn">${Math.ceil((nr - new Date()) / 86400000)}d</span>` : ''}` : '<span class="dim">-</span>'}</td>
-      </tr>`;
-    }).join('')}</tbody></table></div>`;
+      <th>Vendor / contract</th><th class="num">Annual</th><th>Dept</th><th>Term</th><th>InfoSec</th><th>Legal</th><th>Finance</th>
+    </tr></thead><tbody>${groups.map(grp => headRow(grp) + (grp.items.length > 1 ? grp.items.map(childRow).join('') : '')).join('')}</tbody></table></div>`;
   section.querySelector('#vn-add').onclick = () => openModal();
-  section.querySelectorAll('[data-vendor-edit]').forEach(r => r.onclick = () => openModal(r.dataset.vendorEdit));
+  section.querySelectorAll('tr.v-group').forEach(row => {
+    row.onclick = () => {
+      if (row.dataset.vendorEdit) { openModal(row.dataset.vendorEdit); return; }
+      const first = row.nextElementSibling;
+      const willOpen = first && first.classList.contains('v-child') ? first.hidden : false;
+      let n = row.nextElementSibling;
+      while (n && n.classList.contains('v-child')) { n.hidden = !willOpen; n = n.nextElementSibling; }
+      const caret = row.querySelector('.v-caret'); if (caret) caret.textContent = willOpen ? '▾' : '▸';
+    };
+  });
+  section.querySelectorAll('tr.v-child[data-vendor-edit]').forEach(r => r.onclick = (e) => { e.stopPropagation(); openModal(r.dataset.vendorEdit); });
 }
 function ensureVendorsNav() {
   const ref = document.querySelector('.sidebar [data-view="subscriptions"]');
