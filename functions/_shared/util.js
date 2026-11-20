@@ -207,7 +207,10 @@ export function roleAtLeast(role, min) {
 export async function getMembership(env, email) {
   const e = normalizeEmail(email);
   if (!e) return null;
-  return env.DB.prepare('SELECT * FROM memberships WHERE email=?').bind(e).first();
+  // Fail open if the accounts tables are not migrated yet: no membership, not a 500.
+  try {
+    return await env.DB.prepare('SELECT * FROM memberships WHERE email=?').bind(e).first();
+  } catch (_) { return null; }
 }
 
 // Count active members of an account.
@@ -264,8 +267,8 @@ export async function countPendingInvites(env, accountId) {
 export async function getAccountContext(env, user) {
   const membership = await ensureAccountForUser(env, user);
   if (!membership) return null;
-  const account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?')
-    .bind(membership.account_id).first();
+  let account = null;
+  try { account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?').bind(membership.account_id).first(); } catch (_) {}
   const ownerEmail = (account && account.owner_email) || normalizeEmail(user && user.email);
   return { membership, account, ownerEmail };
 }

@@ -206,6 +206,25 @@ ok(jx3.members.length === 1 && jx3.canManage === false && jx3.invites.length ===
 ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: admEnv({ roster: [{ email: 'adm@x.com', role: 'admin', status: 'active' }], pendingList: [{ email: 'p@x.com', role: 'member' }] }) });
 jx3 = await ra3.json();
 ok(jx3.canManage === true && jx3.invites.length === 1 && jx3.cap === 50, 'members: admin can manage + sees invites + cap 50');
+// Degraded path: accounts tables not migrated yet -> roster query throws -> sole-owner + pendingSetup, not a 500.
+function acctThrowEnv() {
+  return { ADMIN_EMAILS: '', DB: { prepare(sql) { let b;
+    return { bind: (...a) => { b = a; return {
+      first: async () => {
+        if (/FROM sessions/i.test(sql)) return { email: 'own@x.com', expires_at: Date.now() + 1e9 };
+        if (/FROM users WHERE email/i.test(sql)) return { email: 'own@x.com', status: 'active' };
+        if (/FROM memberships WHERE email/i.test(sql)) throw new Error('no such table: memberships');
+        if (/INTO accounts|INTO memberships/i.test(sql)) throw new Error('no such table');
+        return null;
+      },
+      all: async () => { if (/FROM memberships WHERE account_id/i.test(sql)) throw new Error('no such table: memberships'); return { results: [] }; },
+      run: async () => { throw new Error('no such table'); },
+    }; }, };
+  } } };
+}
+ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acctThrowEnv() });
+jx3 = await ra3.json();
+ok(ra3.status === 200 && jx3.pendingSetup === true && jx3.members.length === 1 && jx3.members[0].email === 'own@x.com', 'members: degrades to sole owner + pendingSetup when tables missing (no 500)');
 // ---- accounts Phase 2: shared-workspace data keying + /api/me account ----
 section('accounts phase 2 (shared workspace)');
 import * as ME from '../functions/api/me.js';

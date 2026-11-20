@@ -16085,6 +16085,7 @@ function renderTeamAccess(section, data, err) {
       <div class="is-tile"><span class="is-n" style="color:#f59e0b">${invites.length}</span><span class="is-l">Pending invites</span></div>
       <div class="is-tile"><span class="is-n" style="color:#2563eb">${used} / ${cap}</span><span class="is-l">Seats used</span></div>
     </div>
+    ${data.pendingSetup ? '<div class="panel" style="margin-top:12px;border-color:#f59e0b55"><p class="dim" style="margin:0;font-size:13px">Team provisioning is still finishing on the server, so the roster shows just you for now. Inviting teammates will work once setup completes.</p></div>' : ''}
     ${inviteForm}
     <div class="table-wrap" style="margin-top:14px"><table class="sub-table"><thead><tr>
       <th>Member</th><th>Role</th><th>Status</th>
