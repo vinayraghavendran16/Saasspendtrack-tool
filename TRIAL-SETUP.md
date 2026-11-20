@@ -174,3 +174,25 @@ can't get the value for free" is actually enforced - on the server, per request.
 - The app's own "Free/Pro" **plan badge** (localStorage) is cosmetic and separate
   from this trial gate. Reconcile the two in a follow-up so they don't confuse.
 - Sessions last 30 days; tune in `functions/_shared/util.js` (`SESSION_DAYS`).
+
+---
+
+## RB2B website-visitor dashboard (admin command centre)
+
+The admin page shows identified RB2B visitors. Three one-time steps to turn it on:
+
+1. **Migrate the DB** (adds the `rb2b_visitors` table):
+   `wrangler d1 execute sst-trial --remote --file=./schema.sql`
+2. **Set the ingest secret** in Cloudflare Pages -> Variables:
+   `RB2B_INGEST_SECRET` = any long random string (mark Secret). Redeploy.
+3. **Point RB2B at the endpoint.** RB2B's free plan has no raw webhook, so bridge it:
+   - RB2B -> **Make.com** (official RB2B app) or **Zapier**: trigger = new identified
+     visitor; action = HTTP POST to
+     `https://app.saasspendtrack.com/api/rb2b/ingest`
+     with header `Authorization: Bearer <RB2B_INGEST_SECRET>` and the visitor JSON
+     as the body. (RB2B Pro users with a direct webhook can post straight here.)
+
+The endpoint maps common field names (name/first_name+last_name, title, company /
+company_name, linkedin_url, business_email, last_page, page_count, last_seen) and
+dedups on LinkedIn URL or email, so minimal mapping is needed in Make/Zapier. The
+admin table fills in as visitors arrive; "Last 7 days" is your follow-up queue.

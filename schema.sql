@@ -57,6 +57,24 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 
 CREATE INDEX IF NOT EXISTS idx_users_rp_payment ON users(rp_payment_id);
 
+-- RB2B identified website visitors, pushed in from RB2B (via Make/Zapier or a
+-- direct webhook) to /api/rb2b/ingest and shown in the admin command centre.
+CREATE TABLE IF NOT EXISTS rb2b_visitors (
+  id             TEXT PRIMARY KEY,   -- dedup key: linkedin_url | email | hash
+  name           TEXT,
+  title          TEXT,
+  company        TEXT,
+  company_domain TEXT,
+  linkedin_url   TEXT,
+  email          TEXT,
+  location       TEXT,
+  last_page      TEXT,
+  page_count     INTEGER,
+  identified_at  INTEGER,            -- when RB2B saw them (epoch ms)
+  raw            TEXT,               -- raw payload (capped)
+  created_at     INTEGER NOT NULL    -- when we ingested it
+);
+CREATE INDEX IF NOT EXISTS idx_rb2b_identified ON rb2b_visitors(identified_at);
 -- ===================================================================
 -- Multi-user accounts (Phase 1: tables ship dark, not yet wired).
 -- An account is a shared workspace. One account per member: an email

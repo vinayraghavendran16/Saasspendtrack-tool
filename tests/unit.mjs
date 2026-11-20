@@ -2,6 +2,7 @@
 // Pure-logic coverage with mocked D1 — no network, no real database.
 import * as U from '../functions/_shared/util.js';
 import * as DATA from '../functions/api/data.js';
+import * as RB2B from '../functions/api/rb2b/ingest.js';
 
 let pass = 0, fail = 0;
 const ok = (cond, name) => { if (cond) pass++; else { fail++; console.error('  FAIL:', name); } };
@@ -75,6 +76,38 @@ ok(res.status === 403, 'PUT blocked when expired');
 res = await DATA.onRequestGet({ request: { headers: { get: () => '' } }, env: dataEnv({}, null) });
 ok(res.status === 401, 'GET 401 without session');
 
+// ---- rb2b ingest (secret gate + field mapping) ----
+section('rb2b ingest');
+function rbReq(authHeader, body, urlStr) {
+  return {
+    url: urlStr || 'https://app.saasspendtrack.com/api/rb2b/ingest',
+    headers: { get: (k) => (k.toLowerCase() === 'authorization' ? (authHeader || '') : null) },
+    text: async () => body,
+  };
+}
+function rbEnv(secret, cap) {
+  return { RB2B_INGEST_SECRET: secret, DB: { prepare: (sql) => ({ bind: (...a) => ({
+    first: async () => ({ count: 1 }),                       // rateLimit
+    run: async () => { if (cap && sql.includes('INSERT INTO rb2b_visitors')) cap.args = a; },
+  }) }) } };
+}
+let rb = await RB2B.onRequestPost({ request: rbReq('Bearer x', '{}'), env: rbEnv(null) });
+ok(rb.status === 500, 'rb2b 500 when secret not configured');
+rb = await RB2B.onRequestPost({ request: rbReq('Bearer wrong', '{}'), env: rbEnv('s3cret') });
+ok(rb.status === 401, 'rb2b 401 on bad secret');
+rb = await RB2B.onRequestPost({ request: rbReq('Bearer s3cret', 'not json'), env: rbEnv('s3cret') });
+ok(rb.status === 400, 'rb2b 400 on bad json');
+const rbCap = {};
+rb = await RB2B.onRequestPost({ request: rbReq('Bearer s3cret', JSON.stringify({
+  first_name: 'Ada', last_name: 'Lovelace', company_name: 'Analytical', title: 'CTO',
+  linkedin_url: 'https://linkedin.com/in/ada' })), env: rbEnv('s3cret', rbCap) });
+const rbBody = await rb.json();
+ok(rb.status === 200 && rbBody.ok === true, 'rb2b 200 on valid payload');
+ok(rbBody.id === 'https://linkedin.com/in/ada', 'rb2b dedups on linkedin url');
+ok(rbCap.args && rbCap.args[1] === 'Ada Lovelace' && rbCap.args[2] === 'CTO' && rbCap.args[3] === 'Analytical',
+  'rb2b maps name/title/company');
+rb = await RB2B.onRequestPost({ request: rbReq(null, '{}', 'https://x/api/rb2b/ingest?key=s3cret'), env: rbEnv('s3cret') });
+ok(rb.status === 200, 'rb2b accepts secret via query param');
 // ---- accounts / roles (Phase 1 helpers; mocked D1) ----
 section('accounts & roles');
 ok(U.ROLE_RANK.owner > U.ROLE_RANK.admin && U.ROLE_RANK.admin > U.ROLE_RANK.member, 'role hierarchy owner>admin>member');

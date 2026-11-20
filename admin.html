@@ -105,6 +105,17 @@
       <tbody id="rows"></tbody>
     </table>
     <div class="note" id="fxnote"></div>
+
+    <h2>RB2B website visitors</h2>
+    <div class="grid">
+      <div class="tile"><div class="label">Identified visitors</div><div class="value" id="rb-total">–</div><div class="sub">all time</div></div>
+      <div class="tile good"><div class="label">Last 7 days</div><div class="value" id="rb-7">–</div><div class="sub">follow these up</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Name</th><th>Title</th><th>Company</th><th>Last page</th><th>Seen</th><th>LinkedIn</th></tr></thead>
+      <tbody id="rb-rows"></tbody>
+    </table>
+    <div class="note" id="rb-note">Push RB2B identifications to <code>/api/rb2b/ingest</code> (via Make/Zapier or a direct webhook) to populate this. See TRIAL-SETUP.md.</div>
   </main>
 </div>
 
@@ -171,8 +182,37 @@
     });
   }
 
+  var esc = function (s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  };
+
+  function loadRb2b() {
+    fetch('/api/rb2b/list', { headers: { accept: 'application/json' } }).then(function (r) {
+      if (!r.ok) return null; // not admin / not ready — leave the section blank
+      return r.json();
+    }).then(function (d) {
+      if (!d) return;
+      document.getElementById('rb-total').textContent = d.total || 0;
+      document.getElementById('rb-7').textContent = d.last7 || 0;
+      var rows = (d.visitors || []).map(function (v) {
+        var li = v.linkedin ? '<a href="' + esc(v.linkedin) + '" target="_blank" rel="noopener" style="color:#60a5fa">view</a>' : '–';
+        return '<tr><td>' + esc(v.name || '–') + '</td>' +
+          '<td>' + esc(v.title || '–') + '</td>' +
+          '<td>' + esc(v.company || '–') + '</td>' +
+          '<td>' + esc(v.lastPage || '–') + '</td>' +
+          '<td>' + fdate(v.identifiedAt) + '</td>' +
+          '<td>' + li + '</td></tr>';
+      }).join('');
+      document.getElementById('rb-rows').innerHTML = rows ||
+        '<tr><td colspan="6" style="color:#64748b">No identified visitors yet.</td></tr>';
+    }).catch(function () { /* non-fatal */ });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     load();
+    loadRb2b();
     document.getElementById('auth-send').addEventListener('click', function () {
       var email = (document.getElementById('auth-email').value || '').trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
