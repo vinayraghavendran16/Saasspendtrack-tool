@@ -6597,9 +6597,16 @@ function switchView(name, opts = {}) {
 }
 function viewFromHash() {
   const raw = (location.hash || '').replace(/^#/, '');
-  if (VIEWS.includes(raw)) return raw;
   // No explicit view in the URL → new/blank workspaces land on the Command Centre.
   if (!raw) return defaultLandingView();
+  if (!/^[a-z0-9-]+$/i.test(raw)) return 'dashboard';
+  if (VIEWS.includes(raw)) return raw;
+  // Also accept dynamically-injected views (Vendors, Team & access, InfoSec, etc.):
+  // their section exists as .view, or a nav tab declares them. This keeps deep links,
+  // reloads and back/forward working for views added after the base whitelist.
+  const sec = document.getElementById(raw);
+  if (sec && sec.classList && sec.classList.contains('view')) return raw;
+  if (document.querySelector('.tab[data-view="' + raw + '"]')) return raw;
   return 'dashboard';
 }
 
@@ -6623,10 +6630,19 @@ document.addEventListener('DOMContentLoaded', () => {
     b.addEventListener('click', () => applyBillingCycle(b.dataset.bill));
   });
 
-  // Restore view from URL hash on load (deep-linking + reload safety)
-  switchView(viewFromHash(), { replaceHistory: true });
-  window.addEventListener('popstate', () => switchView(viewFromHash(), { replaceHistory: true }));
-  window.addEventListener('hashchange', () => switchView(viewFromHash(), { replaceHistory: true }));
+  // Restore view from URL hash on load (deep-linking + reload safety).
+  // Use window.switchView so dynamically-injected views (patched in later) are honored.
+  window.switchView(viewFromHash(), { replaceHistory: true });
+  window.addEventListener('popstate', () => window.switchView(viewFromHash(), { replaceHistory: true }));
+  window.addEventListener('hashchange', () => window.switchView(viewFromHash(), { replaceHistory: true }));
+  // Dynamically-injected views (Vendors, Team & access, etc.) boot on a short delay,
+  // so on a cold deep-link their section/handler may not exist at load. Re-apply the
+  // hash once they're in. replaceHistory keeps the URL, so the hash is still readable.
+  setTimeout(() => {
+    const v = viewFromHash();
+    const active = document.querySelector('.view.active');
+    if (v && v !== 'dashboard' && (!active || active.id !== v)) window.switchView(v, { replaceHistory: true });
+  }, 1000);
 
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => switchView(t.dataset.view)));
   document.getElementById('add-btn').addEventListener('click', () => openModal(null));
