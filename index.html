@@ -3555,7 +3555,32 @@ function invoiceStatus(inv) {
 }
 function subName(id) { return state.subscriptions.find(s => s.id === id)?.name || '—'; }
 function subTeam(id) { return state.subscriptions.find(s => s.id === id)?.team || ''; }
+/* ---------- Demo-mode (preset) state machine ----------
+   A workspace is in "demo mode" while state.settings.activePreset is set.
+   Preset/sample rows are tagged fromPreset:true. The moment a user adds their
+   own (untagged) subscription/contract, reconcileDemoMode() wipes the demo rows
+   and exits demo mode, so their real data stands alone. Migration-safe: it only
+   acts when a tagged preset workspace has gained an untagged row, never on
+   legacy untagged-only data. */
+function isDemoMode() { return !!(state.settings && state.settings.activePreset); }
+function clearPresetData() {
+  state.subscriptions = (state.subscriptions || []).filter(s => !s.fromPreset);
+  state.invoices = (state.invoices || []).filter(i => !i.fromPreset);
+  if (state.settings) state.settings.activePreset = null;
+}
+function reconcileDemoMode() {
+  if (!state.settings || !state.settings.activePreset) return;
+  const subs = state.subscriptions || [];
+  const hasPreset = subs.some(s => s.fromPreset);
+  const hasReal = subs.some(s => !s.fromPreset);
+  if (hasPreset && hasReal) {
+    clearPresetData();
+    try { toast('Your own data detected - demo preset cleared.', 'info'); } catch (_) {}
+    try { if (typeof renderCommandCentre === 'function') renderCommandCentre(); } catch (_) {}
+  }
+}
 function save() {
+  try { reconcileDemoMode(); } catch (_) {}
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
   scheduleServerSave();
 }
@@ -4308,6 +4333,85 @@ function ccSteps() {
     { id: 'infosec', icon: '🛡️', title: 'Set up vendor security reviews', desc: 'Track InfoSec onboarding requirements and annual reviews per vendor, and connect your GRC / vendor-risk tool.', cta: 'Open InfoSec', done: infosecReviewedSubs().length > 0, act: () => switchView('infosec') },
   ];
 }
+/* ---------- Persistent preset box (dashboard hub) ---------- */
+function ccPresetLabel(key) {
+  if (!key) return null;
+  if (key === 'acme') return 'Acme Corp (sample)';
+  if (key === 'generated') return (state.settings && state.settings.generatedPreset && state.settings.generatedPreset.label) || 'Generated workspace';
+  return (typeof DEMO_PRESETS !== 'undefined' && DEMO_PRESETS[key] && DEMO_PRESETS[key].label) || key;
+}
+function ccPresetOptions(selected) {
+  const opts = [['acme', 'Acme Corp (sample)']];
+  if (typeof DEMO_PRESETS !== 'undefined') Object.keys(DEMO_PRESETS).forEach(k => opts.push([k, DEMO_PRESETS[k].label]));
+  if (state.settings && state.settings.generatedPresetFull) opts.push(['generated', ccPresetLabel('generated')]);
+  return opts.map(([k, l]) => `<option value="${k}" ${k === selected ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('');
+}
+function ccPresetBoxHtml() {
+  const demo = isDemoMode();
+  const activeKey = state.settings && state.settings.activePreset;
+  const realCount = (state.subscriptions || []).filter(s => !s.fromPreset).length;
+  const totalSubs = (state.subscriptions || []).length;
+  const badge = (txt, color) => `<span style="display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 9px;border-radius:999px;background:color-mix(in srgb, ${color} 14%, transparent);color:${color};margin-right:8px">${txt}</span>`;
+  let status, note, showClear;
+  if (demo) {
+    status = `${badge('Demo mode', 'var(--accent)')} Loaded: <b>${escapeHtml(ccPresetLabel(activeKey))}</b> · ${totalSubs} vendors`;
+    note = 'Load or clear presets freely while you explore. The moment you upload your own contract, this demo data is replaced by your real data.';
+    showClear = true;
+  } else if (realCount > 0) {
+    status = `${badge('Your data', 'var(--success, #16a34a)')} ${realCount} of your own vendors`;
+    note = 'You are on your own data. Loading a preset will delete your current data, so we will ask you to type to confirm.';
+    showClear = false;
+  } else {
+    status = `${badge('Empty', 'var(--text-dim)')} No data yet`;
+    note = 'Load a ready-made industry preset to explore, or upload your own contracts.';
+    showClear = false;
+  }
+  const btn = 'padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--panel-2);color:var(--text)';
+  const primary = 'padding:7px 14px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;border:0;background:var(--accent);color:#fff';
+  return `
+  <div class="panel" id="cc-preset-box" style="margin-bottom:16px;display:flex;flex-direction:column;gap:10px">
+    <div style="font-size:13.5px">${status}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select id="ccp-select" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--text);font-size:13px;max-width:260px">${ccPresetOptions(demo ? activeKey : 'acme')}</select>
+      <button type="button" id="ccp-load" style="${primary}">${demo ? 'Switch preset' : 'Load preset'}</button>
+      ${showClear ? `<button type="button" id="ccp-clear" style="${btn}">Clear data</button>` : ''}
+      <button type="button" id="ccp-browse" class="link" style="font-size:12.5px">Browse all presets →</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-dim);line-height:1.5">${note}</div>
+  </div>`;
+}
+function wireCcPresetBox(root) {
+  const sel = root.querySelector('#ccp-select');
+  const load = root.querySelector('#ccp-load');
+  if (load && sel) load.onclick = () => ccLoadPreset(sel.value);
+  const clr = root.querySelector('#ccp-clear');
+  if (clr) clr.onclick = ccClearPreset;
+  const br = root.querySelector('#ccp-browse');
+  if (br) br.onclick = () => { try { switchView('demo-presets'); } catch (_) {} };
+}
+function ccLoadPreset(key) {
+  const realCount = (state.subscriptions || []).filter(s => !s.fromPreset).length;
+  if (!isDemoMode() && realCount > 0) {
+    const v = prompt(`This permanently deletes your current workspace data and loads the "${ccPresetLabel(key)}" preset.\n\nType  confirm delete  to proceed:`);
+    if (!v || v.trim().toLowerCase() !== 'confirm delete') { try { toast('Cancelled - your data is unchanged.', 'info'); } catch (_) {} return; }
+  }
+  try { loadPreset(key); } catch (e) { try { toast('Could not load that preset.', 'error'); } catch (_) {} return; }
+  try { renderAll(); } catch (_) {}
+  try { renderCommandCentre(); } catch (_) {}
+  try { toast(`${ccPresetLabel(key)} loaded.`, 'success'); } catch (_) {}
+}
+function ccClearPreset() {
+  if (!isDemoMode()) return;
+  if (!confirm('Clear the demo data and empty the workspace? You can load another preset anytime.')) return;
+  state.subscriptions = [];
+  state.invoices = [];
+  if (state.settings) state.settings.activePreset = null;
+  try { save(); } catch (_) {}
+  try { renderAll(); } catch (_) {}
+  try { renderCommandCentre(); } catch (_) {}
+  try { toast('Demo data cleared. Workspace is empty.', 'info'); } catch (_) {}
+}
+
 function renderCommandCentre() {
   const root = document.getElementById('cc-root'); if (!root) return;
   const steps = ccSteps();
@@ -4321,6 +4425,7 @@ function renderCommandCentre() {
       </div>
       <button class="icon-btn" id="cc-to-dashboard">Go to dashboard →</button>
     </div>
+    ${ccPresetBoxHtml()}
     <div class="cc-progress"><div class="cc-progress-fill" style="width:${Math.round(done / steps.length * 100)}%"></div></div>
     <div class="cc-grid">
       ${steps.map(s => `
@@ -4335,6 +4440,7 @@ function renderCommandCentre() {
   if (dash) dash.onclick = () => { state.settings = state.settings || {}; state.settings.ccDismissed = true; save(); switchView('dashboard'); };
   const map = {}; steps.forEach(s => { map[s.id] = s.act; });
   root.querySelectorAll('[data-cc-act]').forEach(b => b.onclick = () => { const f = map[b.dataset.ccAct]; if (f) f(); });
+  wireCcPresetBox(root);
 }
 
 /* Empty-workspace guidance: when there are no subscriptions, show a card
@@ -6221,7 +6327,7 @@ function buildSampleState() {
   const subs = SAMPLE_VENDORS.map(v => {
     const [name, cost, cycle, category, team, off, ownerId, mgrId, lic, asg, util, c, notes, url, active] = v;
     const sub = {
-      id: crypto.randomUUID(), name, cost, cycle, category, team, renewal: shift(off), notes, url, active,
+      id: crypto.randomUUID(), fromPreset: true, name, cost, cycle, category, team, renewal: shift(off), notes, url, active,
       owner: EMP[ownerId], manager: EMP[mgrId],
     };
     if (lic) { sub.licenses = lic; sub.assigned = asg; sub.utilized = util; }
@@ -6233,7 +6339,7 @@ function buildSampleState() {
   const invoices = [];
   let seq = 4100;
   const inv = (vendor, amount, issuedAgo, dueInDays, paidAgo, notes = '') => {
-    invoices.push({ id: crypto.randomUUID(), subId: byName(vendor), amount,
+    invoices.push({ id: crypto.randomUUID(), fromPreset: true, subId: byName(vendor), amount,
       invoiceNumber: `${prefix(vendor)}-${seq++}`, issueDate: shift(-issuedAgo), dueDate: shift(-issuedAgo + dueInDays),
       paidDate: paidAgo === null ? null : shift(-paidAgo), notes });
   };
@@ -6280,6 +6386,7 @@ function seed(opts = {}) {
   state.alertLog = {};
   state.settings.autoSentAlerts = {};
   state.settings.seededOnce = true;
+  state.settings.activePreset = 'acme';
   // Acknowledge most already-fired alerts so the queue reflects a team that mostly keeps up.
   const liveVendors = new Set(['Zendesk', 'Figma', 'Greenhouse', 'LinkedIn Sales Navigator', 'Datadog']);
   computeAlerts().forEach(a => {
@@ -7290,6 +7397,70 @@ function msaBlockHtml(sub) {
     </div>`;
 }
 
+/* Additive panels for rich agreements: hierarchy, price schedule, amendments,
+   linked invoices. Returns '' for flat vendors, so existing contracts are
+   unaffected (zero regression). */
+function contractExtrasHtml(sub) {
+  if (!sub) return '';
+  let html = '';
+  const H3 = (t) => `<h3 style="font-size:13px;margin:16px 0 8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">${t}</h3>`;
+
+  // Hierarchy / agreement type
+  if (sub.parentVendor || sub.agreementType) {
+    const type = sub.agreementType === 'MSA' ? 'Master agreement'
+      : sub.agreementType === 'order_form' ? 'Order form' : (sub.agreementType || 'Agreement');
+    html += `<div class="ce-hier">`
+      + (sub.parentVendor ? `<span class="ce-chip">↳ under <b>${escapeHtml(sub.parentVendor)}</b></span>` : '')
+      + `<span class="ce-chip">${escapeHtml(type)}</span>`
+      + (sub.coTerm ? `<span class="ce-chip ce-chip-accent">co-termed</span>` : '')
+      + (sub.termStart ? `<span class="ce-chip">${sub.termStart} → ${sub.termEnd || sub.renewal || '—'}</span>` : '')
+      + `</div>`;
+  }
+
+  // Price schedule (multi-year / ramp)
+  if (Array.isArray(sub.priceSchedule) && sub.priceSchedule.length > 1) {
+    html += H3('Price schedule');
+    html += `<div class="table-wrap"><table class="sub-table ce-table"><thead><tr>`
+      + `<th>Year</th><th>Period</th><th class="num">Annual</th><th></th></tr></thead><tbody>`
+      + sub.priceSchedule.map(r => `<tr class="${r.current ? 'ce-current' : ''}">`
+        + `<td><b>${escapeHtml(r.label || ('Year ' + r.year))}</b></td>`
+        + `<td style="color:var(--text-dim);font-size:12.5px">${r.start || '—'} → ${r.end || '—'}</td>`
+        + `<td class="num">${formatMoney(r.annual)}</td>`
+        + `<td>${r.current ? '<span class="badge ok">current</span>' : ''}</td></tr>`).join('')
+      + `</tbody></table></div>`;
+  }
+
+  // Amendments change-log
+  if (Array.isArray(sub.amendments) && sub.amendments.length) {
+    html += H3('Amendments');
+    html += `<ul class="ce-amend">` + sub.amendments.map(a => {
+      const delta = a.deltaValue ? `<span class="ce-delta ${a.deltaValue < 0 ? 'neg' : 'pos'}">${a.deltaValue < 0 ? '−' : '+'}${formatMoney(Math.abs(a.deltaValue))}/yr</span>` : '';
+      return `<li><span class="ce-amend-date">${escapeHtml(a.date || '')}</span>`
+        + `<span class="badge" style="margin:0 6px">${escapeHtml(a.kind || 'change')}</span>`
+        + `${escapeHtml(a.summary || '')} ${delta}</li>`;
+    }).join('') + `</ul>`;
+  }
+
+  // Linked invoices
+  const invs = (state.invoices || []).filter(i => i.subId === sub.id);
+  if (invs.length) {
+    html += H3('Invoices on this agreement');
+    html += `<div class="table-wrap"><table class="sub-table ce-table"><thead><tr>`
+      + `<th>Invoice</th><th>Issued</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>`
+      + invs.map(i => {
+        const st = (typeof invoiceStatus === 'function') ? invoiceStatus(i) : (i.paidDate ? 'paid' : 'pending');
+        const cls = st === 'paid' ? 'ok' : st === 'overdue' ? 'danger' : 'warn';
+        return `<tr><td>${escapeHtml(i.invoiceNumber || '—')}</td>`
+          + `<td style="color:var(--text-dim);font-size:12.5px">${i.issueDate || '—'}</td>`
+          + `<td class="num">${formatMoney(i.amount)}</td>`
+          + `<td><span class="badge ${cls}">${st}</span></td></tr>`;
+      }).join('')
+      + `</tbody></table></div>`;
+  }
+
+  return html;
+}
+
 function openContractDetail(id) {
   const sub = state.subscriptions.find(s => s.id === id); if (!sub) return;
   const r = scoreContract(sub, portfolioCtx());
@@ -7330,6 +7501,7 @@ function openContractDetail(id) {
       </div>`;
     }).join('')}</div>
     ${msaBlockHtml(sub)}
+    ${contractExtrasHtml(sub)}
     <div class="actions" style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
       ${sub.hasPdf ? `<button type="button" class="icon-btn" onclick="downloadSubPdf('${sub.id}')">⬇ Download original PDF</button>` : ''}
       <button type="button" class="primary" onclick="document.getElementById('contract-detail-modal').hidden = true">Close</button>
@@ -15394,6 +15566,17 @@ window.openInfosecConnectors = openInfosecConnectors;
 @media (prefers-reduced-motion: reduce){ .notice-card.urgent, .notice-card.urgent::after { animation:none; } }
 /* Next-best-action panel on the editor (shown when opened from a notice window) */
 #nba-block[hidden]{ display:none; }
+/* Contract extras: hierarchy, price schedule, amendments, invoices */
+.ce-hier { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0 2px; }
+.ce-chip { font-size:11.5px; padding:3px 9px; border-radius:10px; background:var(--panel-2,var(--panel)); border:1px solid var(--border); color:var(--text-dim); }
+.ce-chip-accent { border-color:var(--accent); color:var(--accent); }
+.ce-table tr.ce-current { background:color-mix(in srgb, var(--accent) 7%, transparent); }
+.ce-amend { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; }
+.ce-amend li { font-size:12.5px; line-height:1.5; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--panel); }
+.ce-amend-date { font-variant-numeric:tabular-nums; color:var(--text-dim); font-weight:600; }
+.ce-delta { font-weight:600; }
+.ce-delta.pos { color:var(--danger-text,var(--danger)); }
+.ce-delta.neg { color:var(--success-text,var(--success)); }
 .nba { border:1px solid var(--danger); background:var(--danger-soft); border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:18px; }
 .nba-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
 .nba-badge { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--danger-text); }
@@ -16639,26 +16822,263 @@ const DEMO_PRESETS = {
     ],
     departments: ['IT', 'Engineering', 'Ops', 'Finance', 'Sales', 'People', 'Legal', 'Office'],
   },
+
+  'healthcare': {
+    label: 'Healthcare / hospital chain',
+    description: 'Multi-location hospital group, ~600 people. Heavy on EHR, compliance, imaging, and patient comms.',
+    company: 'Arogya Health (Healthcare · Hyderabad)',
+    currencyPrefix: '₹',
+    employees: 620,
+    vendors: [
+      ['Epic EHR', 3200000, 'EHR', 'Clinical', null, null, 232],
+      ['Microsoft 365 E3', 780000, 'Productivity', 'IT', 600, 560, 143],
+      ['CrowdStrike Falcon', 420000, 'Security', 'IT', 600, 585, 112],
+      ['Okta Workforce Identity', 240000, 'Security', 'IT', 600, 580, 66],
+      ['OneTrust', 165000, 'Risk & Compliance', 'Compliance', 12, 11, 54],
+      ['ServiceNow', 385000, 'IT Service Management', 'IT', 90, 82, 155],
+      ['Workday HCM', 520000, 'HR', 'People', 600, 585, 71],
+      ['Salesforce Health Cloud', 680000, 'CRM', 'Patient Experience', 120, 104, 98],
+      ['Twilio', 145000, 'Communication', 'Patient Experience', null, null, 41],
+      ['Zoom Healthcare', 92000, 'Telehealth', 'Clinical', 200, 172, 64],
+      ['Qlik Sense', 165000, 'Analytics', 'Finance', 40, 33, 92],
+      ['DocuSign', 78000, 'Legal', 'Legal', 30, 24, 23],
+      ['Veeam Backup', 95000, 'Infrastructure', 'IT', null, null, 102],
+      ['Adobe Acrobat Pro', 54000, 'Productivity', 'Admin', 120, 88, 183],
+      ['PagerDuty', 38000, 'Observability', 'IT', 20, 16, 131],
+      ['Slack', 48000, 'Communication', 'All', 400, 360, 47],
+    ],
+    departments: ['Clinical', 'IT', 'Finance', 'People', 'Compliance', 'Patient Experience', 'Admin', 'Legal'],
+  },
+
+  'd2c-ecommerce': {
+    label: 'D2C / ecommerce brand',
+    description: 'Fast-growing consumer brand, ~120 people. Marketing, martech, logistics, and support heavy.',
+    company: 'Kettle & Co (D2C · Mumbai)',
+    currencyPrefix: '₹',
+    employees: 120,
+    vendors: [
+      ['Shopify Plus', 185000, 'Ecommerce', 'Growth', null, null, 54],
+      ['Meta Ads', 1200000, 'Advertising', 'Marketing', null, null, 999],
+      ['Google Ads', 950000, 'Advertising', 'Marketing', null, null, 999],
+      ['Klaviyo', 145000, 'Marketing', 'Marketing', 18, 16, 38],
+      ['Google Workspace', 72000, 'Productivity', 'IT', 120, 112, 74],
+      ['Gorgias', 68000, 'Support', 'Support', 24, 21, 61],
+      ['Shiprocket', 240000, 'Logistics', 'Ops', null, null, 120],
+      ['Zoho Books', 18000, 'Finance', 'Finance', 5, 5, 65],
+      ['Notion', 22000, 'Productivity', 'All', 120, 98, 92],
+      ['Slack', 34000, 'Communication', 'All', 120, 110, 47],
+      ['Figma', 24000, 'Design', 'Creative', 15, 13, 27],
+      ['Canva Teams', 14000, 'Design', 'Marketing', 40, 34, 110],
+      ['Triple Whale', 62000, 'Analytics', 'Growth', 10, 9, 44],
+      ['Postscript SMS', 48000, 'Marketing', 'Marketing', null, null, 72],
+      ['Yotpo Reviews', 38000, 'Marketing', 'Growth', null, null, 150],
+      ['HubSpot Starter', 26000, 'CRM', 'Sales', 6, 6, 44],
+    ],
+    departments: ['Marketing', 'Growth', 'Ops', 'Support', 'Creative', 'Finance', 'Sales', 'IT'],
+  },
+
+  'edtech': {
+    label: 'EdTech platform',
+    description: 'B2C/B2B learning platform, ~180 people. Content, engineering, growth, and success heavy.',
+    company: 'Learnwise (EdTech · Bengaluru)',
+    currencyPrefix: '₹',
+    employees: 180,
+    vendors: [
+      ['AWS', 1100000, 'Infrastructure', 'Engineering', null, null, 201],
+      ['Cloudflare', 85000, 'Infrastructure', 'Engineering', null, null, 112],
+      ['MongoDB Atlas', 135000, 'Database', 'Engineering', null, null, 78],
+      ['Mux Video', 220000, 'Infrastructure', 'Content', null, null, 56],
+      ['Intercom', 165000, 'Support', 'Customer Success', 40, 36, 61],
+      ['Segment', 95000, 'Analytics', 'Growth', null, null, 44],
+      ['Amplitude', 110000, 'Analytics', 'Product', 30, 24, 88],
+      ['Google Workspace', 92000, 'Productivity', 'IT', 180, 168, 74],
+      ['Slack', 54000, 'Communication', 'All', 180, 165, 47],
+      ['Notion', 28000, 'Productivity', 'All', 180, 150, 92],
+      ['Figma', 34000, 'Design', 'Design', 25, 22, 27],
+      ['Linear', 16000, 'Engineering', 'Engineering', 70, 66, 42],
+      ['GitHub Team', 24000, 'Development', 'Engineering', 70, 68, 88],
+      ['HubSpot Pro', 145000, 'CRM', 'Sales', 24, 22, 44],
+      ['Zoom', 42000, 'Communication', 'Content', 60, 52, 64],
+      ['Razorpay', 0, 'Payments', 'Finance', null, null, 999],
+      ['Anthropic Claude', 120000, 'AI / LLM', 'Engineering', 50, 46, 81],
+    ],
+    departments: ['Engineering', 'Product', 'Content', 'Growth', 'Customer Success', 'Sales', 'Design', 'Finance', 'IT'],
+  },
+
+  'prof-services': {
+    label: 'Professional services / agency',
+    description: 'Consulting and creative agency, ~90 people. Project, time-tracking, creative, and CRM heavy.',
+    company: 'Northbridge Partners (Services · Delhi)',
+    currencyPrefix: '₹',
+    employees: 90,
+    vendors: [
+      ['Google Workspace', 54000, 'Productivity', 'IT', 90, 85, 74],
+      ['Microsoft 365', 62000, 'Productivity', 'IT', 90, 80, 143],
+      ['Salesforce Sales Cloud', 320000, 'CRM', 'Sales', 30, 27, 98],
+      ['HubSpot Marketing', 95000, 'Marketing', 'Marketing', 10, 9, 44],
+      ['Harvest', 28000, 'Time Tracking', 'Delivery', 90, 82, 59],
+      ['Asana', 42000, 'Project Management', 'Delivery', 90, 80, 71],
+      ['Adobe Creative Cloud', 185000, 'Design', 'Creative', 25, 23, 183],
+      ['Figma', 28000, 'Design', 'Creative', 20, 18, 27],
+      ['Slack', 32000, 'Communication', 'All', 90, 84, 47],
+      ['Zoom', 24000, 'Communication', 'All', 90, 72, 64],
+      ['DocuSign', 42000, 'Legal', 'Ops', 15, 12, 23],
+      ['Zoho Books', 12000, 'Finance', 'Finance', 4, 4, 65],
+      ['Calendly', 9000, 'Productivity', 'Sales', 30, 26, 73],
+      ['Loom', 8000, 'Communication', 'Delivery', 25, 18, 33],
+      ['LinkedIn Sales Navigator', 68000, 'Sales Intelligence', 'Sales', 12, 11, 120],
+    ],
+    departments: ['Delivery', 'Sales', 'Marketing', 'Creative', 'Finance', 'Ops', 'IT'],
+  },
+
+  'enterprise-mix': {
+    label: 'Enterprise mix (hierarchy + ramps + co-term)',
+    description: 'Showcase workspace: Salesforce MSA with Sales Cloud / Pardot / Marketing Cloud, a ramped deal, a co-termed add-on, and an invoice-loaded vendor. Built to demo multi-year contracts, amendments and invoices.',
+    company: 'Meridian Software (Enterprise · Bengaluru)',
+    currencyPrefix: '₹',
+    employees: 1200,
+    vendors: [],
+    departments: ['Sales', 'Marketing', 'Engineering', 'IT', 'Finance', 'Legal', 'People', 'Ops'],
+    // Rich agreements. Costs are ANNUAL INR here (converted to monthly on load).
+    // Offsets are days from "today"; termEnd drives the renewal date.
+    agreements: [
+      {
+        vendor: 'Salesforce', name: 'Master Service Agreement', agreementType: 'MSA',
+        category: 'CRM', team: 'Legal', licenses: null, activeUsers: null,
+        termStartOffset: -330, termEndOffset: 760, annual: 0,
+        noticeDays: 90, termLength: '36 months', priceCapPct: 7,
+        notes: 'Master agreement. Commercials sit on the product order forms below; all three products inherit these terms and the common end date.',
+      },
+      {
+        vendor: 'Salesforce', name: 'Sales Cloud', agreementType: 'order_form',
+        category: 'CRM', team: 'Sales', licenses: 230, activeUsers: 198,
+        termStartOffset: -330, termEndOffset: 760,
+        currentYearIndex: 0,
+        priceSchedule: [
+          { year: 1, label: 'Year 1 (intro)', annual: 6000000, start: -330, end: 35 },
+          { year: 2, label: 'Year 2', annual: 7200000, start: 36, end: 400 },
+          { year: 3, label: 'Year 3', annual: 8400000, start: 401, end: 760 },
+        ],
+        amendments: [
+          { dayOffset: -120, kind: 'add-seats', summary: 'Added 50 Sales Cloud seats (180 to 230), co-termed to MSA end', deltaValue: 900000, effectiveOffset: -120 },
+        ],
+        noticeDays: 90, termLength: '36 months', priceCapPct: 7,
+        notes: 'Ramped 3-year order form: Year 1 discounted, stepping up in Years 2 and 3. One mid-term seat amendment.',
+      },
+      {
+        vendor: 'Salesforce', name: 'Pardot (Account Engagement)', agreementType: 'order_form',
+        category: 'Marketing', team: 'Marketing', licenses: 40, activeUsers: 23,
+        termStartOffset: -330, termEndOffset: 25, annual: 2400000,
+        noticeDays: 60, termLength: '12 months', priceCapPct: 7,
+        notes: 'Flat annual order form under the Salesforce MSA. Renewing soon and under-utilised (23 of 40 seats) - a renewal decision.',
+      },
+      {
+        vendor: 'Salesforce', name: 'Marketing Cloud', agreementType: 'order_form',
+        category: 'Marketing', team: 'Marketing', licenses: null, activeUsers: null,
+        termStartOffset: -150, termEndOffset: 760, annual: 3600000, coTerm: true,
+        amendments: [
+          { dayOffset: -150, kind: 'co-term', summary: 'Added mid-term and co-termed to the Salesforce MSA end date', deltaValue: 3600000, effectiveOffset: -150 },
+        ],
+        noticeDays: 90, termLength: 'co-termed to MSA', priceCapPct: 7,
+        notes: 'Co-termed add-on: purchased mid-year, aligned to the master end date so everything renews together.',
+      },
+      {
+        vendor: 'Snowflake', name: 'Snowflake', agreementType: 'order_form',
+        category: 'Data Platform', team: 'Engineering', licenses: null, activeUsers: null,
+        termStartOffset: -300, termEndOffset: 120, annual: 4800000,
+        noticeDays: 60, termLength: '12 months', priceCapPct: 10,
+        invoices: [
+          { number: 'SNOW-Q1', amount: 1200000, issueOffset: -300, dueOffset: -270, paidOffset: -295 },
+          { number: 'SNOW-Q2', amount: 1200000, issueOffset: -210, dueOffset: -180, paidOffset: -205 },
+          { number: 'SNOW-Q3', amount: 1200000, issueOffset: -120, dueOffset: -90, paidOffset: -118 },
+          { number: 'SNOW-Q4', amount: 1200000, issueOffset: -30, dueOffset: 0, paidOffset: null },
+        ],
+        notes: 'Invoice-loaded vendor: quarterly invoices across the term so actual-vs-committed and the invoice log have data. Latest invoice still pending.',
+      },
+      {
+        vendor: 'Gong', name: 'Gong', agreementType: 'order_form',
+        category: 'Sales Intelligence', team: 'Sales', licenses: 60, activeUsers: 41,
+        termStartOffset: -347, termEndOffset: 18, annual: 1800000,
+        noticeDays: 60, termLength: '12 months', priceCapPct: 7,
+        notes: 'Simple flat standalone vendor. Renewing very soon and under-utilised - the dashboard should flag this one hard.',
+      },
+      {
+        vendor: 'Datadog', name: 'Datadog', agreementType: 'order_form',
+        category: 'Observability', team: 'Engineering', licenses: null, activeUsers: null,
+        termStartOffset: -155, termEndOffset: 210, annual: 3000000,
+        noticeDays: 60, termLength: '12 months', priceCapPct: 10,
+        notes: 'Standalone usage-based vendor. Healthy, mid-term.',
+      },
+      {
+        vendor: 'Okta', name: 'Okta Workforce Identity', agreementType: 'order_form',
+        category: 'Security', team: 'IT', licenses: 1200, activeUsers: 1160,
+        termStartOffset: -65, termEndOffset: 300, annual: 2200000,
+        noticeDays: 90, termLength: '12 months', priceCapPct: 7,
+        notes: 'Standalone identity platform. Well-utilised, far from renewal.',
+      },
+    ],
+  },
 };
 
 /* Build state from a preset. Note: costs in presets are MONTHLY INR
    (lakh/crore scale) to match the Indian market reality. */
 function buildStateFromPreset(presetKey) {
-  const p = DEMO_PRESETS[presetKey];
+  const p = (presetKey && typeof presetKey === 'object') ? presetKey : DEMO_PRESETS[presetKey];
   if (!p) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const iso = (d) => d.toISOString().slice(0, 10);
   const shift = (days) => { const d = new Date(today); d.setDate(d.getDate() + days); return iso(d); };
 
-  const subs = p.vendors.map(v => {
+  const invoices = [];
+  const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z]+/g, '');
+  // Flat tuple vendors are enriched to the same architecture as rich agreements:
+  // a price schedule (a deterministic subset ramps across 2 years), an occasional
+  // amendment, and recent invoices. This runs for every tuple preset AND for
+  // generated presets (they arrive here as tuple vendors), so none ship empty.
+  const subs = p.vendors.map((v, vi) => {
     const [name, monthlyCost, category, team, lic, active, renewalOffset] = v;
-    const ownerEmail = `owner-${(team || 'general').toLowerCase().replace(/\W+/g, '-')}@${p.company.toLowerCase().replace(/[^a-z]+/g, '')}.com`;
+    const ownerEmail = `owner-${(team || 'general').toLowerCase().replace(/\W+/g, '-')}@${slug(p.company)}.com`;
+    const subId = crypto.randomUUID();
+    const annual = Math.round((monthlyCost || 0) * 12);
+
+    // Price schedule: single year by default; ~1 in 5 vendors ramp over 2 years.
+    let priceSchedule = [];
+    if (annual > 0 && vi % 5 === 0) {
+      priceSchedule = [
+        { year: 1, label: 'Year 1', annual, current: true, start: shift(renewalOffset - 365), end: shift(renewalOffset) },
+        { year: 2, label: 'Year 2 (+8%)', annual: Math.round(annual * 1.08), current: false, start: shift(renewalOffset + 1), end: shift(renewalOffset + 365) },
+      ];
+    } else if (annual > 0) {
+      priceSchedule = [{ year: 1, label: 'Year 1', annual, current: true, start: shift(renewalOffset - 365), end: shift(renewalOffset) }];
+    }
+
+    // Amendments: a deterministic subset of seat-based vendors has one mid-term change.
+    const amendments = [];
+    if (lic && active && vi % 7 === 3) {
+      const added = Math.max(5, Math.round(lic * 0.15));
+      amendments.push({ date: shift(-100), kind: 'add-seats', summary: `Added ${added} seats mid-term (${lic} total)`, deltaValue: Math.round(annual * 0.1), effectiveDate: shift(-100) });
+    }
+
+    // Invoices: recent monthly invoices (2 paid, 1 pending) whenever there is a cost.
+    if (monthlyCost > 0) {
+      [[-62, -60], [-32, -30], [-2, null]].forEach(([iss, paid], i) => {
+        invoices.push({
+          id: crypto.randomUUID(), fromPreset: true, subId, amount: monthlyCost,
+          invoiceNumber: `${slug(name).slice(0, 4).toUpperCase() || 'INV'}-${String(i + 1).padStart(4, '0')}`,
+          issueDate: shift(iss), dueDate: shift(iss + 28),
+          paidDate: paid != null ? shift(paid) : null,
+        });
+      });
+    }
+
     return {
-      id: crypto.randomUUID(),
+      id: subId,
+      fromPreset: true,
       name,
       cost: monthlyCost,
       cycle: 'monthly',
       billingCycle: 'monthly',
+      annualCost: annual,
       category,
       team,
       department: team,
@@ -16671,13 +17091,15 @@ function buildStateFromPreset(presetKey) {
       utilizationPct: lic && active ? Math.round((active / lic) * 100) : null,
       owner: ownerEmail,
       ownerEmail,
+      priceSchedule,
+      amendments,
       contract: {
         autoRenew: true,
         noticeDays: renewalOffset > 180 ? 90 : renewalOffset > 60 ? 60 : 30,
-        termLength: '12 months',
+        termLength: priceSchedule.length > 1 ? '24 months' : '12 months',
         priceCapPct: 7,
       },
-      url: `https://${name.toLowerCase().replace(/[^a-z]+/g, '')}.com`,
+      url: `https://${slug(name)}.com`,
       notes: `Loaded from ${p.label} preset.`,
     };
   });
@@ -16698,15 +17120,114 @@ function buildStateFromPreset(presetKey) {
     }
   });
 
-  return { subscriptions: subs, employees, invoices: [] };
+  // ---- Rich agreements: hierarchy, price schedules, amendments, invoices ----
+  // Costs in agreements are ANNUAL INR. invoices[] and slug() are declared above.
+  if (Array.isArray(p.agreements)) {
+    p.agreements.forEach(a => {
+      const sched = (a.priceSchedule && a.priceSchedule.length)
+        ? a.priceSchedule
+        : [{ year: 1, label: 'Year 1', annual: a.annual || 0, start: a.termStartOffset ?? 0, end: a.termEndOffset ?? 365 }];
+      const curIdx = Math.min(a.currentYearIndex || 0, sched.length - 1);
+      const curAnnual = sched[curIdx].annual || 0;
+      const subId = crypto.randomUUID();
+      const termEndOffset = a.termEndOffset ?? 365;
+      const parent = (a.vendor && a.vendor !== a.name) ? a.vendor : null;
+      const ownerEmail = `owner-${(a.team || 'general').toLowerCase().replace(/\W+/g, '-')}@${slug(p.company)}.com`;
+      subs.push({
+        id: subId,
+        fromPreset: true,
+        name: parent ? `${parent} - ${a.name}` : a.name,
+        productName: a.name,
+        parentVendor: parent,
+        agreementType: a.agreementType || 'order_form',
+        cost: Math.round(curAnnual / 12),
+        cycle: 'monthly',
+        billingCycle: 'monthly',
+        annualCost: curAnnual,
+        category: a.category,
+        team: a.team,
+        department: a.team,
+        renewal: shift(termEndOffset),
+        termStart: a.termStartOffset != null ? shift(a.termStartOffset) : null,
+        termEnd: shift(termEndOffset),
+        status: 'active',
+        active: true,
+        users: a.licenses ?? null,
+        licenses: a.licenses ?? null,
+        activeUsers: a.activeUsers ?? null,
+        utilizationPct: (a.licenses && a.activeUsers) ? Math.round((a.activeUsers / a.licenses) * 100) : null,
+        owner: ownerEmail,
+        ownerEmail,
+        priceSchedule: sched.map(r => ({
+          year: r.year, label: r.label, annual: r.annual,
+          start: r.start != null ? shift(r.start) : null,
+          end: r.end != null ? shift(r.end) : null,
+          current: r.year === sched[curIdx].year,
+        })),
+        amendments: (a.amendments || []).map(am => ({
+          date: shift(am.dayOffset),
+          kind: am.kind,
+          summary: am.summary,
+          deltaValue: am.deltaValue || 0,
+          effectiveDate: am.effectiveOffset != null ? shift(am.effectiveOffset) : shift(am.dayOffset),
+        })),
+        coTerm: !!a.coTerm,
+        contract: {
+          autoRenew: a.autoRenew !== false,
+          noticeDays: a.noticeDays || (termEndOffset > 180 ? 90 : termEndOffset > 60 ? 60 : 30),
+          termLength: a.termLength || `${sched.length * 12} months`,
+          priceCapPct: a.priceCapPct ?? 7,
+        },
+        url: `https://${slug(a.vendor || a.name)}.com`,
+        notes: a.notes || `Loaded from ${p.label} preset.`,
+      });
+      (a.invoices || []).forEach((inv, i) => {
+        invoices.push({
+          id: crypto.randomUUID(),
+          fromPreset: true,
+          subId,
+          amount: inv.amount,
+          invoiceNumber: inv.number || `${a.name.slice(0, 3).toUpperCase()}-${String(i + 1).padStart(4, '0')}`,
+          issueDate: shift(inv.issueOffset),
+          dueDate: shift(inv.dueOffset != null ? inv.dueOffset : inv.issueOffset + 30),
+          paidDate: inv.paidOffset != null ? shift(inv.paidOffset) : null,
+        });
+      });
+    });
+  }
+
+  return { subscriptions: subs, employees, invoices };
 }
 
 /* ---------- UI: picker in the dashboard header + Settings ---------- */
 function renderDemoPicker() {
   const host = document.getElementById('dp-body'); if (!host) return;
   const currentPreset = state.settings.activePreset || 'acme';
+  const gp = state.settings.generatedPreset;
   host.innerHTML = `
+    <div class="dp-gen">
+      <div class="dp-gen-head">
+        <b>✨ Generate a workspace from a website</b>
+        <span class="dp-gen-sub">Paste a prospect's website. We research it and build a believable SaaS stack you can demo in seconds. Nothing is saved to their records; it's a demo workspace in your browser.</span>
+      </div>
+      <div class="dp-gen-row">
+        <input id="dp-gen-url" type="text" placeholder="prospect.com" class="dp-gen-input" autocomplete="off" spellcheck="false">
+        <button id="dp-gen-btn" class="btn-primary">Generate</button>
+      </div>
+      <div id="dp-gen-status" class="dp-gen-status" hidden></div>
+    </div>
     <div class="dp-grid">
+      ${gp ? `
+      <div class="dp-card dp-gen-card ${currentPreset === 'generated' ? 'dp-current' : ''}" data-preset="generated">
+        <div class="dp-head">
+          <b>${escapeHtml(gp.label || 'Generated workspace')}</b>
+          ${currentPreset === 'generated' ? '<span class="dp-current-tag">Loaded</span>' : '<span class="dp-gen-tag">Generated</span>'}
+        </div>
+        <div class="dp-sub">${escapeHtml(gp.company || '')}</div>
+        <div class="dp-desc">${escapeHtml(gp.description || '')}</div>
+        <div class="dp-stats"><span>${gp.count || 0} vendors</span><span>${gp.employees || '—'} employees</span><span>${escapeHtml(gp.currencyPrefix || '$')}</span></div>
+        <button class="btn-primary dp-load" data-preset="generated">${currentPreset === 'generated' ? 'Reload' : 'Load this preset'}</button>
+      </div>` : ''}
       <div class="dp-card ${currentPreset === 'acme' ? 'dp-current' : ''}" data-preset="acme">
         <div class="dp-head">
           <b>Acme Corp</b>
@@ -16724,24 +17245,76 @@ function renderDemoPicker() {
           </div>
           <div class="dp-sub">${escapeHtml(p.company)}</div>
           <div class="dp-desc">${escapeHtml(p.description)}</div>
-          <div class="dp-stats"><span>${p.vendors.length} vendors</span><span>${p.employees} employees</span><span>${p.currencyPrefix}</span></div>
+          <div class="dp-stats"><span>${(p.agreements?.length || p.vendors?.length || 0)} ${p.agreements ? 'agreements' : 'vendors'}</span><span>${p.employees} employees</span><span>${p.currencyPrefix}</span></div>
           <button class="btn-primary dp-load" data-preset="${key}">${currentPreset === key ? 'Reload' : 'Load this preset'}</button>
         </div>
       `).join('')}
     </div>
     <div class="dp-note">⚠️ Loading a preset replaces the current workspace data (subscriptions, invoices, employees). Workspace / trial status stays. Use this between demos to show the right flavour to the next prospect.</div>
   `;
+  const presetLabel = (key) => key === 'acme' ? 'Acme Corp'
+    : key === 'generated' ? (gp?.label || 'Generated workspace')
+    : (DEMO_PRESETS[key]?.label || key);
   host.querySelectorAll('.dp-load').forEach(b => b.onclick = () => {
     const key = b.dataset.preset;
-    if (!confirm(`Load the ${key === 'acme' ? 'Acme Corp default' : DEMO_PRESETS[key].label} preset? This replaces current subscriptions, invoices and employees.`)) return;
+    if (!confirm(`Load the ${presetLabel(key)} preset? This replaces current subscriptions, invoices and employees.`)) return;
     loadPreset(key);
     renderDemoPicker();
     renderAll();
-    toast(`${key === 'acme' ? 'Acme Corp' : DEMO_PRESETS[key].label} loaded.`, 'success');
+    toast(`${presetLabel(key)} loaded.`, 'success');
   });
+
+  // Generate-from-website
+  const genBtn = document.getElementById('dp-gen-btn');
+  const genUrl = document.getElementById('dp-gen-url');
+  const genStatus = document.getElementById('dp-gen-status');
+  if (genBtn && genUrl) {
+    const run = async () => {
+      const url = (genUrl.value || '').trim();
+      if (!url) { genUrl.focus(); return; }
+      genBtn.disabled = true; genUrl.disabled = true;
+      genStatus.hidden = false; genStatus.className = 'dp-gen-status';
+      genStatus.textContent = `Researching ${url} and building a workspace… this can take 15-30s.`;
+      try {
+        const res = await fetch('/api/preset/generate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          genStatus.className = 'dp-gen-status err';
+          genStatus.textContent = data.message
+            || (res.status === 401 ? 'Please sign in again.'
+              : res.status === 403 ? 'Your trial has expired.'
+              : 'Could not generate a workspace. Try another URL.');
+          return;
+        }
+        const preset = data.preset; preset.source = data.source || '';
+        if (!confirm(`Load the generated "${preset.label || 'workspace'}"? This replaces current subscriptions, invoices and employees.`)) {
+          genStatus.hidden = true; return;
+        }
+        applyGeneratedPreset(preset);
+        renderDemoPicker();
+        renderAll();
+        toast(`${preset.label || 'Generated workspace'} loaded.`, 'success');
+      } catch (_) {
+        genStatus.className = 'dp-gen-status err';
+        genStatus.textContent = 'Network error. Try again.';
+      } finally {
+        genBtn.disabled = false; genUrl.disabled = false;
+      }
+    };
+    genBtn.onclick = run;
+    genUrl.onkeydown = (e) => { if (e.key === 'Enter') run(); };
+  }
 }
 
 function loadPreset(key) {
+  if (key === 'generated') {
+    const full = state.settings.generatedPresetFull;
+    if (full) applyGeneratedPreset(full);
+    return;
+  }
   if (key === 'acme') {
     // Call the base app's sample loader
     if (typeof buildSampleState === 'function') {
@@ -16765,6 +17338,27 @@ function loadPreset(key) {
   save();
 }
 
+/* Apply a preset generated on the server from a company website. The preset
+   object has the same shape as a DEMO_PRESETS entry (tuple vendors). */
+function applyGeneratedPreset(preset) {
+  const built = buildStateFromPreset(preset);
+  if (!built) return false;
+  state.subscriptions = built.subscriptions;
+  state.invoices = built.invoices;
+  state.employees = built.employees;
+  state.settings.activePreset = 'generated';
+  state.settings.generatedPreset = {
+    label: preset.label, description: preset.description, company: preset.company,
+    currencyPrefix: preset.currencyPrefix, employees: preset.employees,
+    count: (preset.vendors || []).length, source: preset.source || '',
+  };
+  state.settings.generatedPresetFull = preset; // full object so Reload works
+  state.settings.chatLog = [];
+  state.alertLog = {};
+  save();
+  return true;
+}
+
 /* ---------- View + nav ---------- */
 function ensureDemoView() {
   if (document.getElementById('demo-presets')) return;
@@ -16780,6 +17374,17 @@ function ensureDemoView() {
     </div>
     <div id="dp-body"></div>
     <style>
+      .dp-gen { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; }
+      .dp-gen-head { display: flex; flex-direction: column; gap: 4px; }
+      .dp-gen-head b { font-size: 15px; }
+      .dp-gen-sub { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; }
+      .dp-gen-row { display: flex; gap: 8px; }
+      .dp-gen-input { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg, var(--panel)); color: var(--ink, var(--text)); font-size: 14px; }
+      .dp-gen-input:focus { outline: none; border-color: var(--accent); }
+      .dp-gen-status { font-size: 12.5px; color: var(--text-dim); padding: 2px 2px 0; }
+      .dp-gen-status.err { color: var(--danger-text, var(--danger)); }
+      .dp-gen-tag { background: var(--accent); color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 10.5px; font-weight: 600; opacity: .85; }
+      .dp-gen-card { border-style: dashed; }
       .dp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
       .dp-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
       .dp-card.dp-current { border-color: var(--accent); background: linear-gradient(180deg, var(--panel) 0%, color-mix(in srgb, var(--accent) 5%, var(--panel)) 100%); }

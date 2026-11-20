@@ -75,6 +75,35 @@ ok(res.status === 403, 'PUT blocked when expired');
 res = await DATA.onRequestGet({ request: { headers: { get: () => '' } }, env: dataEnv({}, null) });
 ok(res.status === 401, 'GET 401 without session');
 
+// ---- preset generator endpoint (validation + gating; no network) ----
+section('preset generator');
+import * as PRESET from '../functions/api/preset/generate.js';
+function presetEnv(user, key) {
+  let rl = 0;
+  return { ANTHROPIC_API_KEY: key, ADMIN_EMAILS: '', DB: { prepare(sql) { return { bind: (...a) => ({
+    first: async () => {
+      if (/sessions/i.test(sql)) return user ? { email: user.email, expires_at: Date.now() + 1e9 } : null;
+      if (/rate/i.test(sql)) return { count: ++rl };
+      if (/users/i.test(sql)) return user;
+      return user;
+    },
+    run: async () => {},
+  }) }; } } };
+}
+const pReq = (body) => ({ headers: { get: () => 'sst_session=s' }, json: async () => body });
+let pr = await PRESET.onRequestGet({ env: { ANTHROPIC_API_KEY: 'x' } });
+ok((await pr.json()).configured === true, 'GET reports configured');
+pr = await PRESET.onRequestPost({ request: { headers: { get: () => '' }, json: async () => ({ url: 'acme.com' }) }, env: presetEnv(null, 'x') });
+ok(pr.status === 401, 'POST 401 without session');
+pr = await PRESET.onRequestPost({ request: pReq({}), env: presetEnv(active, 'x') });
+ok(pr.status === 400 && (await pr.json()).error === 'no_url', 'POST 400 when no url');
+pr = await PRESET.onRequestPost({ request: pReq({ url: 'http://10.0.0.1' }), env: presetEnv(active, 'x') });
+ok(pr.status === 400 && (await pr.json()).error === 'bad_url', 'POST 400 on SSRF/private url');
+pr = await PRESET.onRequestPost({ request: pReq({ url: 'acme.com' }), env: presetEnv(active, undefined) });
+ok(pr.status === 501 && (await pr.json()).error === 'not_configured', 'POST 501 when API key missing');
+pr = await PRESET.onRequestPost({ request: pReq({ url: 'acme.com' }), env: presetEnv({ email: 'e', status: 'trial', trial_ends_at: Date.now() - 1 }, 'x') });
+ok(pr.status === 403, 'POST 403 when trial expired');
+
 // ---- result ----
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
