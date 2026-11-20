@@ -3334,6 +3334,34 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
         <label>Next renewal<input type="date" id="f-renewal" /></label>
       </div>
       <fieldset class="form-fieldset">
+        <legend>Plan &amp; pricing</legend>
+        <div class="row triple">
+          <label>Plan / tier
+            <input type="text" id="f-plan" list="plan-list" placeholder="Business" />
+            <datalist id="plan-list">
+              <option value="Free"></option>
+              <option value="Starter"></option>
+              <option value="Pro"></option>
+              <option value="Team"></option>
+              <option value="Business"></option>
+              <option value="Enterprise"></option>
+              <option value="Custom"></option>
+            </datalist>
+          </label>
+          <label>Pricing model
+            <select id="f-pricing-model">
+              <option value="">-</option>
+              <option value="flat">Flat</option>
+              <option value="seat">Per seat</option>
+              <option value="usage">Usage-based</option>
+              <option value="tiered">Tiered / volume</option>
+            </select>
+          </label>
+          <label>Price per seat / unit (USD)<input type="number" id="f-unit-price" min="0" step="0.01" placeholder="Optional" /></label>
+        </div>
+        <span class="dim" style="font-size:11px">The vendor plan you are on and how it is priced. Per-seat unit price is optional; it helps sanity-check cost against licences.</span>
+      </fieldset>
+      <fieldset class="form-fieldset">
         <legend>Contract term</legend>
         <div class="row triple">
           <label>Start date<input type="date" id="f-start" /></label>
@@ -5180,6 +5208,9 @@ function openModal(id, opts) {
   document.getElementById('f-start').value = sub?.startDate || '';
   document.getElementById('f-end').value = sub?.endDate || '';
   document.getElementById('f-tcv').value = sub?.totalValue ?? '';
+  document.getElementById('f-plan').value = sub?.plan || '';
+  document.getElementById('f-pricing-model').value = sub?.pricingModel || '';
+  document.getElementById('f-unit-price').value = sub?.unitPrice ?? '';
   { const vdl = document.getElementById('vendor-list'); if (vdl) { const keys = [...new Set((state.subscriptions || []).map(s => (s.vendor && s.vendor.trim()) || s.name).filter(Boolean))].sort(); vdl.innerHTML = keys.map(k => `<option value="${escapeHtml(k)}"></option>`).join(''); } }
   document.getElementById('f-team').value = sub?.team || '';
   document.getElementById('f-department').value = sub?.department || '';
@@ -5347,6 +5378,9 @@ function handleSubmit(e) {
   sub.startDate = document.getElementById('f-start')?.value || null;
   sub.endDate = document.getElementById('f-end')?.value || null;
   { const _tcv = parseFloat(document.getElementById('f-tcv')?.value); sub.totalValue = isNaN(_tcv) ? null : _tcv; }
+  sub.plan = (document.getElementById('f-plan')?.value || '').trim() || null;
+  sub.pricingModel = document.getElementById('f-pricing-model')?.value || null;
+  { const _up = parseFloat(document.getElementById('f-unit-price')?.value); sub.unitPrice = isNaN(_up) ? null : _up; }
   if (sub.startDate && sub.endDate) {
     const _m = Math.round((new Date(sub.endDate) - new Date(sub.startDate)) / (1000 * 60 * 60 * 24 * 30.44));
     if (_m > 0 && !(sub.contract && sub.contract.termLength)) sub.contract = Object.assign({}, sub.contract, { termLength: _m + ' months' });
@@ -7532,7 +7566,7 @@ function openContractDetail(id) {
   back.querySelector('.modal').innerHTML = `
     <button type="button" class="icon-btn modal-back" onclick="document.getElementById('contract-detail-modal').hidden = true">&larr; Back</button>
     <h2>${escapeHtml(sub.name)} · Contract review</h2>
-    <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}${(sub.startDate && sub.endDate) ? ` · term ${sub.startDate} → ${sub.endDate}` : ''}${sub.totalValue ? ` · TCV ${formatMoney(sub.totalValue)}` : ''}</p>
+    <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}${(sub.startDate && sub.endDate) ? ` · term ${sub.startDate} → ${sub.endDate}` : ''}${sub.totalValue ? ` · TCV ${formatMoney(sub.totalValue)}` : ''}${sub.plan ? ` · ${escapeHtml(sub.plan)} plan` : ''}${sub.pricingModel ? ` · ${({ flat: 'flat', seat: 'per seat', usage: 'usage-based', tiered: 'tiered' })[sub.pricingModel] || ''}` : ''}</p>
     <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
       <div class="stat-card" style="cursor:default"><span class="stat-label">Overall risk</span><span class="stat-value" style="color:var(--${riskBand(r.overall).cls}-text,var(--text))">${r.overall}</span><span class="stat-sub">${riskBand(r.overall).label}</span></div>
       <div class="stat-card" style="cursor:default"><span class="stat-label">Clauses captured</span><span class="stat-value">${Object.values(c).filter(v => v).length}</span><span class="stat-sub">of ${CLAUSE_LIBRARY.length}</span></div>
@@ -8981,7 +9015,7 @@ function openVendorNav(subId) {
     back.querySelector('.modal')?.classList.remove('modal--wide');
     back.querySelector('.modal').innerHTML = `
       <h2>${escapeHtml(sub.name)}</h2>
-      <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}${(sub.startDate && sub.endDate) ? ` · term ${sub.startDate} → ${sub.endDate}` : ''}${sub.totalValue ? ` · TCV ${formatMoney(sub.totalValue)}` : ''}</p>
+      <p class="contract-summary" style="margin-bottom:14px">${escapeHtml(sub.category || '')} · ${escapeHtml(sub.team || '')} · ${formatMoney(sub.cost)} ${sub.cycle} · renewal ${sub.renewal || '-'}${(sub.startDate && sub.endDate) ? ` · term ${sub.startDate} → ${sub.endDate}` : ''}${sub.totalValue ? ` · TCV ${formatMoney(sub.totalValue)}` : ''}${sub.plan ? ` · ${escapeHtml(sub.plan)} plan` : ''}${sub.pricingModel ? ` · ${({ flat: 'flat', seat: 'per seat', usage: 'usage-based', tiered: 'tiered' })[sub.pricingModel] || ''}` : ''}</p>
       <div class="panel" style="background:var(--warning-soft);border:none">
         <h2 style="font-size:14px;color:var(--warning-text);margin-bottom:6px">No contract on file</h2>
         <p style="font-size:13px;color:var(--text-2);margin:0">This vendor has a subscription record but no contract has been ingested yet. Upload the contract to see the extracted clauses and the risk score.</p>
@@ -15927,7 +15961,7 @@ function renderVendors() {
   const childRow = (s) => {
     const isMeta = (typeof infosecStatusMeta === 'function') ? infosecStatusMeta((s.infosec && s.infosec.status) || 'not_started') : ['', '-', '#94a3b8'];
     return `<tr class="v-child" data-vendor-edit="${s.id}" hidden style="cursor:pointer;background:color-mix(in srgb,var(--text) 3%,transparent)">
-      <td style="padding-left:30px">${escapeHtml(s.name)}${s.active === false ? ' <span class="badge" style="background:#64748b22;color:#64748b">inactive</span>' : ''}</td>
+      <td style="padding-left:30px">${escapeHtml(s.name)}${s.plan ? ` <span class="dim" style="font-size:11px">${escapeHtml(s.plan)}</span>` : ''}${s.active === false ? ' <span class="badge" style="background:#64748b22;color:#64748b">inactive</span>' : ''}</td>
       <td class="num">${formatMoney(monthlyCost(s) * 12)}</td>
       <td class="dim" style="font-size:12px">${vendorTermLabel(s)}</td>
       <td>${apBadge(isMeta)}</td>
