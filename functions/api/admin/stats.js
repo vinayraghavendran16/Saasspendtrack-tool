@@ -1,6 +1,7 @@
 // GET /api/admin/stats  - owner-only metrics for the admin command centre.
 // Auth: must be signed in with an email listed in ADMIN_EMAILS.
 import { json, now, DAY, requireAdmin } from '../../_shared/util.js';
+import { workEmailPipeline } from '../../_shared/work-email-pipeline.js';
 
 // Admin/owner emails are excluded from the funnel so your own testing
 // doesn't inflate trial numbers.
@@ -90,6 +91,7 @@ export async function onRequestGet({ request, env }) {
     }));
 
   return json({
+    workEmailPipeline: workEmailPipeline(users, { nowMs:t, annualListPriceINR:INR_PRICE, excludedEmails:env.PIPELINE_EXCLUDED_EMAILS, excludedDomains:env.PIPELINE_EXCLUDED_DOMAINS }),
     generatedAt: t,
     usdInr,
     totals: {

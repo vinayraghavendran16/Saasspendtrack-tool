@@ -92,6 +92,14 @@
       <div class="tile"><div class="label">Trial pipeline</div><div class="value" id="m-pipe">–</div><div class="sub">active trials × list price</div></div>
     </div>
 
+    <h2>Actual pipeline — work-email trials</h2>
+    <div class="grid">
+      <div class="tile"><div class="label">Active work-email trials</div><div class="value" id="m-work-trials">–</div></div>
+      <div class="tile"><div class="label">Verified work-email trials</div><div class="value" id="m-work-verified">–</div><div class="sub">signed in at least once; trial still active</div></div>
+      <div class="tile"><div class="label">Potential annual value</div><div class="value" id="m-work-value">–</div><div class="sub">verified work-email trials × list price; not booked revenue</div></div>
+    </div>
+    <p class="note" id="work-pipeline-note">Separate from total trials. Personal-email trials remain in the original report. Domain screening does not establish sales qualification.</p>
+
     <h2>Signups (last 14 days)</h2>
     <div class="bars" id="bars"></div>
 
@@ -136,6 +144,11 @@
     document.getElementById('auth').classList.add('hide');
     document.getElementById('dash').classList.remove('hide');
     var t = d.totals;
+    var p = d.workEmailPipeline;
+    document.getElementById('m-work-trials').textContent = p ? p.activeWorkEmailTrials : 'Unavailable';
+    document.getElementById('m-work-verified').textContent = p ? p.verifiedWorkEmailTrials : 'Unavailable';
+    document.getElementById('m-work-value').textContent = p ? inr(p.potentialAnnualINR) : 'Unavailable';
+    if (p) document.getElementById('work-pipeline-note').textContent = 'Excluded from this view: ' + p.excludedPersonal + ' personal/disposable-email trials, ' + p.excludedInternal + ' internal/test trials, ' + p.excludedInvalid + ' invalid/test addresses. ' + p.unverified + ' work-email trials have not signed in. All original trial records and totals remain unchanged. Domain screening is not sales qualification.';
     document.getElementById('m-total').textContent = t.totalTrials;
     document.getElementById('m-active').textContent = t.activeTrials;
     document.getElementById('m-paid').textContent = t.paid;
@@ -162,9 +175,9 @@
     }).join('');
 
     document.getElementById('rows').innerHTML = (d.recent || []).map(function (r) {
-      return '<tr><td>' + r.email + '</td>' +
-        '<td><span class="pill ' + r.status + '">' + r.status + '</span></td>' +
-        '<td>' + (r.plan || '–') + '</td>' +
+      return '<tr><td>' + esc(r.email) + '</td>' +
+        '<td><span class="pill ' + esc(r.status) + '">' + esc(r.status) + '</span></td>' +
+        '<td>' + esc(r.plan || '–') + '</td>' +
         '<td>' + fdate(r.createdAt) + '</td>' +
         '<td>' + (r.status === 'trial' ? r.daysLeft : '–') + '</td>' +
         '<td>' + (r.amountINR ? inr(r.amountINR) : '–') + '</td></tr>';
