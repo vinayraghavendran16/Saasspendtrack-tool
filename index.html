@@ -1434,6 +1434,19 @@ html.owner-only #owner { display: block !important; }
 .trial-banner-warn { background: #fef3c7; color: #92400e; border-bottom: 1px solid #fde68a; }
 [data-theme="dark"] .trial-banner-info { background: rgba(99,102,241,0.12); color: #a5b4fc; border-color: rgba(99,102,241,0.3); }
 [data-theme="dark"] .trial-banner-warn { background: rgba(245,158,11,0.12); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+/* Data-mode banner: prominent indicator of Demo (sample/preset) vs Full access. */
+.mode-banner { display: flex; align-items: center; gap: 12px; padding: 8px 18px; font-size: 12.5px; border-bottom: 1px solid var(--border); }
+.mode-banner[hidden] { display: none; }
+.mode-tag { font-weight: 800; letter-spacing: 0.06em; font-size: 11px; padding: 2px 9px; border-radius: 999px; flex: none; color: #fff; }
+.mode-txt { flex: 1; }
+.mode-cta { margin-left: auto; background: #6366f1; color: #fff; border: none; border-radius: 7px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; flex: none; }
+.mode-cta:hover { background: #4f46e5; }
+.mode-demo { background: rgba(99,102,241,0.12); color: #4f46e5; border-color: rgba(99,102,241,0.3); }
+.mode-demo .mode-tag { background: #6366f1; }
+[data-theme="dark"] .mode-demo { color: #a5b4fc; }
+.mode-full { background: rgba(22,163,74,0.10); color: #15803d; border-color: rgba(22,163,74,0.25); }
+.mode-full .mode-tag { background: #16a34a; }
+[data-theme="dark"] .mode-full { color: #4ade80; }
 .trial-banner-cta { background: currentColor; color: #fff !important; padding: 3px 12px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 11.5px; }
 .trial-banner-info .trial-banner-cta { color: #eef2ff !important; background: #4338ca; }
 .trial-banner-warn .trial-banner-cta { color: #fef3c7 !important; background: #b45309; }
@@ -16945,6 +16958,37 @@ function ensureTrialBanner() {
   `;
 }
 
+/* Prominent data-mode banner at the very top: shows "Demo mode" while a preset /
+   sample dataset is loaded, and "Full access" for a paid workspace on its own data.
+   The trial countdown banner already covers the trial-on-own-data case, so this
+   stays hidden there to avoid a double strip. */
+function ensureModeBanner() {
+  const topbar = document.querySelector('.topbar');
+  if (!topbar || !topbar.parentNode) return;
+  let b = document.getElementById('mode-banner');
+  const demo = typeof isDemoMode === 'function' && isDemoMode();
+  let t = {}; try { t = trialState() || {}; } catch (_) {}
+  const show = demo || t.isPaid;
+  if (!show) { if (b) b.hidden = true; return; }
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'mode-banner';
+    const tb = document.getElementById('trial-banner');
+    topbar.parentNode.insertBefore(b, tb || topbar);
+  }
+  b.hidden = false;
+  if (demo) {
+    const label = ccPresetLabel(state.settings && state.settings.activePreset);
+    b.className = 'mode-banner mode-demo';
+    b.innerHTML = `<span class="mode-tag">DEMO MODE</span><span class="mode-txt">You're exploring sample data${label ? ' · <b>' + escapeHtml(label) + '</b>' : ''}. Nothing here is your own yet.</span><button type="button" class="mode-cta" id="mode-cta">Switch to my data →</button>`;
+    const cta = b.querySelector('#mode-cta');
+    if (cta) cta.onclick = () => { try { switchView('command-centre'); } catch (_) {} };
+  } else {
+    b.className = 'mode-banner mode-full';
+    b.innerHTML = `<span class="mode-tag">FULL ACCESS</span><span class="mode-txt">Your workspace is active on your own data.</span>`;
+  }
+}
+
 /* ---------- Developer controls under Settings ----------
    Lets the distributor reset the trial for a clean demo. */
 function ensureTrialDevControls() {
@@ -17015,6 +17059,7 @@ if (_prevAll17) {
     try {
       ensureTrialBanner();
       ensureTrialDevControls();
+      ensureModeBanner();
       const t = trialState();
       if (t.expired && !document.body.classList.contains('readonly-mode')) {
         const g = ensureExpiryGate();
@@ -17029,6 +17074,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       ensureTrialBanner();
       ensureTrialDevControls();
+      ensureModeBanner();
       const t = trialState();
       if (t.expired && !document.body.classList.contains('readonly-mode')) {
         const g = ensureExpiryGate();
