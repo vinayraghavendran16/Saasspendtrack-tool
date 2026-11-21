@@ -1,4 +1,4 @@
-import { requireEntitledRole, rateLimit } from '../_shared/util.js';
+import { requireEntitledRole, rateLimit, upstreamMessage } from '../_shared/util.js';
 // Cloudflare Pages Function - POST /api/renewal-guide
 // Produces a vendor renewal/cancellation guide grounded in LIVE web search, so
 // it reflects terms valid at request time and never relies on model memory.
@@ -78,8 +78,8 @@ STRICT RULES - accuracy over completeness:
     });
     if (!r.ok) {
       const errText = await r.text().catch(() => "");
-      let apiMessage = ""; try { apiMessage = JSON.parse(errText)?.error?.message || ""; } catch (_) {}
-      return new Response(JSON.stringify({ ok: false, error: "upstream", message: apiMessage || errText.slice(0, 400) }), { status: 200, headers });
+      console.error("[renewal-guide] upstream error", r.status, errText.slice(0, 500));
+      return new Response(JSON.stringify({ ok: false, error: "upstream", message: upstreamMessage(r.status) }), { status: 200, headers });
     }
     const data = await r.json();
     const blocks = data.content || [];
@@ -99,6 +99,7 @@ STRICT RULES - accuracy over completeness:
     if (!guide) return new Response(JSON.stringify({ ok: false, error: "no_guide", message: "Could not produce a verified guide." }), { status: 200, headers });
     return new Response(JSON.stringify({ ok: true, vendor, guide, sources, checkedAt: new Date().toISOString(), model }), { status: 200, headers });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }), { status: 200, headers });
+    console.error("[renewal-guide] exception", String((e && e.stack) || (e && e.message) || e));
+    return new Response(JSON.stringify({ ok: false, error: "exception", message: "Something went wrong building that guide. Please try again." }), { status: 200, headers });
   }
 }

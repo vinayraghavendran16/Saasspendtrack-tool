@@ -382,6 +382,13 @@ ok(meb.account && meb.account.id === 'A' && meb.account.role === 'member' && meb
 p2res = await ME.onRequestGet({ request: p2req, env: acctEnv(p2owner, p2memOwner, p2acct, {}) });
 ok((await p2res.json()).account.isOwner === true, 'me marks owner isOwner');
 
+// ---- upstreamMessage: safe AI-error mapping, never echoes raw provider text ----
+ok(/rate-limited/i.test(U.upstreamMessage(429)), 'upstreamMessage 429 -> rate-limited');
+ok(/overloaded/i.test(U.upstreamMessage(529)), 'upstreamMessage 529 -> overloaded');
+ok(/rejected/i.test(U.upstreamMessage(401)) && /rejected/i.test(U.upstreamMessage(403)), 'upstreamMessage 401/403 -> rejected');
+ok(/error/i.test(U.upstreamMessage(500)) && /error/i.test(U.upstreamMessage(503)), 'upstreamMessage 5xx -> error');
+ok(typeof U.upstreamMessage(418) === 'string' && U.upstreamMessage(418).length > 0, 'upstreamMessage unknown -> non-empty generic');
+
 // ---- result ----
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
