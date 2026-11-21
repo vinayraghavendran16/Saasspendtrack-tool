@@ -858,6 +858,36 @@ footer .link { font-size: 12px; }
 
 .rc-foot { display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex-wrap: wrap; }
 .rc-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.rc-card { cursor: pointer; }
+.rc-card:hover { border-color: var(--accent); }
+.rc-detail-cue { margin-top: 10px; font-size: 11.5px; font-weight: 600; color: var(--accent); opacity: .85; }
+.rc-card:hover .rc-detail-cue { opacity: 1; }
+/* Renewal plan detail modal */
+.rcd-overlay { position: fixed; inset: 0; z-index: 9000; display: none; align-items: flex-start; justify-content: center; background: rgba(8,11,18,0.55); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); padding: 40px 16px; overflow: auto; }
+.rcd-overlay.show { display: flex; }
+.rcd-card { position: relative; width: 100%; max-width: 760px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 24px 26px; }
+.rcd-close { position: absolute; top: 12px; right: 14px; background: none; border: none; font-size: 22px; line-height: 1; color: var(--text-dim); cursor: pointer; }
+.rcd-close:hover { color: var(--text); }
+.rcd-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.rcd-head h3 { margin: 0; font-size: 18px; }
+.rcd-subline { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+.rcd-section { margin-bottom: 18px; }
+.rcd-section h4 { margin: 0 0 10px; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-dim); }
+.rcd-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 640px) { .rcd-cols { grid-template-columns: 1fr; } }
+.rcd-party { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.rcd-party:last-child { border-bottom: none; }
+.rcd-role { color: var(--text-dim); font-weight: 600; flex: none; }
+.rcd-person { text-align: right; }
+.rcd-muted { color: var(--text-faint); }
+.rcd-timeline { position: relative; }
+.rcd-tl-item { display: flex; gap: 12px; align-items: flex-start; padding: 0 0 14px 4px; position: relative; }
+.rcd-tl-item:not(:last-child)::before { content: ''; position: absolute; left: 7px; top: 14px; bottom: -2px; width: 2px; background: var(--border); }
+.rcd-tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--border); flex: none; margin-top: 2px; z-index: 1; }
+.rcd-tl-item.urgent .rcd-tl-dot { background: var(--danger); }
+.rcd-tl-label { font-size: 13px; font-weight: 600; }
+.rcd-tl-date { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+.rcd-foot { margin-top: 6px; display: flex; justify-content: flex-end; }
 .rc-act { height: 28px; padding: 0 10px; font-size: 11.5px; }
 .rc-act-primary { background: var(--ink); color: #fff; border-color: var(--ink); }
 .rc-act-primary:hover { background: var(--ink-hover); color: #fff; border-color: var(--ink-hover); }
@@ -10227,6 +10257,7 @@ function renewalCard({ s, renewal, win, risk, ev, deviations, lane, decision }) 
         <button class="icon-btn danger rc-act" data-rc-act="cancel" data-rc-sub="${s.id}" title="Cancel at renewal">Cancel</button>
       </div>`}
     </div>
+    <div class="rc-detail-cue">Open the plan: next best action · parties · timeline →</div>
   </div>`;
 }
 
@@ -10319,7 +10350,79 @@ function renderRenewalCenter() {
     clearRenewalDecision(btn.dataset.rcClear);
     toast('Decision cleared.', 'success');
   }));
+  // Whole card is a hyperlink to its renewal plan, except the action controls and
+  // the vendor link inside it.
+  host.querySelectorAll('.rc-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('button, a, .link, [data-rc-act], [data-rc-clear], [data-vendor-nav]')) return;
+      if (card.dataset.rcSub) openRenewalDetail(card.dataset.rcSub);
+    });
+  });
 }
+
+/* Renewal plan detail: next best action, the parties who can move it, and the key
+   dates on one timeline. Opened by clicking a renewal card. */
+function openRenewalDetail(id) {
+  const sub = state.subscriptions.find(s => s.id === id); if (!sub) return;
+  const win = (typeof computeNoticeWindow === 'function') ? computeNoticeWindow(sub) : null;
+  const annual = monthlyCost(sub) * 12;
+  const person = (p, role) => {
+    const name = (p && p.name) || '', email = (p && p.email) || '';
+    const body = (!name && !email)
+      ? '<span class="rcd-muted">not assigned</span>'
+      : [name ? escapeHtml(name) : '', email ? `<a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>` : ''].filter(Boolean).join(' · ');
+    return `<div class="rcd-party"><span class="rcd-role">${role}</span><span class="rcd-person">${body}</span></div>`;
+  };
+  const st = sub.stakeholders || {};
+  const parties = [
+    person(sub.owner, 'Owner'),
+    person(sub.manager, 'Escalation'),
+    person(st.infosec, 'InfoSec'),
+    person(st.legal, 'Legal'),
+    person(st.procurement, 'Procurement'),
+    person(sub.contactBook, 'Vendor (AE/CSM)'),
+  ].join('');
+  const fmt = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+  const rel = (d) => { if (!d) return ''; const days = Math.round((new Date(d) - new Date()) / 86400000); return days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? 'today' : `in ${days}d`; };
+  const renewISO = (typeof nextRenewalISO === 'function' && sub.renewal) ? nextRenewalISO(sub) : sub.renewal;
+  const tItems = [];
+  if (sub.startDate) tItems.push({ t: new Date(sub.startDate), label: 'Contract start', date: sub.startDate });
+  if (win && win.cancelBy) tItems.push({ t: win.cancelBy, label: 'Notice deadline (act by)', date: win.cancelBy, urgent: win.daysLeft != null && win.daysLeft <= 14 });
+  if (renewISO) tItems.push({ t: new Date(renewISO), label: 'Renews', date: renewISO });
+  if (sub.endDate) tItems.push({ t: new Date(sub.endDate), label: 'Contract end', date: sub.endDate });
+  tItems.sort((a, b) => a.t - b.t);
+  const timeline = tItems.length
+    ? tItems.map(it => `<div class="rcd-tl-item ${it.urgent ? 'urgent' : ''}"><span class="rcd-tl-dot"></span><div><div class="rcd-tl-label">${it.label}</div><div class="rcd-tl-date">${fmt(it.date)} · ${rel(it.date)}</div></div></div>`).join('')
+    : '<p class="rcd-muted">No contract dates on file yet. Add start/end dates and notice terms on the subscription to build the timeline.</p>';
+
+  let ov = document.getElementById('rc-detail-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'rc-detail-overlay';
+    ov.className = 'rcd-overlay';
+    ov.innerHTML = '<div class="rcd-card" role="dialog" aria-modal="true"><button class="rcd-close" aria-label="Close">×</button><div class="rcd-content"></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => { if (e.target === ov) closeRenewalDetail(); });
+    ov.querySelector('.rcd-close').addEventListener('click', closeRenewalDetail);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeRenewalDetail(); });
+  }
+  ov.querySelector('.rcd-content').innerHTML = `
+    <div class="rcd-head">
+      <div class="avatar" style="background:${avatarColor(sub.name)}">${initials(sub.name)}</div>
+      <div><h3>${escapeHtml(sub.name)}</h3><div class="rcd-subline">${escapeHtml(sub.team || '-')} · ${escapeHtml(sub.category || '-')} · ${formatMoney(annual)}/yr</div></div>
+    </div>
+    <div class="rcd-section rcd-nba">${nextBestActionHtml(sub)}</div>
+    <div class="rcd-cols">
+      <div class="rcd-section"><h4>Parties involved</h4><div class="rcd-parties">${parties}</div></div>
+      <div class="rcd-section"><h4>Timeline</h4><div class="rcd-timeline">${timeline}</div></div>
+    </div>
+    <div class="rcd-foot"><button class="icon-btn" id="rcd-edit">Open full record</button></div>
+  `;
+  const editBtn = ov.querySelector('#rcd-edit');
+  if (editBtn) editBtn.onclick = () => { closeRenewalDetail(); try { openModal(sub.id); } catch (_) {} };
+  ov.classList.add('show');
+}
+function closeRenewalDetail() { const ov = document.getElementById('rc-detail-overlay'); if (ov) ov.classList.remove('show'); }
 
 /* ---------------- Patch nav + view ---------------- */
 function ensureRenewalCenterView() {
