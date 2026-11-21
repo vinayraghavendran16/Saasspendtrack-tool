@@ -15,5 +15,5 @@ jobs:
           node-version: '22'
       - name: Syntax-check all Pages Functions
         run: for f in $(find functions -name '*.js'); do node --check "$f" || exit 1; done
-      - name: Run unit tests (auth, entitlement, rate limit, SSRF, data)
-        run: node tests/unit.mjs
+      - name: Run complete test suite
+        run: npm test
