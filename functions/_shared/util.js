@@ -17,6 +17,19 @@ export function json(data, status = 200, headers = {}) {
 export function badRequest(msg) { return json({ error: msg }, 400); }
 export function unauthorized(msg = 'unauthorized') { return json({ error: msg }, 401); }
 
+// Safe, user-facing message for an upstream (AI provider) failure. Maps the HTTP
+// status to a generic-but-useful hint WITHOUT echoing the provider's raw error
+// body to the client (log that server-side instead). Keeps the "retry vs config"
+// distinction the UI relies on.
+export function upstreamMessage(status) {
+  if (status === 429) return 'The AI service is rate-limited right now. Try again in a moment.';
+  if (status === 529) return 'The AI service is temporarily overloaded. Try again shortly.';
+  if (status === 401 || status === 403) return 'The AI service rejected the request. Please contact support if this persists.';
+  if (status === 400 || status === 422) return "The AI service couldn't process that request.";
+  if (status >= 500) return 'The AI service had an error. Try again shortly.';
+  return 'The AI service is unavailable right now. Try again shortly.';
+}
+
 // --- crypto helpers (Web Crypto, available in the Workers runtime) ---
 
 export function randomToken(bytes = 32) {

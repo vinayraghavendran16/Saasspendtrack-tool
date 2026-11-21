@@ -1,4 +1,4 @@
-import { requireEntitledRole, rateLimit } from '../_shared/util.js';
+import { requireEntitledRole, rateLimit, upstreamMessage } from '../_shared/util.js';
 // Cloudflare Pages Function - POST /api/extract
 // World-class contract extraction: sends contract text to the Anthropic API
 // and returns structured, schema-validated facts via tool use.
@@ -143,11 +143,10 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS });
 }
 
-// GET /api/extract            → health: is the key visible, which model.
-// GET /api/extract?test=1     → also runs a minimal Anthropic call and reports
-//                               the upstream status + a short body snippet, so
-//                               we can see exactly why the main path fails.
+// GET /api/extract  → health only: whether the Anthropic key is configured.
 // Minimal, safe health check - no secrets, no model list, no billable calls.
+// Upstream failures on the POST path are logged server-side and returned to the
+// client as a generic message (see upstreamMessage); raw provider text is never echoed.
 export async function onRequestGet({ env }) {
   const headers = { ...CORS, "Content-Type": "application/json" };
   return new Response(JSON.stringify({ ok: true, configured: !!env.ANTHROPIC_API_KEY }), { status: 200, headers });
@@ -204,13 +203,12 @@ export async function onRequestPost({ request, env }) {
     });
     if (!r.ok) {
       const errText = await r.text().catch(() => "");
-      let apiMessage = "";
-      try { apiMessage = JSON.parse(errText)?.error?.message || ""; } catch (_) {}
+      console.error("[extract] upstream error", r.status, errText.slice(0, 500));
       // Use HTTP 200 with ok:false: Cloudflare replaces real 5xx responses with
       // its own HTML error page, which the client can't parse. The client keys
       // off the JSON body's ok flag, not the HTTP status.
       return new Response(
-        JSON.stringify({ ok: false, error: "upstream", upstream_status: r.status, message: apiMessage || errText.slice(0, 400) }),
+        JSON.stringify({ ok: false, error: "upstream", upstream_status: r.status, message: upstreamMessage(r.status) }),
         { status: 200, headers }
       );
     }
@@ -232,8 +230,9 @@ export async function onRequestPost({ request, env }) {
       { status: 200, headers }
     );
   } catch (e) {
+    console.error("[extract] exception", String((e && e.stack) || (e && e.message) || e));
     return new Response(
-      JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }),
+      JSON.stringify({ ok: false, error: "exception", message: "Something went wrong reading that contract. Please try again." }),
       { status: 200, headers }
     );
   }
