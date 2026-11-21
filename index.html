@@ -804,6 +804,12 @@ footer .link { font-size: 12px; }
 
 /* ================================================================ Phase 4: Renewal Command Center */
 .rc-filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 16px; }
+.dash-filter-bar { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; padding: 10px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 16px; }
+.dash-filter-bar .dfb-label { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-dim); align-self: center; }
+.dash-filter-bar label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 500; color: var(--text-2); }
+.dash-filter-bar select { min-width: 150px; }
+.dash-filter-bar .dfb-note { align-self: center; font-size: 12px; color: var(--text-dim); margin-left: auto; }
+.dash-filter-bar #dfb-clear { align-self: center; }
 .rc-select { height: 32px; padding: 0 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--panel); color: var(--text); font-size: 12.5px; font-family: inherit; }
 .rc-select:focus { outline: none; border-color: var(--accent); }
 
@@ -2816,6 +2822,27 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
       </button>
     </div>
 
+    <div class="dash-filter-bar" id="dash-filter-bar">
+      <span class="dfb-label">Spend breakdown</span>
+      <label>Period
+        <select id="dfb-range">
+          <option value="all">All time</option>
+          <option value="mtd">This month</option>
+          <option value="qtd">This quarter</option>
+          <option value="ytd">This year</option>
+          <option value="12m">Last 12 months</option>
+        </select>
+      </label>
+      <label>Department
+        <select id="dfb-dept"><option value="">All departments</option></select>
+      </label>
+      <label>Category
+        <select id="dfb-cat"><option value="">All categories</option></select>
+      </label>
+      <button type="button" class="icon-btn" id="dfb-clear" hidden>Clear filters</button>
+      <span class="dfb-note" id="dfb-note"></span>
+    </div>
+
     <div class="panel-grid">
       <div class="panel span-2">
         <h2>Notice windows</h2>
@@ -4594,9 +4621,80 @@ function renderDashboardEmptyState() {
   });
 }
 
+/* -------- Dashboard spend-breakdown filters (period / department / category) --------
+   These scope the Spend-by-category, Spend-by-team and Vendor-totals panels only.
+   Date range includes a subscription whose contract term overlaps the window (run-rate
+   subs with no term dates are ongoing and always count), and scopes the vendor-totals
+   invoice columns to invoices dated within the window. The headline KPI cards stay on
+   the full active book. */
+function dashFilters() {
+  const f = (state.settings && state.settings.dashFilters) || {};
+  return { range: f.range || 'all', dept: f.dept || '', cat: f.cat || '' };
+}
+function setDashFilters(patch) {
+  if (!state.settings) state.settings = {};
+  state.settings.dashFilters = Object.assign({}, dashFilters(), patch);
+  save();
+  renderDashboard();
+}
+function dashRangeDates(range) {
+  const now = new Date();
+  if (range === 'mtd') return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
+  if (range === 'qtd') { const q = Math.floor(now.getMonth() / 3) * 3; return { start: new Date(now.getFullYear(), q, 1), end: now }; }
+  if (range === 'ytd') return { start: new Date(now.getFullYear(), 0, 1), end: now };
+  if (range === '12m') { const s = new Date(now); s.setFullYear(s.getFullYear() - 1); return { start: s, end: now }; }
+  return null;
+}
+function subInDashRange(s, r) {
+  if (!r) return true;
+  const start = s.startDate ? parseDate(s.startDate) : null;
+  const end = s.endDate ? parseDate(s.endDate) : null;
+  if (!start && !end) return true;
+  if (start && start > r.end) return false;
+  if (end && end < r.start) return false;
+  return true;
+}
+function passesDashFilters(s, f, r) {
+  if (f.dept && (s.department || '') !== f.dept) return false;
+  if (f.cat && (s.category || '') !== f.cat) return false;
+  return subInDashRange(s, r);
+}
+function invInDashRange(i, r) {
+  if (!r) return true;
+  const d = parseDate(i.paidDate || i.dueDate || i.issueDate);
+  if (!d) return true;
+  return d >= r.start && d <= r.end;
+}
+function ensureDashFilterControls() {
+  const rangeSel = document.getElementById('dfb-range');
+  const deptSel = document.getElementById('dfb-dept');
+  const catSel = document.getElementById('dfb-cat');
+  if (!rangeSel || !deptSel || !catSel) return;
+  const f = dashFilters();
+  const depts = [...new Set(state.subscriptions.map(s => s.department).filter(Boolean))].sort();
+  const cats = [...new Set(state.subscriptions.map(s => s.category).filter(Boolean))].sort();
+  deptSel.innerHTML = '<option value="">All departments</option>' + depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+  catSel.innerHTML = '<option value="">All categories</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  rangeSel.value = f.range; deptSel.value = f.dept; catSel.value = f.cat;
+  if (!rangeSel.dataset.wired) {
+    rangeSel.dataset.wired = '1';
+    rangeSel.addEventListener('change', () => setDashFilters({ range: rangeSel.value }));
+    deptSel.addEventListener('change', () => setDashFilters({ dept: deptSel.value }));
+    catSel.addEventListener('change', () => setDashFilters({ cat: catSel.value }));
+    const clr = document.getElementById('dfb-clear');
+    if (clr) clr.addEventListener('click', () => setDashFilters({ range: 'all', dept: '', cat: '' }));
+  }
+  const anyActive = f.range !== 'all' || f.dept || f.cat;
+  const clr = document.getElementById('dfb-clear'); if (clr) clr.hidden = !anyActive;
+}
+
 function renderDashboard() {
   renderDashboardEmptyState();
   const active = activeSubs();
+  const _df = dashFilters();
+  const _dr = dashRangeDates(_df.range);
+  const dashSubs = active.filter(s => passesDashFilters(s, _df, _dr));
+  ensureDashFilterControls();
   const totalMonthly = active.reduce((sum, s) => sum + monthlyCost(s), 0);
   const totalAnnual = totalMonthly * 12;
   const paused = state.subscriptions.length - active.length;
@@ -4621,9 +4719,15 @@ function renderDashboard() {
 
   const withDates = active.filter(s => s.renewal).map(s => ({ s, next: nextRenewalISO(s) })).sort((a,b) => parseDate(a.next) - parseDate(b.next));
 
-  // Category chart
+  // Category chart (scoped by the dashboard spend filters)
+  const noteEl = document.getElementById('dfb-note');
+  if (noteEl) {
+    const anyActive = _df.range !== 'all' || _df.dept || _df.cat;
+    const filteredMonthly = dashSubs.reduce((sum, s) => sum + monthlyCost(s), 0);
+    noteEl.textContent = anyActive ? `${dashSubs.length} of ${active.length} vendors · ${formatMoney(filteredMonthly)}/mo` : '';
+  }
   const byCat = {};
-  active.forEach(s => {
+  dashSubs.forEach(s => {
     const c = s.category || 'Uncategorized';
     byCat[c] = (byCat[c] || 0) + monthlyCost(s);
   });
@@ -4638,9 +4742,9 @@ function renderDashboard() {
     </div>
   `).join('') : '<p class="empty" style="padding:20px 0">Add subscriptions to see the breakdown.</p>';
 
-  // Team chart
+  // Team chart (scoped by the dashboard spend filters)
   const byTeam = {};
-  active.forEach(s => {
+  dashSubs.forEach(s => {
     const t = s.team || 'Unassigned';
     byTeam[t] = (byTeam[t] || 0) + monthlyCost(s);
   });
@@ -4882,12 +4986,17 @@ function renderVendorTotals() {
   const empty = document.getElementById('vendor-empty');
   if (!state.subscriptions.length) {
     tbody.innerHTML = '';
+    empty.textContent = 'No vendors yet.';
     empty.style.display = 'block';
     return;
   }
+  const _vf = dashFilters();
+  const _vr = dashRangeDates(_vf.range);
+  const vendorSubs = state.subscriptions.filter(s => passesDashFilters(s, _vf, _vr));
+  if (!vendorSubs.length) { tbody.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'No vendors match the current filters.'; return; }
   empty.style.display = 'none';
-  const rows = state.subscriptions.map(s => {
-    const invs = state.invoices.filter(i => i.subId === s.id);
+  const rows = vendorSubs.map(s => {
+    const invs = state.invoices.filter(i => i.subId === s.id && invInDashRange(i, _vr));
     const paid = invs.filter(i => i.paidDate).reduce((sum, i) => sum + i.amount, 0);
     const pend = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + i.amount, 0);
     const monthly = monthlyCost(s);
