@@ -9427,7 +9427,10 @@ async function exportToPdf(elementId, title) {
   if (!source) { toast('Nothing to export yet.', 'error'); return; }
   // Clone the element so we can strip interactive chrome without disturbing the live UI
   const clone = source.cloneNode(true);
-  clone.querySelectorAll('button, .icon-btn, .ms-btn, .filter-bar .ms, [data-pdf-export], [data-vendor-nav]').forEach(el => el.remove());
+  // Strip interactive chrome, but keep content tiles that happen to be buttons:
+  // the dashboard KPI cards (.stat-card) and the Notice-window cards (.notice-card)
+  // are real report content, not controls, so they must survive into the PDF.
+  clone.querySelectorAll('button:not(.stat-card):not(.notice-card), .icon-btn, .ms-btn, .filter-bar .ms, [data-pdf-export], [data-vendor-nav]').forEach(el => el.remove());
   const now = new Date();
   const r = rangeToDates(analyticsRange());
   const header = document.createElement('div');
