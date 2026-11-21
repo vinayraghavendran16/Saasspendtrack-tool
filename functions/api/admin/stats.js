@@ -22,7 +22,7 @@ export async function onRequestGet({ request, env }) {
 
   const admins = adminSet(env);
   const users = ((await env.DB.prepare('SELECT * FROM users').all()).results || [])
-    .filter((u) => !admins.has(String(u.email).toLowerCase()));
+    .filter((u) => !admins.has(String(u.email || '').trim().toLowerCase()));
   const emailRows = (await env.DB.prepare(
     'SELECT kind, COUNT(*) c FROM email_log GROUP BY kind',
   ).all()).results || [];

@@ -117,6 +117,40 @@ test('preserves original dashboard totals', async () => {
 });
 
 
+test('excludes admin trial accounts even with whitespace in stored email', async () => {
+  const adminTrial = {
+    email: '  OWNER@COMPANY.COM  ',
+    status: 'trial',
+    created_at: now - 1000,
+    trial_ends_at: now + 86400000,
+    last_login_at: now - 5000
+  };
+
+  users.push(adminTrial);
+
+  try {
+    const response = await onRequestGet({
+      request: request('sst_session=valid-session'),
+      env
+    });
+
+    assert.equal(response.status, 200);
+
+    const data = await response.json();
+
+    assert.equal(data.totals.totalTrials, 2);
+    assert.equal(data.workEmailPipeline.activeWorkEmailTrials, 1);
+    assert.equal(data.workEmailPipeline.verifiedWorkEmailTrials, 1);
+    assert.equal(data.workEmailPipeline.potentialAnnualINR, 300000);
+    assert.equal(
+      data.recent.some(r => r.email === adminTrial.email),
+      false
+    );
+  } finally {
+    users.pop();
+  }
+});
+
 test('rejects authenticated non-admin users', async () => {
   const response = await onRequestGet({
     request: request('sst_session=member-session'),
