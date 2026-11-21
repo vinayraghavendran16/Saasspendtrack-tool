@@ -1178,6 +1178,13 @@ html.owner-only #owner { display: block !important; }
 .contract-processing { display:none; align-items:center; gap:10px; background: var(--accent-soft); border:1px solid var(--accent); color: var(--accent); border-radius:10px; padding:11px 14px; margin:0 0 14px; font-size:13px; font-weight:500; }
 .cp-spin { width:15px; height:15px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation: cp-spin .7s linear infinite; flex:0 0 auto; }
 @keyframes cp-spin { to { transform: rotate(360deg); } }
+/* Full-app blocking overlay shown while a contract is being read/ingested, so no
+   other action can be taken until it finishes. The scrim captures all pointer
+   events; a fail-safe timer always clears it even if a read hangs. */
+.ingest-block-overlay { position: fixed; inset: 0; z-index: 99999; display: none; align-items: center; justify-content: center; background: rgba(8,11,18,0.55); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.ingest-block-overlay.show { display: flex; }
+.ingest-block-card { display: flex; align-items: center; gap: 14px; background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; box-shadow: var(--shadow-md); max-width: 90vw; font-size: 14px; font-weight: 500; }
+.ingest-block-spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid var(--border); border-top-color: var(--accent); animation: cp-spin .7s linear infinite; flex: none; }
 
 /* AI extraction toggle in the Contracts header */
 .ai-extract-toggle { display:inline-flex; align-items:center; gap:5px; font-size:12px; color: var(--text-dim); cursor:pointer; padding:0 6px; border:1px solid var(--border); border-radius:8px; height:30px; }
@@ -8074,8 +8081,41 @@ function setContractProcessing(msg) {
   }
   el.innerHTML = `<span class="cp-spin" aria-hidden="true"></span><span>${escapeHtml(msg)}</span>`;
   el.style.display = 'flex';
+  ingestBlock(msg);
 }
-function clearContractProcessing() { const el = document.getElementById('contract-processing'); if (el) el.style.display = 'none'; }
+function clearContractProcessing() { const el = document.getElementById('contract-processing'); if (el) el.style.display = 'none'; ingestUnblock(); }
+
+// Block every other action in the app while a contract is being read/ingested.
+// A full-viewport scrim swallows all clicks and keypresses behind it; a fail-safe
+// timer always releases the block so a hung read can never lock the app for good.
+function ingestBlock(msg) {
+  let ov = document.getElementById('ingest-block');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'ingest-block';
+    ov.className = 'ingest-block-overlay';
+    ov.setAttribute('role', 'alertdialog');
+    ov.setAttribute('aria-busy', 'true');
+    ov.setAttribute('aria-live', 'assertive');
+    ov.innerHTML = '<div class="ingest-block-card"><span class="ingest-block-spin" aria-hidden="true"></span><span id="ingest-block-msg"></span></div>';
+    document.body.appendChild(ov);
+    // Swallow interactions that reach the scrim (keyboard included), belt-and-braces.
+    const swallow = (e) => { e.stopPropagation(); if (e.type === 'keydown' && e.key !== 'Tab') e.preventDefault(); };
+    ov.addEventListener('click', (e) => e.stopPropagation(), true);
+    ov.addEventListener('keydown', swallow, true);
+  }
+  const m = ov.querySelector('#ingest-block-msg'); if (m) m.textContent = msg;
+  ov.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  clearTimeout(window._ingestBlockTimer);
+  window._ingestBlockTimer = setTimeout(ingestUnblock, 90000); // fail-safe release
+}
+function ingestUnblock() {
+  clearTimeout(window._ingestBlockTimer);
+  const ov = document.getElementById('ingest-block');
+  if (ov) ov.classList.remove('show');
+  document.body.style.overflow = '';
+}
 
 /* ================= Deal-fact extraction (beyond legal clauses) =================
    Order forms, quotes and MSAs carry the practical fields a buyer actually
