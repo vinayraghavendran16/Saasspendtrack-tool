@@ -6591,7 +6591,11 @@ const VIEWS = ['command-centre', 'dashboard', 'subscriptions', 'invoices', 'cons
 
 function defaultLandingView() {
   const blank = !(state.subscriptions && state.subscriptions.length);
-  return (blank && !(state.settings && state.settings.ccDismissed)) ? 'command-centre' : 'dashboard';
+  const demo = typeof isDemoMode === 'function' && isDemoMode();
+  const dismissed = state.settings && state.settings.ccDismissed;
+  // Trials (sample/preset data loaded) and empty workspaces start on the Command
+  // Centre; once the user has their own data and/or dismisses CC, land on Dashboard.
+  return (!dismissed && (blank || demo)) ? 'command-centre' : 'dashboard';
 }
 function switchView(name, opts = {}) {
   if (!VIEWS.includes(name)) name = 'dashboard';
@@ -19484,13 +19488,15 @@ function makeFloatable(el, key, opts) {
     const r = el.getBoundingClientRect();
     sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
     dragging = true; moved = false;
-    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    // NB: do NOT capture the pointer here. Capturing on pointerdown retargets the
+    // follow-up click to this container, so clicks on child buttons (the "Get
+    // started" header, CTAs, dismiss) never fire. Capture only once a drag starts.
   });
   el.addEventListener('pointermove', (e) => {
     if (!dragging) return;
     const dx = e.clientX - sx, dy = e.clientY - sy;
     if (!moved && Math.hypot(dx, dy) < 4) return;
-    moved = true; el.classList.add('float-dragging');
+    if (!moved) { moved = true; el.classList.add('float-dragging'); try { el.setPointerCapture(e.pointerId); } catch (_) {} }
     applyFloatPos(el, ox + dx, oy + dy);
     e.preventDefault();
   });
