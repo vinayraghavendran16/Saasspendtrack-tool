@@ -5197,15 +5197,29 @@ function renderUrgencyStrip() {
   const alerts = computeAlerts();
   const escalatedAlerts = alerts.filter(a => a.status === 'escalated').length;
   const awaitingAck = alerts.filter(a => a.status === 'sent').length;
-  if (overdueCount)     chips.push({ tier: 'danger', view: 'invoices', txt: `${overdueCount} overdue` });
-  if (escalatedAlerts)  chips.push({ tier: 'danger', view: 'alerts',   txt: `${escalatedAlerts} escalated` });
-  if (awaitingAck)      chips.push({ tier: 'warn',   view: 'alerts',   txt: `${awaitingAck} awaiting ack` });
-  if (urgentNotice)     chips.push({ tier: 'warn',   view: 'dashboard',txt: `${urgentNotice} act-by soon` });
-  if (dueSoon)          chips.push({ tier: 'warn',   view: 'invoices', txt: `${dueSoon} due in 7d` });
+  if (overdueCount)     chips.push({ tier: 'danger', view: 'invoices', filter: 'overdue',   txt: `${overdueCount} overdue` });
+  if (escalatedAlerts)  chips.push({ tier: 'danger', view: 'alerts',   filter: 'escalated', txt: `${escalatedAlerts} escalated` });
+  if (awaitingAck)      chips.push({ tier: 'warn',   view: 'alerts',   filter: 'sent',      txt: `${awaitingAck} awaiting ack` });
+  if (urgentNotice)     chips.push({ tier: 'warn',   view: 'renewals', filter: 'critical',  txt: `${urgentNotice} act-by soon` });
+  if (dueSoon)          chips.push({ tier: 'warn',   view: 'invoices', filter: 'pending',   txt: `${dueSoon} due in 7d` });
   const wastedMonthly = state.subscriptions.reduce((s, sub) => { const c = consumption(sub); return s + (c ? c.unusedCostMonthly : 0); }, 0);
   if (wastedMonthly > 0) chips.push({ tier: 'warn', view: 'consumption', txt: `${formatMoney(wastedMonthly)}/mo wasted` });
-  strip.innerHTML = chips.map(c => `<button class="urgency-chip ${c.tier}" data-goto="${c.view}"><span class="dot"></span>${c.txt}</button>`).join('');
-  strip.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => switchView(b.dataset.goto));
+  strip.innerHTML = chips.map(c => `<button class="urgency-chip ${c.tier}" data-goto="${c.view}" data-filter="${c.filter || ''}"><span class="dot"></span>${c.txt}</button>`).join('');
+  strip.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => jumpToFiltered(b.dataset.goto, b.dataset.filter));
+}
+
+/* Navigate to a view AND apply the filter that matches the tile the user clicked,
+   so "4 escalated" opens Alerts showing only the escalated ones (not every record). */
+function jumpToFiltered(view, value) {
+  switchView(view);
+  if (!value) return;
+  setTimeout(() => {
+    try {
+      if (view === 'alerts') { const s = document.getElementById('alert-filter'); if (s) { s.value = value; renderAlerts(); } }
+      else if (view === 'invoices') { const s = document.getElementById('inv-filter-status'); if (s) { s.value = value; renderInvoices(); } }
+      else if (view === 'renewals') { if (typeof setRenewalFilters === 'function') setRenewalFilters({ lane: value }); }
+    } catch (_) {}
+  }, 0);
 }
 
 // -------- modal --------
