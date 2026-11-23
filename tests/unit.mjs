@@ -53,6 +53,8 @@ r = await U.rateLimit(rlEnv, 'k', 3, 1000);
 ok(!r.ok && r.count === 4, 'over limit blocked');
 r = await U.rateLimit({ DB: { prepare: () => { throw new Error('x'); } } }, 'k', 1, 1000);
 ok(r.ok, 'rate limiter fails open on error');
+r = await U.rateLimit({ DB: { prepare: () => { throw new Error('D1 down'); } } }, 'auth:login', 1, 1000, { failClosed: true });
+ok(!r.ok && r.unavailable === true, 'security rate limiter fails closed on D1 error');
 
 // ---- data endpoint (entitled-gated writes) ----
 section('data endpoint');
