@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { onRequestGet as verify } from '../functions/api/auth/verify.js';
-import { onRequestPost as extract } from '../functions/api/extract.js';
 
 const token = 'test-token';
 const { sha256Hex } = await import('../functions/_shared/util.js');
