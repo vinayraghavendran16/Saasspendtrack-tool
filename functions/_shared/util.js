@@ -106,9 +106,9 @@ export function isAdmin(env, email) {
   return list.includes(email.toLowerCase());
 }
 
-// Fixed-window rate limiter backed by D1. Fails OPEN on any error so a limiter
-// problem never blocks real users.
-export async function rateLimit(env, key, limit, windowMs) {
+// Fixed-window D1 rate limiter. Security-sensitive callers opt into fail-closed
+// behavior so a counter/storage fault never becomes an abuse-control bypass.
+export async function rateLimit(env, key, limit, windowMs, { failClosed = false } = {}) {
   const t = now();
   const threshold = t - windowMs;
   try {
@@ -122,7 +122,7 @@ export async function rateLimit(env, key, limit, windowMs) {
     const count = row ? row.count : 1;
     return { ok: count <= limit, count, limit };
   } catch (_) {
-    return { ok: true, count: 0, limit };
+    return { ok: !failClosed, count: 0, limit, unavailable: true };
   }
 }
 
