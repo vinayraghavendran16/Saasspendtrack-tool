@@ -21,3 +21,4 @@ jobs:
       - run: node tests/security-regression.mjs
       - run: node tests/workspace-isolation.mjs
       - run: python3 tests/migration-smoke.py
+      - run: node tests/ai-consent.mjs
