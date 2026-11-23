@@ -19,3 +19,4 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: node tests/security-regression.mjs
+      - run: node tests/workspace-isolation.mjs
