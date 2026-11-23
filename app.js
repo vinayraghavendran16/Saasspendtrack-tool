@@ -1,6 +1,7 @@
 // SaaS Spend Track - vanilla JS app with localStorage persistence.
 
-const STORAGE_KEY = 'saasspendtrack.v1';
+const STORAGE_KEY = 'saasspendtrack.v1'; // Legacy data: read-only until explicit import.
+const UNSYNCED_DRAFT_KEY = 'saasspendtrack.unsynced-draft.v1'; // Recovery only, never auto-hydrate.
 const CYCLE_MONTHS = { weekly: 1/4.345, monthly: 1, quarterly: 3, yearly: 12 };
 const AVATAR_COLORS = ['#7c5cff', '#35d0ba', '#ff8a4c', '#4cb1ff', '#ff5c7a', '#ffb545', '#a374ff', '#4cd3ff'];
 
@@ -107,7 +108,13 @@ let _serverSaveInFlight = false;
 let _localEditCounter = 0;
 function save() {
   _localEditCounter++;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
+  // Never overwrite the legacy cache. It may belong to another account or
+  // contain unreviewed currencies. Keep an isolated recovery draft instead.
+  // Drafts are never auto-displayed or uploaded to a newly signed-in workspace.
+  try { localStorage.setItem(UNSYNCED_DRAFT_KEY, JSON.stringify({
+    savedAt: new Date().toISOString(), data: state, serverVersion: _serverVersion,
+    verifiedWorkspace: _serverHydrated,
+  })); } catch (_) {}
   if (_serverHydrated && !_serverSaveBlocked) scheduleServerSave();
 }
 
@@ -145,7 +152,9 @@ async function pushServerSave() {
       return;
     }
     _serverVersion = saved.version;
-    if (editRevision !== _localEditCounter) scheduleServerSave();
+    if (editRevision === _localEditCounter) {
+      try { localStorage.removeItem(UNSYNCED_DRAFT_KEY); } catch (_) {}
+    } else scheduleServerSave();
   } catch (_) {
     toast('Workspace changes are not synced. Your browser copy is preserved.', 'error');
   } finally {
@@ -153,8 +162,8 @@ async function pushServerSave() {
   }
 }
 
-// Pull the authoritative copy from the server after first paint. If the server
-// has nothing yet (new account / first device), seed it from the local cache.
+// Pull the authoritative copy from the server. Never seed a workspace from
+// unverified local browser data; legacy imports require explicit review.
 async function syncFromServer() {
   const editsAtStart = _localEditCounter;
   let res;
