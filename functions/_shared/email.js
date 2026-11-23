@@ -77,14 +77,39 @@ export function loginLinkEmail(link) {
 }
 
 export function welcomeEmail(company, appUrl) {
+  // Welcome is sent after the first successful magic-link sign-in. The
+  // seven-day clock begins at signup, not at the first contract import.
+  const url = esc(appUrl);
+  const section = (title, content) => `
+    <h3 style="font-size:17px;line-height:1.35;margin:26px 0 9px;color:#101828;">${title}</h3>
+    <p style="margin:0 0 12px;">${content}</p>`;
+  const link = (label) => `<a href="${url}" style="color:#2563eb;text-decoration:none;font-weight:700;">${label} &rarr;</a>`;
   return {
-    subject: 'Your SaaS Spend Track trial is live',
-    html: shell('Your 7-day trial is live', [
-      `Hi ${hi(company)},`,
-      'Welcome to SaaS Spend Track. You have full access for the next 7 days. The fastest way to see the value: open the tool, go to <b>Contract terms</b>, and load a sample contract. The parser pulls out the renewal date, notice window, auto-renew clause and price-cap in about 10 seconds.',
-      'Prefer to start with your own numbers? Use <b>Bulk Import</b> on the Subscriptions tab, paste your vendor spreadsheet, and the dashboard builds in one click.',
-      'On day 8 access pauses behind a payment screen. Your data is preserved and comes right back when you upgrade, any time, from the Pay button in the tool.',
-    ], { url: appUrl, label: 'Open the tool' }),
+    subject: 'Welcome to SaaS Spend Track — your 7-day trial starts now',
+    html: `
+<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#101828;line-height:1.65;font-size:15px;max-width:580px;margin:0 auto;">
+  <div style="background:#0b1120;color:#fff;padding:22px 26px;border-radius:10px 10px 0 0;">
+    <span style="display:inline-block;width:34px;height:34px;background:#2563eb;color:#fff;font-weight:800;font-size:13px;text-align:center;line-height:34px;border-radius:8px;vertical-align:middle;">SST</span>
+    <span style="font-weight:700;font-size:17px;margin-left:12px;vertical-align:middle;">SaaS Spend Track</span>
+  </div>
+  <div style="border:1px solid #e4e7ec;border-top:0;border-radius:0 0 10px 10px;padding:26px;">
+    <p style="margin:0 0 14px;">Hi ${hi(company)}, welcome to SaaS Spend Track!</p>
+    <p style="margin:0 0 14px;">I'm glad you're here. Most companies don't know exactly what they're paying for across their SaaS stack until a renewal sneaks up on them. We're here to change that.</p>
+    <p style="margin:0 0 14px;">Here's how to get the most from your trial:</p>
+    ${section('Your free 7-day trial', 'Your trial starts when you sign up, with no credit card required. Explore your SaaS subscriptions, renewal dates, notice windows, invoices and spend insights in one workspace.')}
+    <p style="margin:0 0 14px;">${link('Open your dashboard')}</p>
+    ${section('Get your first win in minutes', 'Start with one vendor. Add its subscription cost, billing cycle and next renewal date. Then add the notice period from your contract. You can build from there at your own pace.')}
+    <p style="margin:0 0 14px;">${link('Add your first subscription')}</p>
+    ${section('What should you look for?', 'Start with three questions: Which contracts are coming up for renewal? Which licenses are going unused? And where are you paying for overlapping tools? Those are often the easiest places to find savings.')}
+    <p style="margin:0 0 14px;">${link('Explore SaaS Spend Track')}</p>
+    ${section('What happens after seven days?', 'At the end of the trial, access to paid features pauses until you upgrade. Your saved data stays in your workspace, so you can pick up where you left off after upgrading. No surprise charges.')}
+    ${section('Questions? Just reply.', 'Whether you need help adding your first contract, understanding a feature, or choosing a plan, reply to this email. It goes to our team, and we\'ll help you get started.')}
+    <p style="margin:22px 0 8px;">Let's find the spend hiding in plain sight.</p>
+    <p style="margin:0;">Vinay<br/><b>Founder, SaaS Spend Track</b><br/>Whizzlead Solutions OPC Private Limited</p>
+    <hr style="border:0;border-top:1px solid #e4e7ec;margin:26px 0 18px;"/>
+    <p style="font-size:12px;color:#667085;margin:0;">You're receiving this account email because you signed up for SaaS Spend Track. Need help? Reply to this email.</p>
+  </div>
+</div>`,
   };
 }
 
