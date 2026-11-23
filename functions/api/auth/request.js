@@ -14,8 +14,8 @@ export async function onRequestPost({ request, env }) {
   if (!email) return badRequest('valid email required');
 
   // Abuse guard: cap sign-in emails per IP and per address.
-  const ipRl = await rateLimit(env, 'authreq:ip:' + getClientIp(request), 20, 3600000);
-  const emRl = await rateLimit(env, 'authreq:em:' + email, 5, 900000);
+  const ipRl = await rateLimit(env, 'authreq:ip:' + getClientIp(request), 20, 3600000, { failClosed: true });
+  const emRl = await rateLimit(env, 'authreq:em:' + email, 5, 900000, { failClosed: true });
   if (!ipRl.ok || !emRl.ok) {
     return json({ ok: false, error: 'rate_limited', message: 'Too many sign-in requests. Please wait and try again.' }, 429);
   }
