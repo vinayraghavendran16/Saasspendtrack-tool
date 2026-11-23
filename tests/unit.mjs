@@ -142,7 +142,7 @@ ok(r6.status === 403, 'member-remove admin cannot remove an admin');
 section('accounts self-provision (ensureAccountSchema)');
 let schemaThrew = false;
 try { await U.ensureAccountSchema({ DB: { prepare: () => ({ run: async () => { throw new Error('no ddl'); } }) } }); } catch (_) { schemaThrew = true; }
-ok(!schemaThrew, 'ensureAccountSchema fails open when DDL throws');
+ok(schemaThrew, 'ensureAccountSchema fails closed when DDL throws');
 const ddl = [];
 const recDB = { prepare: (s) => ({ run: async () => { ddl.push(s); } }) };
 await U.ensureAccountSchema({ DB: recDB });
@@ -335,7 +335,7 @@ function acctThrowEnv() {
 }
 ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acctThrowEnv() });
 jx3 = await ra3.json();
-ok(ra3.status === 200 && jx3.pendingSetup === true && jx3.members.length === 1 && jx3.members[0].email === 'own@x.com', 'members: degrades to sole owner + pendingSetup when tables missing (no 500)');
+ok(ra3.status !== 200 || jx3.pendingSetup !== true, 'members: missing schema must not imply owner access');
 // ---- accounts Phase 2: shared-workspace data keying + /api/me account ----
 section('accounts phase 2 (shared workspace)');
 import * as ME from '../functions/api/me.js';
