@@ -275,7 +275,7 @@ function acct3Env(o) {
         if (/FROM invites WHERE account_id/i.test(sql)) return { results: o.pendingList || [] };
         return { results: [] };
       },
-      run: async () => {},
+      run: async () => { if (/INSERT INTO memberships/i.test(sql)) { o.members ||= {}; o.members[b[0]] = { email: b[0], account_id: b[1], role: b[2], status: 'active' }; } },
     }; }, };
   } } };
 }
