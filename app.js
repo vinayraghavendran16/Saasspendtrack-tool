@@ -89,9 +89,14 @@ function subTeam(id) { return state.subscriptions.find(s => s.id === id)?.team |
 // Storage: localStorage is the instant local cache; the server (D1, keyed to the
 // signed-in account) is the source of truth so data follows the user across
 // devices. save() writes the cache immediately and debounces a push to the server.
+// The browser cache is not proof of workspace ownership. Do not PUT anything
+// until the authenticated server has resolved the current workspace.
+let _serverHydrated = false;
+let _localEditCounter = 0;
 function save() {
+  _localEditCounter++;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
-  scheduleServerSave();
+  if (_serverHydrated) scheduleServerSave();
 }
 
 let _serverSaveTimer = null;
@@ -100,18 +105,21 @@ function scheduleServerSave() {
   _serverSaveTimer = setTimeout(pushServerSave, 1200);
 }
 async function pushServerSave() {
+  if (!_serverHydrated) return;
   try {
-    await fetch('/api/data', {
+    const response = await fetch('/api/data', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(state),
     });
+    if (!response.ok) console.warn('Workspace save was not accepted:', response.status);
   } catch (_) { /* offline or not signed in: cache still holds it */ }
 }
 
 // Pull the authoritative copy from the server after first paint. If the server
 // has nothing yet (new account / first device), seed it from the local cache.
 async function syncFromServer() {
+  const editsAtStart = _localEditCounter;
   let res;
   try {
     res = await fetch('/api/data', { headers: { accept: 'application/json' } });
@@ -120,6 +128,11 @@ async function syncFromServer() {
   let j;
   try { j = await res.json(); } catch (_) { return; }
   if (j && j.data) {
+    if (editsAtStart !== _localEditCounter) {
+      toast('Local changes occurred while loading the workspace. Refresh before continuing to avoid overwriting them.', 'error');
+      return; // Block writes rather than overwrite either copy.
+    }
+    _serverHydrated = true;
     state = j.data;
     ensureStateShape();
     try { renderPlanBadge(); } catch (_) {}
@@ -133,7 +146,10 @@ async function syncFromServer() {
     if ((state.subscriptions && state.subscriptions.length) ||
         (state.invoices && state.invoices.length)) {
       toast('Local records found. They were not imported automatically; review currency before migration.', 'info');
+      return; // No uploads until a separate, explicitly confirmed migration.
     }
+    _serverHydrated = true;
+    if (editsAtStart !== _localEditCounter) scheduleServerSave();
   }
 }
 
