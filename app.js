@@ -176,14 +176,29 @@ async function syncFromServer() {
     // Never silently treat local browser records as this workspace's records.
     // Legacy amounts may be INR, USD or other currencies; importing requires
     // an explicit currency review and user confirmation in a later workflow.
-    if ((state.subscriptions && state.subscriptions.length) ||
-        (state.invoices && state.invoices.length)) {
-      toast('Local records found. They were not imported automatically; review currency before migration.', 'info');
+    const legacyData = (state.subscriptions && state.subscriptions.length) ||
+      (state.invoices && state.invoices.length) ||
+      (state.employees && state.employees.length);
+    if (legacyData) {
+      // Keep the original browser cache intact for a deliberate, currency-reviewed
+      // import. Never show those records as belonging to this empty workspace.
+      state = { subscriptions: [] };
+      ensureStateShape();
+      renderAll();
+      toast('This workspace is empty. Older browser records are preserved locally but not imported; currency review is required.', 'info');
       return; // No uploads until a separate, explicitly confirmed migration.
     }
+    // Even an empty browser cache may contain preferences from another account.
+    // Begin with a fresh workspace state, not those cached settings.
+    state = { subscriptions: [] };
+    ensureStateShape();
+    renderAll();
     _serverVersion = 0;
     _serverHydrated = true;
-    if (editsAtStart !== _localEditCounter) scheduleServerSave();
+    if (editsAtStart !== _localEditCounter) {
+      toast('Changes made during workspace loading were not uploaded. Refresh before editing.', 'error');
+      _serverSaveBlocked = true;
+    }
   }
 }
 
