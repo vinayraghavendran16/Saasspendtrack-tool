@@ -34,20 +34,29 @@ const env = { DB: {
           if (failAccountLookup) return null;
           return accounts[args[0]] || null;
         }
-        if (/SELECT data FROM app_data/i.test(sql)) return data.has(args[0]) ? { data: data.get(args[0]) } : null;
+        if (/SELECT data, version FROM app_data/i.test(sql)) return data.get(args[0]) || null;
+        if (/INSERT OR IGNORE INTO app_data/i.test(sql)) {
+          if (data.has(args[0])) return null;
+          data.set(args[0], { data: args[1], version: 1 });
+          return { version: 1 };
+        }
+        if (/UPDATE app_data SET/i.test(sql)) {
+          const old = data.get(args[2]);
+          if (!old || old.version !== args[3]) return null;
+          const newVersion = old.version + 1;
+          data.set(args[2], { data: args[0], version: newVersion });
+          return { version: newVersion };
+        }
         return null;
       },
-      async run() {
-        if (/INSERT INTO app_data/i.test(sql)) data.set(args[0], args[1]);
-        return { success: true };
-      },
+      async run() { return { success: true }; },
     };
     return { bind(...a) { args = a; return bound; }, run: bound.run };
   },
 } };
 function req(email, method = 'GET', body) {
   return new Request('https://app.example.com/api/data', {
-    method, headers: { Cookie: 'sst_session=' + email }, ...(body ? { body: JSON.stringify(body) } : {}),
+    method, headers: { Cookie: 'sst_session=' + email, 'If-Match': '0' }, ...(body ? { body: JSON.stringify(body) } : {}),
   });
 }
 async function put(email, payload) { return onRequestPut({ request: req(email, 'PUT', payload), env }); }
@@ -56,6 +65,9 @@ async function get(email) { return onRequestGet({ request: req(email), env }); }
 assert.equal((await put('a@example.com', { vendor: 'Alpha secret' })).status, 200);
 assert.equal((await put('b@example.com', { vendor: 'Beta secret' })).status, 200);
 assert.deepEqual((await (await get('a@example.com')).json()).data, { vendor: 'Alpha secret' });
+assert.equal((await (await get('a@example.com')).json()).version, 1);
+assert.equal((await put('a@example.com', { vendor: 'stale writer' })).status, 409);
+assert.equal((await (await get('a@example.com')).json()).data.vendor, 'Alpha secret');
 assert.deepEqual((await (await get('b@example.com')).json()).data, { vendor: 'Beta secret' });
 assert.equal(data.size, 2);
 assert.equal((await get('removed@example.com')).status, 403);
