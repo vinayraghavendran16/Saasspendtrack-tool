@@ -22,7 +22,7 @@ export async function onRequestGet({ request, env }) {
   const tokenHash = await sha256Hex(token);
   const t = now();
   const inv = await env.DB.prepare('SELECT * FROM invites WHERE token_hash=?').bind(tokenHash).first();
-  if (!inv || inv.used || inv.expires_at < t) return redirect(`${appUrl}/?invite=expired`);
+  if (!inv || inv.used || inv.expires_at <= t) return redirect(`${appUrl}/?invite=expired`);
 
   const email = normalizeEmail(inv.email);
 
@@ -37,8 +37,11 @@ export async function onRequestGet({ request, env }) {
     if (count >= MAX_MEMBERS) return redirect(`${appUrl}/?invite=full`);
   }
 
-  // Burn the invite (single use).
-  await env.DB.prepare('UPDATE invites SET used=1 WHERE token_hash=?').bind(tokenHash).run();
+  // Redeem exactly once even when multiple requests arrive simultaneously.
+  const redeemed = await env.DB.prepare(
+    'UPDATE invites SET used=1 WHERE token_hash=? AND used=0 AND expires_at>? RETURNING token_hash',
+  ).bind(tokenHash, t).first();
+  if (!redeemed) return redirect(`${appUrl}/?invite=expired`);
 
   // Ensure a user row so the member is entitled - inherit the owner's plan/status.
   const u = await env.DB.prepare('SELECT email FROM users WHERE email=?').bind(email).first();
@@ -57,8 +60,14 @@ export async function onRequestGet({ request, env }) {
   // Create or activate the membership.
   await env.DB.prepare(
     `INSERT INTO memberships (email, account_id, role, status, invited_by, created_at) VALUES (?,?,?,?,?,?)
-     ON CONFLICT(email) DO UPDATE SET account_id=excluded.account_id, role=excluded.role, status='active'`,
+     ON CONFLICT(email) DO UPDATE SET role=excluded.role, status='active' WHERE memberships.account_id=excluded.account_id`,
   ).bind(email, inv.account_id, inv.role, 'active', inv.invited_by, t).run();
+
+  // A conflicting membership must never be silently reassigned to this account.
+  const confirmed = await env.DB.prepare('SELECT account_id, status FROM memberships WHERE email=?').bind(email).first();
+  if (!confirmed || confirmed.account_id !== inv.account_id || confirmed.status !== 'active') {
+    return redirect(`${appUrl}/?invite=other_account`);
+  }
 
   // Sign them in.
   const sid = randomToken(32);
