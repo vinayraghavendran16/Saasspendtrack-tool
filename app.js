@@ -2306,3 +2306,66 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   const _hrmsReq = document.getElementById('hrms-request'); if (_hrmsReq) _hrmsReq.addEventListener('click', () => requestEnterprise('HRMS sync', document.getElementById('hrms-status')));
 });
+
+
+// Workspace AI processing: explicit opt-in, disabled until an owner/admin enables it.
+// Kept separate from local application settings: server consent is authoritative.
+document.addEventListener('DOMContentLoaded', async () => {
+  const integrations = document.getElementById('integrations');
+  if (!integrations) return;
+  const section = document.createElement('section');
+  section.setAttribute('aria-label', 'AI document privacy');
+  section.style.cssText = 'margin:20px 0;padding:20px;border:1px solid var(--border,#cbd5e1);border-radius:12px;background:var(--card,#fff)';
+  section.innerHTML = `
+    <h3 style="margin:0 0 10px">AI document privacy</h3>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6">AI contract extraction sends the contract text you submit to Anthropic, a third-party AI service, to identify contract terms. Do not enable this for confidential documents unless your organization approves the processing. Manual contract entry remains available without AI processing.</p>
+    <p id="workspace-ai-state" role="status" aria-live="polite">Checking workspace consent…</p>
+    <label style="display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:14px"><input id="workspace-ai-optin" type="checkbox" disabled style="margin-top:3px"> <span>I am authorized to approve third-party AI processing of our workspace's submitted contract text. I understand this setting applies to all workspace members and can be revoked.</span></label>
+    <button type="button" id="workspace-ai-save" disabled>Save AI processing preference</button>
+    <p style="font-size:12px;margin:10px 0 0">Only workspace owners and admins can change this setting. Every change is recorded in the workspace audit log.</p>`;
+  integrations.prepend(section);
+  const status = section.querySelector('#workspace-ai-state');
+  const checkbox = section.querySelector('#workspace-ai-optin');
+  const save = section.querySelector('#workspace-ai-save');
+  try {
+    const response = await fetch('/api/ai/consent', { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) throw new Error(response.status === 503 ? 'AI consent settings are not available until the workspace migration is applied.' : 'Sign in to manage workspace AI settings.');
+    const current = await response.json();
+    checkbox.checked = !!current.enabled;
+    checkbox.disabled = false;
+    save.disabled = false;
+    status.textContent = current.enabled ? 'Enabled: workspace members may use AI contract extraction.' : 'Disabled: contract text will not be sent for AI extraction.';
+  } catch (error) {
+    status.textContent = error.message;
+    return; // Never offer an opt-in if we cannot verify the server's current state.
+  }
+  save.addEventListener('click', async () => {
+    save.disabled = true;
+    status.textContent = 'Saving workspace AI preference…';
+    try {
+      const response = await fetch('/api/ai/consent', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ enabled: checkbox.checked, consentVersion: 'workspace-ai-v1' }),
+      });
+      if (!response.ok) {
+        if (response.status === 403 || response.status === 401) throw new Error('Only a signed-in workspace owner or admin can change this setting.');
+        throw new Error('Could not save the preference. AI processing remains disabled unless the server confirms it is enabled.');
+      }
+      const saved = await response.json();
+      checkbox.checked = !!saved.enabled;
+      status.textContent = saved.enabled ? 'Enabled and recorded: AI contract extraction is available.' : 'Disabled and recorded: future AI extraction is blocked.';
+    } catch (error) {
+      status.textContent = error.message;
+      // Re-read the server state rather than assuming a failed response has not committed.
+      try {
+        const r = await fetch('/api/ai/consent', { credentials: 'same-origin', cache: 'no-store' });
+        if (r.ok) checkbox.checked = !!(await r.json()).enabled;
+        else checkbox.disabled = true;
+      } catch (_) { checkbox.disabled = true; }
+    } finally {
+      save.disabled = checkbox.disabled;
+    }
+  });
+});
