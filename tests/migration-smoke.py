@@ -29,4 +29,13 @@ else:
     raise AssertionError("Orphan workspace AI settings accepted")
 conn.execute("INSERT INTO workspace_ai_consent_events (id,account_id,actor_email,enabled,consent_version,created_at) VALUES (?,?,?,?,?,?)", ("event-1", "account-1", "owner@example.com", 1, "workspace-ai-v1", 2))
 assert conn.execute("SELECT COUNT(*) FROM workspace_ai_consent_events").fetchone()[0] == 1
-print("PASS: isolated SQLite schema and AI consent migration (idempotency, disabled default, constraints, event audit)")
+# Version migration must preserve existing data and establish an unambiguous CAS revision.
+conn.execute("INSERT INTO app_data (email,data,updated_at) VALUES (?,?,?)", ("owner@example.com", '{"subscriptions":[{"name":"test"}]}', 1))
+conn.executescript((root / "migrations/002_app_data_version.sql").read_text())
+old = conn.execute("SELECT data,version FROM app_data WHERE email=?", ("owner@example.com",)).fetchone()
+assert old[1] == 1 and '"test"' in old[0]
+result = conn.execute("UPDATE app_data SET data=?,version=version+1 WHERE email=? AND version=? RETURNING version", ('{"updated":true}', "owner@example.com", 1)).fetchone()
+assert result == (2,)
+assert conn.execute("UPDATE app_data SET data=?,version=version+1 WHERE email=? AND version=? RETURNING version", ('{"stale":true}', "owner@example.com", 1)).fetchone() is None
+assert conn.execute("SELECT data,version FROM app_data WHERE email=?", ("owner@example.com",)).fetchone() == ('{"updated":true}', 2)
+print("PASS: isolated SQLite AI consent + data version migrations, legacy data preservation, CAS conflict")
