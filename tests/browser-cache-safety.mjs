@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+const load = app.slice(app.indexOf('function load() {'), app.indexOf('\nconst PLANS ='));
+const save = app.slice(app.indexOf('function save() {'), app.indexOf('\nlet _serverSaveTimer'));
+const sync = app.slice(app.indexOf('async function syncFromServer() {'), app.indexOf('\n// -------- math --------'));
+assert.ok(load.includes('_legacyBrowserData = parsed'), 'legacy data is preserved for reviewed import');
+assert.ok(load.includes('state = { subscriptions: [] }'), 'legacy records are never rendered before authentication');
+assert.ok(!load.includes('state = parsed'), 'legacy records must not be auto-hydrated');
+assert.ok(!save.includes('localStorage.setItem(STORAGE_KEY'), 'legacy cache must not be overwritten on save');
+assert.ok(save.includes('UNSYNCED_DRAFT_KEY'), 'local edits are stored separately for recovery');
+assert.ok(sync.includes('j.version'), 'server data must have a revision');
+assert.ok(sync.includes('_legacyBrowserData'), 'empty workspaces inspect legacy records before onboarding');
+assert.ok(!sync.includes('pushServerSave()'), 'hydration must not silently import legacy data');
+console.log('PASS: legacy browser cache stays read-only, drafts are isolated and server hydration is revisioned');
