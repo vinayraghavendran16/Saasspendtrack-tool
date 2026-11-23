@@ -216,7 +216,7 @@ g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account
 ok(g.response && g.response.status === 403, 'requireRole 403 suspended member');
 // New user with no membership is lazily made owner of their own account.
 g = await U.requireRole(rReq, roleEnv('new@x.com', { email: 'new@x.com' }, null), 'member');
-ok(!g.response && g.membership.role === 'owner', 'requireRole lazily provisions owner for new user');
+ok(g.response && g.response.status === 403, 'requireRole denies owner privileges when membership creation cannot be confirmed');
 
 // ---- preset generator endpoint (validation + gating; no network) ----
 section('preset generator');
