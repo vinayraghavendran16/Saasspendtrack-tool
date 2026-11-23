@@ -127,10 +127,12 @@ async function syncFromServer() {
     renderAll();
     try { switchView(viewFromHash(), { replaceHistory: true }); } catch (_) {}
   } else if (j && j.empty) {
-    // Server is empty: migrate whatever this browser already has up to it.
+    // Never silently treat local browser records as this workspace's records.
+    // Legacy amounts may be INR, USD or other currencies; importing requires
+    // an explicit currency review and user confirmation in a later workflow.
     if ((state.subscriptions && state.subscriptions.length) ||
         (state.invoices && state.invoices.length)) {
-      pushServerSave();
+      toast('Local records found. They were not imported automatically; review currency before migration.', 'info');
     }
   }
 }
@@ -2133,7 +2135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   try { applyTheme(localStorage.getItem('saasspendtrack.theme') || 'light'); } catch (_) { applyTheme('light'); }
   const tt = document.getElementById('theme-toggle');
   if (tt) tt.addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
-  if (!state.subscriptions.length && !state.settings.seededOnce) seed({ silent: true });
+  // New workspaces start empty; sample company data is added only by explicit user action.
   renderPlanBadge();
   renderPricing();
   renderAll();
