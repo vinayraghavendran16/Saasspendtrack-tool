@@ -25,7 +25,7 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error: 'self', message: 'That is your own email.' }, 400);
   }
 
-  const rl = await rateLimit(env, 'invite:' + accountId, 30, 3600000);
+  const rl = await rateLimit(env, 'invite:' + accountId, 30, 3600000, { failClosed: true });
   if (!rl.ok) return json({ ok: false, error: 'rate_limited', message: 'Too many invites. Try again shortly.' }, 429);
 
   // One account per member.
