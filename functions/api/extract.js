@@ -171,7 +171,7 @@ export async function onRequestPost({ request, env }) {
       JSON.stringify({ ok: false, error: 'ai_consent_required' }),
       { status: 403, headers },
     );
-    const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000);
+    const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000, { failClosed: true });
     if (!_rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many AI requests. Try again shortly." }), { status: 429, headers });
     if (!env.ANTHROPIC_API_KEY) {
       return new Response(
