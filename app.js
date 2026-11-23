@@ -18,11 +18,20 @@ function ensureStateShape() {
   if (!state.settings.plan) state.settings.plan = 'free';
   if (!state.settings.billingCycle) state.settings.billingCycle = 'annual';
 }
+// Legacy browser data is retained as an import candidate, never displayed as
+// authenticated workspace data. A signed-in account must hydrate from D1.
+let _legacyBrowserData = null;
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) state = JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        _legacyBrowserData = parsed;
+      }
+    }
   } catch (_) {}
+  state = { subscriptions: [] };
   ensureStateShape();
 }
 
@@ -176,14 +185,12 @@ async function syncFromServer() {
     // Never silently treat local browser records as this workspace's records.
     // Legacy amounts may be INR, USD or other currencies; importing requires
     // an explicit currency review and user confirmation in a later workflow.
-    const legacyData = (state.subscriptions && state.subscriptions.length) ||
-      (state.invoices && state.invoices.length) ||
-      (state.employees && state.employees.length);
+    const legacyData = (_legacyBrowserData?.subscriptions?.length) ||
+      (_legacyBrowserData?.invoices?.length) ||
+      (_legacyBrowserData?.employees?.length);
     if (legacyData) {
       // Keep the original browser cache intact for a deliberate, currency-reviewed
       // import. Never show those records as belonging to this empty workspace.
-      state = { subscriptions: [] };
-      ensureStateShape();
       renderAll();
       toast('This workspace is empty. Older browser records are preserved locally but not imported; currency review is required.', 'info');
       return; // No uploads until a separate, explicitly confirmed migration.
