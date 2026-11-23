@@ -2,7 +2,7 @@
 // Validates the one-time token, creates a session, sets the cookie, and
 // redirects to the app.
 import {
-  sha256Hex, randomToken, now, SESSION_DAYS, sessionCookie,
+  sha256Hex, randomToken, now, DAY, SESSION_DAYS, sessionCookie,
 } from '../../_shared/util.js';
 import { sendEmail, welcomeEmail } from '../../_shared/email.js';
 
