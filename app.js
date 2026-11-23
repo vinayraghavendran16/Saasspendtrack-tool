@@ -92,11 +92,14 @@ function subTeam(id) { return state.subscriptions.find(s => s.id === id)?.team |
 // The browser cache is not proof of workspace ownership. Do not PUT anything
 // until the authenticated server has resolved the current workspace.
 let _serverHydrated = false;
+let _serverVersion = null;
+let _serverSaveBlocked = false;
+let _serverSaveInFlight = false;
 let _localEditCounter = 0;
 function save() {
   _localEditCounter++;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
-  if (_serverHydrated) scheduleServerSave();
+  if (_serverHydrated && !_serverSaveBlocked) scheduleServerSave();
 }
 
 let _serverSaveTimer = null;
@@ -105,15 +108,40 @@ function scheduleServerSave() {
   _serverSaveTimer = setTimeout(pushServerSave, 1200);
 }
 async function pushServerSave() {
-  if (!_serverHydrated) return;
+  if (!_serverHydrated || _serverSaveBlocked) return;
+  if (_serverSaveInFlight) return; // The active save will flush newer local changes.
+  _serverSaveInFlight = true;
+  const snapshot = JSON.stringify(state);
+  const editRevision = _localEditCounter;
   try {
     const response = await fetch('/api/data', {
       method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(state),
+      headers: { 'content-type': 'application/json', 'If-Match': String(_serverVersion) },
+      body: snapshot,
     });
-    if (!response.ok) console.warn('Workspace save was not accepted:', response.status);
-  } catch (_) { /* offline or not signed in: cache still holds it */ }
+    if (response.status === 409 || response.status === 428) {
+      _serverSaveBlocked = true;
+      toast('Another person updated this workspace. Your local changes are preserved; reload to reconcile before saving.', 'error');
+      return;
+    }
+    if (!response.ok) {
+      console.warn('Workspace save was not accepted:', response.status);
+      toast('Workspace changes could not be saved. Your browser copy is preserved.', 'error');
+      return;
+    }
+    const saved = await response.json();
+    if (!Number.isSafeInteger(saved.version) || saved.version <= _serverVersion) {
+      _serverSaveBlocked = true;
+      toast('Could not verify the saved workspace revision. Saving paused to protect your data.', 'error');
+      return;
+    }
+    _serverVersion = saved.version;
+    if (editRevision !== _localEditCounter) scheduleServerSave();
+  } catch (_) {
+    toast('Workspace changes are not synced. Your browser copy is preserved.', 'error');
+  } finally {
+    _serverSaveInFlight = false;
+  }
 }
 
 // Pull the authoritative copy from the server after first paint. If the server
@@ -132,6 +160,11 @@ async function syncFromServer() {
       toast('Local changes occurred while loading the workspace. Refresh before continuing to avoid overwriting them.', 'error');
       return; // Block writes rather than overwrite either copy.
     }
+    if (!Number.isSafeInteger(j.version) || j.version < 1) {
+      toast('Workspace revision unavailable. Saving is paused to protect your records.', 'error');
+      return;
+    }
+    _serverVersion = j.version;
     _serverHydrated = true;
     state = j.data;
     ensureStateShape();
@@ -148,6 +181,7 @@ async function syncFromServer() {
       toast('Local records found. They were not imported automatically; review currency before migration.', 'info');
       return; // No uploads until a separate, explicitly confirmed migration.
     }
+    _serverVersion = 0;
     _serverHydrated = true;
     if (editsAtStart !== _localEditCounter) scheduleServerSave();
   }
