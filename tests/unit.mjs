@@ -63,7 +63,9 @@ function dataEnv(store, user, membership) {
   const mem = membership === undefined ? (user ? { email: user.email, account_id: 'A', role: 'owner', status: 'active' } : null) : membership;
   return { DB: { prepare(sql) { return { bind: (...a) => ({
     first: async () => sql.includes('sessions') ? (user ? { email: user.email, expires_at: Date.now() + 1e9 } : null)
-      : sql.includes('app_data') ? store.row
+      : sql.includes('SELECT data, version FROM app_data') ? store.row
+      : sql.includes('INSERT OR IGNORE INTO app_data') ? (!store.row ? (store.row = { data: a[1], version: 1 }, store.saved = a[1], { version: 1 }) : null)
+      : sql.includes('UPDATE app_data SET') ? (store.row?.version === a[3] ? (store.row = { data: a[0], version: a[3] + 1 }, store.saved = a[0], { version: store.row.version }) : null)
       : sql.includes('memberships') ? mem
       : sql.includes('accounts') ? (user ? { id: 'A', owner_email: user.email } : null)
       : user,
@@ -71,7 +73,7 @@ function dataEnv(store, user, membership) {
   }) }; } } };
 }
 const active = { email: 'u@x.com', status: 'active', trial_ends_at: 0 };
-const req = { headers: { get: () => 'sst_session=s' } };
+const req = { headers: { get: (k) => k.toLowerCase() === 'if-match' ? '0' : 'sst_session=s' } };
 let res = await DATA.onRequestGet({ request: req, env: dataEnv({ row: null }, active) });
 ok((await res.json()).empty === true, 'GET empty when no data');
 const store = {};
