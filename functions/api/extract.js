@@ -158,6 +158,19 @@ export async function onRequestPost({ request, env }) {
   try {
     const gate = await requireEntitledRole(request, env, 'member');
     if (gate.response) return gate.response;
+    // Workspace consent is required before document contents reach an AI provider.
+    // Missing tables/settings are intentionally denied, never treated as opt-in.
+    let aiEnabled = false;
+    try {
+      const row = await env.DB.prepare(
+        'SELECT enabled FROM workspace_ai_settings WHERE account_id=?',
+      ).bind(gate.membership.account_id).first();
+      aiEnabled = row?.enabled === 1;
+    } catch (_) { /* consent unavailable: fail closed */ }
+    if (!aiEnabled) return new Response(
+      JSON.stringify({ ok: false, error: 'ai_consent_required' }),
+      { status: 403, headers },
+    );
     const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000);
     if (!_rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many AI requests. Try again shortly." }), { status: 429, headers });
     if (!env.ANTHROPIC_API_KEY) {
