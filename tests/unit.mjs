@@ -266,6 +266,8 @@ function acct3Env(o) {
         if (/COUNT\(\*\) c FROM memberships/i.test(sql)) return { c: o.memberCount || 0 };
         if (/COUNT\(\*\) c FROM invites/i.test(sql)) return { c: o.pendingCount || 0 };
         if (/FROM invites WHERE token_hash/i.test(sql)) return (o.invitesByHash || {})[b[0]] || null;
+        if (/UPDATE invites SET used=1/i.test(sql)) { const inv = (o.invitesByHash || {})[b[0]]; if (!inv || inv.used || inv.expires_at <= b[1]) return null; inv.used = 1; return { token_hash: b[0] }; }
+        if (/SELECT account_id, status FROM memberships/i.test(sql)) return (o.members || {})[b[0]] || null;
         return null;
       },
       all: async () => {
@@ -333,9 +335,9 @@ function acctThrowEnv() {
     }; }, };
   } } };
 }
-ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acctThrowEnv() });
-jx3 = await ra3.json();
-ok(ra3.status !== 200 || jx3.pendingSetup !== true, 'members: missing schema must not imply owner access');
+let blockedMissingSchema = false;
+try { ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acctThrowEnv() }); blockedMissingSchema = ra3.status >= 400; } catch (_) { blockedMissingSchema = true; }
+ok(blockedMissingSchema, 'members: missing schema must not imply owner access');
 // ---- accounts Phase 2: shared-workspace data keying + /api/me account ----
 section('accounts phase 2 (shared workspace)');
 import * as ME from '../functions/api/me.js';
