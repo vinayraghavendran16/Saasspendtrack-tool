@@ -13,10 +13,8 @@ export async function onRequestGet({ request, env }) {
   // Key app_data by the account owner so every member shares one workspace.
   // For a solo user, the owner email is their own email (zero change).
   const ctx = await getAccountContext(env, user);
-  // A removed/suspended member can't read the shared workspace (reads stay open for
-  // expired-but-active members, which is why this checks status, not entitlement).
-  if (ctx && ctx.membership && ctx.membership.status !== 'active') return json({ error: 'no_account' }, 403);
-  const key = (ctx && ctx.ownerEmail) || user.email;
+  if (!ctx || !ctx.ownerEmail) return json({ error: 'no_account' }, 403);
+  const key = ctx.ownerEmail;
   const row = await env.DB.prepare('SELECT data FROM app_data WHERE email=?')
     .bind(key).first();
   if (!row || !row.data) return json({ empty: true });
@@ -39,7 +37,8 @@ export async function onRequestPut({ request, env }) {
 
   // Write to the account owner's row so all members share one workspace.
   const ctx = await getAccountContext(env, user);
-  const key = (ctx && ctx.ownerEmail) || user.email;
+  if (!ctx || !ctx.ownerEmail || ctx.membership.account_id !== gate.membership.account_id) return json({ error: 'no_account' }, 403);
+  const key = ctx.ownerEmail;
   await env.DB.prepare(
     `INSERT INTO app_data (email, data, updated_at) VALUES (?,?,?)
      ON CONFLICT(email) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at`,
