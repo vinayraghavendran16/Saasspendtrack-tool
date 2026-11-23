@@ -6,6 +6,6 @@
   "description": "SaaS Spend Track — app + Cloudflare Pages Functions",
   "scripts": {
     "test": "node tests/unit.mjs",
-    "check": "for f in $(find functions -name '*.js'); do node --check \"$f\" || exit 1; done && echo 'syntax ok'"
+    "check": "for f in $(find functions -name '*.js'); do node --check \"$f\" || exit 1; done && node --check app.js && echo 'syntax ok'"
   }
 }
