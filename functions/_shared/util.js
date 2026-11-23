@@ -224,10 +224,8 @@ export function roleAtLeast(role, min) {
 export async function getMembership(env, email) {
   const e = normalizeEmail(email);
   if (!e) return null;
-  // Fail open if the accounts tables are not migrated yet: no membership, not a 500.
-  try {
-    return await env.DB.prepare('SELECT * FROM memberships WHERE email=?').bind(e).first();
-  } catch (_) { return null; }
+  // Never interpret a database failure as an absent membership.
+  return env.DB.prepare('SELECT * FROM memberships WHERE email=?').bind(e).first();
 }
 
 // Count active members of an account.
@@ -263,7 +261,8 @@ export async function ensureAccountSchema(env) {
     for (const s of stmts) { const st = env.DB.prepare(s); await (st.bind ? st.bind() : st).run(); }
     _accountSchemaReady.add(env.DB);
   } catch (err) {
-    console.error('ensureAccountSchema failed (continuing in solo mode)', err && err.message);
+    console.error('ensureAccountSchema failed', err && err.message);
+    throw err;
   }
 }
 
@@ -281,7 +280,8 @@ export async function ensureAccountForUser(env, user) {
     await env.DB.prepare('INSERT INTO memberships (email, account_id, role, status, invited_by, created_at) VALUES (?,?,?,?,?,?)')
       .bind(email, accountId, 'owner', 'active', null, ts).run();
   } catch (_) { /* race: another request created it; re-read below */ }
-  return (await getMembership(env, email)) || { email, account_id: accountId, role: 'owner', status: 'active' };
+  // Do not invent owner privileges if provisioning or a lookup failed.
+  return await getMembership(env, email);
 }
 
 // Gate: require the session user to be an active member of their account with at
@@ -311,8 +311,8 @@ export async function countPendingInvites(env, accountId) {
 export async function getAccountContext(env, user) {
   const membership = await ensureAccountForUser(env, user);
   if (!membership) return null;
-  let account = null;
-  try { account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?').bind(membership.account_id).first(); } catch (_) {}
-  const ownerEmail = (account && account.owner_email) || normalizeEmail(user && user.email);
-  return { membership, account, ownerEmail };
+  if (membership.status !== 'active') return null;
+  const account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?').bind(membership.account_id).first();
+  if (!account || !normalizeEmail(account.owner_email)) return null;
+  return { membership, account, ownerEmail: normalizeEmail(account.owner_email) };
 }
