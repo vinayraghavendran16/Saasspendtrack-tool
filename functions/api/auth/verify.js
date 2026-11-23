@@ -2,7 +2,7 @@
 // Validates the one-time token, creates a session, sets the cookie, and
 // redirects to the app.
 import {
-  sha256Hex, randomToken, now, DAY, SESSION_DAYS, sessionCookie,
+  sha256Hex, randomToken, now, SESSION_DAYS, sessionCookie,
 } from '../../_shared/util.js';
 import { sendEmail, welcomeEmail } from '../../_shared/email.js';
 
@@ -20,15 +20,12 @@ export async function onRequestGet({ request, env }) {
 
   const tokenHash = await sha256Hex(token);
   const t = now();
-  const row = await env.DB
-    .prepare('SELECT * FROM login_tokens WHERE token_hash=?').bind(tokenHash).first();
-
-  if (!row || row.used || row.expires_at < t) {
-    return redirect(`${appUrl}/?auth=expired`);
-  }
-
-  // Burn the token (single use).
-  await env.DB.prepare('UPDATE login_tokens SET used=1 WHERE token_hash=?').bind(tokenHash).run();
+  // Redeem atomically: only one concurrent request can consume this token.
+  // D1/SQLite RETURNING gives us the email only when the update succeeds.
+  const row = await env.DB.prepare(
+    'UPDATE login_tokens SET used=1 WHERE token_hash=? AND used=0 AND expires_at>? RETURNING email',
+  ).bind(tokenHash, t).first();
+  if (!row) return redirect(`${appUrl}/?auth=expired`);
 
   // Create the session.
   const sid = randomToken(32);
