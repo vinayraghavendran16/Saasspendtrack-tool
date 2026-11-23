@@ -353,10 +353,20 @@ function acctEnv(user, membership, account, store) {
         if (/FROM users/i.test(sql)) return user;
         if (/FROM memberships/i.test(sql)) return membership;
         if (/FROM accounts/i.test(sql)) return account;
-        if (/FROM app_data/i.test(sql)) return store[bound[0]] != null ? { data: store[bound[0]] } : null;
+        if (/FROM app_data/i.test(sql)) return store[bound[0]] != null ? { data: store[bound[0]], version: 1 } : null;
+        if (/INSERT OR IGNORE INTO app_data/i.test(sql)) {
+          if (store[bound[0]] != null) return null;
+          store[bound[0]] = bound[1];
+          return { version: 1 };
+        }
+        if (/UPDATE app_data SET/i.test(sql)) {
+          if (store[bound[2]] == null || bound[3] !== 1) return null;
+          store[bound[2]] = bound[0];
+          return { version: 2 };
+        }
         return null;
       },
-      run: async () => { if (/INTO app_data/i.test(sql)) store[bound[0]] = bound[1]; },
+      run: async () => {},
     }; } };
   } } };
 }
@@ -365,7 +375,7 @@ const p2owner = { email: 'owner@x.com', status: 'active', trial_ends_at: Date.no
 const p2acct = { id: 'A', owner_email: 'owner@x.com', name: 'Acme' };
 const p2memMember = { email: 'member@x.com', account_id: 'A', role: 'member', status: 'active' };
 const p2memOwner = { email: 'owner@x.com', account_id: 'A', role: 'owner', status: 'active' };
-const p2req = { headers: { get: () => 'sst_session=s' }, text: async () => JSON.stringify({ hi: 1 }) };
+const p2req = { headers: { get: (k) => k.toLowerCase() === 'if-match' ? '0' : 'sst_session=s' }, text: async () => JSON.stringify({ hi: 1 }) };
 // Member reads the OWNER's app_data row (shared workspace).
 let p2store = { 'owner@x.com': JSON.stringify({ shared: true }) };
 let p2res = await DATA.onRequestGet({ request: p2req, env: acctEnv(p2member, p2memMember, p2acct, p2store) });
