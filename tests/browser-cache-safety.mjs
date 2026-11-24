@@ -62,3 +62,42 @@ assert.ok(legacyImport.includes('|| _draftRecoveryPending || _serverSaveBlocked)
 assert.ok(legacyPrompt.includes('if (_draftRecoveryPending || _serverSaveBlocked || !_legacyImportPending) return;'), 'start fresh cannot bypass recovery');
 assert.ok(!legacyPrompt.includes('localStorage.removeItem'), 'legacy decisions must never delete recovery drafts');
 assert.ok(app.includes('if (_legacyImportPending && _serverHydrated && _serverVersion === 0) showLegacyImportPrompt();'), 'legacy review resumes only after explicit recovery discard');
+
+const { runInNewContext } = await import('node:vm');
+const formatterStart = deployed.indexOf('function patchFormatters()');
+const formatterEnd = deployed.indexOf('\n}', formatterStart) + 2;
+const monthlyPatchStart = deployed.indexOf("if (typeof window.monthlyCost === 'function' && !window.monthlyCost._p50)");
+const monthlyPatchEnd = deployed.indexOf('\n}', monthlyPatchStart) + 2;
+const mathStart = deployed.indexOf('function monthlyCost(sub)');
+const mathEnd = deployed.indexOf('function parseDate(s)', mathStart);
+const cycleDefinition = deployed.match(/^const CYCLE_MONTHS = .*;$/m)[0];
+
+const finance = {};
+finance.window = finance;
+runInNewContext([
+  cycleDefinition,
+  'const state = { settings: { currency: "EUR" } };',
+  'let origFormatMoney, origFormatMoneyShort;',
+  'const ss = () => ({ currency: "GBP" });',
+  'const convert = () => { throw new Error("unexpected display FX"); };',
+  'const toUSD = () => { throw new Error("unexpected source FX"); };',
+  deployed.slice(mathStart, mathEnd),
+  deployed.slice(formatterStart, formatterEnd),
+  'patchFormatters();',
+  deployed.slice(monthlyPatchStart, monthlyPatchEnd),
+].join('\n'), finance);
+
+for (const [cycle, cost, annual] of [
+  ['weekly', 100, 5200],
+  ['monthly', 100, 1200],
+  ['quarterly', 300, 1200],
+  ['yearly', 1200, 1200],
+]) {
+  assert.ok(Math.abs(finance.monthlyCost({ cycle, cost, currency: 'EUR' }) * 12 - annual) < 0.000001);
+}
+const contract = { cycle: 'yearly', cost: 1200, currency: 'EUR', licenses: 10, assigned: 7, utilized: 6 };
+assert.equal(finance.consumption(contract).unusedCostMonthly, 40);
+assert.equal(finance.consumption({ ...contract, active: false }).unusedCostMonthly, 0);
+assert.equal(finance.formatMoney(finance.monthlyCost(contract)), '€100.00');
+assert.equal(finance.formatMoneyShort(1200), 'EUR 1.2k');
+console.log('PASS: deployed recurring spend, seat waste and stated-currency formatting without FX');

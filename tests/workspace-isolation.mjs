@@ -108,3 +108,31 @@ for (const row of [{data:'',version:2},{data:'null',version:2},{data:'[]',versio
 }
 data.set('a@example.com',original);
 console.log('PASS: invalid snapshots, UTF-8 size limits and corrupt saved rows fail closed');
+
+const eur = {
+  settings: { currency: 'EUR' },
+  subscriptions: [{ id: 's1', cost: 1200, currency: 'eur' }],
+  invoices: [{ id: 'i1', amount: 1200 }],
+};
+assert.equal((await put('a@example.com', eur, 2)).status, 200);
+assert.deepEqual((await (await get('a@example.com')).json()).data, eur);
+
+for (const payload of [
+  { ...eur, invoices: [{ amount: 20, currency: 'USD' }] },
+  { ...eur, subscriptions: [{ cost: 20, currency: 123 }] },
+  { settings: { currency: 'ZZZ' } },
+]) {
+  const response = await put('a@example.com', payload, 3);
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'invalid_currency');
+}
+for (const settings of [{ currency: 'USD' }, {}]) {
+  const response = await put('a@example.com', { settings, subscriptions: [] }, 3);
+  assert.equal(response.status, 422);
+  assert.equal((await response.json()).error, 'currency_locked');
+}
+assert.deepEqual((await (await get('a@example.com')).json()).data, eur);
+assert.equal((await put('b@example.com', { subscriptions: [{ cost: 20 }] }, 1)).status, 200);
+assert.equal((await put('b@example.com', { settings: { currency: 'EUR' } }, 2)).status, 422);
+assert.equal((await put('b@example.com', { settings: { currency: 'USD' } }, 2)).status, 200);
+console.log('PASS: currency consistency and existing workspace currency protection');

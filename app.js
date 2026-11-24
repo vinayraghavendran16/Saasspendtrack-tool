@@ -205,6 +205,11 @@ async function pushServerSave() {
       return;
     }
     if (!response.ok) {
+      const problem = await response.json().catch(() => null);
+      if (['invalid_currency', 'currency_locked'].includes(problem?.error)) {
+        toast(problem.message + ' Your browser copy is preserved.', 'error');
+        return;
+      }
       console.warn('Workspace save was not accepted:', response.status);
       toast('Workspace changes could not be saved. Your browser copy is preserved.', 'error');
       return;

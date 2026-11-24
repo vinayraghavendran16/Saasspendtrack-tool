@@ -20,6 +20,27 @@ function validSnapshot(value) {
   return true;
 }
 
+const SUPPORTED_CURRENCIES = new Set(Intl.supportedValuesOf('currency'));
+
+function monetaryRecords(snapshot) {
+  return [...(snapshot.subscriptions || []), ...(snapshot.invoices || [])];
+}
+
+function workspaceCurrency(snapshot) {
+  const code = snapshot.settings?.currency ?? 'USD';
+  return typeof code === 'string' && SUPPORTED_CURRENCIES.has(code) ? code : null;
+}
+
+function validCurrency(snapshot, code) {
+  return code !== null && monetaryRecords(snapshot).every(({ currency }) =>
+    currency == null || currency === '' ||
+    (typeof currency === 'string' && currency.toUpperCase() === code));
+}
+
+function versionConflict() {
+  return json({ error: 'version_conflict', message: 'This workspace changed since you opened it. Reload before saving.' }, 409);
+}
+
 export async function onRequestGet({ request, env }) {
   const user = await getUserFromSession(request, env);
   if (!user) return json({ error: 'auth' }, 401);
@@ -64,6 +85,14 @@ export async function onRequestPut({ request, env }) {
   const ctx = await getAccountContext(env, user);
   if (!ctx || !ctx.ownerEmail || ctx.membership.account_id !== gate.membership.account_id) return json({ error: 'no_account' }, 403);
   const key = ctx.ownerEmail;
+  const code = workspaceCurrency(snapshot);
+  if (!validCurrency(snapshot, code)) {
+    return json({
+      error: 'invalid_currency',
+      message: 'Subscriptions and invoices must use the same supported currency as the workspace.',
+    }, 400);
+  }
+
   let saved;
   if (expectedVersion === 0) {
     // Exactly one first writer can create a workspace. Others receive 409.
@@ -71,11 +100,24 @@ export async function onRequestPut({ request, env }) {
       'INSERT OR IGNORE INTO app_data (email, data, updated_at, version) VALUES (?,?,?,1) RETURNING version',
     ).bind(key, body, now()).first();
   } else {
+    const current = await env.DB.prepare('SELECT data, version FROM app_data WHERE email=?')
+      .bind(key).first();
+    if (current?.version !== expectedVersion) return versionConflict();
+    let previous;
+    try { previous = JSON.parse(current.data); } catch { previous = null; }
+    if (!validSnapshot(previous)) return json({ error: 'invalid_saved_data' }, 503);
+    if (monetaryRecords(previous).length && workspaceCurrency(previous) !== code) {
+      return json({
+        error: 'currency_locked',
+        message: 'The workspace currency cannot change while saved subscriptions or invoices exist.',
+      }, 422);
+    }
+
     // Compare-and-swap in a single SQL statement prevents lost writes.
     saved = await env.DB.prepare(
       'UPDATE app_data SET data=?, updated_at=?, version=version+1 WHERE email=? AND version=? RETURNING version',
     ).bind(body, now(), key, expectedVersion).first();
   }
-  if (!saved) return json({ error: 'version_conflict', message: 'This workspace changed since you opened it. Reload before saving.' }, 409);
+  if (!saved) return versionConflict();
   return json({ ok: true, version: saved.version });
 }

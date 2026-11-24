@@ -3819,6 +3819,11 @@ async function pushServerSave() {
       return;
     }
     if (!response.ok) {
+      const problem = await response.json().catch(() => null);
+      if (['invalid_currency', 'currency_locked'].includes(problem?.error)) {
+        toast(problem.message + ' Your browser copy is preserved.', 'error');
+        return;
+      }
       console.warn('Workspace save was not accepted:', response.status);
       toast('Workspace changes could not be saved. Your browser copy is preserved.', 'error');
       return;
@@ -21707,7 +21712,7 @@ function patchFormatters() {
     origFormatMoney = window.formatMoney;
     window.formatMoney = function (n) {
       const code = ss().currency || 'USD';
-      if (code === 'USD') return origFormatMoney(n);
+      if (state.settings?.currency || code === 'USD') return origFormatMoney(n);
       const converted = convert(n, code);
       const def = currencyDef(code);
       if (converted == null || isNaN(converted)) return def.symbol + '-';
@@ -21722,7 +21727,7 @@ function patchFormatters() {
     origFormatMoneyShort = window.formatMoneyShort;
     window.formatMoneyShort = function (n) {
       const code = ss().currency || 'USD';
-      if (code === 'USD') return origFormatMoneyShort(n);
+      if (state.settings?.currency || code === 'USD') return origFormatMoneyShort(n);
       const converted = convert(n, code);
       const def = currencyDef(code);
       if (converted == null || isNaN(converted)) return def.symbol + '-';
@@ -22790,6 +22795,7 @@ if (typeof window.monthlyCost === 'function' && !window.monthlyCost._p50) {
   const orig = window.monthlyCost;
   window.monthlyCost = function (sub) {
     const raw = orig(sub);                   // monthly, in sub.currency
+    if (state.settings?.currency) return raw;
     const from = subCcy(sub);
     return toUSD(raw, from);                 // normalise to USD for summing
   };

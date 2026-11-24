@@ -108,7 +108,7 @@ function patchFormatters() {
     origFormatMoney = window.formatMoney;
     window.formatMoney = function (n) {
       const code = ss().currency || 'USD';
-      if (code === 'USD') return origFormatMoney(n);
+      if (state.settings?.currency || code === 'USD') return origFormatMoney(n);
       const converted = convert(n, code);
       const def = currencyDef(code);
       if (converted == null || isNaN(converted)) return def.symbol + '-';
@@ -123,7 +123,7 @@ function patchFormatters() {
     origFormatMoneyShort = window.formatMoneyShort;
     window.formatMoneyShort = function (n) {
       const code = ss().currency || 'USD';
-      if (code === 'USD') return origFormatMoneyShort(n);
+      if (state.settings?.currency || code === 'USD') return origFormatMoneyShort(n);
       const converted = convert(n, code);
       const def = currencyDef(code);
       if (converted == null || isNaN(converted)) return def.symbol + '-';

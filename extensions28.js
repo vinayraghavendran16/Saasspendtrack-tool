@@ -73,6 +73,7 @@ if (typeof window.monthlyCost === 'function' && !window.monthlyCost._p50) {
   const orig = window.monthlyCost;
   window.monthlyCost = function (sub) {
     const raw = orig(sub);                   // monthly, in sub.currency
+    if (state.settings?.currency) return raw;
     const from = subCcy(sub);
     return toUSD(raw, from);                 // normalise to USD for summing
   };
