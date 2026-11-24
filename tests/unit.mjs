@@ -330,6 +330,7 @@ function acct3Env(o) {
         if (/COUNT\(\*\) c FROM invites/i.test(sql)) return { c: o.pendingCount || 0 };
         if (/FROM invites WHERE token_hash/i.test(sql)) return (o.invitesByHash || {})[b[0]] || null;
         if (/INSERT INTO rate_limits/i.test(sql)) return { count: 1 };
+        if (/INSERT INTO invites \(token_hash/i.test(sql)) return o.lateCapAtInsert ? null : { token_hash: b[0] };
         if (/UPDATE invites SET used=1/i.test(sql)) { const inv = (o.invitesByHash || {})[b[0]]; if (!inv || inv.used || inv.expires_at <= b[1]) return null; inv.used = 1; return { token_hash: b[0] }; }
         if (/SELECT account_id, status FROM memberships/i.test(sql)) return (o.members || {})[b[0]] || null;
         return null;
@@ -375,6 +376,9 @@ ok(ra3.status === 409 && (await ra3.json()).error === 'other_account', 'invite 4
 // 50-member cap blocks.
 ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'member' }), env: admEnv({ memberCount: 50 }) });
 ok(ra3.status === 403 && (await ra3.json()).error === 'member_cap', 'invite 403 at member cap');
+// A concurrent request can claim the final seat after the preflight count.
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'last@x.com' }), env: admEnv({ memberCount: 49, lateCapAtInsert: true }) });
+ok(ra3.status === 403 && (await ra3.json()).error === 'member_cap', 'invite INSERT enforces cap after preflight race');
 // Happy path (no ZEPTOMAIL_TOKEN -> email no-ops, no network).
 ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'admin' }), env: admEnv() });
 let jx3 = await ra3.json();
