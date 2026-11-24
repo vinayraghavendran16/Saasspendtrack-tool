@@ -1,6 +1,6 @@
 // Workspace AI consent. Disabled by default; only owners/admins may change it.
 import { json, requireRole, now } from '../../_shared/util.js';
-const CONSENT_VERSION = 'workspace-ai-v1';
+const CONSENT_VERSION = 'workspace-ai-v2';
 export async function onRequestGet({ request, env }) {
   const gate = await requireRole(request, env, 'member');
   if (gate.response) return gate.response;
@@ -8,7 +8,7 @@ export async function onRequestGet({ request, env }) {
     const row = await env.DB.prepare(
       'SELECT enabled, consent_version, changed_at FROM workspace_ai_settings WHERE account_id=?',
     ).bind(gate.membership.account_id).first();
-    return json({ enabled: row?.enabled === 1, canManage: ['owner', 'admin'].includes(gate.membership.role), consentVersion: row?.consent_version || null, changedAt: row?.changed_at || null });
+    return json({ enabled: row?.enabled === 1 && row?.consent_version === CONSENT_VERSION, canManage: ['owner', 'admin'].includes(gate.membership.role), consentVersion: row?.consent_version || null, changedAt: row?.changed_at || null });
   } catch (_) { return json({ enabled: false, unavailable: true }, 503); }
 }
 export async function onRequestPost({ request, env }) {
