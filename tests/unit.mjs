@@ -162,6 +162,58 @@ const joined = ddl.join('|');
 ok(/CREATE TABLE IF NOT EXISTS accounts/.test(joined) && /memberships/.test(joined) && /invites/.test(joined), 'ensureAccountSchema creates accounts/memberships/invites');
 ok(ddl.length === firstCount && firstCount === 7, 'ensureAccountSchema runs its 7 statements once per DB');
 
+// Provisioning must not leave orphan accounts if the membership insert fails.
+function provisioningEnv({ rejectMembership = false } = {}) {
+  const accounts = new Map();
+  const memberships = new Map();
+  const DB = {
+    prepare(sql) {
+      return {
+        run: async () => ({ success: true }), // CREATE TABLE / INDEX
+        bind(...args) {
+          return {
+            sql, args,
+            async first() {
+              if (/SELECT \* FROM memberships WHERE email=/i.test(sql)) return memberships.get(args[0]) || null;
+              return null;
+            },
+          };
+        },
+      };
+    },
+    async batch(statements) {
+      const nextAccounts = new Map(accounts);
+      const nextMemberships = new Map(memberships);
+      for (const { sql, args } of statements) {
+        if (/INSERT INTO accounts/i.test(sql)) nextAccounts.set(args[0], { id: args[0], owner_email: args[2] });
+        else if (/INSERT INTO memberships/i.test(sql)) {
+          if (rejectMembership || nextMemberships.has(args[0])) throw new Error('membership insert failed');
+          nextMemberships.set(args[0], { email: args[0], account_id: args[1], role: args[2], status: args[3] });
+        } else throw new Error('unexpected statement');
+      }
+      accounts.clear();
+      memberships.clear();
+      for (const [k, v] of nextAccounts) accounts.set(k, v);
+      for (const [k, v] of nextMemberships) memberships.set(k, v);
+      return statements.map(() => ({ success: true }));
+    },
+  };
+  return { env: { DB }, accounts, memberships };
+}
+const provisioning = provisioningEnv();
+const firstLogin = await Promise.all([
+  U.ensureAccountForUser(provisioning.env, { email: 'new@x.com' }),
+  U.ensureAccountForUser(provisioning.env, { email: 'new@x.com' }),
+]);
+ok(firstLogin.every(row => row && row.account_id === firstLogin[0].account_id),
+  'concurrent first logins resolve to the same account');
+ok(provisioning.accounts.size === 1 && provisioning.memberships.size === 1,
+  'concurrent first logins cannot leave an orphan account');
+const rejectedProvisioning = provisioningEnv({ rejectMembership: true });
+const rejectedMembership = await U.ensureAccountForUser(rejectedProvisioning.env, { email: 'fail@x.com' });
+ok(rejectedMembership === null && rejectedProvisioning.accounts.size === 0,
+  'failed membership insert rolls back the new account');
+
 // ---- rb2b ingest (secret gate + field mapping) ----
 section('rb2b ingest');
 function rbReq(authHeader, body, urlStr) {
