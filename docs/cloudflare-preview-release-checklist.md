@@ -44,3 +44,18 @@ The SQLite smoke test is a **local simulation**, not proof that Cloudflare's rem
 - Ensure API and browser assets deploy together, test user login, data writes, AI consent and rollback behavior.
 - Migration 002 is additive, but rollback to the prior app code may ignore the revision field and could permit stale overwrites. Treat rollback as an engineering decision, not a blind revert.
 - Require owner approval before any production D1 migration or main merge.
+
+## Read-only verification of the existing `sst-preview` database
+
+The auth investigation already identified a dedicated preview database (`sst-preview`), so **do not create or rebind a new database merely to inspect it**. Before running a migration, inspect the current schema. These commands require an authorized Cloudflare CLI session; they must not be run against `sst-trial`:
+
+```sh
+npx wrangler d1 execute sst-preview --remote --command "SELECT name, type FROM sqlite_master WHERE type IN ('table','index') AND name IN ('accounts','app_data','workspace_ai_settings','workspace_ai_consent_events','idx_ai_consent_account') ORDER BY name;"
+npx wrangler d1 execute sst-preview --remote --command "PRAGMA table_info(app_data);"
+npx wrangler d1 execute sst-preview --remote --command "PRAGMA integrity_check;"
+npx wrangler d1 execute sst-preview --remote --command "SELECT COUNT(*) AS total_rows, SUM(CASE WHEN version IS NULL OR version < 1 THEN 1 ELSE 0 END) AS invalid_versions FROM app_data;"
+```
+
+**Interpretation:** If `app_data.version` already exists, **never reapply migration 002**; it contains an `ALTER TABLE ... ADD COLUMN` and is not idempotent. If the column is missing, the last SELECT will fail as expected: do not treat that as evidence of corrupt data. Back up the preview database first, then apply only the missing migrations, after confirming the existing `accounts` and `app_data` schema. `CREATE TABLE IF NOT EXISTS` does not repair an incompatible existing table, so compare columns before treating migration 001 as complete. If `app_data` is missing entirely, stop and inspect the initialization history rather than blindly applying migration 002.
+
+Do not output customer contract JSON, email addresses, secrets or magic-link URLs as evidence. Record only the redacted schema, counts, integrity result, preview DB ID and deployment SHA. These read-only commands do not establish that a backup can be restored or that end-to-end tenant isolation works; those remain separate release gates.
