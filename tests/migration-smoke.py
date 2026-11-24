@@ -46,7 +46,7 @@ import re
 accept_source = (root / "functions/api/account/accept.js").read_text()
 batch_source = accept_source.split("const results = await env.DB.batch([", 1)[1].split("]);", 1)[0]
 tick = chr(96)
-pattern = r"env\.DB\.prepare\(\s*(" + tick + "[^" + tick + "]*" + tick + r"|'[^']*')\s*\)\.bind"
+pattern = r"env\.DB\.prepare\(\s*(" + tick + "[^" + tick + "]*" + tick + r"|'[^']*')\s*,?\s*\)\.bind"
 literals = re.findall(pattern, batch_source, re.S)
 statements = [literal[1:-1] for literal in literals]
 assert len(statements) == 5, "Invite batch must contain all five SQL guards"
