@@ -18,6 +18,9 @@ assert.ok(app.includes('legacyImportCurrencyReviewed = true'), 'currency review 
 assert.ok(app.includes('legacyImportAt = new Date()'), 'import timestamp is recorded');
 assert.ok(app.includes('showLegacyImportPrompt()'), 'legacy import requires a visible prompt');
 assert.ok(app.includes('workspaceCurrency()'), 'display respects confirmed workspace currency');
+assert.ok(save.includes('if (_legacyImportPending) _legacyImportDirty = true'), 'edits during import decision mark the import unsafe');
+assert.ok(app.includes('if (_legacyImportDirty) {'), 'import refuses to overwrite interim edits');
+assert.ok(sync.includes('_legacyImportDirty = editsAtStart !== _localEditCounter'), 'edits during hydration also block import');
 assert.ok(save.includes('!_legacyImportPending'), 'pending import cannot trigger an automatic save');
 assert.ok(app.includes('if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending) return;'), 'pending import blocks server writes');
 assert.ok(sync.includes('_legacyImportPending = true'), 'legacy records activate the pending-import gate');
