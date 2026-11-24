@@ -55,3 +55,10 @@ assert.ok(app.includes('if (!item.currency) item.currency = code;'), 'unlabeled 
 
 assert.ok(app.includes('I confirm that ALL monetary records originally use'), 'import requires explicit single-currency confirmation');
 assert.ok(!app.includes('Subscription billing-period amounts total:'), 'import must not sum incompatible billing periods');
+
+const legacyImport = app.slice(app.indexOf('async function offerLegacyImport()'), app.indexOf('function showLegacyImportPrompt()'));
+const legacyPrompt = app.slice(app.indexOf('function showLegacyImportPrompt()'), app.indexOf('async function syncFromServer()'));
+assert.ok(legacyImport.includes('|| _draftRecoveryPending || _serverSaveBlocked) return;'), 'import cannot bypass draft recovery');
+assert.ok(legacyPrompt.includes('if (_draftRecoveryPending || _serverSaveBlocked || !_legacyImportPending) return;'), 'start fresh cannot bypass recovery');
+assert.ok(!legacyPrompt.includes('localStorage.removeItem'), 'legacy decisions must never delete recovery drafts');
+assert.ok(app.includes('if (_legacyImportPending && _serverHydrated && _serverVersion === 0) showLegacyImportPrompt();'), 'legacy review resumes only after explicit recovery discard');
