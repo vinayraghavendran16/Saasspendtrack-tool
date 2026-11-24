@@ -7349,13 +7349,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const integrations = document.getElementById('integrations');
   if (!integrations) return;
   const section = document.createElement('section');
-  section.setAttribute('aria-label', 'AI document privacy');
+  section.setAttribute('aria-label', 'Workspace AI privacy');
   section.style.cssText = 'margin:20px 0;padding:20px;border:1px solid var(--border,#cbd5e1);border-radius:12px;background:var(--card,#fff)';
   section.innerHTML = `
-    <h3 style="margin:0 0 10px">AI document privacy</h3>
-    <p style="margin:0 0 12px;font-size:14px;line-height:1.6">AI contract extraction sends the contract text you submit to Anthropic, a third-party AI service, to identify contract terms. Do not enable this for confidential documents unless your organization approves the processing. Manual contract entry remains available without AI processing.</p>
+    <h3 style="margin:0 0 10px">Workspace AI privacy</h3>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6">AI features send submitted contract text or PDF files, workspace financial snapshots and questions, or company website and region details to Anthropic, a third-party AI service. Enable only if your organization approves these disclosures. Manual contract entry remains available without AI processing.</p>
     <p id="workspace-ai-state" role="status" aria-live="polite">Checking workspace consent…</p>
-    <label style="display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:14px"><input id="workspace-ai-optin" type="checkbox" disabled style="margin-top:3px"> <span>I am authorized to approve third-party AI processing of our workspace's submitted contract text. I understand this setting applies to all workspace members and can be revoked.</span></label>
+    <label style="display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:14px"><input id="workspace-ai-optin" type="checkbox" disabled style="margin-top:3px"> <span>I am authorized to approve third-party AI processing of our workspace's submitted documents, financial data, questions and company details. I understand this setting applies to all workspace members and can be revoked.</span></label>
     <button type="button" id="workspace-ai-save" disabled>Save AI processing preference</button>
     <p style="font-size:12px;margin:10px 0 0">Only workspace owners and admins can change this setting. Every change is recorded in the workspace audit log.</p>`;
   integrations.prepend(section);
@@ -7371,8 +7371,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkbox.disabled = !canManage;
     save.disabled = !canManage;
     status.textContent = (current.enabled
-      ? 'Enabled: workspace members may use AI contract extraction.'
-      : 'Disabled: contract text will not be sent for AI extraction.') +
+      ? 'Enabled: workspace members may use AI extraction, spend assistant and preset generation.'
+      : 'Disabled: AI requests are blocked until current consent is granted.') +
       (canManage ? '' : ' This setting is read-only for your workspace role.');
   } catch (error) {
     status.textContent = error.message;
@@ -7386,7 +7386,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ enabled: checkbox.checked, consentVersion: 'workspace-ai-v1' }),
+        body: JSON.stringify({ enabled: checkbox.checked, consentVersion: 'workspace-ai-v2' }),
       });
       if (!response.ok) {
         if (response.status === 403 || response.status === 401) throw new Error('Only a signed-in workspace owner or admin can change this setting.');
@@ -7394,7 +7394,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       const saved = await response.json();
       checkbox.checked = !!saved.enabled;
-      status.textContent = saved.enabled ? 'Enabled and recorded: AI contract extraction is available.' : 'Disabled and recorded: future AI extraction is blocked.';
+      status.textContent = saved.enabled ? 'Enabled and recorded: workspace AI features are available.' : 'Disabled and recorded: future AI requests are blocked.';
     } catch (error) {
       status.textContent = error.message;
       // Re-read the server state rather than assuming a failed response has not committed.
