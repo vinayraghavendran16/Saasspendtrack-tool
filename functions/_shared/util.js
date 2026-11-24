@@ -194,13 +194,27 @@ export async function requireAdmin(request, env) {
 // fails open to that same solo-owner, so this never bricks a single-user install.
 // Returns { response } on failure, or { user, ent, membership } on success.
 export async function requireEntitledRole(request, env, minRole = 'member') {
-  const gate = await requireEntitled(request, env);
-  if (gate.response) return gate;                       // 401 anon / 403 not_entitled
-  const { user, ent } = gate;
-  const membership = await ensureAccountForUser(env, user);
-  if (!membership || membership.status !== 'active') return { response: json({ error: 'no_account' }, 403) };
-  if (!roleAtLeast(membership.role, minRole)) return { response: json({ error: 'forbidden' }, 403) };
-  return { user, ent, membership };
+  const user = await getUserFromSession(request, env);
+  if (!user) return { response: unauthorized('sign in required') };
+  // Billing belongs to the workspace. A teammate's personal trial expiry
+  // must not override the owner's active subscription (or vice versa).
+  const ctx = await getAccountContext(env, user);
+  if (!ctx) return { response: json({ error: 'no_account' }, 403) };
+  if (!roleAtLeast(ctx.membership.role, minRole)) return { response: json({ error: 'forbidden' }, 403) };
+  const ent = await resolveWorkspaceEntitlement(env, user, ctx);
+  if (!ent?.entitled) return { response: json({ error: 'not_entitled' }, 403) };
+  return { user, ent, membership: ctx.membership };
+}
+
+// The owner's billing record is authoritative for every active workspace
+// member. Preserve the signed-in member's email in the entitlement response.
+export async function resolveWorkspaceEntitlement(env, user, ctx) {
+  if (!user || !ctx || !ctx.ownerEmail || ctx.membership.status !== 'active') return null;
+  const owner = normalizeEmail(user.email) === ctx.ownerEmail ? user :
+    await env.DB.prepare('SELECT * FROM users WHERE email=?').bind(ctx.ownerEmail).first();
+  if (!owner) return null; // do not invent an entitlement when the owner is missing
+  const entitlement = await resolveEntitlement(env, owner);
+  return { ...entitlement, email: normalizeEmail(user.email) };
 }
 
 // Reads the session cookie and returns the user row, or null.
