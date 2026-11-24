@@ -2487,10 +2487,10 @@ function downloadFile(filename, content, mime) {
   URL.revokeObjectURL(url);
 }
 function exportSubscriptionsCsv() {
-  const headers = ['name','team','category','cost','cycle','monthly_cost','renewal','next_projected_renewal','auto_renew','notice_days','term_length','price_cap_pct','url','notes','active'];
+  const headers = ['name','team','category','cost','currency','cycle','monthly_cost','renewal','next_projected_renewal','auto_renew','notice_days','term_length','price_cap_pct','url','notes','active'];
   const rows = state.subscriptions.map(s => [
-    s.name, s.team || '', s.category || '', s.cost, s.cycle,
-    monthlyCost(s).toFixed(2), s.renewal || '', nextRenewalISO(s) || '',
+    s.name, s.team || '', s.category || '', s.cost, s.currency || workspaceCurrency(), s.cycle,
+    monthlyCostInOriginalCurrency(s).toFixed(2), s.renewal || '', nextRenewalISO(s) || '',
     s.contract?.autoRenew ?? '', s.contract?.noticeDays ?? '', s.contract?.termLength || '',
     s.contract?.priceCapPct ?? '', s.url || '', s.notes || '', s.active !== false ? 'yes' : 'no',
   ]);
@@ -2498,9 +2498,9 @@ function exportSubscriptionsCsv() {
   downloadFile('subscriptions.csv', csv, 'text/csv;charset=utf-8');
 }
 function exportInvoicesCsv() {
-  const headers = ['vendor','team','invoice_number','amount','issue_date','due_date','paid_date','status','notes'];
+  const headers = ['vendor','team','invoice_number','amount','currency','issue_date','due_date','paid_date','status','notes'];
   const rows = state.invoices.map(i => [
-    subName(i.subId), subTeam(i.subId), i.invoiceNumber || '', i.amount,
+    subName(i.subId), subTeam(i.subId), i.invoiceNumber || '', i.amount, i.currency || workspaceCurrency(),
     i.issueDate || '', i.dueDate || '', i.paidDate || '', invoiceStatus(i), i.notes || '',
   ]);
   const csv = [headers, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');

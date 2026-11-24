@@ -250,3 +250,46 @@ await backupContext.importJson(backupFile(validBackup));
 assert.equal(backupContext.state.subscriptions[0].cost, 75);
 assert.equal(saves, 1);
 console.log('PASS: bundled JSON restore validates before replacing workspace state');
+
+const exportsStart = deployed.indexOf('function exportSubscriptionsCsv()');
+const exportsEnd = deployed.indexOf('function exportJson()', exportsStart);
+const exportCode = deployed.slice(exportsStart, exportsEnd);
+assert.ok(app.includes(exportCode));
+const schemaStart = deployed.indexOf('const FIELDS = [');
+const schemaEnd = deployed.indexOf('const biState = {', schemaStart);
+const escapingStart = deployed.indexOf('function csvEscape(v)');
+const escapingEnd = deployed.indexOf('function downloadFile(', escapingStart);
+const downloads = new Map();
+const roundTrip = {
+  downloads,
+  rows: [
+    { name: 'Weekly, paused', cost: 10, cycle: 'weekly', active: false },
+    { name: 'Annual active', cost: 1200, currency: 'EUR', cycle: 'yearly' },
+  ],
+};
+runInNewContext([
+  cycleDefinition,
+  deployed.slice(mathStart, mathEnd),
+  'const state = { settings: { currency: "EUR" }, subscriptions: rows, invoices: [{ amount: 125, subId: "s1" }] };',
+  'const biState = {};',
+  'const nextRenewalISO = () => "";',
+  'const subName = () => "Weekly, paused";',
+  'const subTeam = () => "";',
+  'const invoiceStatus = () => "pending";',
+  'const downloadFile = (name, contents) => downloads.set(name, contents);',
+  deployed.slice(escapingStart, escapingEnd),
+  deployed.slice(schemaStart, schemaEnd),
+  csvReview,
+  exportCode,
+  'exportSubscriptionsCsv(); exportInvoicesCsv();',
+  'biState.rows = parseCSV(downloads.get("subscriptions.csv"));',
+  'biState.mapping = autoMap(biState.rows[0]);',
+  'globalThis.imported = buildPreviewRows();',
+].join('\n'), roundTrip);
+assert.deepEqual(Array.from(roundTrip.imported, row => [row.name, row.cost, row.currency, row.cycle, row.active]), [
+  ['Weekly, paused', 10, 'EUR', 'weekly', false],
+  ['Annual active', 1200, 'EUR', 'yearly', true],
+]);
+assert.match(downloads.get('subscriptions.csv'), /10,EUR,weekly,43\.33/);
+assert.match(downloads.get('invoices.csv'), /125,EUR/);
+console.log('PASS: subscription CSV round-trip preserves amount, native currency, weekly billing and paused status');

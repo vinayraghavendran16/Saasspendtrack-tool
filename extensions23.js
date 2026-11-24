@@ -26,7 +26,8 @@ const FIELDS = [
   { key: 'name',     label: 'Vendor name',       required: true,  hint: 'Salesforce, Zoom, Figma...' },
   { key: 'cost',     label: 'Cost',              required: false, hint: 'Amount in the workspace currency' },
   { key: 'currency', label: 'Currency',          required: false, hint: 'ISO code, for example USD or EUR' },
-  { key: 'cycle',    label: 'Billing cycle',     required: false, hint: 'monthly / yearly / quarterly' },
+  { key: 'cycle',    label: 'Billing cycle',     required: false, hint: 'weekly / monthly / quarterly / yearly' },
+  { key: 'active',   label: 'Active',            required: false, hint: 'Yes or no' },
   { key: 'category', label: 'Category',          required: false, hint: 'CRM, Analytics, Design...' },
   { key: 'team',     label: 'Owning team',       required: false, hint: 'Sales, Marketing, Engineering...' },
   { key: 'owner',    label: 'Owner email',       required: false, hint: 'The person responsible for this tool' },
@@ -42,6 +43,7 @@ const HEADER_ALIASES = {
   cost:     ['cost', 'price', 'amount', 'annual spend', 'annual cost', 'monthly cost', 'spend', 'yearly cost', 'yearly spend', 'acv', 'arr', 'total', 'subscription cost'],
   currency: ['currency', 'currency code', 'ccy', 'curr'],
   cycle:    ['cycle', 'billing', 'billing cycle', 'billing period', 'period', 'frequency', 'term', 'interval'],
+  active:   ['active', 'is active'],
   category: ['category', 'type', 'segment', 'bucket', 'function', 'use case'],
   team:     ['team', 'department', 'dept', 'owner team', 'business unit', 'bu', 'division'],
   owner:    ['owner', 'owner email', 'contact', 'contact email', 'manager', 'point of contact', 'poc', 'responsible', 'primary contact'],
@@ -98,6 +100,7 @@ function coerceCost(raw) {
 function coerceCycle(raw) {
   if (!raw) return 'yearly';
   const s = String(raw).toLowerCase().trim();
+  if (['weekly', 'week', 'wk', 'w'].includes(s)) return 'weekly';
   if (s.startsWith('month') || s === 'm' || s === 'mo' || s === '/mo' || s === 'monthly') return 'monthly';
   if (s.startsWith('year') || s === 'y' || s === 'yr' || s === 'annual' || s === 'annually') return 'yearly';
   if (s.startsWith('quarter') || s === 'q' || s === 'qtr' || s === 'quarterly') return 'quarterly';
@@ -345,6 +348,7 @@ function buildPreviewRows() {
       cost: coerceCost(amount.replace(new RegExp('^([+-]?\\s*)' + currency + '(?=\\s*[+-]?\\d)', 'i'), '$1')),
       currency,
       cycle: coerceCycle(get('cycle')),
+      active: !['no', 'false', '0', 'paused', 'inactive'].includes(get('active').toLowerCase()),
       category: get('category') || '',
       team: get('team') || '',
       ownerEmail: get('owner') || '',
@@ -504,7 +508,7 @@ function commitImport() {
       renewal: r.renewal,
       notes: r.notes,
       url: r.url,
-      active: true,
+      active: r.active,
       licenses: r.licenses || null,
       assigned: null,
       utilized: null,
