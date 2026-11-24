@@ -37,7 +37,7 @@ function ensureWorkspace() {
     { id: crypto.randomUUID(), email: state.settings.workspace.ownerEmail, name: 'Vinay (Owner)', role: 'owner', status: 'active', addedAt: new Date().toISOString(), lastSeenAt: new Date().toISOString() },
   ];
   state.settings.invites = state.settings.invites || [];
-  save();
+  // Rendering defaults must never schedule a workspace write.
 }
 function workspace() { ensureWorkspace(); return state.settings.workspace; }
 function users() { ensureWorkspace(); return state.settings.users; }

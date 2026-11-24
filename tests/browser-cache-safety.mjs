@@ -42,3 +42,10 @@ assert.ok(!deployed.includes('if (!state.subscriptions.length && !state.settings
 assert.ok(deployed.includes(app.slice(app.indexOf('// Workspace AI processing: explicit opt-in'))), 'deployed artifact includes consent disclosure and controls');
 assert.ok(deployed.includes(app.slice(app.indexOf('function workspaceCurrency()'), app.indexOf('function parseDate(s)'))), 'deployed base currency formatting matches source');
 console.log('PASS: deployed browser storage, currency and AI consent parity');
+for (const name of ['ensureWorkspace', 'markComplete', 'markViewed']) {
+  const begin = deployed.indexOf('function ' + name + '(');
+  const body = deployed.slice(begin, deployed.indexOf('\n}', begin) + 2);
+  assert.ok(!body.includes('save();'), name + ' must not write during rendering or hydration');
+}
+assert.ok(!deployed.includes('ob().tourSeen = true;\n  try { save(); }'), 'onboarding boot does not race hydration');
+console.log('PASS: rendering and onboarding do not schedule implicit cloud saves');
