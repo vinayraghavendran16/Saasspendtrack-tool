@@ -339,7 +339,10 @@ function formatMoney(n) {
 }
 function formatMoneyShort(n) {
   const code = workspaceCurrency();
-  const prefix = code === 'USD' ? '
+  const prefix = code === 'USD' ? String.fromCharCode(36) : code + ' ';
+  if (n >= 1000) return prefix + (n / 1000).toFixed(1) + 'k';
+  return prefix + Number(n || 0).toFixed(0);
+}
 function parseDate(s) { return s ? new Date(s + 'T00:00:00') : null; }
 function daysUntil(dateStr) {
   const d = parseDate(dateStr);
