@@ -53,10 +53,14 @@ export function safeEqual(a, b) {
 
 export function parseCookies(request) {
   const header = request.headers.get('Cookie') || '';
-  const out = {};
+  const out = Object.create(null);
   header.split(';').forEach((p) => {
     const i = p.indexOf('=');
-    if (i > -1) out[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim());
+    if (i > -1) {
+      const key = p.slice(0, i).trim();
+      try { out[key] = decodeURIComponent(p.slice(i + 1).trim()); }
+      catch (_) { /* Ignore malformed cookie values, never crash authentication. */ }
+    }
   });
   return out;
 }
@@ -119,7 +123,10 @@ export async function rateLimit(env, key, limit, windowMs, { failClosed = false 
          window_start = CASE WHEN window_start < ?3 THEN ?2 ELSE window_start END
        RETURNING count`,
     ).bind(key, t, threshold).first();
-    const count = row ? row.count : 1;
+    if (!row || !Number.isSafeInteger(row.count) || row.count < 1) {
+      return { ok: !failClosed, count: 0, limit, unavailable: true };
+    }
+    const count = row.count;
     return { ok: count <= limit, count, limit };
   } catch (_) {
     return { ok: !failClosed, count: 0, limit, unavailable: true };
