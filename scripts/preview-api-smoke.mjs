@@ -47,7 +47,7 @@ async function run() {
   assert.deepEqual(final.data,candidates[winner]);
   assert.equal(check(await call(b,'/api/data'),200).empty,true);
   console.log('PASS: persistence, missing precondition, stale writes, tenant isolation');
-  const consent = enabled => call(a,'/api/ai/consent','POST',{enabled,consentVersion:'workspace-ai-v1'});
+  const consent = enabled => call(a,'/api/ai/consent','POST',{enabled,consentVersion:'workspace-ai-v2'});
   try {
     assert.equal(check(await consent(true),200).enabled,true);
     assert.equal(check(await call(a,'/api/ai/consent'),200).enabled,true);
