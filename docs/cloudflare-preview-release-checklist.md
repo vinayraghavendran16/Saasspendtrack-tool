@@ -2,6 +2,17 @@
 
 **Do not merge to main or point a preview at the production `sst-trial` D1 binding.** Production Pages auto-deploys on merge; get the owner's explicit approval first.
 
+## Required evidence before production approval
+Record all of the following in the PR before requesting a merge:
+- Preview Pages deployment URL and immutable Git commit SHA.
+- Preview D1 database name and ID, plus evidence that it differs from production D1. Do not paste credentials.
+- Schema/migration application log, database integrity check and a sample query showing preserved app_data revisions.
+- Redacted end-to-end test results for authentication, two isolated accounts, invite redemption, version conflicts, consent enable/revoke, legacy import and recovery drafts.
+- Production D1 backup identifier and proof of a successful restore into a **separate** database.
+- Explicit go/no-go decision and production deployment authorization.
+
+**Current state:** None of the Cloudflare account-level evidence above has been verified through this repository's GitHub checks. Green GitHub CI is not a substitute for the live preview gate.
+
 ## Preview database
 1. Create a **new** Cloudflare D1 database dedicated to this preview (for example `sst-preview-security`). Never use the production `sst-trial` database or its ID.
 2. Apply `schema.sql` first, then `migrations/001_workspace_ai_consent.sql` and `migrations/002_app_data_version.sql` **in that order**. Migration 002 is intentionally single-use; record its application. For an already populated DB, take and verify a backup before migrating.
