@@ -16,6 +16,9 @@
 - Open the same workspace in two browsers. Save a change from browser A, then from stale browser B. B must receive HTTP 409, display the conflict, keep its local changes, and **must not overwrite** A's data.
 - Enable AI as owner/admin after disclosure, verify an ordinary member cannot change consent, revoke, and verify subsequent extraction is blocked without any outbound AI call.
 - Review imported legacy amounts and currencies manually. No currency rewrite, browser-local upload, or sample-data injection may happen without an explicit action.
+- Open a workspace with an existing unsynced browser draft. Verify automatic saves pause, the draft can be exported, and it is never silently uploaded or overwritten on reload. Explicit discard must remove only that workspace's draft.
+- Sign out of workspace A and into workspace B in the same browser. Verify A's draft remains intact, B cannot see or overwrite it, and no global recovery key is modified. Test pre-auth page initialization and failed hydration.
+- Confirm the `/api/data` GET response contains the authenticated `workspaceId`, never an identity supplied by the browser, and that malformed workspace identities fail closed.
 - Test the invite and auth rate limiter when D1 is unavailable; it must not allow unbounded sends.
 - Confirm all navigation, mobile layouts, accessibility controls, notifications and production isolation.
 
