@@ -17,9 +17,9 @@ export async function onRequestGet({ request, env }) {
   const key = ctx.ownerEmail;
   const row = await env.DB.prepare('SELECT data, version FROM app_data WHERE email=?')
     .bind(key).first();
-  if (!row || !row.data) return json({ empty: true, version: 0 });
+  if (!row || !row.data) return json({ empty: true, version: 0, workspaceId: ctx.membership.account_id });
   try {
-    return json({ data: JSON.parse(row.data), version: row.version });
+    return json({ data: JSON.parse(row.data), version: row.version, workspaceId: ctx.membership.account_id });
   } catch {
     return json({ error: 'invalid_saved_data' }, 503);
   }
