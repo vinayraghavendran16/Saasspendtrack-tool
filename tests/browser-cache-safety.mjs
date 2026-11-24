@@ -49,3 +49,6 @@ for (const name of ['ensureWorkspace', 'markComplete', 'markViewed']) {
 }
 assert.ok(!deployed.includes('ob().tourSeen = true;\n  try { save(); }'), 'onboarding boot does not race hydration');
 console.log('PASS: rendering and onboarding do not schedule implicit cloud saves');
+assert.ok(app.includes("document.querySelector('main') || document.body"), 'recovery/import controls remain outside replaceable view contents');
+assert.ok(app.includes('imported.settings.display = { ...imported.settings.display, currency: code }'), 'reviewed legacy currency sets deployed display preference');
+assert.ok(app.includes('if (!item.currency) item.currency = code;'), 'unlabeled legacy amounts retain reviewed source currency');

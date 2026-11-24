@@ -3760,7 +3760,7 @@ function showDraftRecoveryBanner() {
     toast('Recovery draft discarded. Server workspace remains unchanged.', 'info');
   });
   banner.append(description, exportButton, discardButton);
-  (document.getElementById('dashboard') || document.body).prepend(banner);
+  (document.querySelector('main') || document.body).prepend(banner);
 }
 function setAuthenticatedWorkspace(workspaceId) {
   if (typeof workspaceId !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(workspaceId)) {
@@ -3887,6 +3887,11 @@ async function offerLegacyImport() {
   const imported = JSON.parse(JSON.stringify(legacy));
   if (!imported.settings || typeof imported.settings !== 'object') imported.settings = {};
   imported.settings.currency = code;
+  imported.settings.display = { ...imported.settings.display, currency: code };
+  // Preserve original amounts; label previously unlabeled records with the reviewed currency.
+  for (const item of [...(imported.subscriptions || []), ...(imported.invoices || [])]) {
+    if (!item.currency) item.currency = code;
+  }
   imported.settings.legacyImportCurrencyReviewed = true;
   imported.settings.legacyImportAt = new Date().toISOString();
   const res = await fetch('/api/data', {
@@ -3947,7 +3952,7 @@ function showLegacyImportPrompt() {
     renderAll();
   });
   banner.append(message, button, startFresh);
-  (document.getElementById('dashboard') || document.body).prepend(banner);
+  (document.querySelector('main') || document.body).prepend(banner);
 }
 
 // Pull the authoritative copy from the server. Never seed a workspace from
