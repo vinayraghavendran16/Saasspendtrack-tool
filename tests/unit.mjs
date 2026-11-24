@@ -173,6 +173,7 @@ function provisioningEnv({ rejectMembership = false } = {}) {
         bind(...args) {
           return {
             sql, args,
+            async run() { return { success: true }; },
             async first() {
               if (/SELECT \* FROM memberships WHERE email=/i.test(sql)) return memberships.get(args[0]) || null;
               return null;
