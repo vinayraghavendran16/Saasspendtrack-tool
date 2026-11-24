@@ -6,8 +6,8 @@ const SUPPORT_PHONE = '+91-9168481989';
 
 // Accept either the raw Send Mail token or Zoho's copied Authorization value.
 // Never log credentials, recipients, message bodies, or raw provider responses.
-function mailFailure(error, status) {
-  const result = { ok: false, error, ...(status ? { status } : {}) };
+function mailFailure(error, status, diagnostic = {}) {
+  const result = { ok: false, error, ...(status ? { status } : {}), ...diagnostic };
   console.error('ZeptoMail send failed', result);
   return result;
 }
@@ -27,7 +27,7 @@ export async function sendEmail(env, { to, subject, html }) {
     const res = await fetch(url, {
       method: 'POST',
       // Do not forward the email or credentials through a provider redirect.
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(10000),
       headers: {
         'Content-Type': 'application/json',
@@ -42,6 +42,20 @@ export async function sendEmail(env, { to, subject, html }) {
         htmlbody: html,
       }),
     });
+    if (res.status >= 300 && res.status < 400) {
+      // Only emit a fixed, known provider origin/path; never an arbitrary Location
+      // (which may contain tokens). Do not forward credentials across redirects.
+      let destination = 'unrecognized';
+      try {
+        const target = new URL(res.headers.get('Location'), url);
+        const knownOrigins = ['https://api.zeptomail.in', 'https://api.zeptomail.com', 'https://cpaas.zoho.in', 'https://cpaas.zoho.com'];
+        if (knownOrigins.includes(target.origin)) {
+          destination = target.origin + (target.pathname === '/v1.1/email' ? '/v1.1/email' : '/[other-path]');
+        }
+      } catch { /* no usable Location */ }
+      if (res.body) await res.body.cancel().catch(() => {});
+      return mailFailure('provider_redirect', res.status, { destination });
+    }
     // A provider response may echo the email or magic-link token. Do not log it.
     if (res.body) await res.body.cancel().catch(() => {});
     if (!res.ok) return mailFailure('provider_rejected', res.status);

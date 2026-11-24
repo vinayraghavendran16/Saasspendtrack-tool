@@ -30,7 +30,7 @@ try {
     assert.equal(options.headers['Content-Type'], 'application/json');
     assert.equal(options.headers.Accept, 'application/json');
     assert.equal(options.method, 'POST');
-    assert.equal(options.redirect, 'error');
+    assert.equal(options.redirect, 'manual');
     assert.ok(options.signal instanceof AbortSignal);
     assert.deepEqual(JSON.parse(options.body), {
       from: { address: 'hello@saasspendtrack.com', name: 'SaaS Spend Track' },
@@ -52,6 +52,16 @@ try {
   for (const status of [401, 403, 429, 500]) {
     globalThis.fetch = async () => new Response('test-secret recipient@example.com private-link-token', { status });
     assert.deepEqual(await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret' }, mail), { ok: false, error: 'provider_rejected', status });
+  }
+  for (const [location, destination] of [
+    ['https://cpaas.zoho.in/v1.1/email?token=private-link-token', 'https://cpaas.zoho.in/v1.1/email'],
+    ['https://api.zeptomail.in/private-link-token', 'https://api.zeptomail.in/[other-path]'],
+    ['https://evil.example/private-link-token', 'unrecognized'],
+  ]) {
+    let requests = 0;
+    globalThis.fetch = async () => { requests++; return new Response('', { status: 302, headers: { Location: location } }); };
+    assert.deepEqual(await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret' }, mail), { ok: false, error: 'provider_redirect', status: 302, destination });
+    assert.equal(requests, 1, 'redirect must not trigger another request');
   }
   for (const error of [new Error('private-link-token'), new DOMException('test-secret', 'TimeoutError')]) {
     globalThis.fetch = async () => { throw error; };
