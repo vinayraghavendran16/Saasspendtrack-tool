@@ -67,6 +67,8 @@ async function get(email) { return onRequestGet({ request: req(email), env }); }
 assert.equal((await put('a@example.com', { vendor: 'Alpha secret' })).status, 200);
 assert.equal((await put('b@example.com', { vendor: 'Beta secret' })).status, 200);
 assert.deepEqual((await (await get('a@example.com')).json()).data, { vendor: 'Alpha secret' });
+assert.equal((await (await get('a@example.com')).json()).workspaceId, 'A');
+assert.equal((await (await get('b@example.com')).json()).workspaceId, 'B');
 assert.equal((await (await get('a@example.com')).json()).version, 1);
 assert.equal((await put('a@example.com', { vendor: 'stale writer' })).status, 409);
 assert.equal((await (await get('a@example.com')).json()).data.vendor, 'Alpha secret');
@@ -77,6 +79,7 @@ assert.equal((await put('a@example.com', { vendor: 'missing revision' }, null)).
 assert.equal((await (await get('a@example.com')).json()).data.vendor, 'updated Alpha');
 assert.deepEqual((await (await get('b@example.com')).json()).data, { vendor: 'Beta secret' });
 assert.equal(data.size, 2);
+assert.notEqual((await (await get('a@example.com')).json()).workspaceId, (await (await get('b@example.com')).json()).workspaceId);
 assert.equal((await get('removed@example.com')).status, 403);
 assert.equal((await put('removed@example.com', { vendor: 'attack' })).status, 403);
 
