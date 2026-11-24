@@ -47,6 +47,29 @@ async function run() {
   assert.deepEqual(final.data,candidates[winner]);
   assert.equal(check(await call(b,'/api/data'),200).empty,true);
   console.log('PASS: persistence, missing precondition, stale writes, tenant isolation');
+
+  const eur = {
+    settings: { ...final.data.settings, currency: 'EUR' },
+    subscriptions: [{ id: 'preview-subscription', name: 'Preview fixture', cost: 1200, cycle: 'yearly', currency: 'EUR' }],
+    invoices: [{ id: 'preview-invoice', subId: 'preview-subscription', amount: 1200, currency: 'EUR' }],
+  };
+  const savedCurrency = check(await call(a, '/api/data', 'PUT', eur, final.version), 200);
+  assert.equal(savedCurrency.version, final.version + 1);
+  const mixed = { ...eur, invoices: [{ ...eur.invoices[0], currency: 'USD' }] };
+  assert.equal(check(await call(a, '/api/data', 'PUT', mixed, savedCurrency.version), 400).error, 'invalid_currency');
+  const relabelled = {
+    settings: { ...eur.settings, currency: 'USD' },
+    subscriptions: [{ ...eur.subscriptions[0], currency: 'USD' }],
+    invoices: [{ ...eur.invoices[0], currency: 'USD' }],
+  };
+  assert.equal(check(await call(a, '/api/data', 'PUT', relabelled, savedCurrency.version), 422).error, 'currency_locked');
+  const afterCurrencyChecks = check(await call(a, '/api/data'), 200);
+  assert.equal(afterCurrencyChecks.version, savedCurrency.version);
+  assert.deepEqual(afterCurrencyChecks.data, eur);
+  assert.equal(afterCurrencyChecks.needsCurrencyReview, undefined);
+  assert.equal(check(await call(b, '/api/data'), 200).empty, true);
+  console.log('PASS: currency round-trip, mixed-currency rejection, and unchanged saved amounts and version');
+
   const consent = enabled => call(a,'/api/ai/consent','POST',{enabled,consentVersion:'workspace-ai-v2'});
   try {
     assert.equal(check(await consent(true),200).enabled,true);
