@@ -320,7 +320,7 @@ import * as MEMBERS from '../functions/api/account/members.js';
 function acct3Env(o) {
   o = o || {};
   return { ADMIN_EMAILS: o.adminEmails || '', DB: { prepare(sql) { let b;
-    return { bind: (...a) => { b = a; return {
+    return { bind: (...a) => { b = a; return { sql, args: a,
       first: async () => {
         if (/FROM sessions/i.test(sql)) return o.sessionEmail ? { email: o.sessionEmail, expires_at: Date.now() + 1e9 } : null;
         if (/FROM users WHERE email/i.test(sql)) return (o.users || {})[b[0]] || null;
@@ -341,6 +341,20 @@ function acct3Env(o) {
       },
       run: async () => { if (/INSERT INTO memberships/i.test(sql)) { o.members ||= {}; o.members[b[0]] = { email: b[0], account_id: b[1], role: b[2], status: 'active' }; } },
     }; }, };
+  }, async batch(stmts) {
+    const claim = stmts[0].args;
+    const inv = (o.invitesByHash || {})[claim[0]];
+    if (!inv || inv.used || inv.expires_at <= claim[1]) throw new Error('already redeemed');
+    if (o.failBatch) throw new Error('simulated D1 batch failure');
+    const memberArgs = stmts[3].args;
+    const email = memberArgs[0];
+    const prior = (o.members || {})[email];
+    if (prior && prior.account_id !== inv.account_id) throw new Error('other workspace');
+    if ((!prior || prior.status !== 'active') && (o.memberCount || 0) >= 50) throw new Error('capacity exceeded');
+    inv.used = 1;
+    o.members ||= {};
+    o.members[email] = { email, account_id: memberArgs[1], role: memberArgs[2], status: 'active' };
+    return [{ results: [{ token_hash: claim[0] }] }];
   } } };
 }
 const admEnv = (over) => acct3Env(Object.assign({
@@ -371,11 +385,21 @@ ok(ra3.status === 302 && ra3.headers.get('Location').includes('invite=invalid'),
 // Accept: valid single-use invite -> session + redirect ok.
 const tok = 'tok-123';
 const th = await U.sha256Hex(tok);
-ra3 = await ACCEPT.onRequestGet({
-  request: { url: 'https://app.saasspendtrack.com/api/account/accept?token=' + tok },
-  env: acct3Env({ invitesByHash: { [th]: { account_id: 'A', email: 'inv@x.com', role: 'member', used: 0, expires_at: Date.now() + 1e9, invited_by: 'own@x.com' } }, accounts: { A: { id: 'A', owner_email: 'own@x.com' } }, users: { 'own@x.com': { status: 'active', trial_ends_at: Date.now() + 9e9 } }, memberCount: 1 }),
-});
+const validInvite = { account_id: 'A', email: 'inv@x.com', role: 'member', used: 0, expires_at: Date.now() + 1e9, invited_by: 'own@x.com' };
+const acceptState = { invitesByHash: { [th]: validInvite },
+  accounts: { A: { id: 'A', owner_email: 'own@x.com' } },
+  users: { 'own@x.com': { status: 'active', trial_ends_at: Date.now() + 9e9 } }, memberCount: 1 };
+const acceptEnv = acct3Env(acceptState);
+const acceptReq = { url: 'https://app.saasspendtrack.com/api/account/accept?token=' + tok };
+ra3 = await ACCEPT.onRequestGet({ request: acceptReq, env: acceptEnv });
 ok(ra3.status === 302 && ra3.headers.get('Location').includes('invite=ok') && !!ra3.headers.get('Set-Cookie'), 'accept 302 ok + session cookie');
+ok(validInvite.used === 1 && acceptState.members['inv@x.com']?.status === 'active', 'accept commits redemption with membership');
+ra3 = await ACCEPT.onRequestGet({ request: acceptReq, env: acceptEnv });
+ok(ra3.headers.get('Location').includes('invite=expired') && !ra3.headers.get('Set-Cookie'), 'invite replay never issues a second session');
+const failingInvite = { ...validInvite, used: 0 };
+const failingState = { ...acceptState, failBatch: true, invitesByHash: { [th]: failingInvite }, members: {} };
+ra3 = await ACCEPT.onRequestGet({ request: acceptReq, env: acct3Env(failingState) });
+ok(ra3.headers.get('Location').includes('invite=error') && !ra3.headers.get('Set-Cookie') && failingInvite.used === 0, 'failed transaction leaves invite retryable');
 // Members list: member sees roster, no manage; admin can manage + sees invites.
 ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': { email: 'm@x.com', status: 'active' } }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } }, roster: [{ email: 'm@x.com', role: 'member', status: 'active' }], pendingList: [{ email: 'p@x.com' }] }) });
 jx3 = await ra3.json();
