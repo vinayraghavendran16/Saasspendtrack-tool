@@ -42,13 +42,20 @@ function req(email, method, body) {
 async function get(email) { return onRequestGet({ request: req(email, 'GET'), env }); }
 async function post(email, body) { return onRequestPost({ request: req(email, 'POST', body), env }); }
 const version = 'workspace-ai-v1';
-assert.equal((await (await get('owner@example.com')).json()).enabled, false);
+const ownerInitial = await (await get('owner@example.com')).json();
+assert.equal(ownerInitial.enabled, false);
+assert.equal(ownerInitial.canManage, true);
+const memberInitial = await (await get('member@example.com')).json();
+assert.equal(memberInitial.enabled, false);
+assert.equal(memberInitial.canManage, false);
 assert.equal((await post('member@example.com', { enabled: true, consentVersion: version })).status, 403);
 assert.equal((await post('owner@example.com', { enabled: true })).status, 400);
 assert.equal((await post('owner@example.com', { enabled: true, consentVersion: 'wrong' })).status, 400);
 assert.equal(settings.size, 0);
 assert.equal((await post('owner@example.com', { enabled: true, consentVersion: version })).status, 200);
-assert.equal((await (await get('member@example.com')).json()).enabled, true);
+const memberEnabled = await (await get('member@example.com')).json();
+assert.equal(memberEnabled.enabled, true);
+assert.equal(memberEnabled.canManage, false);
 assert.equal((await post('owner@example.com', { enabled: false, consentVersion: version })).status, 200);
 assert.equal((await (await get('member@example.com')).json()).enabled, false);
 assert.equal(events.length, 2);
