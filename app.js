@@ -1,7 +1,8 @@
 // SaaS Spend Track - vanilla JS app with localStorage persistence.
 
 const STORAGE_KEY = 'saasspendtrack.v1'; // Legacy data: read-only until explicit import.
-const UNSYNCED_DRAFT_KEY = 'saasspendtrack.unsynced-draft.v1'; // Recovery only, never auto-hydrate.
+const UNSYNCED_DRAFT_KEY = 'saasspendtrack.unsynced-draft.v1'; // Old global recovery key: preserve read-only.
+const WORKSPACE_DRAFT_PREFIX = 'saasspendtrack.workspace-draft.v2.'; // Scoped to authenticated workspace.
 const CYCLE_MONTHS = { weekly: 1/4.345, monthly: 1, quarterly: 3, yearly: 12 };
 const AVATAR_COLORS = ['#7c5cff', '#35d0ba', '#ff8a4c', '#4cb1ff', '#ff5c7a', '#ffb545', '#a374ff', '#4cd3ff'];
 
@@ -108,17 +109,38 @@ let _serverSaveInFlight = false;
 let _localEditCounter = 0;
 let _legacyImportPending = false;
 let _legacyImportDirty = false;
+let _workspaceDraftKey = null;
+let _draftRecoveryPending = false;
+function setAuthenticatedWorkspace(workspaceId) {
+  if (typeof workspaceId !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(workspaceId)) {
+    _serverSaveBlocked = true;
+    toast('Cannot verify workspace identity. Saving is paused.', 'error');
+    return false;
+  }
+  _workspaceDraftKey = WORKSPACE_DRAFT_PREFIX + workspaceId;
+  try { _draftRecoveryPending = !!localStorage.getItem(_workspaceDraftKey); }
+  catch (_) { _draftRecoveryPending = true; }
+  if (_draftRecoveryPending) {
+    _serverSaveBlocked = true;
+    toast('An unsynced draft exists for this workspace. It was not overwritten or uploaded. Export it before continuing.', 'error');
+  }
+  return true;
+}
 function save() {
   _localEditCounter++;
   if (_legacyImportPending) _legacyImportDirty = true;
   // Never overwrite the legacy cache. It may belong to another account or
   // contain unreviewed currencies. Keep an isolated recovery draft instead.
   // Drafts are never auto-displayed or uploaded to a newly signed-in workspace.
-  try { localStorage.setItem(UNSYNCED_DRAFT_KEY, JSON.stringify({
-    savedAt: new Date().toISOString(), data: state, serverVersion: _serverVersion,
-    verifiedWorkspace: _serverHydrated,
-  })); } catch (_) {}
-  if (_serverHydrated && !_serverSaveBlocked && !_legacyImportPending) scheduleServerSave();
+  // Never overwrite a pre-existing recovery draft or create a global draft
+  // before the server has identified this account's workspace.
+  if (_serverHydrated && _workspaceDraftKey && !_draftRecoveryPending && !_legacyImportPending) {
+    try { localStorage.setItem(_workspaceDraftKey, JSON.stringify({
+      savedAt: new Date().toISOString(), data: state, serverVersion: _serverVersion,
+      workspaceId: _workspaceDraftKey.slice(WORKSPACE_DRAFT_PREFIX.length),
+    })); } catch (_) {}
+  }
+  if (_serverHydrated && !_serverSaveBlocked && !_legacyImportPending && !_draftRecoveryPending) scheduleServerSave();
 }
 
 let _serverSaveTimer = null;
@@ -127,7 +149,7 @@ function scheduleServerSave() {
   _serverSaveTimer = setTimeout(pushServerSave, 1200);
 }
 async function pushServerSave() {
-  if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending) return;
+  if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending || _draftRecoveryPending) return;
   if (_serverSaveInFlight) return; // The active save will flush newer local changes.
   _serverSaveInFlight = true;
   const snapshot = JSON.stringify(state);
@@ -156,7 +178,7 @@ async function pushServerSave() {
     }
     _serverVersion = saved.version;
     if (editRevision === _localEditCounter) {
-      try { localStorage.removeItem(UNSYNCED_DRAFT_KEY); } catch (_) {}
+      try { if (_workspaceDraftKey) localStorage.removeItem(_workspaceDraftKey); } catch (_) {}
     } else scheduleServerSave();
   } catch (_) {
     toast('Workspace changes are not synced. Your browser copy is preserved.', 'error');
@@ -269,7 +291,7 @@ function showLegacyImportPrompt() {
     state = { subscriptions: [] };
     ensureStateShape();
     _localEditCounter++;
-    try { localStorage.removeItem(UNSYNCED_DRAFT_KEY); } catch (_) {}
+    try { if (_workspaceDraftKey) localStorage.removeItem(_workspaceDraftKey); } catch (_) {}
     renderAll();
   });
   banner.append(message, button, startFresh);
@@ -296,6 +318,7 @@ async function syncFromServer() {
       toast('Workspace revision unavailable. Saving is paused to protect your records.', 'error');
       return;
     }
+    if (!setAuthenticatedWorkspace(j.workspaceId)) return;
     _serverVersion = j.version;
     _serverHydrated = true;
     state = j.data;
@@ -305,6 +328,7 @@ async function syncFromServer() {
     renderAll();
     try { switchView(viewFromHash(), { replaceHistory: true }); } catch (_) {}
   } else if (j && j.empty) {
+    if (!setAuthenticatedWorkspace(j.workspaceId)) return;
     // Never silently treat local browser records as this workspace's records.
     // Legacy amounts may be INR, USD or other currencies; importing requires
     // an explicit currency review and user confirmation in a later workflow.
