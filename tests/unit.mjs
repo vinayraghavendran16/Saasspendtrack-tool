@@ -288,7 +288,7 @@ const admEnv = (over) => acct3Env(Object.assign({
   members: { 'adm@x.com': { email: 'adm@x.com', account_id: 'A', role: 'admin', status: 'active' } },
   accounts: { A: { id: 'A', owner_email: 'own@x.com' } }, memberCount: 2, pendingCount: 0,
 }, over || {}));
-const iReq = (bodyObj) => ({ headers: { get: () => 'sst_session=s' }, json: async () => bodyObj });
+const iReq = (bodyObj) => ({ url: 'https://app.saasspendtrack.com/api/account/invite', headers: { get: () => 'sst_session=s' }, json: async () => bodyObj });
 // A plain member cannot invite.
 let ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com' }), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': {} }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } } }) });
 ok(ra3.status === 403, 'invite 403 when caller is only a member');

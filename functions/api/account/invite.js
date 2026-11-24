@@ -1,3 +1,4 @@
+import { authAppUrl } from '../../_shared/auth-url.js';
 // POST /api/account/invite  { email, role }
 // Owner/Admin invites a teammate into their account. Enforces the 50-member cap
 // (active members + pending invites), one-account-per-member, and rate limits.
@@ -51,7 +52,7 @@ export async function onRequestPost({ request, env }) {
     'INSERT INTO invites (token_hash, account_id, email, role, invited_by, expires_at, used, created_at) VALUES (?,?,?,?,?,?,0,?)',
   ).bind(tokenHash, accountId, email, role, user.email, t + 7 * DAY, t).run();
 
-  const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
+  const appUrl = authAppUrl(request, env);
   const link = `${appUrl}/api/account/accept?token=${token}`;
   const mail = inviteEmail(link, user.email);
   const sent = await sendEmail(env, { to: email, subject: mail.subject, html: mail.html });

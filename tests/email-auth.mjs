@@ -109,3 +109,11 @@ for (const file of ['auth-gate.js', 'index.html', 'admin.html']) {
   }
 }
 console.log('PASS: email headers, payload, token normalization, safe failures, auth integration and all three sign-in forms');
+
+// Invitation cookies and redirects must remain on the same preview host.
+const { onRequestGet: acceptInvite } = await import('../functions/api/account/accept.js');
+for (const origin of ['https://abc123.saasspendtrack.pages.dev', 'https://app.saasspendtrack.com']) {
+  const response = await acceptInvite({ request: new Request(origin + '/api/account/accept'), env: { APP_URL: 'https://configured.example.com' } });
+  assert.equal(response.headers.get('Location'), (origin.includes('.pages.dev') ? origin : 'https://configured.example.com') + '/?invite=invalid');
+}
+console.log('PASS: invitation redirects preserve preview cookie origin and production APP_URL');

@@ -1,3 +1,4 @@
+import { authAppUrl } from '../../_shared/auth-url.js';
 // GET /api/account/accept?token=...
 // Validates a single-use invite, joins the invitee to the account, ensures a
 // user row (inheriting the owner's entitlement so they can use the app), creates
@@ -14,7 +15,7 @@ function redirect(location, cookie) {
 }
 
 export async function onRequestGet({ request, env }) {
-  const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
+  const appUrl = authAppUrl(request, env);
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
   if (!token) return redirect(`${appUrl}/?invite=invalid`);
