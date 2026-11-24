@@ -52,3 +52,6 @@ console.log('PASS: rendering and onboarding do not schedule implicit cloud saves
 assert.ok(app.includes("document.querySelector('main') || document.body"), 'recovery/import controls remain outside replaceable view contents');
 assert.ok(app.includes('imported.settings.display = { ...imported.settings.display, currency: code }'), 'reviewed legacy currency sets deployed display preference');
 assert.ok(app.includes('if (!item.currency) item.currency = code;'), 'unlabeled legacy amounts retain reviewed source currency');
+
+assert.ok(app.includes('I confirm that ALL monetary records originally use'), 'import requires explicit single-currency confirmation');
+assert.ok(!app.includes('Subscription billing-period amounts total:'), 'import must not sum incompatible billing periods');
