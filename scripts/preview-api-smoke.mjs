@@ -6,6 +6,7 @@ const url = new URL(process.env.PREVIEW_URL || 'https://invalid.example');
 assert.match(url.origin, /^https:\/\/[a-f0-9]{8}\.saasspendtrack\.pages\.dev$/);
 assert.equal(url.href, url.origin + '/');
 assert.equal(process.env.PREVIEW_TEST_CONFIRM, 'disposable-empty-workspaces');
+assert.equal(process.env.PREVIEW_DB_VERIFIED, 'sst-preview', 'Independently verify the deployment DB binding before running');
 const a = process.env.PREVIEW_OWNER_A_COOKIE;
 const b = process.env.PREVIEW_OWNER_B_COOKIE;
 assert.ok(a && b && a !== b, 'Two distinct disposable sessions required');
@@ -14,7 +15,7 @@ async function call(cookie, path, method='GET', body, version) {
   if (cookie) headers.cookie = cookie;
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (version !== undefined) headers['If-Match'] = String(version);
-  const r = await fetch(url.origin + path, { method, headers, redirect:'error', body:body === undefined ? undefined : JSON.stringify(body) });
+  const r = await fetch(url.origin + path, { method, headers, redirect:'error', signal:AbortSignal.timeout(15000), body:body === undefined ? undefined : JSON.stringify(body) });
   return { status:r.status, body:await r.json() };
 }
 function check(r, status) { assert.equal(r.status,status); return r.body; }
@@ -36,10 +37,14 @@ async function run() {
   assert.equal(read.version,1);
   assert.deepEqual(read.data,sample);
   check(await call(a,'/api/data','PUT',sample,0),409);
-  const next = check(await call(a,'/api/data','PUT',sample,1),200);
-  assert.equal(next.version,2);
-  check(await call(a,'/api/data','PUT',sample,1),409);
-  assert.equal(check(await call(a,'/api/data'),200).version,2);
+  const candidates = ['A','B'].map(writer => ({...sample,settings:{...sample.settings,writer}}));
+  const race = await Promise.all(candidates.map(candidate => call(a,'/api/data','PUT',candidate,1)));
+  assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);
+  const winner = race.findIndex(r=>r.status===200);
+  assert.equal(race[winner].body.version,2);
+  const final = check(await call(a,'/api/data'),200);
+  assert.equal(final.version,2);
+  assert.deepEqual(final.data,candidates[winner]);
   assert.equal(check(await call(b,'/api/data'),200).empty,true);
   console.log('PASS: persistence, missing precondition, stale writes, tenant isolation');
   const consent = enabled => call(a,'/api/ai/consent','POST',{enabled,consentVersion:'workspace-ai-v1'});
