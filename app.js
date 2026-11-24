@@ -2415,9 +2415,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!response.ok) throw new Error(response.status === 503 ? 'AI consent settings are not available until the workspace migration is applied.' : 'Sign in to manage workspace AI settings.');
     const current = await response.json();
     checkbox.checked = !!current.enabled;
-    checkbox.disabled = false;
-    save.disabled = false;
-    status.textContent = current.enabled ? 'Enabled: workspace members may use AI contract extraction.' : 'Disabled: contract text will not be sent for AI extraction.';
+    const canManage = current.canManage === true;
+    checkbox.disabled = !canManage;
+    save.disabled = !canManage;
+    status.textContent = (current.enabled
+      ? 'Enabled: workspace members may use AI contract extraction.'
+      : 'Disabled: contract text will not be sent for AI extraction.') +
+      (canManage ? '' : ' This setting is read-only for your workspace role.');
   } catch (error) {
     status.textContent = error.message;
     return; // Never offer an opt-in if we cannot verify the server's current state.
