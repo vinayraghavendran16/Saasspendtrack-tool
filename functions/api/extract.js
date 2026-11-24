@@ -163,9 +163,9 @@ export async function onRequestPost({ request, env }) {
     let aiEnabled = false;
     try {
       const row = await env.DB.prepare(
-        'SELECT enabled FROM workspace_ai_settings WHERE account_id=?',
+        'SELECT enabled, consent_version FROM workspace_ai_settings WHERE account_id=?',
       ).bind(gate.membership.account_id).first();
-      aiEnabled = row?.enabled === 1;
+      aiEnabled = row?.enabled === 1 && row?.consent_version === 'workspace-ai-v2';
     } catch (_) { /* consent unavailable: fail closed */ }
     if (!aiEnabled) return new Response(
       JSON.stringify({ ok: false, error: 'ai_consent_required' }),
