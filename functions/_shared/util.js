@@ -282,10 +282,15 @@ export async function ensureAccountForUser(env, user) {
   const accountId = crypto.randomUUID();
   const ts = now();
   try {
-    await env.DB.prepare('INSERT INTO accounts (id, name, owner_email, plan, created_at) VALUES (?,?,?,?,?)')
-      .bind(accountId, null, email, (user && user.plan) || null, ts).run();
-    await env.DB.prepare('INSERT INTO memberships (email, account_id, role, status, invited_by, created_at) VALUES (?,?,?,?,?,?)')
-      .bind(email, accountId, 'owner', 'active', null, ts).run();
+    // Both rows must commit atomically. Two simultaneous first logins may
+    // attempt provisioning; the losing membership INSERT rolls back its
+    // account INSERT, leaving no orphan workspace behind.
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO accounts (id, name, owner_email, plan, created_at) VALUES (?,?,?,?,?)')
+        .bind(accountId, null, email, (user && user.plan) || null, ts),
+      env.DB.prepare('INSERT INTO memberships (email, account_id, role, status, invited_by, created_at) VALUES (?,?,?,?,?,?)')
+        .bind(email, accountId, 'owner', 'active', null, ts),
+    ]);
   } catch (_) { /* race: another request created it; re-read below */ }
   // Do not invent owner privileges if provisioning or a lookup failed.
   return await getMembership(env, email);
