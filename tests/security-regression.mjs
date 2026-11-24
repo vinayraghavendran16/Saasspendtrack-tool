@@ -39,6 +39,7 @@ const consentDb = {
       if (sql.includes('FROM sessions')) return { email: 'member@example.com' };
       if (sql.includes('FROM users')) return { email: 'member@example.com', status: 'active', trial_ends_at: Date.now() + 60000 };
       if (sql.includes('FROM memberships')) return { email: 'member@example.com', account_id: 'account-1', role: 'member', status: 'active' };
+      if (sql.includes('FROM accounts')) return { id: 'account-1', owner_email: 'member@example.com' };
       if (sql.includes('workspace_ai_settings')) return null;
       return null;
     },
