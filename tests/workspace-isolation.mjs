@@ -93,3 +93,18 @@ await assert.rejects(() => get('a@example.com'), /D1 unavailable/);
 await assert.rejects(() => put('a@example.com', { vendor: 'attack' }), /D1 unavailable/);
 assert.equal(data.size, 2);
 console.log('PASS: workspace isolation, suspended member denial, and fail-closed account resolution');
+
+failMembershipLookup = false;
+for (const payload of [[], 'invalid', {subscriptions:null}, {invoices:[null]}, {employees:[42]}, {settings:[]}]) {
+  assert.equal((await put('a@example.com', payload, 2)).status,400);
+}
+assert.equal((await put('a@example.com', {note:'€'.repeat(510000)},2)).status,413);
+assert.equal((await (await get('a@example.com')).json()).version,2);
+assert.equal((await (await get('a@example.com')).json()).data.vendor,'updated Alpha');
+const original = data.get('a@example.com');
+for (const row of [{data:'',version:2},{data:'null',version:2},{data:'[]',version:2},{data:'{}',version:0}]) {
+  data.set('a@example.com',row);
+  assert.equal((await get('a@example.com')).status,503);
+}
+data.set('a@example.com',original);
+console.log('PASS: invalid snapshots, UTF-8 size limits and corrupt saved rows fail closed');
