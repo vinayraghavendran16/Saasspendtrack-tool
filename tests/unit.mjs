@@ -21,6 +21,8 @@ section('validation & cookies');
 ok(U.normalizeEmail(' Foo@Bar.COM ') === 'foo@bar.com', 'email normalize');
 ok(U.normalizeEmail('nope') === null, 'email reject');
 ok(U.parseCookies({ headers: { get: () => 'sst_session=xyz; a=1' } }).sst_session === 'xyz', 'cookie parse');
+ok(U.parseCookies({ headers: { get: () => 'broken=%ZZ; sst_session=xyz' } }).sst_session === 'xyz', 'malformed unrelated cookie does not crash auth');
+ok(U.parseCookies({ headers: { get: () => 'sst_session=%ZZ' } }).sst_session === undefined, 'malformed session rejected');
 ok(U.sessionCookie('s').includes('HttpOnly') && U.sessionCookie('s').includes('Secure'), 'cookie flags');
 ok(U.isAdmin({ ADMIN_EMAILS: 'a@x.com, b@x.com' }, 'B@X.com') === true, 'isAdmin match');
 ok(U.isAdmin({ ADMIN_EMAILS: 'a@x.com' }, 'c@x.com') === false, 'isAdmin reject');
@@ -53,6 +55,10 @@ r = await U.rateLimit(rlEnv, 'k', 3, 1000);
 ok(!r.ok && r.count === 4, 'over limit blocked');
 r = await U.rateLimit({ DB: { prepare: () => { throw new Error('x'); } } }, 'k', 1, 1000);
 ok(r.ok, 'rate limiter fails open on error');
+for (const row of [null, {count:0}, {count:'1'}]) {
+  const invalid = await U.rateLimit({ DB: { prepare: () => ({bind: () => ({first: async () => row})}) } }, 'k', 1, 1000, {failClosed:true});
+  ok(!invalid.ok && invalid.unavailable, 'invalid counter fails closed');
+}
 r = await U.rateLimit({ DB: { prepare: () => { throw new Error('D1 down'); } } }, 'auth:login', 1, 1000, { failClosed: true });
 ok(!r.ok && r.unavailable === true, 'security rate limiter fails closed on D1 error');
 
