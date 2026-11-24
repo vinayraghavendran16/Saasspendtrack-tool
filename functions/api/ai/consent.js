@@ -8,7 +8,7 @@ export async function onRequestGet({ request, env }) {
     const row = await env.DB.prepare(
       'SELECT enabled, consent_version, changed_at FROM workspace_ai_settings WHERE account_id=?',
     ).bind(gate.membership.account_id).first();
-    return json({ enabled: row?.enabled === 1, consentVersion: row?.consent_version || null, changedAt: row?.changed_at || null });
+    return json({ enabled: row?.enabled === 1, canManage: ['owner', 'admin'].includes(gate.membership.role), consentVersion: row?.consent_version || null, changedAt: row?.changed_at || null });
   } catch (_) { return json({ enabled: false, unavailable: true }, 503); }
 }
 export async function onRequestPost({ request, env }) {
