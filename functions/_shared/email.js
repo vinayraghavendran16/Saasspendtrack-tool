@@ -43,11 +43,15 @@ export async function sendEmail(env, { to, subject, html }) {
       }),
     });
     // A provider response may echo the email or magic-link token. Do not log it.
-    if (res.body) await res.body.cancel();
+    if (res.body) await res.body.cancel().catch(() => {});
     if (!res.ok) return mailFailure('provider_rejected', res.status);
     // Accepted by the provider; inbox delivery still requires an end-to-end check.
     return { ok: true };
-  } catch {
+  } catch (error) {
+    // Classify known runtime failures without exposing exception text.
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') return mailFailure('timeout');
+    if (/redirect/i.test(error?.message || '')) return mailFailure('redirect_rejected');
+    if (/AbortSignal\.timeout/.test(error?.message || '')) return mailFailure('timeout_unsupported');
     return mailFailure('transport_error');
   }
 }

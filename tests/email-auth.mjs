@@ -55,7 +55,7 @@ try {
   }
   for (const error of [new Error('private-link-token'), new DOMException('test-secret', 'TimeoutError')]) {
     globalThis.fetch = async () => { throw error; };
-    assert.equal((await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret' }, mail)).error, 'transport_error');
+    assert.equal((await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret' }, mail)).error, error.name === 'TimeoutError' ? 'timeout' : 'transport_error');
   }
   assert.doesNotMatch(JSON.stringify(logs), /test-secret|recipient@example.com|private-link-token/);
 
