@@ -55,3 +55,16 @@ assert.equal((await consentResponse.json()).error, 'ai_consent_required');
 assert.equal(externalCalls, 0);
 globalThis.fetch = originalFetch;
 console.log('PASS: AI extraction denied without workspace opt-in');
+
+import { onRequestPost as ask } from '../functions/api/ask.js';
+import { onRequestPost as preset } from '../functions/api/preset/generate.js';
+globalThis.fetch = async () => { externalCalls++; throw new Error('unexpected external call'); };
+try {
+  for (const [handler, route, payload] of [[ask,'ask',{question:'spend?',snapshot:{private:true}}],[preset,'preset/generate',{url:'https://example.com'}]]) {
+    const response = await handler({request:new Request('https://example.com/api/'+route,{method:'POST',headers:{Cookie:'sst_session=s'},body:JSON.stringify(payload)}),env:{DB:consentDb,ANTHROPIC_API_KEY:'not-a-real-key'}});
+    assert.equal(response.status,403);
+    assert.equal((await response.json()).error,'ai_consent_required');
+  }
+  assert.equal(externalCalls,0);
+} finally { globalThis.fetch = originalFetch; }
+console.log('PASS: AI assistant and preset generation denied without workspace opt-in');
