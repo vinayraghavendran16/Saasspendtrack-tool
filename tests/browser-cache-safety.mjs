@@ -18,4 +18,9 @@ assert.ok(app.includes('legacyImportCurrencyReviewed = true'), 'currency review 
 assert.ok(app.includes('legacyImportAt = new Date()'), 'import timestamp is recorded');
 assert.ok(app.includes('showLegacyImportPrompt()'), 'legacy import requires a visible prompt');
 assert.ok(app.includes('workspaceCurrency()'), 'display respects confirmed workspace currency');
+assert.ok(save.includes('!_legacyImportPending'), 'pending import cannot trigger an automatic save');
+assert.ok(app.includes('if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending) return;'), 'pending import blocks server writes');
+assert.ok(sync.includes('_legacyImportPending = true'), 'legacy records activate the pending-import gate');
+assert.ok(app.includes("startFresh.textContent = 'Start with empty workspace'"), 'user can decline legacy import');
+assert.ok(app.includes("localStorage.removeItem(UNSYNCED_DRAFT_KEY)"), 'fresh start clears unsafe pre-review drafts');
 console.log('PASS: legacy browser cache stays read-only, drafts are isolated and server hydration is revisioned');
