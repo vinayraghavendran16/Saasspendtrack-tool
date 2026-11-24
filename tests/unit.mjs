@@ -77,7 +77,7 @@ const req = { headers: { get: (k) => k.toLowerCase() === 'if-match' ? '0' : 'sst
 let res = await DATA.onRequestGet({ request: req, env: dataEnv({ row: null }, active) });
 ok((await res.json()).empty === true, 'GET empty when no data');
 const store = {};
-res = await DATA.onRequestPut({ request: { ...req, text: async () => JSON.stringify({ subscriptions: [1] }) }, env: dataEnv(store, active) });
+res = await DATA.onRequestPut({ request: { ...req, text: async () => JSON.stringify({ subscriptions: [{ id: 'test-subscription' }] }) }, env: dataEnv(store, active) });
 ok((await res.json()).ok === true && store.saved.includes('subscriptions'), 'PUT saves when entitled');
 res = await DATA.onRequestPut({ request: { ...req, text: async () => '{}' },
   env: dataEnv({}, { email: 'e', status: 'trial', trial_ends_at: Date.now() - 1 }) });
