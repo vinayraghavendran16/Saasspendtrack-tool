@@ -13,16 +13,22 @@
 
 ## Conclusions and patch
 
-The provider's underlying reason for HTTP 500 is **not yet established**. Domain verification and a successful Zoho-console test do not verify the particular Cloudflare secret, Mail Agent, or outbound API request. Do not report this as resolved until a delivered email and successful redemption are observed.
+**Confirmed root cause:** preview's `ZEPTOMAIL_TOKEN` already contains the `Zoho-enczapikey` authorization prefix. The old sender added the prefix again. Runtime diagnostics on the patched preview reported `authorizationPrefixRemoved: true`, `outerWhitespaceRemoved: false`, without exposing any secret. The corrected request returned `emailed:true`.
+
+**End-to-end verification:** the user confirmed inbox receipt and successful sign-in on `https://28d0043a.saasspendtrack.pages.dev`, running `9a2b579e9edbd493a09ad953b52d0f469f7e68a6`. A subsequent provider-accepted send on `https://1d858a5e.saasspendtrack.pages.dev`, running `3fd418e5929289bb42cba06ac0b4477bc83f879e`, confirmed the token-format diagnosis. Both deployments were verified as Preview with the isolated DB ID above. Delivery to the Outlook test address was not verified.
+
+An intermediate diagnostic using `redirect: 'error'` failed in the runtime. That error did not establish a provider redirect; the final implementation uses `redirect: 'manual'`, checks 3xx responses explicitly, and succeeds without following a redirect. No endpoint change was needed.
 
 Confirmed code defects repaired:
-- Copying a complete `Zoho-enczapikey …` authorization value into `ZEPTOMAIL_TOKEN` previously doubled the prefix. Accept raw or prefixed tokens, trim outer whitespace, and reject malformed values without network calls. Whether preview has this exact defect cannot be established from redacted secret metadata.
+- Copying a complete `Zoho-enczapikey …` authorization value into `ZEPTOMAIL_TOKEN` previously doubled the prefix. Accept raw or prefixed tokens, trim outer whitespace, and reject malformed values without network calls. The live boolean-only diagnostic confirms this exact defect in preview.
 - Raw provider response logging could disclose recipients, message content or credentials. Log only fixed failure categories and HTTP status.
-- Transport exceptions could escape a best-effort send and break sign-in redemption. Handle them, use a bounded timeout, and reject redirects.
+- Transport exceptions could escape a best-effort send and break sign-in redemption. Handle them, use a bounded timeout, and explicitly reject provider redirects without forwarding credentials.
 - All three sign-in forms displayed inbox success regardless of `emailed:false` or HTTP errors. They now require affirmative success and permit retry on failure.
 - Magic-link generation and verification on this project's preview hosts now use the request's preview origin, preventing stale APP_URL from routing authentication to an older deployment. Production behavior is preserved.
 
 ## Preview-only configuration and verification
+
+No configuration change is required to restore magic-link authentication with this patch. The steps below explain how to keep preview configuration explicit and avoid stale URLs in other email flows. The secret value cannot be recovered through the Cloudflare API and should only be entered through a secure dashboard prompt if changing it.
 
 1. Cloudflare dashboard → Workers & Pages → `saasspendtrack` → Settings. Select **Preview** before any edit. Never change Production or “all environments.”
 2. Under Bindings, verify `DB` points to `sst-preview` and the preview ID above. Do not bind `sst-trial`. Existing schema must be checked before applying migrations; do not blindly rerun migration 002.

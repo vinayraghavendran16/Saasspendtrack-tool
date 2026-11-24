@@ -41,6 +41,7 @@ try {
       subject: mail.subject, htmlbody: mail.html,
     });
   }
+  assert.ok(logs.some(([message, flags]) => message === 'ZeptoMail token normalized' && flags.authorizationPrefixRemoved === true && flags.outerWhitespaceRemoved === false));
   const count = calls.length;
   for (const token of [undefined, '', '  ', 'Zoho-enczapikey ', 'Zoho-enczapikey Zoho-enczapikey test-secret', 'test\r\nsecret']) {
     assert.equal((await sendEmail({ ZEPTOMAIL_TOKEN: token }, mail)).ok, false);
