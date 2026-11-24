@@ -212,3 +212,41 @@ runInNewContext(deployed.slice(commitStart, commitEnd), csvContext);
 csvContext.commitImport();
 assert.deepEqual(messages, ['Import paused. Review CSV rows with a different currency.']);
 console.log('PASS: bundled CSV import blocks mismatches before workspace mutation');
+
+const backupStart = deployed.indexOf('function validateWorkspaceBackup(data)');
+const backupEnd = deployed.indexOf('function clearAll()', backupStart);
+const backupCode = deployed.slice(backupStart, backupEnd);
+assert.ok(app.includes(backupCode));
+assert.ok(deployed.includes('await importJson(f);'));
+const backupErrors = [];
+let saves = 0;
+const backupContext = {
+  state: { settings: { currency: 'EUR' }, subscriptions: [{ cost: 100 }], invoices: [] },
+  workspaceCurrency() { return backupContext.state.settings.currency; },
+  _localEditCounter: 0,
+  _serverHydrated: true,
+  _serverSaveBlocked: false,
+  _legacyImportPending: false,
+  _draftRecoveryPending: false,
+  save() { saves++; },
+  ensureStateShape() {},
+  renderPlanBadge() {},
+  renderPricing() {},
+  renderAll() {},
+  toast() {},
+  alert(message) { backupErrors.push(message); },
+};
+runInNewContext(backupCode, backupContext);
+const previousState = backupContext.state;
+const backupFile = data => ({ text: async () => JSON.stringify(data) });
+await backupContext.importJson(backupFile({ settings: { currency: 'USD' }, subscriptions: [{ cost: 100 }] }));
+await backupContext.importJson(backupFile({ settings: { currency: 'EUR' }, subscriptions: [{ currency: 'USD', cost: 20 }] }));
+await backupContext.importJson(backupFile({ settings: { currency: 'EUR' }, subscriptions: [], invoices: [null] }));
+assert.equal(backupContext.state, previousState);
+assert.equal(saves, 0);
+assert.equal(backupErrors.length, 3);
+const validBackup = { settings: { currency: 'EUR' }, subscriptions: [{ currency: 'eur', cost: 75 }] };
+await backupContext.importJson(backupFile(validBackup));
+assert.equal(backupContext.state.subscriptions[0].cost, 75);
+assert.equal(saves, 1);
+console.log('PASS: bundled JSON restore validates before replacing workspace state');

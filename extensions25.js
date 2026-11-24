@@ -264,15 +264,7 @@ function renderSettingsView(host) {
   host.querySelector('#st-import-file').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
     if (!confirm('Restore will OVERWRITE your current workspace. Continue?')) return;
-    try {
-      const text = await f.text();
-      const data = JSON.parse(text);
-      if (typeof data !== 'object' || !data) throw new Error('Not a workspace file');
-      Object.assign(state, data);
-      if (typeof save === 'function') save();
-      toast('Workspace restored. Reloading.');
-      setTimeout(() => location.reload(), 900);
-    } catch (err) { alert('Restore failed: ' + err.message); }
+    await importJson(f);
   };
 
   // --- Trial controls ---

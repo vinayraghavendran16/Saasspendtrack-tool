@@ -7157,30 +7157,57 @@ function exportJson() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-function importJson(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const data = JSON.parse(reader.result);
-      if (!Array.isArray(data.subscriptions)) throw new Error('Bad file: no subscriptions');
-      // Preserve current settings (Slack webhook, plan, Drive folder) -
-      // an import is data-level, not a factory reset.
-      const preservedSettings = state.settings;
-      state = {
-        subscriptions: data.subscriptions,
-        invoices: Array.isArray(data.invoices) ? data.invoices : [],
-        employees: Array.isArray(data.employees) ? data.employees : [],
-        alertLog: (data.alertLog && typeof data.alertLog === 'object') ? data.alertLog : {},
-        settings: (data.settings && typeof data.settings === 'object') ? data.settings : preservedSettings,
-      };
-      ensureStateShape();
-      save(); renderPlanBadge(); renderPricing(); renderAll();
-      alert(`Imported ${state.subscriptions.length} subscription(s) and ${state.invoices.length} invoice(s).`);
-    } catch (e) {
-      alert('Could not import: ' + e.message);
+function validateWorkspaceBackup(data) {
+  if (!data || !Array.isArray(data.subscriptions)) throw new Error('The backup must include subscriptions.');
+  for (const key of ['subscriptions', 'invoices', 'employees']) {
+    if (key in data && (!Array.isArray(data[key]) ||
+        data[key].some(record => !record || typeof record !== 'object' || Array.isArray(record)))) {
+      throw new Error('Invalid ' + key + ' in the backup.');
     }
-  };
-  reader.readAsText(file);
+  }
+  if ('settings' in data && (!data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings))) {
+    throw new Error('Invalid workspace settings in the backup.');
+  }
+
+  const records = [...data.subscriptions, ...(data.invoices || [])];
+  const currentCode = workspaceCurrency();
+  const code = data.settings?.currency ?? (records.length ? 'USD' : currentCode);
+  const supported = Intl.supportedValuesOf?.('currency');
+  if (typeof code !== 'string' || !/^[A-Z]{3}$/.test(code) || (supported && !supported.includes(code))) {
+    throw new Error('The backup uses an unsupported workspace currency.');
+  }
+  if ((state.subscriptions.length || state.invoices.length) && code !== currentCode) {
+    throw new Error('The backup currency differs from the current workspace currency (' + currentCode + ').');
+  }
+  if (records.some(({ currency }) => currency != null && currency !== '' &&
+      (typeof currency !== 'string' || currency.toUpperCase() !== code))) {
+    throw new Error('The backup contains subscriptions or invoices with conflicting currency labels.');
+  }
+
+  const settings = { ...(data.settings ?? state.settings) };
+  if (data.settings?.currency != null || settings.currency != null) settings.currency = code;
+  return { ...data, settings };
+}
+
+async function importJson(file) {
+  const revision = _localEditCounter;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending || _draftRecoveryPending ||
+        revision !== _localEditCounter) {
+      throw new Error('The workspace is unavailable for restore or changed while reading the backup.');
+    }
+    const backup = validateWorkspaceBackup(data);
+    state = backup;
+    ensureStateShape();
+    save();
+    renderPlanBadge();
+    renderPricing();
+    renderAll();
+    toast('Backup loaded. Workspace changes are queued to save.', 'info');
+  } catch (err) {
+    alert('Could not import: ' + err.message);
+  }
 }
 function clearAll() {
   if (!confirm('Delete ALL subscriptions and invoices? This cannot be undone.')) return;
@@ -22046,15 +22073,7 @@ function renderSettingsView(host) {
   host.querySelector('#st-import-file').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
     if (!confirm('Restore will OVERWRITE your current workspace. Continue?')) return;
-    try {
-      const text = await f.text();
-      const data = JSON.parse(text);
-      if (typeof data !== 'object' || !data) throw new Error('Not a workspace file');
-      Object.assign(state, data);
-      if (typeof save === 'function') save();
-      toast('Workspace restored. Reloading.');
-      setTimeout(() => location.reload(), 900);
-    } catch (err) { alert('Restore failed: ' + err.message); }
+    await importJson(f);
   };
 
   // --- Trial controls ---
