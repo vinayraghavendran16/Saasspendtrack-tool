@@ -3617,7 +3617,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
 const STORAGE_KEY = 'saasspendtrack.v1'; // Legacy data: read-only until explicit import.
 const UNSYNCED_DRAFT_KEY = 'saasspendtrack.unsynced-draft.v1'; // Old global recovery key: preserve read-only.
 const WORKSPACE_DRAFT_PREFIX = 'saasspendtrack.workspace-draft.v2.'; // Scoped to authenticated workspace.
-const CYCLE_MONTHS = { weekly: 1/4.345, monthly: 1, quarterly: 3, yearly: 12 };
+const CYCLE_MONTHS = Object.freeze({ weekly: 12/52, monthly: 1, quarterly: 3, yearly: 12 });
 const AVATAR_COLORS = ['#7c5cff', '#35d0ba', '#ff8a4c', '#4cb1ff', '#ff5c7a', '#ffb545', '#a374ff', '#4cd3ff'];
 
 let state = { subscriptions: [] };
@@ -4021,10 +4021,10 @@ async function syncFromServer() {
 
 // -------- math --------
 function monthlyCost(sub) {
-  const months = CYCLE_MONTHS[sub.cycle] || 1;
-  return sub.cost / months;
+  const months = Object.hasOwn(CYCLE_MONTHS, sub.cycle) ? CYCLE_MONTHS[sub.cycle] : null;
+  return months ? periodCost(sub) / months : 0;
 }
-function periodCost(sub) { return sub.cost || 0; } // cost for one billing period as stored
+function periodCost(sub) { const amount = Number(sub.cost); return Number.isFinite(amount) ? amount : 0; } // cost for one billing period as stored
 
 // Consumption: returns { total, assigned, utilized, unused, utilizationPct, unusedCostMonthly } or null
 function consumption(sub) {
