@@ -1,0 +1,60 @@
+// Live API smoke test: disposable preview accounts only. Never use production sessions.
+// Set PREVIEW_URL, PREVIEW_OWNER_A_COOKIE, PREVIEW_OWNER_B_COOKIE and
+// PREVIEW_TEST_CONFIRM=disposable-empty-workspaces. Cookies stay local; never print them.
+import assert from 'node:assert/strict';
+const url = new URL(process.env.PREVIEW_URL || 'https://invalid.example');
+assert.match(url.origin, /^https:\/\/[a-f0-9]{8}\.saasspendtrack\.pages\.dev$/);
+assert.equal(url.href, url.origin + '/');
+assert.equal(process.env.PREVIEW_TEST_CONFIRM, 'disposable-empty-workspaces');
+const a = process.env.PREVIEW_OWNER_A_COOKIE;
+const b = process.env.PREVIEW_OWNER_B_COOKIE;
+assert.ok(a && b && a !== b, 'Two distinct disposable sessions required');
+async function call(cookie, path, method='GET', body, version) {
+  const headers = { accept: 'application/json' };
+  if (cookie) headers.cookie = cookie;
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  if (version !== undefined) headers['If-Match'] = String(version);
+  const r = await fetch(url.origin + path, { method, headers, redirect:'error', body:body === undefined ? undefined : JSON.stringify(body) });
+  return { status:r.status, body:await r.json() };
+}
+function check(r, status) { assert.equal(r.status,status); return r.body; }
+async function run() {
+  check(await call(null,'/api/data'),401);
+  const first = check(await call(a,'/api/data'),200);
+  const second = check(await call(b,'/api/data'),200);
+  assert.ok(first.workspaceId && second.workspaceId && first.workspaceId !== second.workspaceId, 'Separate workspaces required');
+  assert.ok(first.empty === true && first.version === 0 && second.empty === true && second.version === 0, 'Refusing to modify nonempty workspaces');
+  const consentA = check(await call(a,'/api/ai/consent'),200);
+  const consentB = check(await call(b,'/api/ai/consent'),200);
+  assert.ok(consentA.canManage && consentB.canManage && !consentA.enabled && !consentB.enabled, 'Fresh owner/admin sessions required');
+  console.log('PASS: unauthenticated access denied; distinct empty workspaces; AI disabled');
+  const sample = { subscriptions:[], settings:{previewSmokeMarker:crypto.randomUUID()} };
+  check(await call(a,'/api/data','PUT',sample),428);
+  const saved = check(await call(a,'/api/data','PUT',sample,0),200);
+  assert.equal(saved.version,1);
+  const read = check(await call(a,'/api/data'),200);
+  assert.equal(read.version,1);
+  assert.deepEqual(read.data,sample);
+  check(await call(a,'/api/data','PUT',sample,0),409);
+  const next = check(await call(a,'/api/data','PUT',sample,1),200);
+  assert.equal(next.version,2);
+  check(await call(a,'/api/data','PUT',sample,1),409);
+  assert.equal(check(await call(a,'/api/data'),200).version,2);
+  assert.equal(check(await call(b,'/api/data'),200).empty,true);
+  console.log('PASS: persistence, missing precondition, stale writes, tenant isolation');
+  const consent = enabled => call(a,'/api/ai/consent','POST',{enabled,consentVersion:'workspace-ai-v1'});
+  try {
+    assert.equal(check(await consent(true),200).enabled,true);
+    assert.equal(check(await call(a,'/api/ai/consent'),200).enabled,true);
+    assert.equal(check(await call(b,'/api/ai/consent'),200).enabled,false);
+  } finally {
+    assert.equal(check(await consent(false),200).enabled,false);
+  }
+  assert.equal(check(await call(a,'/api/ai/consent'),200).enabled,false);
+  console.log('PASS: consent enable, isolation and revocation');
+  check(await call(a,'/api/auth/logout','POST'),200);
+  check(await call(a,'/api/data'),401);
+  console.log('PASS: logout invalidates session');
+  console.log('API smoke complete. Synthetic state remains in workspace A. Browser, audit rows, binding and backup checks remain separate.');
+}
+run().catch(() => { console.error('FAIL: preview smoke did not complete; inspect locally without exposing credentials or response bodies.'); process.exitCode=1; });
