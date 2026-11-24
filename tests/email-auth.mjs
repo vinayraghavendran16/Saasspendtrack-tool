@@ -13,10 +13,12 @@ assert.equal(authAppUrl(new Request('https://saasspendtrack.pages.dev/api/auth/r
 
 const originalFetch = globalThis.fetch;
 const originalError = console.error;
+const originalInfo = console.info;
 const logs = [];
 const mail = { to: 'recipient@example.com', subject: 'Sign in', html: '<a>private-link-token</a>' };
 let calls = [];
 console.error = (...args) => logs.push(args);
+console.info = (...args) => logs.push(args);
 try {
   globalThis.fetch = async (url, options) => {
     calls.push({ url, options });
@@ -87,6 +89,7 @@ try {
 } finally {
   globalThis.fetch = originalFetch;
   console.error = originalError;
+  console.info = originalInfo;
 }
 
 // Execute each actual browser click handler with success and failure responses.

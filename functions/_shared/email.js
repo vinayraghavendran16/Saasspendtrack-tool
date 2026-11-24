@@ -19,6 +19,12 @@ export async function sendEmail(env, { to, subject, html }) {
   if (!token || /\s/.test(token) || /^Zoho-enczapikey$/i.test(token)) {
     return mailFailure('invalid_token_format');
   }
+  if (rawToken !== env.ZEPTOMAIL_TOKEN || token !== rawToken) {
+    console.info('ZeptoMail token normalized', {
+      outerWhitespaceRemoved: rawToken !== env.ZEPTOMAIL_TOKEN,
+      authorizationPrefixRemoved: token !== rawToken,
+    });
+  }
   const url = (env.ZEPTOMAIL_URL || 'https://api.zeptomail.in/v1.1/email').trim();
   const from = (env.FROM_EMAIL || 'hello@saasspendtrack.com').trim();
   const fromName = env.FROM_NAME || 'SaaS Spend Track';
