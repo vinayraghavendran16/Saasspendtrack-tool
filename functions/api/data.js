@@ -7,6 +7,19 @@ import { json, getUserFromSession, requireEntitledRole, getAccountContext, now }
 
 const MAX_BYTES = 1_500_000; // generous cap for a single account's state
 
+// Preserve compatibility with older object-shaped snapshots, but reject values
+// that cannot represent workspace state or have malformed core collections.
+function validSnapshot(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  for (const key of ['subscriptions', 'invoices', 'employees']) {
+    if (Object.hasOwn(value, key) && (!Array.isArray(value[key]) ||
+        value[key].some(item => !item || typeof item !== 'object' || Array.isArray(item)))) return false;
+  }
+  if (Object.hasOwn(value, 'settings') &&
+      (!value.settings || typeof value.settings !== 'object' || Array.isArray(value.settings))) return false;
+  return true;
+}
+
 export async function onRequestGet({ request, env }) {
   const user = await getUserFromSession(request, env);
   if (!user) return json({ error: 'auth' }, 401);
@@ -17,9 +30,11 @@ export async function onRequestGet({ request, env }) {
   const key = ctx.ownerEmail;
   const row = await env.DB.prepare('SELECT data, version FROM app_data WHERE email=?')
     .bind(key).first();
-  if (!row || !row.data) return json({ empty: true, version: 0, workspaceId: ctx.membership.account_id });
+  if (!row) return json({ empty: true, version: 0, workspaceId: ctx.membership.account_id });
   try {
-    return json({ data: JSON.parse(row.data), version: row.version, workspaceId: ctx.membership.account_id });
+    const snapshot = JSON.parse(row.data);
+    if (!validSnapshot(snapshot) || !Number.isSafeInteger(row.version) || row.version < 1) throw new Error('invalid snapshot');
+    return json({ data: snapshot, version: row.version, workspaceId: ctx.membership.account_id });
   } catch {
     return json({ error: 'invalid_saved_data' }, 503);
   }
@@ -40,8 +55,10 @@ export async function onRequestPut({ request, env }) {
   if (!Number.isSafeInteger(expectedVersion)) return json({ error: 'invalid_version' }, 400);
 
   const body = await request.text();
-  if (body.length > MAX_BYTES) return json({ error: 'too_large' }, 413);
-  try { JSON.parse(body); } catch { return json({ error: 'bad_json' }, 400); }
+  if (new TextEncoder().encode(body).byteLength > MAX_BYTES) return json({ error: 'too_large' }, 413);
+  let snapshot;
+  try { snapshot = JSON.parse(body); } catch { return json({ error: 'bad_json' }, 400); }
+  if (!validSnapshot(snapshot)) return json({ error: 'invalid_snapshot' }, 400);
 
   // Write to the account owner's row so all members share one workspace.
   const ctx = await getAccountContext(env, user);
