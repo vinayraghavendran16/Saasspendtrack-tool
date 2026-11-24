@@ -172,3 +172,43 @@ assert.equal(savedRequest.options.headers['X-Workspace-Action'], 'correct-curren
 assert.deepEqual(JSON.parse(savedRequest.options.body), { workspaceId: 'A', currency: 'EUR', confirmed: true });
 assert.equal(reloaded, true);
 console.log('PASS: deployed correction form submits only an explicitly confirmed source currency');
+
+const csvSource = readFileSync(new URL('../extensions23.js', import.meta.url), 'utf8');
+const csvStart = deployed.indexOf('function importCurrencyMatches(');
+const csvEnd = deployed.indexOf('function step3Html()', csvStart);
+const csvReview = deployed.slice(csvStart, csvEnd);
+assert.ok(csvSource.includes(csvReview.slice(0, csvReview.indexOf('function buildPreviewRows()'))));
+const csvMapping = { name: 0, cost: 1, currency: 2 };
+const csvContext = { biState: { mapping: csvMapping, rows: [
+  ['vendor', 'cost', 'currency'],
+  ['Matching', 'EUR 120', 'eur'],
+  ['Explicit mismatch', '120', 'USD'],
+  ['Symbol mismatch', '£120', 'EUR'],
+  ['Dollar mismatch', '$120', 'EUR'],
+  ['Unlabeled', '120', ''],
+] } };
+runInNewContext([
+  'const workspaceCurrency = () => "EUR";',
+  'const coerceCost = raw => Number.parseFloat(raw);',
+  'const coerceCycle = () => "yearly";',
+  'const coerceDate = () => null;',
+  'const coerceInt = () => null;',
+  'const findFuzzyDuplicate = () => null;',
+  csvReview,
+].join('\n'), csvContext);
+const importedRows = csvContext.buildPreviewRows();
+assert.equal(importedRows[0].cost, 120);
+assert.equal(importedRows[0].currency, 'EUR');
+assert.equal(importedRows[4].currency, 'EUR');
+assert.deepEqual(Array.from(importedRows.slice(1, 4), row => row._issue), [
+  'currency_mismatch', 'currency_mismatch', 'currency_mismatch',
+]);
+
+const commitStart = deployed.indexOf('function commitImport()', csvEnd);
+const commitEnd = deployed.indexOf('\n}', commitStart) + 2;
+const messages = [];
+csvContext.toast = message => messages.push(message);
+runInNewContext(deployed.slice(commitStart, commitEnd), csvContext);
+csvContext.commitImport();
+assert.deepEqual(messages, ['Import paused. Review CSV rows with a different currency.']);
+console.log('PASS: bundled CSV import blocks mismatches before workspace mutation');

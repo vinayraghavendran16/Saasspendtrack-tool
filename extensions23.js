@@ -24,7 +24,8 @@
 
 const FIELDS = [
   { key: 'name',     label: 'Vendor name',       required: true,  hint: 'Salesforce, Zoom, Figma...' },
-  { key: 'cost',     label: 'Cost',              required: false, hint: 'Numeric. $ and commas stripped.' },
+  { key: 'cost',     label: 'Cost',              required: false, hint: 'Amount in the workspace currency' },
+  { key: 'currency', label: 'Currency',          required: false, hint: 'ISO code, for example USD or EUR' },
   { key: 'cycle',    label: 'Billing cycle',     required: false, hint: 'monthly / yearly / quarterly' },
   { key: 'category', label: 'Category',          required: false, hint: 'CRM, Analytics, Design...' },
   { key: 'team',     label: 'Owning team',       required: false, hint: 'Sales, Marketing, Engineering...' },
@@ -39,6 +40,7 @@ const FIELDS = [
 const HEADER_ALIASES = {
   name:     ['vendor', 'vendor name', 'tool', 'software', 'product', 'saas', 'service', 'app', 'application', 'name', 'subscription'],
   cost:     ['cost', 'price', 'amount', 'annual spend', 'annual cost', 'monthly cost', 'spend', 'yearly cost', 'yearly spend', 'acv', 'arr', 'total', 'subscription cost'],
+  currency: ['currency', 'currency code', 'ccy', 'curr'],
   cycle:    ['cycle', 'billing', 'billing cycle', 'billing period', 'period', 'frequency', 'term', 'interval'],
   category: ['category', 'type', 'segment', 'bucket', 'function', 'use case'],
   team:     ['team', 'department', 'dept', 'owner team', 'business unit', 'bu', 'division'],
@@ -319,16 +321,29 @@ function step2Html() {
 
 /* ----- Step 3: preview + import ----- */
 
+function importCurrencyMatches(label, amount, workspaceCode) {
+  const marker = amount.match(/^[+-]?\s*([A-Z]{3})(?=\s*[+-]?\d)|\d\s*([A-Z]{3})$/i);
+  const amountCode = marker?.[1] || marker?.[2];
+  const hasDollarSign = amount.includes('$');
+  if (hasDollarSign && !['USD', 'CAD', 'AUD', 'NZD', 'SGD', 'HKD'].includes(workspaceCode)) return false;
+  const symbols = { '€': 'EUR', '₹': 'INR', '£': 'GBP' };
+  return [label, amountCode, ...Object.keys(symbols).filter(symbol => amount.includes(symbol)).map(symbol => symbols[symbol])]
+    .every(code => !code || code.toUpperCase() === workspaceCode);
+}
+
 function buildPreviewRows() {
   const map = biState.mapping;
   const dataRows = biState.rows.slice(1);
   return dataRows.map((r, idx) => {
     const get = (k) => (map[k] != null ? (r[map[k]] || '').trim() : '');
     const name = get('name');
+    const amount = get('cost');
+    const currency = workspaceCurrency();
     const sub = {
       _rowIndex: idx + 2,
       name,
-      cost: coerceCost(get('cost')),
+      cost: coerceCost(amount.replace(new RegExp('^([+-]?\\s*)' + currency + '(?=\\s*[+-]?\\d)', 'i'), '$1')),
+      currency,
       cycle: coerceCycle(get('cycle')),
       category: get('category') || '',
       team: get('team') || '',
@@ -339,6 +354,7 @@ function buildPreviewRows() {
       url: get('url') || '',
     };
     if (!name) sub._issue = 'missing_name';
+    else if (!importCurrencyMatches(get('currency'), amount, currency)) sub._issue = 'currency_mismatch';
     const dup = findFuzzyDuplicate(name);
     if (dup) sub._dup = dup;
     return sub;
@@ -350,12 +366,15 @@ function step3Html() {
   biState._previewRows = rows;
   const total = rows.length;
   const missing = rows.filter(r => r._issue === 'missing_name').length;
+  const conflicts = rows.filter(r => r._issue === 'currency_mismatch');
   const exact = rows.filter(r => r._dup && r._dup.match === 'exact').length;
   const fuzzy = rows.filter(r => r._dup && r._dup.match === 'fuzzy').length;
   const newCount = rows.filter(r => !r._issue && !r._dup).length;
   return `
     <div class="bi-step-body">
       <h3 class="bi-h">Review and import</h3>
+      <p>Amounts must use the workspace currency (${escapeHtml(workspaceCurrency())}). Rows without a currency label use that currency.</p>
+      ${conflicts.length ? `<p role="alert">Currency mismatch in CSV rows ${conflicts.slice(0, 10).map(row => row._rowIndex).join(', ')}${conflicts.length > 10 ? ' and others' : ''}. Check the original amounts and currency labels before importing.</p>` : ''}
       <div class="bi-summary">
         <div class="bi-stat ok"><b>${newCount}</b><span>New to add</span></div>
         <div class="bi-stat ${fuzzy ? 'warn' : ''}"><b>${fuzzy}</b><span>Possible duplicates</span></div>
@@ -370,12 +389,13 @@ function step3Html() {
         ${rows.slice(0, 50).map(r => {
           let status = 'new', label = 'New';
           if (r._issue === 'missing_name') { status = 'bad'; label = 'No name - skip'; }
+          else if (r._issue === 'currency_mismatch') { status = 'bad'; label = 'Currency mismatch'; }
           else if (r._dup && r._dup.match === 'exact') { status = 'skip'; label = `Exact dupe: ${escapeHtml(r._dup.sub.name)}`; }
           else if (r._dup && r._dup.match === 'fuzzy') { status = 'warn'; label = `Possible dupe: ${escapeHtml(r._dup.sub.name)}`; }
           return `
             <div class="bi-prow bi-prow-${status}">
               <span class="bi-prow-name">${escapeHtml(r.name || '(no name)')}</span>
-              <span class="bi-prow-meta">${r.cost != null ? '$' + r.cost.toLocaleString() : '-'} · ${escapeHtml(r.cycle)} ${r.renewal ? ' · renews ' + escapeHtml(r.renewal) : ''}</span>
+              <span class="bi-prow-meta">${r.cost != null && r._issue !== 'currency_mismatch' ? escapeHtml(r.currency) + ' ' + r.cost.toLocaleString() : '-'} · ${escapeHtml(r.cycle)} ${r.renewal ? ' · renews ' + escapeHtml(r.renewal) : ''}</span>
               <span class="bi-prow-tag bi-prow-tag-${status}">${label}</span>
             </div>
           `;
@@ -384,7 +404,7 @@ function step3Html() {
       </div>
       <div class="bi-foot">
         <button type="button" class="bi-link" id="bi-back-3">← Back</button>
-        <button type="button" class="bi-primary" id="bi-import">Import ${newCount + (fuzzy || 0)} row${(newCount + fuzzy) === 1 ? '' : 's'}</button>
+        <button type="button" class="bi-primary" id="bi-import" ${conflicts.length ? 'disabled' : ''}>Import ${newCount + (fuzzy || 0)} row${(newCount + fuzzy) === 1 ? '' : 's'}</button>
       </div>
     </div>
   `;
@@ -458,7 +478,11 @@ function wireStep() {
 /* ----- Commit ----- */
 
 function commitImport() {
-  const rows = biState._previewRows || buildPreviewRows();
+  const rows = buildPreviewRows();
+  if (rows.some(row => row._issue === 'currency_mismatch')) {
+    toast('Import paused. Review CSV rows with a different currency.', 'error');
+    return;
+  }
   const dupPolicy = (document.querySelector('input[name="bi-dup"]:checked') || {}).value || 'skip';
 
   let added = 0, skipped = 0, dupes = 0;
@@ -473,6 +497,7 @@ function commitImport() {
       id: crypto.randomUUID(),
       name: r.name,
       cost: r.cost != null ? r.cost : 0,
+      currency: r.currency,
       cycle: r.cycle,
       category: r.category,
       team: r.team,

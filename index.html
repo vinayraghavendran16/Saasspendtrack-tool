@@ -20553,7 +20553,8 @@ if (_prevAll22) {
 
 const FIELDS = [
   { key: 'name',     label: 'Vendor name',       required: true,  hint: 'Salesforce, Zoom, Figma...' },
-  { key: 'cost',     label: 'Cost',              required: false, hint: 'Numeric. $ and commas stripped.' },
+  { key: 'cost',     label: 'Cost',              required: false, hint: 'Amount in the workspace currency' },
+  { key: 'currency', label: 'Currency',          required: false, hint: 'ISO code, for example USD or EUR' },
   { key: 'cycle',    label: 'Billing cycle',     required: false, hint: 'monthly / yearly / quarterly' },
   { key: 'category', label: 'Category',          required: false, hint: 'CRM, Analytics, Design...' },
   { key: 'team',     label: 'Owning team',       required: false, hint: 'Sales, Marketing, Engineering...' },
@@ -20569,6 +20570,7 @@ const FIELDS = [
 const HEADER_ALIASES = {
   name:     ['vendor', 'vendor name', 'tool', 'software', 'product', 'saas', 'service', 'app', 'application', 'name', 'subscription'],
   cost:     ['cost', 'price', 'amount', 'annual spend', 'annual cost', 'monthly cost', 'spend', 'yearly cost', 'yearly spend', 'acv', 'arr', 'total', 'subscription cost'],
+  currency: ['currency', 'currency code', 'ccy', 'curr'],
   cycle:    ['cycle', 'billing', 'billing cycle', 'billing period', 'period', 'frequency', 'term', 'interval'],
   category: ['category', 'type', 'segment', 'bucket', 'function', 'use case'],
   team:     ['team', 'owner team', 'squad', 'group', 'pod'],
@@ -20850,16 +20852,29 @@ function step2Html() {
 
 /* ----- Step 3: preview + import ----- */
 
+function importCurrencyMatches(label, amount, workspaceCode) {
+  const marker = amount.match(/^[+-]?\s*([A-Z]{3})(?=\s*[+-]?\d)|\d\s*([A-Z]{3})$/i);
+  const amountCode = marker?.[1] || marker?.[2];
+  const hasDollarSign = amount.includes('$');
+  if (hasDollarSign && !['USD', 'CAD', 'AUD', 'NZD', 'SGD', 'HKD'].includes(workspaceCode)) return false;
+  const symbols = { '€': 'EUR', '₹': 'INR', '£': 'GBP' };
+  return [label, amountCode, ...Object.keys(symbols).filter(symbol => amount.includes(symbol)).map(symbol => symbols[symbol])]
+    .every(code => !code || code.toUpperCase() === workspaceCode);
+}
+
 function buildPreviewRows() {
   const map = biState.mapping;
   const dataRows = biState.rows.slice(1);
   return dataRows.map((r, idx) => {
     const get = (k) => (map[k] != null ? (r[map[k]] || '').trim() : '');
     const name = get('name');
+    const amount = get('cost');
+    const currency = workspaceCurrency();
     const sub = {
       _rowIndex: idx + 2,
       name,
-      cost: coerceCost(get('cost')),
+      cost: coerceCost(amount.replace(new RegExp('^([+-]?\\s*)' + currency + '(?=\\s*[+-]?\\d)', 'i'), '$1')),
+      currency,
       cycle: coerceCycle(get('cycle')),
       category: get('category') || '',
       team: get('team') || '',
@@ -20871,6 +20886,7 @@ function buildPreviewRows() {
       url: get('url') || '',
     };
     if (!name) sub._issue = 'missing_name';
+    else if (!importCurrencyMatches(get('currency'), amount, currency)) sub._issue = 'currency_mismatch';
     const dup = findFuzzyDuplicate(name);
     if (dup) sub._dup = dup;
     return sub;
@@ -20882,12 +20898,15 @@ function step3Html() {
   biState._previewRows = rows;
   const total = rows.length;
   const missing = rows.filter(r => r._issue === 'missing_name').length;
+  const conflicts = rows.filter(r => r._issue === 'currency_mismatch');
   const exact = rows.filter(r => r._dup && r._dup.match === 'exact').length;
   const fuzzy = rows.filter(r => r._dup && r._dup.match === 'fuzzy').length;
   const newCount = rows.filter(r => !r._issue && !r._dup).length;
   return `
     <div class="bi-step-body">
       <h3 class="bi-h">Review and import</h3>
+      <p>Amounts must use the workspace currency (${escapeHtml(workspaceCurrency())}). Rows without a currency label use that currency.</p>
+      ${conflicts.length ? `<p role="alert">Currency mismatch in CSV rows ${conflicts.slice(0, 10).map(row => row._rowIndex).join(', ')}${conflicts.length > 10 ? ' and others' : ''}. Check the original amounts and currency labels before importing.</p>` : ''}
       <div class="bi-summary">
         <div class="bi-stat ok"><b>${newCount}</b><span>New to add</span></div>
         <div class="bi-stat ${fuzzy ? 'warn' : ''}"><b>${fuzzy}</b><span>Possible duplicates</span></div>
@@ -20902,12 +20921,13 @@ function step3Html() {
         ${rows.slice(0, 50).map(r => {
           let status = 'new', label = 'New';
           if (r._issue === 'missing_name') { status = 'bad'; label = 'No name - skip'; }
+          else if (r._issue === 'currency_mismatch') { status = 'bad'; label = 'Currency mismatch'; }
           else if (r._dup && r._dup.match === 'exact') { status = 'skip'; label = `Exact dupe: ${escapeHtml(r._dup.sub.name)}`; }
           else if (r._dup && r._dup.match === 'fuzzy') { status = 'warn'; label = `Possible dupe: ${escapeHtml(r._dup.sub.name)}`; }
           return `
             <div class="bi-prow bi-prow-${status}">
               <span class="bi-prow-name">${escapeHtml(r.name || '(no name)')}</span>
-              <span class="bi-prow-meta">${r.cost != null ? '$' + r.cost.toLocaleString() : '-'} · ${escapeHtml(r.cycle)} ${r.renewal ? ' · renews ' + escapeHtml(r.renewal) : ''}</span>
+              <span class="bi-prow-meta">${r.cost != null && r._issue !== 'currency_mismatch' ? escapeHtml(r.currency) + ' ' + r.cost.toLocaleString() : '-'} · ${escapeHtml(r.cycle)} ${r.renewal ? ' · renews ' + escapeHtml(r.renewal) : ''}</span>
               <span class="bi-prow-tag bi-prow-tag-${status}">${label}</span>
             </div>
           `;
@@ -20916,7 +20936,7 @@ function step3Html() {
       </div>
       <div class="bi-foot">
         <button type="button" class="bi-link" id="bi-back-3">← Back</button>
-        <button type="button" class="bi-primary" id="bi-import">Import ${newCount + (fuzzy || 0)} row${(newCount + fuzzy) === 1 ? '' : 's'}</button>
+        <button type="button" class="bi-primary" id="bi-import" ${conflicts.length ? 'disabled' : ''}>Import ${newCount + (fuzzy || 0)} row${(newCount + fuzzy) === 1 ? '' : 's'}</button>
       </div>
     </div>
   `;
@@ -20990,7 +21010,11 @@ function wireStep() {
 /* ----- Commit ----- */
 
 function commitImport() {
-  const rows = biState._previewRows || buildPreviewRows();
+  const rows = buildPreviewRows();
+  if (rows.some(row => row._issue === 'currency_mismatch')) {
+    toast('Import paused. Review CSV rows with a different currency.', 'error');
+    return;
+  }
   const dupPolicy = (document.querySelector('input[name="bi-dup"]:checked') || {}).value || 'skip';
 
   let added = 0, skipped = 0, dupes = 0;
@@ -21005,6 +21029,7 @@ function commitImport() {
       id: crypto.randomUUID(),
       name: r.name,
       cost: r.cost != null ? r.cost : 0,
+      currency: r.currency,
       cycle: r.cycle,
       category: r.category,
       team: r.team,
@@ -22963,151 +22988,6 @@ if (typeof window.monthlyCost === 'function' && !window.monthlyCost._p50) {
     return toUSD(raw, from);                 // normalise to USD for summing
   };
   window.monthlyCost._p50 = true;
-}
-
-/* ---------------- Bulk import integration ---------------- */
-
-/* Extend extensions23 (Bulk CSV) with a Currency column.
-   - Header aliases: currency, ccy, curr
-   - Also auto-detects per-cell symbol prefix on cost: ₹, €, £, ¥, AED, S$, etc.
-   - The mapping dropdown gets a new Currency row.
-
-   We patch at runtime because extensions23 is already loaded; we
-   can't change its FIELDS array in place but we CAN intercept the
-   row-building step. Hook: monkey-patch BulkImport's internal
-   buildPreviewRows via the public window.BulkImport facade.
-
-   Simpler and more reliable: do our own cost-cell symbol detection
-   after Phase 44 builds its rows. Hook into the commit step so
-   each new subscription gets a currency field assigned. */
-
-(function patchBulkImport() {
-  if (!window.BulkImport) {
-    setTimeout(patchBulkImport, 500);
-    return;
-  }
-  if (window.BulkImport._p50) return;
-
-  // Replace parseCSV with a pass-through that also leaves the original
-  // cost cell accessible. Actually we don't need to touch parseCSV -
-  // we patch state.subscriptions.push during commit via a Proxy-free
-  // approach: tap into the renderAll cycle right after commit to
-  // enrich new rows that lack a currency.
-
-  // Simpler: watch for new subscriptions that were imported via
-  // importedVia='bulk_csv' and don't have currency set, infer from
-  // their original cost cell. But we don't have the original cell.
-  // So: detect per-cell symbol in cost and set sub.currency at commit
-  // time via a periodic "enrich" scan.
-
-  // Easiest path: scan new subs in state.subscriptions every time
-  // Settings or Bulk Import runs, and set currency from the
-  // formatted cost string if present in sub.importedCostString.
-
-  // Since extensions23 doesn't record the original cost string, we
-  // add that now by wrapping parseCSV. Even cleaner: fence-and-patch
-  // the module via a second-pass enrichment:
-  const _origOpen = window.BulkImport.open;
-  window.BulkImport.open = function () {
-    const r = _origOpen.apply(this, arguments);
-    setTimeout(injectCurrencyColumn, 50);
-    return r;
-  };
-  window.BulkImport._p50 = true;
-})();
-
-/* Add a visible Currency row to the bulk-import column mapping,
-   populated from the headers. Implemented as DOM augmentation so
-   we don't have to modify the shipped extensions23 FIELDS array. */
-function injectCurrencyColumn() {
-  // Only act on step 2 of the bulk import modal
-  const grid = document.querySelector('.bi-map-grid');
-  if (!grid) { setTimeout(injectCurrencyColumn, 200); return; }
-  if (grid.querySelector('[data-field="currency"]')) return;
-
-  // Read the current header options from an existing select
-  const anySelect = grid.querySelector('.bi-map-select');
-  if (!anySelect) return;
-
-  // Append a new row for Currency
-  const label = document.createElement('label');
-  label.className = 'bi-map-label';
-  label.innerHTML = `
-    <span class="bi-map-name">Currency</span>
-    <span class="bi-map-hint">USD / INR / EUR / GBP... (or auto-detected from cost cell prefix)</span>
-  `;
-  const select = anySelect.cloneNode(true);
-  select.dataset.field = 'currency';
-  select.value = '';
-  // Auto-pick a column if headers include "currency" / "ccy"
-  const options = Array.from(select.options);
-  const alias = options.find(o => /currency|^ccy$|curr\b/i.test(o.textContent.trim()));
-  if (alias) select.value = alias.value;
-
-  grid.appendChild(label);
-  grid.appendChild(select);
-
-  // Hook change → write into a shared bulk-import state we can read on commit
-  select.onchange = () => {
-    window._p50_currencyCol = select.value === '' ? null : parseInt(select.value, 10);
-  };
-  if (select.value !== '') window._p50_currencyCol = parseInt(select.value, 10);
-
-  // Monkey-patch the import commit path once, to apply currency per row.
-  patchImportCommit();
-}
-
-/* Wrap state.subscriptions.push briefly during commit so new rows
-   coming out of the bulk-import flow get currency assigned. We do this
-   on the Import button click. */
-function patchImportCommit() {
-  const btn = document.querySelector('.bi-step-body #bi-import');
-  if (!btn || btn._p50) return;
-  btn._p50 = true;
-  const originalClick = btn.onclick;
-  btn.onclick = (ev) => {
-    // Capture the raw CSV rows + currency column index for use inside push()
-    // extensions23 stores biState in a closure we can't reach, but the DOM
-    // preview rows have name + raw cost - we parse the cost cells to detect
-    // symbols as a fallback.
-    const colIdx = (typeof window._p50_currencyCol === 'number') ? window._p50_currencyCol : null;
-
-    // Wrap push for the duration of this click
-    const origPush = Array.prototype.push;
-    const added = [];
-    Array.prototype.push = function (...items) {
-      items.forEach(it => {
-        if (it && typeof it === 'object' && it.name && it.importedVia === 'bulk_csv' && !it.currency) {
-          it.currency = detectCurrency(it) || 'USD';
-          added.push(it.name);
-        }
-      });
-      return origPush.apply(this, items);
-    };
-    try {
-      if (typeof originalClick === 'function') originalClick.call(btn, ev);
-    } finally {
-      Array.prototype.push = origPush;
-    }
-    if (added.length) console.log('[Phase 50] Imported with per-currency:', added.length);
-  };
-}
-
-/* Infer currency from a sub's cost string / notes. If sub.cost
-   is itself a formatted string with a symbol, use that. */
-function detectCurrency(sub) {
-  // Try to look at the raw cost field - bulk import coerces to number
-  // so we may not have the symbol anymore. Fallback: notes field.
-  const text = String(sub.notes || '') + ' ' + String(sub.name || '');
-  if (/₹|\bINR\b|\bRs\.?\b|rupees?/i.test(text)) return 'INR';
-  if (/€|\bEUR\b/.test(text))                     return 'EUR';
-  if (/£|\bGBP\b/.test(text))                     return 'GBP';
-  if (/\bAUD\b|\bA\$/.test(text))                 return 'AUD';
-  if (/\bSGD\b|\bS\$/.test(text))                 return 'SGD';
-  if (/\bJPY\b|¥/.test(text))                     return 'JPY';
-  if (/\bCAD\b|\bC\$/.test(text))                 return 'CAD';
-  if (/\bAED\b|د\.إ/.test(text))                  return 'AED';
-  return null;
 }
 
 /* ---------------- Per-row currency tag on subscription tables ---------------- */
