@@ -263,13 +263,12 @@ async function offerLegacyImport() {
     alert('Import cancelled: existing currency labels differ from your selection. Review and export your browser records before importing.');
     return;
   }
-  const amountTotal = subscriptions.reduce((sum, item) => sum +
-    (Number.isFinite(Number(item.cost)) ? Number(item.cost) : 0), 0);
   if (!confirm('Confirm import into THIS signed-in workspace?\\n\\n' +
     subscriptions.length + ' subscriptions; ' + invoices.length + ' invoices; ' +
-    employees.length + ' employees.\\nSubscription billing-period amounts total: ' +
-    amountTotal.toLocaleString() + ' ' + code + ' (not annualized or converted).\\n\\n' +
-    'The original browser data will be retained. Import cannot be automatically undone.')) return;
+    employees.length + ' employees.\\n\\n' +
+    'I confirm that ALL monetary records originally use ' + code +
+    ', including records without currency labels. If any currency is unknown or mixed, cancel.\\n\\n' +
+    'Amounts will not be converted. The original browser data will be retained. Import cannot be automatically undone.')) return;
   const imported = JSON.parse(JSON.stringify(legacy));
   if (!imported.settings || typeof imported.settings !== 'object') imported.settings = {};
   imported.settings.currency = code;
