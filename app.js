@@ -162,6 +162,90 @@ async function pushServerSave() {
   }
 }
 
+// Explicit one-time migration for records stored by older browser-only builds.
+// The original legacy key remains untouched even after a successful import.
+async function offerLegacyImport() {
+  if (!_legacyBrowserData || _serverVersion !== 0 || !_serverHydrated) return;
+  const legacy = _legacyBrowserData;
+  const subscriptions = Array.isArray(legacy.subscriptions) ? legacy.subscriptions : [];
+  const invoices = Array.isArray(legacy.invoices) ? legacy.invoices : [];
+  const employees = Array.isArray(legacy.employees) ? legacy.employees : [];
+  const count = subscriptions.length + invoices.length + employees.length;
+  if (!count) return;
+  const currency = prompt(
+    'Import ' + subscriptions.length + ' subscriptions, ' + invoices.length +
+    ' invoices and ' + employees.length + ' employees from this browser?\\n\\n' +
+    'These records have NOT been verified as belonging to this workspace. ' +
+    'Check their ownership and original currency before continuing.\\n\\n' +
+    'Enter the original 3-letter currency code (for example USD, INR, EUR). ' +
+    'Amounts will NOT be converted. Cancel to leave everything untouched.'
+  );
+  if (currency === null) return;
+  const code = currency.trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) {
+    alert('Import cancelled: enter a valid three-letter currency code.');
+    return;
+  }
+  const existingCurrencies = new Set([...subscriptions, ...invoices]
+    .map(item => typeof item.currency === 'string' ? item.currency.toUpperCase() : null)
+    .filter(Boolean));
+  if (existingCurrencies.size && (existingCurrencies.size !== 1 || !existingCurrencies.has(code))) {
+    alert('Import cancelled: existing currency labels differ from your selection. Review and export your browser records before importing.');
+    return;
+  }
+  const amountTotal = subscriptions.reduce((sum, item) => sum +
+    (Number.isFinite(Number(item.cost)) ? Number(item.cost) : 0), 0);
+  if (!confirm('Confirm import into THIS signed-in workspace?\\n\\n' +
+    subscriptions.length + ' subscriptions; ' + invoices.length + ' invoices; ' +
+    employees.length + ' employees.\\nSubscription billing-period amounts total: ' +
+    amountTotal.toLocaleString() + ' ' + code + ' (not annualized or converted).\\n\\n' +
+    'The original browser data will be retained. Import cannot be automatically undone.')) return;
+  const imported = JSON.parse(JSON.stringify(legacy));
+  if (!imported.settings || typeof imported.settings !== 'object') imported.settings = {};
+  imported.settings.currency = code;
+  imported.settings.legacyImportCurrencyReviewed = true;
+  imported.settings.legacyImportAt = new Date().toISOString();
+  const res = await fetch('/api/data', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', 'If-Match': '0' },
+    body: JSON.stringify(imported),
+  }).catch(() => null);
+  if (!res || !res.ok) {
+    alert('Import was not completed. The workspace may have changed or the connection failed. Reload to check before retrying.');
+    _serverSaveBlocked = true;
+    return;
+  }
+  const result = await res.json();
+  if (!Number.isSafeInteger(result.version) || result.version < 1) {
+    _serverSaveBlocked = true;
+    alert('Import response could not be verified. Reload before making changes.');
+    return;
+  }
+  _serverVersion = result.version;
+  state = imported;
+  ensureStateShape();
+  renderAll();
+  toast('Legacy records imported with original ' + code + ' amounts. The browser backup was preserved.', 'info');
+}
+function showLegacyImportPrompt() {
+  if (document.getElementById('legacy-import-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'legacy-import-banner';
+  banner.setAttribute('role', 'status');
+  banner.style.cssText = 'padding:14px;margin:12px;border:1px solid #eab308;border-radius:8px;';
+  const message = document.createElement('span');
+  message.textContent = 'Older records were found in this browser. They have not been added to your workspace. Review ownership and currency before importing. ';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = 'Review legacy import';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try { await offerLegacyImport(); } finally { button.disabled = false; }
+  });
+  banner.append(message, button);
+  (document.getElementById('dashboard') || document.body).prepend(banner);
+}
+
 // Pull the authoritative copy from the server. Never seed a workspace from
 // unverified local browser data; legacy imports require explicit review.
 async function syncFromServer() {
@@ -201,8 +285,11 @@ async function syncFromServer() {
       // Keep the original browser cache intact for a deliberate, currency-reviewed
       // import. Never show those records as belonging to this empty workspace.
       renderAll();
-      toast('This workspace is empty. Older browser records are preserved locally but not imported; currency review is required.', 'info');
-      return; // No uploads until a separate, explicitly confirmed migration.
+      _serverVersion = 0;
+      _serverHydrated = true;
+      showLegacyImportPrompt();
+      toast('Older browser records found. Review ownership and currency before importing.', 'info');
+      return; // No uploads unless the user explicitly confirms migration.
     }
     // Even an empty browser cache may contain preferences from another account.
     // Begin with a fresh workspace state, not those cached settings.
