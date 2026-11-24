@@ -41,7 +41,7 @@ function req(email, method, body) {
 }
 async function get(email) { return onRequestGet({ request: req(email, 'GET'), env }); }
 async function post(email, body) { return onRequestPost({ request: req(email, 'POST', body), env }); }
-const version = 'workspace-ai-v1';
+const version = 'workspace-ai-v2';
 const ownerInitial = await (await get('owner@example.com')).json();
 assert.equal(ownerInitial.enabled, false);
 assert.equal(ownerInitial.canManage, true);
