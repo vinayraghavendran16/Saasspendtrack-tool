@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "SaaS Spend Track — app + Cloudflare Pages Functions",
+  "description": "SaaS Spend Track \u2014 app + Cloudflare Pages Functions",
   "scripts": {
-    "test": "node tests/unit.mjs",
+    "test": "node tests/unit.mjs && node tests/email-auth.mjs",
     "check": "for f in $(find functions -name '*.js'); do node --check \"$f\" || exit 1; done && node --check app.js && echo 'syntax ok'"
   }
 }

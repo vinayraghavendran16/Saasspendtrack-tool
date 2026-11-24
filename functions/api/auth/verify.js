@@ -1,3 +1,4 @@
+import { authAppUrl } from '../../_shared/auth-url.js';
 // GET /api/auth/verify?token=...
 // Validates the one-time token, creates a session, sets the cookie, and
 // redirects to the app.
@@ -13,7 +14,7 @@ function redirect(location, cookie) {
 }
 
 export async function onRequestGet({ request, env }) {
-  const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
+  const appUrl = authAppUrl(request, env);
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
   if (!token) return redirect(`${appUrl}/?auth=invalid`);

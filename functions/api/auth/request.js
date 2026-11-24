@@ -1,3 +1,4 @@
+import { authAppUrl } from '../../_shared/auth-url.js';
 // POST /api/auth/request  { email }
 // Creates the user on first sight (starts the trial), issues a one-time
 // magic-link token, and emails the sign-in link.
@@ -38,7 +39,7 @@ export async function onRequestPost({ request, env }) {
     'INSERT INTO login_tokens (token_hash, email, expires_at, used) VALUES (?,?,?,0)',
   ).bind(tokenHash, email, t + TOKEN_MINUTES * 60000).run();
 
-  const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
+  const appUrl = authAppUrl(request, env);
   const link = `${appUrl}/api/auth/verify?token=${token}`;
 
   const mail = loginLinkEmail(link);
