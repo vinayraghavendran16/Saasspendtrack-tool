@@ -32,3 +32,13 @@ assert.ok(app.includes("startFresh.textContent = 'Start with empty workspace'"),
 assert.ok(app.includes('localStorage.removeItem(_workspaceDraftKey)'), 'draft deletion is scoped to verified workspace');
 assert.ok(sync.includes('setAuthenticatedWorkspace(j.workspaceId)'), 'server must identify workspace before drafts are read or written');
 console.log('PASS: legacy browser cache stays read-only, drafts are isolated and server hydration is revisioned');
+
+// Verify the artifact actually served by Pages, not just the source module.
+const deployed = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const start = '// SaaS Spend Track - vanilla JS app with localStorage persistence.';
+const end = '// -------- math --------';
+assert.equal(deployed.slice(deployed.indexOf(start), deployed.indexOf(end)), app.slice(0, app.indexOf(end)), 'deployed storage must match the tested source');
+assert.ok(!deployed.includes('if (!state.subscriptions.length && !state.settings.seededOnce) seed({ silent: true });'), 'no automatic sample injection in deployed artifact');
+assert.ok(deployed.includes(app.slice(app.indexOf('// Workspace AI processing: explicit opt-in'))), 'deployed artifact includes consent disclosure and controls');
+assert.ok(deployed.includes(app.slice(app.indexOf('function workspaceCurrency()'), app.indexOf('function parseDate(s)'))), 'deployed base currency formatting matches source');
+console.log('PASS: deployed browser storage, currency and AI consent parity');
