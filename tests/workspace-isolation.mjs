@@ -148,3 +148,39 @@ assert.equal(review.version, 4);
 assert.deepEqual(review.data, mixed);
 assert.equal((await (await get('b@example.com')).json()).needsCurrencyReview, undefined);
 console.log('PASS: older mixed-currency snapshots are flagged and preserved for review');
+
+async function correct(email, overrides = {}, version = 4) {
+  const request = req(email, 'PUT', {
+    workspaceId: 'A', currency: 'EUR', confirmed: true, ...overrides,
+  }, version);
+  request.headers.set('X-Workspace-Action', 'correct-currency');
+  return onRequestPut({ request, env });
+}
+
+assert.equal(review.canCorrectCurrency, true);
+assert.equal((await put('a@example.com', { subscriptions: [] }, 4)).status, 422);
+assert.equal((await correct('a@example.com', { confirmed: false })).status, 400);
+assert.equal((await correct('a@example.com', { currency: 'ZZZ' })).status, 400);
+assert.equal((await correct('a@example.com', { workspaceId: 'B' })).status, 400);
+assert.equal((await correct('a@example.com', {}, 3)).status, 409);
+users['member@example.com'] = { email: 'member@example.com', status: 'active' };
+members['member@example.com'] = { email: 'member@example.com', account_id: 'A', role: 'member', status: 'active' };
+assert.equal((await (await get('member@example.com')).json()).canCorrectCurrency, false);
+assert.equal((await correct('member@example.com')).status, 403);
+assert.deepEqual((await (await get('a@example.com')).json()).data, mixed);
+
+const [first, second] = await Promise.all([
+  correct('a@example.com', { subscriptions: [] }),
+  correct('a@example.com', { subscriptions: [] }),
+]);
+assert.deepEqual([first.status, second.status].sort(), [200, 409]);
+const corrected = await (await get('a@example.com')).json();
+assert.equal(corrected.version, 5);
+assert.equal(corrected.needsCurrencyReview, undefined);
+assert.deepEqual(corrected.data, {
+  settings: { currency: 'EUR' },
+  subscriptions: mixed.subscriptions,
+  invoices: [{ ...mixed.invoices[0], currency: 'EUR' }],
+});
+assert.equal((await correct('a@example.com', {}, 5)).status, 409);
+console.log('PASS: currency correction requires owner confirmation and a current revision, and preserves amounts');

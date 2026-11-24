@@ -3820,7 +3820,7 @@ async function pushServerSave() {
     }
     if (!response.ok) {
       const problem = await response.json().catch(() => null);
-      if (['invalid_currency', 'currency_locked'].includes(problem?.error)) {
+      if (['invalid_currency', 'currency_locked', 'currency_review_required'].includes(problem?.error)) {
         toast(problem.message + ' Your browser copy is preserved.', 'error');
         return;
       }
@@ -3961,7 +3961,7 @@ function showLegacyImportPrompt() {
   (document.querySelector('main') || document.body).prepend(banner);
 }
 
-function showCurrencyReview(snapshot) {
+function showCurrencyReview(snapshot, review) {
   if (document.getElementById('currency-review')) return;
   const dialog = document.createElement('dialog');
   dialog.id = 'currency-review';
@@ -4004,6 +4004,66 @@ function showCurrencyReview(snapshot) {
   }, null, 2), 'application/json');
 
   dialog.append(title, description, summary, breakdown, exportButton);
+  if (review?.canCorrectCurrency) {
+    const form = document.createElement('form');
+    const label = document.createElement('label');
+    label.textContent = 'Verified original currency (ISO code)';
+    const currency = document.createElement('input');
+    currency.type = 'text';
+    currency.required = true;
+    currency.pattern = '[A-Za-z]{3}';
+    currency.maxLength = 3;
+    currency.autocomplete = 'off';
+    label.append(currency);
+
+    const confirmation = document.createElement('label');
+    const verified = document.createElement('input');
+    verified.type = 'checkbox';
+    verified.required = true;
+    confirmation.append(verified, ' I checked the source documents and confirmed that every saved subscription and invoice uses this currency.');
+    const submit = document.createElement('button');
+    submit.className = 'btn';
+    submit.type = 'submit';
+    submit.textContent = 'Correct currency labels';
+    const status = document.createElement('p');
+    status.setAttribute('role', 'status');
+
+    form.append(label, document.createElement('br'), confirmation, document.createElement('br'), submit, status);
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (!verified.checked || submit.disabled) return;
+      submit.disabled = true;
+      status.textContent = 'Saving verified currency labels…';
+      const response = await fetch('/api/data', {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          'If-Match': String(review.version),
+          'X-Workspace-Action': 'correct-currency',
+        },
+        body: JSON.stringify({
+          workspaceId: review.workspaceId,
+          currency: currency.value.toUpperCase(),
+          confirmed: true,
+        }),
+      }).catch(() => null);
+      if (response?.ok) {
+        location.reload();
+      } else if (response?.status === 409) {
+        status.textContent = 'The saved workspace changed. Reload and review the latest records before trying again.';
+      } else {
+        status.textContent = response?.status === 400
+          ? 'Enter a supported three-letter currency code and confirm the currency of every record.'
+          : 'Currency labels could not be saved. Check your connection and workspace access, then try again.';
+        submit.disabled = false;
+      }
+    };
+    dialog.append(form);
+  } else {
+    const owner = document.createElement('p');
+    owner.textContent = 'Ask the workspace owner to review the original currency labels.';
+    dialog.append(owner);
+  }
   document.body.append(dialog);
   dialog.showModal();
 }
@@ -4031,7 +4091,7 @@ async function syncFromServer() {
     if (!setAuthenticatedWorkspace(j.workspaceId)) return;
     if (j.needsCurrencyReview) {
       _serverSaveBlocked = true;
-      showCurrencyReview(j.data);
+      showCurrencyReview(j.data, j);
       return;
     }
     _serverVersion = j.version;

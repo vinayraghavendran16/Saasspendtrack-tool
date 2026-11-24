@@ -102,11 +102,11 @@ assert.equal(finance.formatMoney(finance.monthlyCost(contract)), '€100.00');
 assert.equal(finance.formatMoneyShort(1200), 'EUR 1.2k');
 console.log('PASS: deployed recurring spend, seat waste and stated-currency formatting without FX');
 
-const reviewStart = deployed.indexOf('function showCurrencyReview(snapshot)');
+const reviewStart = deployed.indexOf('function showCurrencyReview(snapshot, review)');
 const reviewEnd = deployed.indexOf('\n// Pull the authoritative copy', reviewStart);
 const reviewUi = deployed.slice(reviewStart, reviewEnd);
 assert.ok(app.includes(reviewUi));
-assert.ok(deployed.indexOf('showCurrencyReview(j.data)') < deployed.indexOf('state = j.data;'));
+assert.ok(deployed.indexOf('showCurrencyReview(j.data, j)') < deployed.indexOf('state = j.data;'));
 
 function reviewElement() {
   return {
@@ -135,3 +135,27 @@ assert.deepEqual(exportData, {
   data: { workspaceCurrency: null, ...legacy },
 });
 console.log('PASS: deployed currency review opens before financial hydration and exports raw records');
+
+let savedRequest;
+let reloaded = false;
+reviewContext.fetch = async (path, options) => {
+  savedRequest = { path, options };
+  return { ok: true };
+};
+reviewContext.location = { reload() { reloaded = true; } };
+reviewContext.showCurrencyReview(legacy, { canCorrectCurrency: true, workspaceId: 'A', version: 4 });
+const form = body.children[1].children[5];
+const [codeInput] = form.children[0].children;
+const [confirmedInput] = form.children[2].children;
+codeInput.value = 'eur';
+const submitEvent = { preventDefault() {} };
+await form.onsubmit(submitEvent);
+assert.equal(savedRequest, undefined);
+confirmedInput.checked = true;
+await form.onsubmit(submitEvent);
+assert.equal(savedRequest.path, '/api/data');
+assert.equal(savedRequest.options.headers['If-Match'], '4');
+assert.equal(savedRequest.options.headers['X-Workspace-Action'], 'correct-currency');
+assert.deepEqual(JSON.parse(savedRequest.options.body), { workspaceId: 'A', currency: 'EUR', confirmed: true });
+assert.equal(reloaded, true);
+console.log('PASS: deployed correction form submits only an explicitly confirmed source currency');

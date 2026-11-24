@@ -60,7 +60,10 @@ export async function onRequestGet({ request, env }) {
       data: snapshot,
       version: row.version,
       workspaceId: ctx.membership.account_id,
-      ...(needsCurrencyReview ? { needsCurrencyReview: true } : {}),
+      ...(needsCurrencyReview ? {
+        needsCurrencyReview: true,
+        canCorrectCurrency: ctx.membership.role === 'owner',
+      } : {}),
     });
   } catch {
     return json({ error: 'invalid_saved_data' }, 503);
@@ -69,7 +72,8 @@ export async function onRequestGet({ request, env }) {
 
 export async function onRequestPut({ request, env }) {
   // Only entitled, active members can write (expired trials are read-only).
-  const gate = await requireEntitledRole(request, env, 'member');
+  const correction = request.headers.get('X-Workspace-Action') === 'correct-currency';
+  const gate = await requireEntitledRole(request, env, correction ? 'owner' : 'member');
   if (gate.response) return gate.response;
   const { user } = gate;
 
@@ -81,7 +85,7 @@ export async function onRequestPut({ request, env }) {
   const expectedVersion = Number(rawVersion);
   if (!Number.isSafeInteger(expectedVersion)) return json({ error: 'invalid_version' }, 400);
 
-  const body = await request.text();
+  let body = await request.text();
   if (new TextEncoder().encode(body).byteLength > MAX_BYTES) return json({ error: 'too_large' }, 413);
   let snapshot;
   try { snapshot = JSON.parse(body); } catch { return json({ error: 'bad_json' }, 400); }
@@ -91,8 +95,13 @@ export async function onRequestPut({ request, env }) {
   const ctx = await getAccountContext(env, user);
   if (!ctx || !ctx.ownerEmail || ctx.membership.account_id !== gate.membership.account_id) return json({ error: 'no_account' }, 403);
   const key = ctx.ownerEmail;
-  const code = workspaceCurrency(snapshot);
-  if (!validCurrency(snapshot, code)) {
+  const code = correction ? snapshot.currency : workspaceCurrency(snapshot);
+  if (correction && (snapshot.confirmed !== true || !SUPPORTED_CURRENCIES.has(code) ||
+      snapshot.workspaceId !== ctx.membership.account_id || expectedVersion === 0)) {
+    return json({ error: 'invalid_currency_confirmation' }, 400);
+  }
+  if (correction && ctx.membership.role !== 'owner') return json({ error: 'forbidden' }, 403);
+  if (!correction && !validCurrency(snapshot, code)) {
     return json({
       error: 'invalid_currency',
       message: 'Subscriptions and invoices must use the same supported currency as the workspace.',
@@ -112,7 +121,22 @@ export async function onRequestPut({ request, env }) {
     let previous;
     try { previous = JSON.parse(current.data); } catch { previous = null; }
     if (!validSnapshot(previous)) return json({ error: 'invalid_saved_data' }, 503);
-    if (monetaryRecords(previous).length && workspaceCurrency(previous) !== code) {
+    const previousCode = workspaceCurrency(previous);
+    const needsReview = !validCurrency(previous, previousCode);
+    if (correction) {
+      if (!needsReview) return json({ error: 'currency_review_not_required' }, 409);
+      const revised = {
+        ...previous,
+        settings: { ...previous.settings, currency: code },
+      };
+      for (const key of ['subscriptions', 'invoices']) {
+        if (previous[key]) revised[key] = previous[key].map(record => ({ ...record, currency: code }));
+      }
+      body = JSON.stringify(revised);
+      if (new TextEncoder().encode(body).byteLength > MAX_BYTES) return json({ error: 'too_large' }, 413);
+    } else if (needsReview) {
+      return json({ error: 'currency_review_required', message: 'A workspace owner must review the saved currency labels before editing.' }, 422);
+    } else if (monetaryRecords(previous).length && previousCode !== code) {
       return json({
         error: 'currency_locked',
         message: 'The workspace currency cannot change while saved subscriptions or invoices exist.',
