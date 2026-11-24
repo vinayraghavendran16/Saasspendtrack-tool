@@ -107,8 +107,10 @@ let _serverSaveBlocked = false;
 let _serverSaveInFlight = false;
 let _localEditCounter = 0;
 let _legacyImportPending = false;
+let _legacyImportDirty = false;
 function save() {
   _localEditCounter++;
+  if (_legacyImportPending) _legacyImportDirty = true;
   // Never overwrite the legacy cache. It may belong to another account or
   // contain unreviewed currencies. Keep an isolated recovery draft instead.
   // Drafts are never auto-displayed or uploaded to a newly signed-in workspace.
@@ -167,6 +169,10 @@ async function pushServerSave() {
 // The original legacy key remains untouched even after a successful import.
 async function offerLegacyImport() {
   if (!_legacyBrowserData || _serverVersion !== 0 || !_serverHydrated || !_legacyImportPending) return;
+  if (_legacyImportDirty) {
+    alert('Changes were made while reviewing the legacy import. Import is paused to prevent replacing those edits. Reload and review the import before editing.');
+    return;
+  }
   const legacy = _legacyBrowserData;
   const subscriptions = Array.isArray(legacy.subscriptions) ? legacy.subscriptions : [];
   const invoices = Array.isArray(legacy.invoices) ? legacy.invoices : [];
@@ -227,6 +233,7 @@ async function offerLegacyImport() {
   }
   _serverVersion = result.version;
   _legacyImportPending = false;
+  _legacyImportDirty = false;
   document.getElementById('legacy-import-banner')?.remove();
   state = imported;
   ensureStateShape();
@@ -255,6 +262,7 @@ function showLegacyImportPrompt() {
   startFresh.addEventListener('click', () => {
     if (!confirm('Start with an empty workspace? Older browser records will stay in this browser and will NOT be imported.')) return;
     _legacyImportPending = false;
+    _legacyImportDirty = false;
     _serverSaveBlocked = false;
     banner.remove();
     // Never upload a pre-review draft into the fresh workspace.
@@ -305,6 +313,7 @@ async function syncFromServer() {
       (_legacyBrowserData?.employees?.length);
     if (legacyData) {
       _legacyImportPending = true;
+      _legacyImportDirty = editsAtStart !== _localEditCounter;
       // Keep the original browser cache intact for a deliberate, currency-reviewed
       // import. Never show those records as belonging to this empty workspace.
       renderAll();
