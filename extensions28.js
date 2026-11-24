@@ -37,6 +37,7 @@ const CCY_SYMBOL = {
 };
 
 function subCcy(sub) {
+  if (state.settings?.currency) return workspaceCurrency();
   return (sub && sub.currency && KNOWN_CCY.includes(sub.currency)) ? sub.currency : 'USD';
 }
 
@@ -46,6 +47,7 @@ function getFxRates() {
 }
 
 function displayCcy() {
+  if (state.settings?.currency) return workspaceCurrency();
   try { return (state.settings && state.settings.display && state.settings.display.currency) || 'USD'; }
   catch (_) { return 'USD'; }
 }
@@ -257,6 +259,10 @@ function annotateSubRows() {
    We can't easily detect that modal without reading it, so expose
    a helper that lets the user edit via the Command Palette: */
 function openCurrencyEditor() {
+  if (state.settings?.currency) {
+    toast('Subscriptions use the workspace currency (' + workspaceCurrency() + ').', 'info');
+    return;
+  }
   const subs = (state.subscriptions || []).filter(s => s.active !== false);
   if (!subs.length) { alert('No subscriptions to edit.'); return; }
 
@@ -312,6 +318,7 @@ window.SubCurrency = {
   edit: openCurrencyEditor,
   get: (id) => { const s = (state.subscriptions || []).find(x => x.id === id); return s ? subCcy(s) : null; },
   set: (id, ccy) => {
+    if (state.settings?.currency) throw new Error('Subscriptions use the workspace currency.');
     if (!KNOWN_CCY.includes(ccy)) throw new Error('Unknown currency');
     const s = (state.subscriptions || []).find(x => x.id === id);
     if (!s) throw new Error('No such subscription');

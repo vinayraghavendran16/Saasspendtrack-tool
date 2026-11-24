@@ -102,7 +102,7 @@ assert.equal(finance.formatMoney(finance.monthlyCost(contract)), '€100.00');
 assert.equal(finance.formatMoneyShort(1200), 'EUR 1.2k');
 console.log('PASS: deployed recurring spend, seat waste and stated-currency formatting without FX');
 
-const reviewStart = deployed.indexOf('function showCurrencyReview(snapshot, review)');
+const reviewStart = deployed.indexOf('function hasReviewAmount(value)');
 const reviewEnd = deployed.indexOf('\n// Pull the authoritative copy', reviewStart);
 const reviewUi = deployed.slice(reviewStart, reviewEnd);
 assert.ok(app.includes(reviewUi));
@@ -123,12 +123,25 @@ const reviewContext = {
   document: { body, getElementById: () => null, createElement: reviewElement },
   downloadFile(filename, payload) { exportData = { filename, data: JSON.parse(payload) }; },
 };
-runInNewContext(reviewUi, reviewContext);
-const legacy = { subscriptions: [{ currency: 'eur', cost: 100 }], invoices: [{ currency: 'USD', amount: 125 }] };
+runInNewContext([cycleDefinition, deployed.slice(mathStart, mathEnd), reviewUi].join('\n'), reviewContext);
+const legacy = {
+  subscriptions: [
+    { currency: 'eur', cost: 1200, cycle: 'yearly' },
+    { currency: 'EUR', cost: 400, cycle: 'monthly', active: false },
+    { currency: 'USD', cost: 400, cycle: 'unsupported' },
+    { cost: 777, cycle: 'monthly' },
+  ],
+  invoices: [{ currency: 'USD', amount: 125 }, { currency: 'ZZZ', amount: 900 }],
+};
 reviewContext.showCurrencyReview(legacy);
 const [dialog] = body.children;
 assert.equal(dialog.open, true);
-assert.deepEqual(dialog.children[3].children.map(item => item.textContent), ['EUR: 1 record', 'USD: 1 record']);
+assert.deepEqual(dialog.children[3].children.map(item => item.textContent.replaceAll('\u00a0', ' ')), [
+  'EUR: 2 records · Active monthly spend EUR 100.00 · Total recorded invoices EUR 0.00',
+  'USD: 2 records · Active monthly spend USD 0.00 · Total recorded invoices USD 125.00 · 1 excluded (invalid amount or billing frequency)',
+  'Unlabeled: 1 record · Excluded from totals',
+  'ZZZ: 1 record · Excluded from totals',
+]);
 dialog.children[4].onclick();
 assert.deepEqual(exportData, {
   filename: 'workspace-currency-review.json',

@@ -347,6 +347,11 @@ function showLegacyImportPrompt() {
   (document.querySelector('main') || document.body).prepend(banner);
 }
 
+function hasReviewAmount(value) {
+  return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) &&
+    Number.isFinite(Number(value));
+}
+
 function showCurrencyReview(snapshot, review) {
   if (document.getElementById('currency-review')) return;
   const dialog = document.createElement('dialog');
@@ -359,22 +364,55 @@ function showCurrencyReview(snapshot, review) {
   title.textContent = 'Review workspace currencies';
 
   const description = document.createElement('p');
-  description.textContent = 'Reporting and editing are paused while saved currency labels are reviewed. Export the saved subscriptions and invoices to check their original currency against the source documents. The export preserves the saved amounts and labels.';
+  description.textContent = 'The workspace dashboard and editing are paused during currency review. The totals below use saved currency labels. Export the subscriptions and invoices to check the labels against the source documents.';
 
+  const supported = new Set(Intl.supportedValuesOf?.('currency') || []);
   const currencies = new Map();
-  for (const record of [...(snapshot.subscriptions || []), ...(snapshot.invoices || [])]) {
+  function currencyGroup(record) {
     const label = record.currency == null || record.currency === ''
       ? 'Unlabeled'
       : typeof record.currency === 'string' ? record.currency.toUpperCase() : 'Invalid label';
-    currencies.set(label, (currencies.get(label) || 0) + 1);
+    if (!currencies.has(label)) {
+      currencies.set(label, { count: 0, monthly: 0, invoiced: 0, excluded: 0 });
+    }
+    const group = currencies.get(label);
+    group.count++;
+    return supported.has(label) ? group : null;
+  }
+  for (const subscription of snapshot.subscriptions || []) {
+    const group = currencyGroup(subscription);
+    if (!group || subscription.active === false) continue;
+    const amount = subscription.cost;
+    if (!Object.hasOwn(CYCLE_MONTHS, subscription.cycle) || !hasReviewAmount(amount)) {
+      group.excluded++;
+      continue;
+    }
+    group.monthly += monthlyCostInOriginalCurrency(subscription);
+  }
+  for (const invoice of snapshot.invoices || []) {
+    const group = currencyGroup(invoice);
+    if (!group) continue;
+    if (hasReviewAmount(invoice.amount)) group.invoiced += Number(invoice.amount);
+    else group.excluded++;
   }
   const summary = document.createElement('p');
   const savedCurrency = snapshot.settings?.currency ?? 'USD (default)';
   summary.textContent = 'Workspace currency: ' + String(savedCurrency);
   const breakdown = document.createElement('ul');
-  for (const [label, count] of currencies) {
+  for (const [label, group] of currencies) {
     const item = document.createElement('li');
+    const { count, monthly, invoiced, excluded } = group;
     item.textContent = label + ': ' + count.toLocaleString() + (count === 1 ? ' record' : ' records');
+    if (supported.has(label)) {
+      const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency', currency: label, currencyDisplay: 'code',
+      });
+      item.textContent += ' · Active monthly spend ' + formatter.format(monthly) +
+        ' · Total recorded invoices ' + formatter.format(invoiced);
+      if (excluded) item.textContent += ' · ' + excluded + ' excluded (invalid amount or billing frequency)';
+    } else {
+      item.textContent += ' · Excluded from totals';
+    }
     breakdown.append(item);
   }
   breakdown.hidden = !currencies.size;
@@ -524,6 +562,9 @@ async function syncFromServer() {
 
 // -------- math --------
 function monthlyCost(sub) {
+  return monthlyCostInOriginalCurrency(sub);
+}
+function monthlyCostInOriginalCurrency(sub) {
   const months = Object.hasOwn(CYCLE_MONTHS, sub.cycle) ? CYCLE_MONTHS[sub.cycle] : null;
   return months ? periodCost(sub) / months : 0;
 }
