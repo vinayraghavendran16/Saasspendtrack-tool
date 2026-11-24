@@ -111,6 +111,43 @@ let _legacyImportPending = false;
 let _legacyImportDirty = false;
 let _workspaceDraftKey = null;
 let _draftRecoveryPending = false;
+function showDraftRecoveryBanner() {
+  if (!_workspaceDraftKey || document.getElementById('workspace-draft-recovery')) return;
+  const banner = document.createElement('section');
+  banner.id = 'workspace-draft-recovery';
+  banner.setAttribute('role', 'alert');
+  banner.style.cssText = 'padding:14px;margin:12px;border:1px solid #eab308;border-radius:8px;';
+  const description = document.createElement('p');
+  description.textContent = 'Unsynced workspace changes were found on this browser. Automatic saving is paused. Export the recovery draft, compare it with the server workspace, then explicitly discard the draft to resume editing.';
+  const exportButton = document.createElement('button');
+  exportButton.type = 'button';
+  exportButton.textContent = 'Export recovery draft';
+  exportButton.addEventListener('click', () => {
+    const raw = localStorage.getItem(_workspaceDraftKey);
+    if (!raw) return alert('Recovery draft is no longer available.');
+    const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'saasspendtrack-workspace-recovery.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  });
+  const discardButton = document.createElement('button');
+  discardButton.type = 'button';
+  discardButton.textContent = 'Discard draft and resume';
+  discardButton.style.marginLeft = '12px';
+  discardButton.addEventListener('click', () => {
+    if (!confirm('Discard the unsynced recovery draft for this workspace? Export and review it first. This cannot be undone.')) return;
+    try { localStorage.removeItem(_workspaceDraftKey); }
+    catch (_) { return alert('Could not remove the recovery draft. Saving remains paused.'); }
+    _draftRecoveryPending = false;
+    _serverSaveBlocked = false;
+    banner.remove();
+    toast('Recovery draft discarded. Server workspace remains unchanged.', 'info');
+  });
+  banner.append(description, exportButton, discardButton);
+  (document.getElementById('dashboard') || document.body).prepend(banner);
+}
 function setAuthenticatedWorkspace(workspaceId) {
   if (typeof workspaceId !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(workspaceId)) {
     _serverSaveBlocked = true;
@@ -123,6 +160,7 @@ function setAuthenticatedWorkspace(workspaceId) {
   if (_draftRecoveryPending) {
     _serverSaveBlocked = true;
     toast('An unsynced draft exists for this workspace. It was not overwritten or uploaded. Export it before continuing.', 'error');
+    showDraftRecoveryBanner();
   }
   return true;
 }
