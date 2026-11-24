@@ -12,4 +12,10 @@ assert.ok(save.includes('UNSYNCED_DRAFT_KEY'), 'local edits are stored separatel
 assert.ok(sync.includes('j.version'), 'server data must have a revision');
 assert.ok(sync.includes('_legacyBrowserData'), 'empty workspaces inspect legacy records before onboarding');
 assert.ok(!sync.includes('pushServerSave()'), 'hydration must not silently import legacy data');
+assert.ok(app.includes('async function offerLegacyImport()'), 'legacy import requires a separate user action');
+assert.ok(app.includes("'If-Match': '0'"), 'import is limited to a still-empty workspace');
+assert.ok(app.includes('legacyImportCurrencyReviewed = true'), 'currency review is recorded');
+assert.ok(app.includes('legacyImportAt = new Date()'), 'import timestamp is recorded');
+assert.ok(app.includes('showLegacyImportPrompt()'), 'legacy import requires a visible prompt');
+assert.ok(app.includes('workspaceCurrency()'), 'display respects confirmed workspace currency');
 console.log('PASS: legacy browser cache stays read-only, drafts are isolated and server hydration is revisioned');
