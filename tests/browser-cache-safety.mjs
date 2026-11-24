@@ -8,7 +8,11 @@ assert.ok(load.includes('_legacyBrowserData = parsed'), 'legacy data is preserve
 assert.ok(load.includes('state = { subscriptions: [] }'), 'legacy records are never rendered before authentication');
 assert.ok(!load.includes('state = parsed'), 'legacy records must not be auto-hydrated');
 assert.ok(!save.includes('localStorage.setItem(STORAGE_KEY'), 'legacy cache must not be overwritten on save');
-assert.ok(save.includes('UNSYNCED_DRAFT_KEY'), 'local edits are stored separately for recovery');
+assert.ok(save.includes('localStorage.setItem(_workspaceDraftKey'), 'local edits use verified workspace-scoped recovery');
+assert.ok(!save.includes('localStorage.setItem(UNSYNCED_DRAFT_KEY'), 'old global recovery key must never be overwritten');
+assert.ok(save.includes('!_draftRecoveryPending'), 'existing unsynced drafts must never be overwritten');
+assert.ok(app.includes('showDraftRecoveryBanner()'), 'existing drafts must offer a recovery workflow');
+assert.ok(app.includes("exportButton.textContent = 'Export recovery draft'"), 'recovery draft can be exported');
 assert.ok(sync.includes('j.version'), 'server data must have a revision');
 assert.ok(sync.includes('_legacyBrowserData'), 'empty workspaces inspect legacy records before onboarding');
 assert.ok(!sync.includes('pushServerSave()'), 'hydration must not silently import legacy data');
@@ -22,8 +26,9 @@ assert.ok(save.includes('if (_legacyImportPending) _legacyImportDirty = true'), 
 assert.ok(app.includes('if (_legacyImportDirty) {'), 'import refuses to overwrite interim edits');
 assert.ok(sync.includes('_legacyImportDirty = editsAtStart !== _localEditCounter'), 'edits during hydration also block import');
 assert.ok(save.includes('!_legacyImportPending'), 'pending import cannot trigger an automatic save');
-assert.ok(app.includes('if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending) return;'), 'pending import blocks server writes');
+assert.ok(app.includes('if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending || _draftRecoveryPending) return;'), 'pending import and recovery block server writes');
 assert.ok(sync.includes('_legacyImportPending = true'), 'legacy records activate the pending-import gate');
 assert.ok(app.includes("startFresh.textContent = 'Start with empty workspace'"), 'user can decline legacy import');
-assert.ok(app.includes("localStorage.removeItem(UNSYNCED_DRAFT_KEY)"), 'fresh start clears unsafe pre-review drafts');
+assert.ok(app.includes('localStorage.removeItem(_workspaceDraftKey)'), 'draft deletion is scoped to verified workspace');
+assert.ok(sync.includes('setAuthenticatedWorkspace(j.workspaceId)'), 'server must identify workspace before drafts are read or written');
 console.log('PASS: legacy browser cache stays read-only, drafts are isolated and server hydration is revisioned');
