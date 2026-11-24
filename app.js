@@ -144,6 +144,7 @@ function showDraftRecoveryBanner() {
     _serverSaveBlocked = false;
     banner.remove();
     toast('Recovery draft discarded. Server workspace remains unchanged.', 'info');
+    if (_legacyImportPending && _serverHydrated && _serverVersion === 0) showLegacyImportPrompt();
   });
   banner.append(description, exportButton, discardButton);
   (document.querySelector('main') || document.body).prepend(banner);
@@ -228,7 +229,7 @@ async function pushServerSave() {
 // Explicit one-time migration for records stored by older browser-only builds.
 // The original legacy key remains untouched even after a successful import.
 async function offerLegacyImport() {
-  if (!_legacyBrowserData || _serverVersion !== 0 || !_serverHydrated || !_legacyImportPending) return;
+  if (!_legacyBrowserData || _serverVersion !== 0 || !_serverHydrated || !_legacyImportPending || _draftRecoveryPending || _serverSaveBlocked) return;
   if (_legacyImportDirty) {
     alert('Changes were made while reviewing the legacy import. Import is paused to prevent replacing those edits. Reload and review the import before editing.');
     return;
@@ -305,7 +306,7 @@ async function offerLegacyImport() {
   toast('Legacy records imported with original ' + code + ' amounts. The browser backup was preserved.', 'info');
 }
 function showLegacyImportPrompt() {
-  if (document.getElementById('legacy-import-banner')) return;
+  if (_draftRecoveryPending || _serverSaveBlocked || document.getElementById('legacy-import-banner')) return;
   const banner = document.createElement('div');
   banner.id = 'legacy-import-banner';
   banner.setAttribute('role', 'status');
@@ -324,6 +325,7 @@ function showLegacyImportPrompt() {
   startFresh.textContent = 'Start with empty workspace';
   startFresh.style.marginLeft = '12px';
   startFresh.addEventListener('click', () => {
+    if (_draftRecoveryPending || _serverSaveBlocked || !_legacyImportPending) return;
     if (!confirm('Start with an empty workspace? Older browser records will stay in this browser and will NOT be imported.')) return;
     _legacyImportPending = false;
     _legacyImportDirty = false;
@@ -333,7 +335,7 @@ function showLegacyImportPrompt() {
     state = { subscriptions: [] };
     ensureStateShape();
     _localEditCounter++;
-    try { if (_workspaceDraftKey) localStorage.removeItem(_workspaceDraftKey); } catch (_) {}
+    // Recovery drafts may only be removed by the dedicated recovery action.
     renderAll();
   });
   banner.append(message, button, startFresh);
