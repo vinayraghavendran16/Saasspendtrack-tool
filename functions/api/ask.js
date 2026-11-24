@@ -1,4 +1,4 @@
-import { requireEntitledRole, rateLimit } from '../_shared/util.js';
+import { requireEntitledRole, rateLimit, upstreamMessage } from '../_shared/util.js';
 // Cloudflare Pages Function - POST /api/ask
 // Ask Track AI: answers a natural-language question using ONLY an app-computed
 // snapshot of the workspace (every number is pre-calculated client-side, so the
@@ -93,9 +93,8 @@ export async function onRequestPost({ request, env }) {
     });
     if (!r.ok) {
       const errText = await r.text().catch(() => "");
-      let apiMessage = "";
-      try { apiMessage = JSON.parse(errText)?.error?.message || ""; } catch (_) {}
-      return new Response(JSON.stringify({ ok: false, error: "upstream", message: apiMessage || errText.slice(0, 400) }), { status: 200, headers });
+      console.error("[ask] upstream error", r.status, errText.slice(0, 500));
+      return new Response(JSON.stringify({ ok: false, error: "upstream", message: upstreamMessage(r.status) }), { status: 200, headers });
     }
     const data = await r.json();
     const answer = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
@@ -104,6 +103,7 @@ export async function onRequestPost({ request, env }) {
     }
     return new Response(JSON.stringify({ ok: true, answer, model, usage: data.usage || null }), { status: 200, headers });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }), { status: 200, headers });
+    console.error("[ask] exception", String((e && e.stack) || (e && e.message) || e));
+    return new Response(JSON.stringify({ ok: false, error: "exception", message: "Something went wrong answering that. Please try again." }), { status: 200, headers });
   }
 }
