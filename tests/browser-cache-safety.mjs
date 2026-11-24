@@ -101,3 +101,37 @@ assert.equal(finance.consumption({ ...contract, active: false }).unusedCostMonth
 assert.equal(finance.formatMoney(finance.monthlyCost(contract)), '€100.00');
 assert.equal(finance.formatMoneyShort(1200), 'EUR 1.2k');
 console.log('PASS: deployed recurring spend, seat waste and stated-currency formatting without FX');
+
+const reviewStart = deployed.indexOf('function showCurrencyReview(snapshot)');
+const reviewEnd = deployed.indexOf('\n// Pull the authoritative copy', reviewStart);
+const reviewUi = deployed.slice(reviewStart, reviewEnd);
+assert.ok(app.includes(reviewUi));
+assert.ok(deployed.indexOf('showCurrencyReview(j.data)') < deployed.indexOf('state = j.data;'));
+
+function reviewElement() {
+  return {
+    children: [],
+    append(...children) { this.children.push(...children); },
+    setAttribute() {},
+    addEventListener() {},
+    showModal() { this.open = true; },
+  };
+}
+const body = reviewElement();
+let exportData;
+const reviewContext = {
+  document: { body, getElementById: () => null, createElement: reviewElement },
+  downloadFile(filename, payload) { exportData = { filename, data: JSON.parse(payload) }; },
+};
+runInNewContext(reviewUi, reviewContext);
+const legacy = { subscriptions: [{ currency: 'eur', cost: 100 }], invoices: [{ currency: 'USD', amount: 125 }] };
+reviewContext.showCurrencyReview(legacy);
+const [dialog] = body.children;
+assert.equal(dialog.open, true);
+assert.deepEqual(dialog.children[3].children.map(item => item.textContent), ['EUR: 1 record', 'USD: 1 record']);
+dialog.children[4].onclick();
+assert.deepEqual(exportData, {
+  filename: 'workspace-currency-review.json',
+  data: { workspaceCurrency: null, ...legacy },
+});
+console.log('PASS: deployed currency review opens before financial hydration and exports raw records');

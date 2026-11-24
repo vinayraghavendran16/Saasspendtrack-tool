@@ -55,7 +55,13 @@ export async function onRequestGet({ request, env }) {
   try {
     const snapshot = JSON.parse(row.data);
     if (!validSnapshot(snapshot) || !Number.isSafeInteger(row.version) || row.version < 1) throw new Error('invalid snapshot');
-    return json({ data: snapshot, version: row.version, workspaceId: ctx.membership.account_id });
+    const needsCurrencyReview = !validCurrency(snapshot, workspaceCurrency(snapshot));
+    return json({
+      data: snapshot,
+      version: row.version,
+      workspaceId: ctx.membership.account_id,
+      ...(needsCurrencyReview ? { needsCurrencyReview: true } : {}),
+    });
   } catch {
     return json({ error: 'invalid_saved_data' }, 503);
   }

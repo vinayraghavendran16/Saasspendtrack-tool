@@ -136,3 +136,15 @@ assert.equal((await put('b@example.com', { subscriptions: [{ cost: 20 }] }, 1)).
 assert.equal((await put('b@example.com', { settings: { currency: 'EUR' } }, 2)).status, 422);
 assert.equal((await put('b@example.com', { settings: { currency: 'USD' } }, 2)).status, 200);
 console.log('PASS: currency consistency and existing workspace currency protection');
+
+const mixed = {
+  subscriptions: [{ id: 's1', currency: 'EUR', cost: 100 }],
+  invoices: [{ id: 'i1', currency: 'USD', amount: 120 }],
+};
+data.set('a@example.com', { data: JSON.stringify(mixed), version: 4 });
+const review = await (await get('a@example.com')).json();
+assert.equal(review.needsCurrencyReview, true);
+assert.equal(review.version, 4);
+assert.deepEqual(review.data, mixed);
+assert.equal((await (await get('b@example.com')).json()).needsCurrencyReview, undefined);
+console.log('PASS: older mixed-currency snapshots are flagged and preserved for review');

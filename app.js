@@ -347,6 +347,53 @@ function showLegacyImportPrompt() {
   (document.querySelector('main') || document.body).prepend(banner);
 }
 
+function showCurrencyReview(snapshot) {
+  if (document.getElementById('currency-review')) return;
+  const dialog = document.createElement('dialog');
+  dialog.id = 'currency-review';
+  dialog.setAttribute('aria-labelledby', 'currency-review-title');
+  dialog.addEventListener('cancel', event => event.preventDefault());
+
+  const title = document.createElement('h2');
+  title.id = 'currency-review-title';
+  title.textContent = 'Review workspace currencies';
+
+  const description = document.createElement('p');
+  description.textContent = 'Reporting and editing are paused while saved currency labels are reviewed. Export the saved subscriptions and invoices to check their original currency against the source documents. The export preserves the saved amounts and labels.';
+
+  const currencies = new Map();
+  for (const record of [...(snapshot.subscriptions || []), ...(snapshot.invoices || [])]) {
+    const label = record.currency == null || record.currency === ''
+      ? 'Unlabeled'
+      : typeof record.currency === 'string' ? record.currency.toUpperCase() : 'Invalid label';
+    currencies.set(label, (currencies.get(label) || 0) + 1);
+  }
+  const summary = document.createElement('p');
+  const savedCurrency = snapshot.settings?.currency ?? 'USD (default)';
+  summary.textContent = 'Workspace currency: ' + String(savedCurrency);
+  const breakdown = document.createElement('ul');
+  for (const [label, count] of currencies) {
+    const item = document.createElement('li');
+    item.textContent = label + ': ' + count.toLocaleString() + (count === 1 ? ' record' : ' records');
+    breakdown.append(item);
+  }
+  breakdown.hidden = !currencies.size;
+
+  const exportButton = document.createElement('button');
+  exportButton.type = 'button';
+  exportButton.className = 'btn';
+  exportButton.textContent = 'Export records for review';
+  exportButton.onclick = () => downloadFile('workspace-currency-review.json', JSON.stringify({
+    workspaceCurrency: snapshot.settings?.currency ?? null,
+    subscriptions: snapshot.subscriptions || [],
+    invoices: snapshot.invoices || [],
+  }, null, 2), 'application/json');
+
+  dialog.append(title, description, summary, breakdown, exportButton);
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 // Pull the authoritative copy from the server. Never seed a workspace from
 // unverified local browser data; legacy imports require explicit review.
 async function syncFromServer() {
@@ -368,6 +415,11 @@ async function syncFromServer() {
       return;
     }
     if (!setAuthenticatedWorkspace(j.workspaceId)) return;
+    if (j.needsCurrencyReview) {
+      _serverSaveBlocked = true;
+      showCurrencyReview(j.data);
+      return;
+    }
     _serverVersion = j.version;
     _serverHydrated = true;
     state = j.data;
