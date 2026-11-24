@@ -543,11 +543,12 @@ function renderDashboard() {
 
   // Invoices YTD paid / pending
   const yearStart = new Date(new Date().getFullYear(), 0, 1);
-  const paidYtd = state.invoices.filter(i => i.paidDate && parseDate(i.paidDate) >= yearStart);
-  const paidTotal = paidYtd.reduce((s, i) => s + i.amount, 0);
+  const today = new Date(); today.setHours(23, 59, 59, 999);
+  const paidYtd = state.invoices.filter(i => i.paidDate && parseDate(i.paidDate) >= yearStart && parseDate(i.paidDate) <= today);
+  const paidTotal = paidYtd.reduce((s, i) => s + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
   const pending = state.invoices.filter(i => invoiceStatus(i) !== 'paid');
   const overdue = pending.filter(i => invoiceStatus(i) === 'overdue');
-  const pendingTotal = pending.reduce((s, i) => s + i.amount, 0);
+  const pendingTotal = pending.reduce((s, i) => s + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
   animateNumber(document.getElementById('stat-paid'), paidTotal, fmtMoney);
   document.getElementById('stat-paid-sub').textContent = `${paidYtd.length} invoice${paidYtd.length === 1 ? '' : 's'}`;
   animateNumber(document.getElementById('stat-pending'), pendingTotal, fmtMoney);
@@ -824,8 +825,8 @@ function renderVendorTotals() {
   empty.style.display = 'none';
   const rows = state.subscriptions.map(s => {
     const invs = state.invoices.filter(i => i.subId === s.id);
-    const paid = invs.filter(i => i.paidDate).reduce((sum, i) => sum + i.amount, 0);
-    const pend = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + i.amount, 0);
+    const paid = invs.filter(i => i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
+    const pend = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
     const monthly = monthlyCost(s);
     return { s, invCount: invs.length, paid, pend, total: paid + pend, monthly };
   }).sort((a, b) => b.total - a.total || b.monthly - a.monthly);
@@ -1088,7 +1089,7 @@ function renderInsights() {
   // Overdue invoices summary
   const od = state.invoices.filter(i => invoiceStatus(i) === 'overdue');
   if (od.length) {
-    const total = od.reduce((s, i) => s + i.amount, 0);
+    const total = od.reduce((s, i) => s + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
     recos.push(`❗ <b>${od.length} overdue invoice${od.length === 1 ? '' : 's'}</b> totaling ${formatMoney(total)}. Clear or dispute before finance closes the month.`);
   }
 
@@ -1867,7 +1868,7 @@ function exportErpCsv() {
   const rows = state.subscriptions.map(s => {
     const invs = state.invoices.filter(i => i.subId === s.id);
     const paid = invs.filter(i => i.paidDate).sort((a,b) => (parseDate(b.paidDate) || 0) - (parseDate(a.paidDate) || 0));
-    const open = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + i.amount, 0);
+    const open = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
     const last = paid[0];
     return [
       s.name, s.owner?.email || '', s.team || '', s.category || '', s.cycle, s.cost,
