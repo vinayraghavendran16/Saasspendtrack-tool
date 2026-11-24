@@ -106,6 +106,7 @@ let _serverVersion = null;
 let _serverSaveBlocked = false;
 let _serverSaveInFlight = false;
 let _localEditCounter = 0;
+let _legacyImportPending = false;
 function save() {
   _localEditCounter++;
   // Never overwrite the legacy cache. It may belong to another account or
@@ -115,7 +116,7 @@ function save() {
     savedAt: new Date().toISOString(), data: state, serverVersion: _serverVersion,
     verifiedWorkspace: _serverHydrated,
   })); } catch (_) {}
-  if (_serverHydrated && !_serverSaveBlocked) scheduleServerSave();
+  if (_serverHydrated && !_serverSaveBlocked && !_legacyImportPending) scheduleServerSave();
 }
 
 let _serverSaveTimer = null;
@@ -124,7 +125,7 @@ function scheduleServerSave() {
   _serverSaveTimer = setTimeout(pushServerSave, 1200);
 }
 async function pushServerSave() {
-  if (!_serverHydrated || _serverSaveBlocked) return;
+  if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending) return;
   if (_serverSaveInFlight) return; // The active save will flush newer local changes.
   _serverSaveInFlight = true;
   const snapshot = JSON.stringify(state);
@@ -165,7 +166,7 @@ async function pushServerSave() {
 // Explicit one-time migration for records stored by older browser-only builds.
 // The original legacy key remains untouched even after a successful import.
 async function offerLegacyImport() {
-  if (!_legacyBrowserData || _serverVersion !== 0 || !_serverHydrated) return;
+  if (!_legacyBrowserData || _serverVersion !== 0 || !_serverHydrated || !_legacyImportPending) return;
   const legacy = _legacyBrowserData;
   const subscriptions = Array.isArray(legacy.subscriptions) ? legacy.subscriptions : [];
   const invoices = Array.isArray(legacy.invoices) ? legacy.invoices : [];
@@ -225,6 +226,8 @@ async function offerLegacyImport() {
     return;
   }
   _serverVersion = result.version;
+  _legacyImportPending = false;
+  document.getElementById('legacy-import-banner')?.remove();
   state = imported;
   ensureStateShape();
   renderAll();
@@ -245,7 +248,23 @@ function showLegacyImportPrompt() {
     button.disabled = true;
     try { await offerLegacyImport(); } finally { button.disabled = false; }
   });
-  banner.append(message, button);
+  const startFresh = document.createElement('button');
+  startFresh.type = 'button';
+  startFresh.textContent = 'Start with empty workspace';
+  startFresh.style.marginLeft = '12px';
+  startFresh.addEventListener('click', () => {
+    if (!confirm('Start with an empty workspace? Older browser records will stay in this browser and will NOT be imported.')) return;
+    _legacyImportPending = false;
+    _serverSaveBlocked = false;
+    banner.remove();
+    // Never upload a pre-review draft into the fresh workspace.
+    state = { subscriptions: [] };
+    ensureStateShape();
+    _localEditCounter++;
+    try { localStorage.removeItem(UNSYNCED_DRAFT_KEY); } catch (_) {}
+    renderAll();
+  });
+  banner.append(message, button, startFresh);
   (document.getElementById('dashboard') || document.body).prepend(banner);
 }
 
@@ -285,6 +304,7 @@ async function syncFromServer() {
       (_legacyBrowserData?.invoices?.length) ||
       (_legacyBrowserData?.employees?.length);
     if (legacyData) {
+      _legacyImportPending = true;
       // Keep the original browser cache intact for a deliberate, currency-reviewed
       // import. Never show those records as belonging to this empty workspace.
       renderAll();
