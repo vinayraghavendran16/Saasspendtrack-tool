@@ -3865,7 +3865,7 @@ async function offerLegacyImport() {
   if (currency === null) return;
   const code = currency.trim().toUpperCase();
   try {
-    if (!/^[A-Z]{3}$/.test(code)) throw new Error('invalid');
+    if (!/^[A-Z]{3}$/.test(code) || (typeof Intl.supportedValuesOf === 'function' && !Intl.supportedValuesOf('currency').includes(code))) throw new Error('invalid');
     new Intl.NumberFormat('en-US', { style: 'currency', currency: code });
   } catch (_) {
     alert('Import cancelled: enter a valid ISO three-letter currency code.');
