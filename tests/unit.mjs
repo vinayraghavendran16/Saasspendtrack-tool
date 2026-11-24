@@ -433,12 +433,12 @@ ok(blockedMissingSchema, 'members: missing schema must not imply owner access');
 // ---- accounts Phase 2: shared-workspace data keying + /api/me account ----
 section('accounts phase 2 (shared workspace)');
 import * as ME from '../functions/api/me.js';
-function acctEnv(user, membership, account, store) {
+function acctEnv(user, membership, account, store, ownerUser = null) {
   return { DB: { prepare(sql) { let bound;
     return { bind: (...a) => { bound = a; return {
       first: async () => {
         if (/FROM sessions/i.test(sql)) return user ? { email: user.email, expires_at: Date.now() + 1e9 } : null;
-        if (/FROM users/i.test(sql)) return user;
+        if (/FROM users/i.test(sql)) return bound[0] === user?.email ? user : (ownerUser || user);
         if (/FROM memberships/i.test(sql)) return membership;
         if (/FROM accounts/i.test(sql)) return account;
         if (/FROM app_data/i.test(sql)) return store[bound[0]] != null ? { data: store[bound[0]], version: 1 } : null;
@@ -485,6 +485,32 @@ let meb = await p2res.json();
 ok(meb.account && meb.account.id === 'A' && meb.account.role === 'member' && meb.account.isOwner === false, 'me returns account+role (member)');
 p2res = await ME.onRequestGet({ request: p2req, env: acctEnv(p2owner, p2memOwner, p2acct, {}) });
 ok((await p2res.json()).account.isOwner === true, 'me marks owner isOwner');
+
+// Workspace billing is owner-scoped even when a teammate's trial differs.
+const staleMember = { ...p2member, status: 'expired', trial_ends_at: Date.now() - 1000 };
+const paidOwner = { ...p2owner, status: 'active', trial_ends_at: Date.now() + 9e9 };
+p2res = await ME.onRequestGet({ request: p2req,
+  env: acctEnv(staleMember, p2memMember, p2acct, {}, paidOwner) });
+let sharedEnt = await p2res.json();
+ok(sharedEnt.entitled === true && sharedEnt.status === 'active' && sharedEnt.email === staleMember.email,
+  'expired member inherits paid workspace entitlement without identity change');
+p2res = await DATA.onRequestPut({ request: p2req,
+  env: acctEnv(staleMember, p2memMember, p2acct, {}, paidOwner) });
+ok(p2res.status === 200, 'expired member can save in paid workspace');
+const expiredOwner = { ...p2owner, status: 'expired', trial_ends_at: Date.now() - 1000 };
+p2res = await ME.onRequestGet({ request: p2req,
+  env: acctEnv(p2member, p2memMember, p2acct, {}, expiredOwner) });
+sharedEnt = await p2res.json();
+ok(sharedEnt.entitled === false && sharedEnt.status === 'expired',
+  'active teammate cannot bypass expired workspace billing');
+p2res = await DATA.onRequestPut({ request: p2req,
+  env: acctEnv(p2member, p2memMember, p2acct, {}, expiredOwner) });
+ok(p2res.status === 403, 'expired workspace blocks member writes');
+p2res = await ME.onRequestGet({ request: p2req,
+  env: acctEnv(p2member, { ...p2memMember, status: 'suspended' }, p2acct, {}, paidOwner) });
+sharedEnt = await p2res.json();
+ok(p2res.status === 403 && sharedEnt.entitled === false,
+  'suspended member never inherits workspace entitlement');
 
 // ---- result ----
 console.log(`\n${pass} passed, ${fail} failed`);
