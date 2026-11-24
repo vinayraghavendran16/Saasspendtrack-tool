@@ -414,13 +414,17 @@ function periodCost(sub) { const amount = Number(sub.cost); return Number.isFini
 
 // Consumption: returns { total, assigned, utilized, unused, utilizationPct, unusedCostMonthly } or null
 function consumption(sub) {
-  const total = Number(sub.licenses) || 0;
-  if (!total) return null;
-  const assigned = Math.min(total, Math.max(0, Number(sub.assigned) || 0));
-  const utilized = Math.min(total, Math.max(0, Number(sub.utilized) || 0));
-  const unused = Math.max(0, total - utilized);
+  const total = Number(sub.licenses);
+  if (!Number.isSafeInteger(total) || total <= 0) return null;
+  const seats = value => {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.min(total, Math.max(0, Math.floor(n))) : 0;
+  };
+  const assigned = seats(sub.assigned);
+  const utilized = seats(sub.utilized);
+  const unused = total - utilized;
   const utilizationPct = Math.round((utilized / total) * 100);
-  const unusedCostMonthly = (unused / total) * monthlyCost(sub);
+  const unusedCostMonthly = sub.active === false ? 0 : (unused / total) * Math.max(0, monthlyCost(sub));
   return { total, assigned, utilized, unused, utilizationPct, unusedCostMonthly };
 }
 function workspaceCurrency() {
@@ -772,14 +776,14 @@ function renderNoticeWindows() {
 }
 
 function renderConsumption() {
-  const rows = state.subscriptions
+  const rows = activeSubs()
     .map(s => ({ s, c: consumption(s) }))
     .filter(x => x.c)
     .sort((a, b) => b.c.unusedCostMonthly - a.c.unusedCostMonthly);
 
   // Stat cards
   document.getElementById('cons-vendors').textContent = rows.length;
-  document.getElementById('cons-vendors-sub').textContent = `of ${state.subscriptions.length} subscription${state.subscriptions.length === 1 ? '' : 's'}`;
+  document.getElementById('cons-vendors-sub').textContent = `of ${activeSubs().length} active subscription${activeSubs().length === 1 ? '' : 's'}`;
   const totalSeats    = rows.reduce((s, x) => s + x.c.total, 0);
   const assignedSeats = rows.reduce((s, x) => s + x.c.assigned, 0);
   document.getElementById('cons-assigned').textContent = `${assignedSeats} / ${totalSeats}`;
@@ -791,8 +795,8 @@ function renderConsumption() {
   const wastedMonthly = rows.reduce((s, x) => s + x.c.unusedCostMonthly, 0);
   document.getElementById('cons-wasted').textContent = formatMoney(wastedMonthly);
   document.getElementById('cons-wasted-sub').textContent = wastedMonthly > 0
-    ? `${formatMoney(wastedMonthly * 12)}/yr if left in place`
-    : 'no unused seats';
+    ? `${formatMoney(wastedMonthly * 12)}/yr estimated unused-seat cost`
+    : 'no estimated unused-seat cost';
 
   const tbody = document.getElementById('cons-tbody');
   const empty = document.getElementById('cons-empty');
