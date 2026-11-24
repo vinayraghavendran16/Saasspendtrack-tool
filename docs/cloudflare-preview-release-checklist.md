@@ -59,3 +59,12 @@ npx wrangler d1 execute sst-preview --remote --command "SELECT COUNT(*) AS total
 **Interpretation:** If `app_data.version` already exists, **never reapply migration 002**; it contains an `ALTER TABLE ... ADD COLUMN` and is not idempotent. If the column is missing, the last SELECT will fail as expected: do not treat that as evidence of corrupt data. Back up the preview database first, then apply only the missing migrations, after confirming the existing `accounts` and `app_data` schema. `CREATE TABLE IF NOT EXISTS` does not repair an incompatible existing table, so compare columns before treating migration 001 as complete. If `app_data` is missing entirely, stop and inspect the initialization history rather than blindly applying migration 002.
 
 Do not output customer contract JSON, email addresses, secrets or magic-link URLs as evidence. Record only the redacted schema, counts, integrity result, preview DB ID and deployment SHA. These read-only commands do not establish that a backup can be restored or that end-to-end tenant isolation works; those remain separate release gates.
+
+## Validation evidence — 2026-11-24
+
+- Operator terminal screenshots confirm authenticated Wrangler access to remote `sst-preview` (ID `ccdbb7a7-9cb5-45d7-8bac-8b8024626fc8`).
+- `app_data.version` is INTEGER NOT NULL DEFAULT 1 with CHECK (version >= 1).
+- `workspace_ai_settings` and `workspace_ai_consent_events` exist with account references, boolean constraints, default-disabled settings and required audit fields. Do not reapply either migration solely for verification.
+- Operator confirmed email receipt and successful sign-in on the Codex auth-fix preview. This is not yet proof of the latest development deployment's behavior.
+- GitHub comparison confirms the Codex auth-debug branch is an ancestor of development commit `7402a853e684eaf4d9d516f6c57aca30d755b671`. CI run 45359080169 and security run 45359080049 both succeeded for that commit.
+- Still required: latest immutable preview URL and binding evidence, integrity and revision-count queries, live multi-account and browser regression evidence, and authorized backup/restore rehearsal. Production release remains blocked.
