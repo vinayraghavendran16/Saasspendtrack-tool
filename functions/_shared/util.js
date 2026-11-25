@@ -305,6 +305,11 @@ export async function ensureAccountForUser(env, user) {
       env.DB.prepare('INSERT INTO memberships (email, account_id, role, status, invited_by, created_at) VALUES (?,?,?,?,?,?)')
         .bind(email, accountId, 'owner', 'active', null, ts),
     ]);
+    // Dynamic import avoids a static dependency cycle with usage.js.
+    try {
+      const { recordUsage } = await import('./usage.js');
+      await recordUsage(env, {accountId,email,eventName:'workspace_created',eventId:accountId});
+    } catch (_) { console.warn('Workspace analytics unavailable'); }
   } catch (_) { /* race: another request created it; re-read below */ }
   // Do not invent owner privileges if provisioning or a lookup failed.
   return await getMembership(env, email);
