@@ -3,10 +3,13 @@ on:
   push:
     branches:
       - development/cloud-foundation-audit
+      - 'release/**'
   pull_request:
     branches:
       - main
       - development/cloud-foundation-audit
+      - 'release/**'
+  workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -17,11 +20,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm run check
-      - run: npm test
-      - run: node tests/security-regression.mjs
-      - run: node tests/workspace-isolation.mjs
-      - run: python3 tests/migration-smoke.py
-      - run: node tests/ai-consent.mjs
-      - run: node tests/welcome-email.mjs
-      - run: node tests/browser-cache-safety.mjs
+      - run: npm run test:release
