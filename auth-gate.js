@@ -22,21 +22,23 @@
   }
 
   // ---- login screen ----
-  function showLogin(message) {
+  function showLogin(message, mode) {
+    var login = mode === 'login';
     removeGate();
     var gate = el('<div class="sst-gate" id="sst-gate" role="dialog" aria-modal="true" aria-labelledby="sst-login-title"><div class="sst-gate__card">' +
       '<div class="sst-gate__logo">SaaS Spend Track</div>' +
-      '<h2 id="sst-login-title">Start your free trial</h2>' +
-      '<p>Enter your work email and we’ll send you a sign-in link. 7 days of full access, no card required.</p>' +
+      '<h2 id="sst-login-title">' + (login ? 'Welcome back' : 'Start your free trial') + '</h2>' +
+      '<p>' + (login ? 'Sign in to your SaaS workspace with a secure email link.' : '7 days of full access. No credit card required.') + '</p>' +
       (message ? '<div class="sst-gate__msg sst-gate__msg--err" role="alert">' + esc(message) + '</div>' : '') +
       '<div id="sst-login-body">' +
       '<input type="email" id="sst-email" placeholder="you@company.com" autocomplete="email" aria-label="Work email" />' +
       '<button class="sst-btn" id="sst-send">Email me a sign-in link</button>' +
       '</div>' +
-      '<div class="sst-gate__foot">Already paid? Use the same email and you’re straight in.</div>' +
+      '<div class="sst-gate__foot">' + (login ? 'New here? ' : 'Already have an account? ') + '<button type="button" class="sst-btn sst-btn--ghost" id="sst-switch">' + (login ? 'Start free trial' : 'Log in') + '</button></div>' +
       '</div></div>');
     document.body.appendChild(gate);
 
+    gate.querySelector('#sst-switch').addEventListener('click', function () { showLogin(null, login ? 'trial' : 'login'); });
     var btn = gate.querySelector('#sst-send');
     var input = gate.querySelector('#sst-email');
     setTimeout(function () { try { input.focus(); } catch (_) {} }, 0);
@@ -120,7 +122,7 @@
       .then(function (me) {
         if (!me.authenticated) {
           showLogin(authParam === 'expired' ? 'That sign-in link expired. Enter your email for a fresh one.'
-            : authParam === 'invalid' ? 'That link was invalid. Enter your email to try again.' : null);
+            : authParam === 'invalid' ? 'That link was invalid. Enter your email to try again.' : null, new URLSearchParams(location.search).get('mode') === 'login' ? 'login' : 'trial');
           return;
         }
         if (!me.entitled) { showPaywall(); return; }
