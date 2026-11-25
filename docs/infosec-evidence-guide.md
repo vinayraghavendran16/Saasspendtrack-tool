@@ -1,0 +1,3 @@
+# Customer security evidence
+Use /api/ai/evidence as a workspace administrator to export a JSON snapshot of current AI policy and recorded 90-day gateway event counts. Use /api/ai/audit for paginated event details. These are first-party operational records, not independent attestations. No historical backfill. A zero count is not proof of no transmission outside the instrumented gateway.
+Before release, attach exact-commit CI results, preview browser network capture, tenant isolation evidence, subprocessor inventory and verified retention policies. Do not claim SOC 2, zero knowledge, zero provider retention, or inability of platform operators to access plaintext without independent supporting evidence.
