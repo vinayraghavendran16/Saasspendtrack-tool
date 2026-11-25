@@ -9,7 +9,7 @@ export async function onRequestGet({ request, env }) {
       'SELECT enabled, consent_version, changed_at FROM workspace_ai_settings WHERE account_id=?',
     ).bind(gate.membership.account_id).first();
     const lock = await env.DB.prepare('SELECT locked FROM workspace_ai_locks WHERE account_id=?').bind(gate.membership.account_id).first();
-    return json({ locked: lock?.locked === 1, canEnable: gate.membership.role === 'owner' && lock?.locked !== 1 && env.AI_GLOBAL_DISABLED !== 'true', enabled: lock?.locked !== 1 && env.AI_GLOBAL_DISABLED !== 'true' && row?.enabled === 1 && row?.consent_version === CONSENT_VERSION, canManage: ['owner', 'admin'].includes(gate.membership.role), consentVersion: row?.consent_version || null, changedAt: row?.changed_at || null });
+    return json({ canLock: gate.membership.role === 'owner', locked: lock?.locked === 1, canEnable: gate.membership.role === 'owner' && lock?.locked !== 1 && env.AI_GLOBAL_DISABLED !== 'true', enabled: lock?.locked !== 1 && env.AI_GLOBAL_DISABLED !== 'true' && row?.enabled === 1 && row?.consent_version === CONSENT_VERSION, canManage: ['owner', 'admin'].includes(gate.membership.role), consentVersion: row?.consent_version || null, changedAt: row?.changed_at || null });
   } catch (_) { return json({ enabled: false, unavailable: true }, 503); }
 }
 export async function onRequestPost({ request, env }) {
