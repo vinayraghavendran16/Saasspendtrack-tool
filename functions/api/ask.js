@@ -1,3 +1,4 @@
+import { recordUsage } from '../_shared/usage.js';
 import { requireEntitledRole, rateLimit } from '../_shared/util.js';
 // Cloudflare Pages Function - POST /api/ask
 // Ask Track AI: answers a natural-language question using ONLY an app-computed
@@ -111,6 +112,7 @@ export async function onRequestPost({ request, env }) {
     if (!answer) {
       return new Response(JSON.stringify({ ok: false, error: "no_answer" }), { status: 200, headers });
     }
+    await recordUsage(env, {accountId:gate.membership.account_id,email:gate.user.email,eventName:'ai_completed'});
     return new Response(JSON.stringify({ ok: true, answer, model, usage: data.usage || null }), { status: 200, headers });
   } catch (e) {
     return new Response(JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }), { status: 200, headers });
