@@ -38,7 +38,7 @@ Provider: Anthropic Claude (`api.anthropic.com`). Exact server secret: `ANTHROPI
 4. Tell the agent only that configuration is complete. A new development Preview deployment is required; existing immutable deployments do not acquire the secret retroactively. Verify its SHA, Preview environment and exclusive sst-preview binding before tests.
 5. Run a synthetic contract through the actual provider and verify supplier, EUR currency, amount, dates and seats. Verify no consent/stale consent/other tenant denial, permitted extraction after explicit v2 consent, revocation, member permission restrictions, and unchanged saved workspace data. Provider/network/malformed response errors have deterministic regression coverage; distinguish those from live-provider results.
 
-At inspection, neither Preview configuration nor the new deployment has the key. This is the only immediate credential blocker; no successful live extraction is claimed.
+On immutable preview https://0c0bd6f3.saasspendtrack.pages.dev (90af049), six live assertions passed: default consent denial, v2 enablement, explicit 501 not_configured without the key, other-tenant denial even with a supplied workspaceId, revocation and denial after revocation. Synthetic fixtures and their rate-limit counters were removed. See [live AI gate evidence](release-evidence/2026-11-26-final/ai-live-gate.json). At inspection, neither Preview configuration nor the new deployment has the key. This is the only immediate credential blocker; no successful live extraction is claimed.
 
 ## Final production approval checklist
 
