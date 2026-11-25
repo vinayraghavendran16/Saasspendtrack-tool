@@ -1,3 +1,4 @@
+import { isPlatformOwner } from '../_shared/platform-owner.js';
 // GET /api/me -> effective account entitlement and current member identity.
 import { json, getUserFromSession, resolveWorkspaceEntitlement, getAccountContext } from '../_shared/util.js';
 
@@ -20,6 +21,7 @@ export async function onRequestGet({ request, env }) {
   if (!ent) return json(unavailable('unavailable'), 503);
   return json({
     authenticated: true, ...ent,
+    platformOwner: isPlatformOwner(env, user),
     account: {
       id: ctx.membership.account_id,
       role: ctx.membership.role,
