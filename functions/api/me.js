@@ -1,3 +1,5 @@
+import { recordUsage } from '../_shared/usage.js';
+import { parseCookies } from '../_shared/util.js';
 import { isPlatformOwner } from '../_shared/platform-owner.js';
 // GET /api/me -> effective account entitlement and current member identity.
 import { json, getUserFromSession, resolveWorkspaceEntitlement, getAccountContext } from '../_shared/util.js';
@@ -19,6 +21,11 @@ export async function onRequestGet({ request, env }) {
     return json(unavailable('unavailable'), 503);
   }
   if (!ent) return json(unavailable('unavailable'), 503);
+  // First login may precede workspace provisioning. Deduplicate with verify.js.
+  const sessionId = parseCookies(request).sst_session;
+  if (sessionId && ctx.membership.status === 'active') {
+    await recordUsage(env, {accountId:ctx.membership.account_id,email:user.email,eventName:'login',eventId:sessionId});
+  }
   return json({
     authenticated: true, ...ent,
     platformOwner: isPlatformOwner(env, user),
