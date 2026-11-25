@@ -1,49 +1,33 @@
-/* Service Worker - SaaS Spend Track PWA
- * Minimal: cache the app shell, serve stale-while-revalidate for
- * the one index.html file (everything else is inlined into it).
- *
- * The app is already browser-only with localStorage persistence,
- * so this SW mostly exists to make the app installable and work
- * offline after the first load.
- *
- * Bumping CACHE_VERSION invalidates the old cache on next load.
- */
+/* SaaS Spend Track: authenticated application must never serve cached data. */
+const CACHE_VERSION = 'sst-static-v2-2026-11-26';
+const STATIC_PATHS = new Set(['/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/apple-touch-icon.png']);
 
-const CACHE_VERSION = 'sst-v1-2026-11-15';
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
-  );
+self.addEventListener('install', event => {
+  event.waitUntil(self.skipWaiting());
 });
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k))
-    )).then(() => self.clients.claim())
-  );
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    for (const key of await caches.keys()) {
+      if (key.startsWith('sst-') && key !== CACHE_VERSION) await caches.delete(key);
+    }
+    await self.clients.claim();
+  })());
 });
-
-self.addEventListener('fetch', (event) => {
+self.addEventListener('fetch', event => {
   const req = event.request;
-  if (req.method !== 'GET') return;
   const url = new URL(req.url);
-
-  // Don't cache cross-origin (Google Fonts, Apps Script, Frankfurter, CDNs)
-  // - let the browser handle them normally. Only cache same-origin.
-  if (url.origin !== self.location.origin) return;
-
-  // Stale-while-revalidate for the app shell.
-  event.respondWith(
-    caches.open(CACHE_VERSION).then(async cache => {
-      const cached = await cache.match(req);
-      const fetchPromise = fetch(req).then(res => {
-        if (res && res.status === 200) cache.put(req, res.clone());
-        return res;
-      }).catch(() => cached);  // fall back to cache if offline
-      return cached || fetchPromise;
-    })
-  );
+  if (url.origin !== self.location.origin || req.method !== 'GET') return;
+  // Never intercept or cache application data, auth callbacks, or navigation.
+  if (req.mode === 'navigate' || url.search || !STATIC_PATHS.has(url.pathname)) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_VERSION);
+    const cached = await cache.match(req);
+    if (cached) return cached;
+    const response = await fetch(req);
+    if (response.ok && !response.redirected && response.type === 'basic' &&
+        /^(image\/|application\/(manifest\+json|json))/.test(response.headers.get('content-type') || '')) {
+      await cache.put(req, response.clone());
+    }
+    return response;
+  })());
 });
