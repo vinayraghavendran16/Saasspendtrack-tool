@@ -8,7 +8,7 @@ import {
 import { sendEmail, welcomeEmail } from '../../_shared/email.js';
 
 function redirect(location, cookie) {
-  const headers = { Location: location };
+  const headers = { Location: location, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' };
   if (cookie) headers['Set-Cookie'] = cookie;
   return new Response(null, { status: 302, headers });
 }
