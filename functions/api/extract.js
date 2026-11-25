@@ -1,3 +1,4 @@
+import { hasAiConsent, aiFetch } from '../_shared/ai-gateway.js';
 import { recordUsage } from '../_shared/usage.js';
 import { requireEntitledRole, rateLimit } from '../_shared/util.js';
 // Cloudflare Pages Function - POST /api/extract
@@ -18,8 +19,8 @@ const MODEL_DEFAULT = "claude-3-5-sonnet-20241022";
 // Cached across requests within a warm isolate to avoid a models lookup per call.
 let _cachedModel = null;
 
-async function listModels(env) {
-  const r = await fetch("https://api.anthropic.com/v1/models?limit=100", {
+async function listModels(env, accountId) {
+  const r = await aiFetch(env, accountId, "https://api.anthropic.com/v1/models?limit=100", {
     headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
   });
   if (!r.ok) return [];
@@ -29,11 +30,11 @@ async function listModels(env) {
 
 // Pick the best available model: an explicit EXTRACT_MODEL override wins;
 // otherwise prefer the newest Sonnet the account can use, then any newest model.
-async function resolveModel(env) {
+async function resolveModel(env, accountId) {
   if (env.EXTRACT_MODEL) return env.EXTRACT_MODEL;
   if (_cachedModel) return _cachedModel;
   try {
-    const models = await listModels(env);
+    const models = await listModels(env, accountId);
     if (models.length) {
       const byNewest = (a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""));
       const sonnets = models.filter((m) => /sonnet/i.test(m.id)).sort(byNewest);
@@ -177,13 +178,7 @@ export async function onRequestPost({ request, env }) {
     if (gate.response) return gate.response;
     // Workspace consent is required before document contents reach an AI provider.
     // Missing tables/settings are intentionally denied, never treated as opt-in.
-    let aiEnabled = false;
-    try {
-      const row = await env.DB.prepare(
-        'SELECT enabled, consent_version FROM workspace_ai_settings WHERE account_id=?',
-      ).bind(gate.membership.account_id).first();
-      aiEnabled = row?.enabled === 1 && row?.consent_version === 'workspace-ai-v2';
-    } catch (_) { /* consent unavailable: fail closed */ }
+    const aiEnabled = await hasAiConsent(env, gate.membership.account_id);
     if (!aiEnabled) return new Response(
       JSON.stringify({ ok: false, error: 'ai_consent_required' }),
       { status: 403, headers },
@@ -204,7 +199,7 @@ export async function onRequestPost({ request, env }) {
     if (!hasPdf && (!text.trim() || text.length < 40)) {
       return new Response(JSON.stringify({ ok: false, error: "no_input" }), { status: 400, headers });
     }
-    const model = await resolveModel(env);
+    const model = await resolveModel(env, gate.membership.account_id);
     // Prefer the native PDF document block (Claude reads tables and scanned
     // pages directly) when the raw PDF is supplied; otherwise send the text.
     const userContent = hasPdf
@@ -223,7 +218,7 @@ export async function onRequestPost({ request, env }) {
       tool_choice: { type: "auto" },
       messages: [{ role: "user", content: userContent }],
     };
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await aiFetch(env, gate.membership.account_id, "https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "content-type": "application/json",
