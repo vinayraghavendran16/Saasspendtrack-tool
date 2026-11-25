@@ -1,3 +1,5 @@
+import { recordUsage } from '../../_shared/usage.js';
+import { getMembership } from '../../_shared/util.js';
 // POST /api/razorpay/webhook
 // Razorpay calls this on payment events. We verify the signature, then flip the
 // paying user to 'active'. Configure the same secret in the Razorpay dashboard.
@@ -49,7 +51,7 @@ export async function onRequestPost({ request, env }) {
   if (dupe) return new Response('already processed', { status: 200 });
 
   const t = now();
-  const existing = await env.DB.prepare('SELECT email FROM users WHERE email=?').bind(email).first();
+  const existing = await env.DB.prepare('SELECT email, status, paid_at FROM users WHERE email=?').bind(email).first();
   if (existing) {
     await env.DB.prepare(
       'UPDATE users SET status=?, plan=?, paid_at=?, rp_payment_id=?, amount_paid=?, currency=? WHERE email=?',
@@ -59,6 +61,15 @@ export async function onRequestPost({ request, env }) {
     await env.DB.prepare(
       'INSERT INTO users (email, created_at, trial_ends_at, status, plan, paid_at, rp_payment_id, amount_paid, currency) VALUES (?,?,?,?,?,?,?,?,?)',
     ).bind(email, t, t, 'active', plan, t, paymentId, amount, currency).run();
+  }
+
+  if (existing && !existing.paid_at && existing.status !== 'active') {
+    try {
+      const membership = await getMembership(env,email);
+      if (membership?.role === 'owner' && membership.status === 'active') {
+        await recordUsage(env,{accountId:membership.account_id,email,eventName:'trial_converted',eventId:membership.account_id});
+      }
+    } catch (_) { console.warn('Conversion analytics unavailable'); }
   }
 
   // Confirmation email, once.
