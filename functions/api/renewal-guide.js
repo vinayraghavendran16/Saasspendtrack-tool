@@ -1,3 +1,4 @@
+import { recordUsage } from '../_shared/usage.js';
 import { requireEntitledRole, rateLimit } from '../_shared/util.js';
 // Cloudflare Pages Function - POST /api/renewal-guide
 // Produces a vendor renewal/cancellation guide grounded in LIVE web search, so
@@ -97,6 +98,7 @@ STRICT RULES - accuracy over completeness:
       }
     });
     if (!guide) return new Response(JSON.stringify({ ok: false, error: "no_guide", message: "Could not produce a verified guide." }), { status: 200, headers });
+    await recordUsage(env, {accountId:gate.membership.account_id,email:gate.user.email,eventName:'renewal_reviewed'});
     return new Response(JSON.stringify({ ok: true, vendor, guide, sources, checkedAt: new Date().toISOString(), model }), { status: 200, headers });
   } catch (e) {
     return new Response(JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }), { status: 200, headers });
