@@ -1,3 +1,5 @@
+import { recordUsage } from '../../_shared/usage.js';
+import { getMembership } from '../../_shared/util.js';
 import { authAppUrl } from '../../_shared/auth-url.js';
 // GET /api/auth/verify?token=...
 // Validates the one-time token, creates a session, sets the cookie, and
@@ -34,6 +36,15 @@ export async function onRequestGet({ request, env }) {
     'INSERT INTO sessions (id, email, created_at, expires_at) VALUES (?,?,?,?)',
   ).bind(sid, row.email, t, t + SESSION_DAYS * DAY).run();
   await env.DB.prepare('UPDATE users SET last_login_at=? WHERE email=?').bind(t, row.email).run();
+
+  // Record only redeemed authentication, never a requested magic link.
+  // A new user without a provisioned workspace is recorded on first authenticated bootstrap.
+  try {
+    const membership = await getMembership(env, row.email);
+    if (membership?.account_id && membership.status === 'active') {
+      await recordUsage(env, {accountId:membership.account_id,email:row.email,eventName:'login',eventId:sid});
+    }
+  } catch (_) { console.warn('Login analytics unavailable'); }
 
   // Welcome email, once, on first successful sign-in (best-effort).
   const welcomed = await env.DB.prepare('SELECT 1 FROM email_log WHERE email=? AND kind=?')
