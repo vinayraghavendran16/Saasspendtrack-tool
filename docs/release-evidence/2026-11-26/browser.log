@@ -1,0 +1,17 @@
+PAGE SaaS Spend Track
+PAGE SaaS Spend Track
+PASS Chromium and Google Chrome hydrate same cloud workspace
+PASS browser A saves to cloud
+PASS stale browser B pauses saves and retains edit
+PASS stale browser displays conflict feedback
+PASS reload preserves recovery draft and blocks autosave
+PAGE SaaS Spend Track
+PASS fresh browser session sees winning save
+PAGE SaaS Spend Track
+PASS separate browser account sees no owner records
+PAGE SaaS Spend Track
+PASS legacy cache is not silently uploaded or displayed
+PASS explicit legacy import preserves original amount and currency
+PASS legacy browser backup is preserved
+PAGE SaaS Spend Track
+PASS imported currency persists in another browser

@@ -1,0 +1,23 @@
+{
+  "files": [
+    "schema.sql",
+    "migrations/001_workspace_ai_consent.sql",
+    "migrations/002_app_data_version.sql"
+  ],
+  "expected_objects": 21,
+  "differences": [],
+  "additional_objects": [
+    "_cf_KV"
+  ],
+  "quick_check": [
+    {
+      "quick_check": "ok"
+    }
+  ],
+  "versions": [
+    {
+      "total_rows": 0,
+      "invalid_versions": null
+    }
+  ]
+}

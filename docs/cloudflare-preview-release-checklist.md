@@ -11,7 +11,7 @@ Record all of the following in the PR before requesting a merge:
 - Production D1 backup identifier and proof of a successful restore into a **separate** database.
 - Explicit go/no-go decision and production deployment authorization.
 
-**Current state:** None of the Cloudflare account-level evidence above has been verified through this repository's GitHub checks. Green GitHub CI is not a substitute for the live preview gate.
+**Current evidence:** See [November 26 validation](release-readiness-2026-11-26.md) for the exact tested deployment, verified preview binding, complete migration comparison, live concurrency/currency checks and browser results. Production backup/restore and successful external AI processing remain unverified. Green CI alone is not a release gate.
 
 ## Preview database
 1. Create a **new** Cloudflare D1 database dedicated to this preview (for example `sst-preview-security`). Never use the production `sst-trial` database or its ID.
