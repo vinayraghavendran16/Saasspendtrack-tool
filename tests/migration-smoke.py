@@ -157,3 +157,19 @@ else:
     raise AssertionError("Unknown analytics event accepted")
 assert usage_db.execute("SELECT COUNT(*) FROM usage_events").fetchone() == (2,)
 print("PASS: usage schema, idempotent migration, duplicate event prevention and event allowlist")
+
+# Real SQLite enforcement of AI lock and payload-free audit schema.
+for name in ("006_ai_policy_lock.sql","007_ai_egress_audit.sql","008_ai_audit_correlation.sql"):
+    conn.executescript((root / "migrations" / name).read_text())
+conn.execute("INSERT INTO workspace_ai_locks VALUES (?,?,?)",("account-1",1,100))
+try:
+    conn.execute("UPDATE workspace_ai_settings SET enabled=1 WHERE account_id=?",("account-1",))
+except sqlite3.IntegrityError:
+    pass
+else:
+    raise AssertionError("Locked workspace accepted AI enablement")
+conn.execute("UPDATE workspace_ai_locks SET locked=0 WHERE account_id=?",("account-1",))
+assert conn.execute("SELECT enabled FROM workspace_ai_settings WHERE account_id=?",("account-1",)).fetchone()==(0,)
+conn.execute("INSERT INTO ai_egress_audit(id,account_id,operation,outcome,occurred_at,request_id) VALUES (?,?,?,?,?,?)",("audit-1","account-1","messages","authorized",100,"request-1"))
+assert conn.execute("SELECT request_id FROM ai_egress_audit WHERE account_id=?",("account-1",)).fetchone()==("request-1",)
+print("PASS: AI lock database enforcement, unlock remains disabled, audit correlation")
