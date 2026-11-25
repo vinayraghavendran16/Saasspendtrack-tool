@@ -102,10 +102,7 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify(payload),
     });
     if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      let apiMessage = "";
-      try { apiMessage = JSON.parse(errText)?.error?.message || ""; } catch (_) {}
-      return new Response(JSON.stringify({ ok: false, error: "upstream", message: apiMessage || errText.slice(0, 400) }), { status: 200, headers });
+      return new Response(JSON.stringify({ ok: false, error: "upstream", message: "AI service unavailable. Try again later." }), { status: 200, headers });
     }
     const data = await r.json();
     const answer = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
@@ -115,6 +112,6 @@ export async function onRequestPost({ request, env }) {
     await recordUsage(env, {accountId:gate.membership.account_id,email:gate.user.email,eventName:'ai_completed'});
     return new Response(JSON.stringify({ ok: true, answer, model, usage: data.usage || null }), { status: 200, headers });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }), { status: 200, headers });
+    return new Response(JSON.stringify({ ok: false, error: "exception", message: "AI request could not be completed." }), { status: 200, headers });
   }
 }
