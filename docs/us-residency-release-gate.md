@@ -8,3 +8,17 @@ Retain Cloudflare Pages/Workers/D1 for the current release. US database residenc
 6. Verify compute processing, logs, backups and subprocessors separately; D1 jurisdiction does not constrain Workers execution.
 7. Do not promise US-only processing or zero operator access without evidence.
 AWS portability: preserve explicit tenant scoping and transactional invariants, isolate database adapters incrementally, test PostgreSQL compatibility before migration. No AWS resources or production changes authorized by this document.
+
+
+## Observed current database evidence (2026-11-26)
+Operator-provided Wrangler D1 info output reports:
+- sst-trial: running_in_region APAC, jurisdiction null, read replication disabled, 11 tables.
+- sst-preview: running_in_region APAC, jurisdiction null, read replication disabled, 12 tables.
+These are primary-region observations and do not constitute a contractual residency attestation. No US restriction is configured. Existing database jurisdiction cannot be changed in place.
+
+## Next isolated preview step
+Create a new empty database, without changing either existing binding:
+`npx wrangler@latest d1 create sst-preview-us --jurisdiction=us`
+Record the returned UUID. Then add it as a separate preview-only binding and apply migrations to the empty database. Do not copy production or customer data into it. Verify with:
+`npx wrangler@latest d1 info sst-preview-us --json`
+Expected jurisdiction is `us`. Inspect migration history, schema parity, all automated tests and browser smoke tests before any production decision.
