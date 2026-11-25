@@ -1,3 +1,4 @@
+import { recordUsage } from '../../_shared/usage.js';
 import { authAppUrl } from '../../_shared/auth-url.js';
 // GET /api/account/accept?token=...
 // Accept a single-use invite with an atomic D1 batch. No session cookie is
@@ -87,5 +88,7 @@ export async function onRequestGet({ request, env }) {
     return redirect(`${appUrl}/?invite=${latest?.used ? 'expired' : 'error'}`);
   }
 
+  await recordUsage(env, {accountId:inv.account_id,email,eventName:'invite_accepted',eventId:tokenHash});
+  await recordUsage(env, {accountId:inv.account_id,email,eventName:'login',eventId:sid});
   return redirect(`${appUrl}/?invite=ok`, sessionCookie(sid));
 }
