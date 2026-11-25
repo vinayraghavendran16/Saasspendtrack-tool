@@ -110,7 +110,7 @@
 
   function run() {
     var authParam = cleanAuthParam();
-    fetch('/api/me', { headers: { accept: 'application/json' } })
+    fetch('/api/me', { cache: 'no-store', credentials: 'same-origin', headers: { accept: 'application/json' } })
       .then(function (r) {
         if (!r.ok) throw new Error('backend ' + r.status);
         var ct = r.headers.get('content-type') || '';
