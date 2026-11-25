@@ -7562,56 +7562,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     <p id="workspace-ai-state" role="status" aria-live="polite">Checking workspace consent…</p>
     <label style="display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:14px"><input id="workspace-ai-optin" type="checkbox" disabled style="margin-top:3px"> <span>I am authorized to approve third-party AI processing of our workspace's submitted documents, financial data, questions and company details. I understand this setting applies to all workspace members and can be revoked.</span></label>
     <button type="button" id="workspace-ai-save" disabled>Save AI processing preference</button>
-    <p style="font-size:12px;margin:10px 0 0">Only workspace owners and admins can change this setting. Every change is recorded in the workspace audit log.</p>`;
+    <p style="font-size:12px;margin:10px 0 0">Only workspace owners can enable or lock AI. Administrators can revoke consent. Policy changes are recorded.</p>`;
   integrations.prepend(section);
   const status = section.querySelector('#workspace-ai-state');
   const checkbox = section.querySelector('#workspace-ai-optin');
   const save = section.querySelector('#workspace-ai-save');
-  try {
-    const response = await fetch('/api/ai/consent', { credentials: 'same-origin', cache: 'no-store' });
-    if (!response.ok) throw new Error(response.status === 503 ? 'AI consent settings are not available until the workspace migration is applied.' : 'Sign in to manage workspace AI settings.');
-    const current = await response.json();
-    checkbox.checked = !!current.enabled;
-    const canManage = current.canManage === true;
-    checkbox.disabled = !canManage;
-    save.disabled = !canManage;
-    status.textContent = (current.enabled
-      ? 'Enabled: workspace members may use AI extraction, spend assistant and preset generation.'
-      : 'Disabled: AI requests are blocked until current consent is granted.') +
-      (canManage ? '' : ' This setting is read-only for your workspace role.');
-  } catch (error) {
-    status.textContent = error.message;
-    return; // Never offer an opt-in if we cannot verify the server's current state.
+  const lock = document.createElement('button');
+  lock.type='button'; lock.disabled=true; lock.textContent='Lock AI processing';
+  const evidence=document.createElement('a');
+  evidence.href='/api/ai/evidence'; evidence.textContent='Download AI privacy evidence'; evidence.hidden=true;
+  const history=document.createElement('button'); history.type='button'; history.textContent='View AI audit history'; history.hidden=true;
+  const output=document.createElement('pre'); output.style.whiteSpace='pre-wrap'; output.setAttribute('aria-live','polite');
+  section.append(lock,document.createTextNode(' '),evidence,document.createTextNode(' '),history,output);
+  status.setAttribute('aria-live','polite');
+  let current=null;
+  async function refresh(){
+    checkbox.disabled=save.disabled=lock.disabled=true;
+    const r=await fetch('/api/ai/consent',{cache:'no-store',credentials:'same-origin'});
+    if(!r.ok)throw Error('Privacy policy unavailable. AI authorization cannot be verified.');
+    current=await r.json();
+    checkbox.checked=!!current.enabled;
+    checkbox.disabled=!(current.canEnable || (current.canManage && current.enabled));
+    save.disabled=checkbox.disabled;
+    lock.disabled=!current.canLock;
+    lock.textContent=current.locked?'Unlock AI (remains disabled)':'Lock AI processing';
+    evidence.hidden=history.hidden=!current.canManage;
+    status.textContent=current.locked?'AI locked by workspace owner.':current.enabled?'AI enabled by workspace owner.':'AI disabled.';
   }
-  save.addEventListener('click', async () => {
-    save.disabled = true;
-    status.textContent = 'Saving workspace AI preference…';
-    try {
-      const response = await fetch('/api/ai/consent', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ enabled: checkbox.checked, consentVersion: 'workspace-ai-v2' }),
-      });
-      if (!response.ok) {
-        if (response.status === 403 || response.status === 401) throw new Error('Only a signed-in workspace owner or admin can change this setting.');
-        throw new Error('Could not save the preference. AI processing remains disabled unless the server confirms it is enabled.');
-      }
-      const saved = await response.json();
-      checkbox.checked = !!saved.enabled;
-      status.textContent = saved.enabled ? 'Enabled and recorded: workspace AI features are available.' : 'Disabled and recorded: future AI requests are blocked.';
-    } catch (error) {
-      status.textContent = error.message;
-      // Re-read the server state rather than assuming a failed response has not committed.
-      try {
-        const r = await fetch('/api/ai/consent', { credentials: 'same-origin', cache: 'no-store' });
-        if (r.ok) checkbox.checked = !!(await r.json()).enabled;
-        else checkbox.disabled = true;
-      } catch (_) { checkbox.disabled = true; }
-    } finally {
-      save.disabled = checkbox.disabled;
-    }
+  async function change(path,body){
+    checkbox.disabled=save.disabled=lock.disabled=true;
+    try{
+      const r=await fetch(path,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+      if(!r.ok)throw Error('Privacy policy update rejected.');
+      await refresh();
+    }catch(e){try{await refresh();}catch(_){} status.textContent=e.message+' Verify current policy before using AI.';}
+  }
+  save.addEventListener('click',()=>change('/api/ai/consent',{enabled:checkbox.checked,consentVersion:'workspace-ai-v2'}));
+  lock.addEventListener('click',()=>{if(current && confirm(current.locked?'Unlock policy? AI remains disabled.':'Lock AI and revoke existing consent?'))change('/api/ai/lock',{locked:!current.locked});});
+  history.addEventListener('click',async()=>{
+    try{
+      const r=await fetch('/api/ai/audit?days=30',{cache:'no-store',credentials:'same-origin'});
+      if(!r.ok)throw Error('Audit unavailable.');
+      const data=await r.json();
+      output.textContent=(data.records||[]).map(x=>new Date(x.occurred_at).toISOString()+' | '+x.operation+' | '+x.outcome).join('\n') || 'No recorded gateway events in this window.';
+      if(data.truncated)output.textContent+='\nMore records available through the paginated audit API.';
+    }catch(e){output.textContent=e.message;}
   });
+  try{await refresh();}catch(e){status.textContent=e.message;}
+
 });
 
 </script>
