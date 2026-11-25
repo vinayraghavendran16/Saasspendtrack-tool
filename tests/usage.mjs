@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { recordUsage } from '../functions/_shared/usage.js';
+const rows=new Map();
+const env={USAGE_HMAC_SECRET:'synthetic-test-secret',DB:{prepare(sql){
+  assert.match(sql,/INSERT OR IGNORE INTO usage_events/);
+  return {bind(...args){return {async run(){if(!rows.has(args[0])) rows.set(args[0],args);}}}};
+}}};
+const event={accountId:'a',email:'user@example.test',eventName:'login',eventId:'synthetic-session'};
+assert.equal(await recordUsage(env,event),true);
+assert.equal(await recordUsage(env,{...event,email:'USER@example.test'}),true);
+assert.equal(rows.size,1);
+const row=[...rows.values()][0];
+assert.match(row[0],/^[a-f0-9]{64}$/);
+assert.match(row[2],/^[a-f0-9]{64}$/);
+assert.ok(!JSON.stringify(row).includes(event.email));
+assert.ok(!JSON.stringify(row).includes(event.eventId));
+await recordUsage(env,{...event,accountId:'b'});
+assert.equal(rows.size,2);
+assert.notEqual([...rows.values()][1][2],row[2]);
+assert.equal(await recordUsage(env,{...event,eventName:'arbitrary'}),false);
+assert.equal(await recordUsage({...env,USAGE_HMAC_SECRET:''},event),false);
+assert.equal(await recordUsage({...env,DB:{prepare(){throw Error('offline')}}},event),false);
+assert.equal(rows.size,2);
+console.log('PASS: usage privacy, workspace scoping, deduplication, allowlist and fail-safe recording');
