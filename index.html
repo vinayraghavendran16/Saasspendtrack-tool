@@ -21908,11 +21908,12 @@ window.PWA = {
     if (me.authenticated !== true || me.platformOwner !== true) return;
     const script = document.createElement('script');
     script.src = '/api/platform/internal';
-    script.onload = function () {
+    script.onload = async function () {
       // These modules originally registered DOMContentLoaded handlers.
       // Initialize explicitly because protected delivery may finish later.
       try {
-        if (typeof ensureQaView === 'function') { ensureQaView(); ensureQaNav(); patchSwitchViewForQa(); renderQaView(); updateQaNavCount(); }
+        await hydratePlatformSettings();
+        // QA execution remains disabled until isolated from live workspace state.
         if (typeof ensureChangelogView === 'function') { ensureChangelogView(); ensureChangelogNav(); patchSwitchViewForChangelog(); renderChangelogRoadmap(); }
         if (typeof ensureOnepagerView === 'function') { ensureOnepagerView(); ensureOnepagerNav(); }
       } catch (error) { console.warn('Platform administration initialization failed'); }
