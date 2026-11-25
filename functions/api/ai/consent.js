@@ -1,4 +1,4 @@
-// Workspace AI consent. Disabled by default; only owners/admins may change it.
+// Workspace AI consent. Disabled by default; only owners may enable; admins may revoke.
 import { json, requireRole, now } from '../../_shared/util.js';
 const CONSENT_VERSION = 'workspace-ai-v2';
 export async function onRequestGet({ request, env }) {
@@ -8,10 +8,12 @@ export async function onRequestGet({ request, env }) {
     const row = await env.DB.prepare(
       'SELECT enabled, consent_version, changed_at FROM workspace_ai_settings WHERE account_id=?',
     ).bind(gate.membership.account_id).first();
-    return json({ enabled: row?.enabled === 1 && row?.consent_version === CONSENT_VERSION, canManage: ['owner', 'admin'].includes(gate.membership.role), consentVersion: row?.consent_version || null, changedAt: row?.changed_at || null });
+    const lock = await env.DB.prepare('SELECT locked FROM workspace_ai_locks WHERE account_id=?').bind(gate.membership.account_id).first();
+    return json({ locked: lock?.locked === 1, canEnable: gate.membership.role === 'owner' && lock?.locked !== 1 && env.AI_GLOBAL_DISABLED !== 'true', enabled: lock?.locked !== 1 && env.AI_GLOBAL_DISABLED !== 'true' && row?.enabled === 1 && row?.consent_version === CONSENT_VERSION, canManage: ['owner', 'admin'].includes(gate.membership.role), consentVersion: row?.consent_version || null, changedAt: row?.changed_at || null });
   } catch (_) { return json({ enabled: false, unavailable: true }, 503); }
 }
 export async function onRequestPost({ request, env }) {
+  if (request.headers.get('origin') !== new URL(request.url).origin) return json({error:'invalid_origin'},403);
   const gate = await requireRole(request, env, 'admin');
   if (gate.response) return gate.response;
   let body;
@@ -19,9 +21,12 @@ export async function onRequestPost({ request, env }) {
   if (typeof body?.enabled !== 'boolean' || body.consentVersion !== CONSENT_VERSION) {
     return json({ error: 'explicit_consent_required', consentVersion: CONSENT_VERSION }, 400);
   }
+  if (body.enabled && gate.membership.role !== 'owner') return json({error:'owner_required'},403);
   const t = now();
   const accountId = gate.membership.account_id;
   try {
+    const lock = await env.DB.prepare('SELECT locked FROM workspace_ai_locks WHERE account_id=?').bind(accountId).first();
+    if (body.enabled && (lock?.locked === 1 || env.AI_GLOBAL_DISABLED === 'true')) return json({error:'ai_locked'},403);
     await env.DB.batch([
       env.DB.prepare(
         'INSERT INTO workspace_ai_settings (account_id, enabled, consent_version, changed_by, changed_at) VALUES (?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET enabled=excluded.enabled, consent_version=excluded.consent_version, changed_by=excluded.changed_by, changed_at=excluded.changed_at',
