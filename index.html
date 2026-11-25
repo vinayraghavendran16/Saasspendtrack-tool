@@ -4929,6 +4929,14 @@ function ccPresetOptions(selected) {
   if (state.settings && state.settings.generatedPresetFull) opts.push(['generated', ccPresetLabel('generated')]);
   return opts.map(([k, l]) => `<option value="${k}" ${k === selected ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('');
 }
+function isDemoMode() {
+  if (!state.settings?.activePreset) return false;
+  const subs = state.subscriptions;
+  const invoices = state.invoices;
+  if (!Array.isArray(subs) || !Array.isArray(invoices)) return false;
+  return subs.length > 0 && subs.every(s => s?.fromPreset === true)
+    && invoices.every(i => i?.fromPreset === true);
+}
 function ccPresetBoxHtml() {
   const demo = isDemoMode();
   const activeKey = state.settings && state.settings.activePreset;
@@ -4974,7 +4982,7 @@ function wireCcPresetBox(root) {
 }
 function ccLoadPreset(key) {
   const realCount = (state.subscriptions || []).filter(s => !s.fromPreset).length;
-  if (!isDemoMode() && realCount > 0) {
+  if (realCount > 0 || (state.employees || []).length > 0 || (state.invoices || []).some(i => !i.fromPreset)) {
     const v = prompt(`This permanently deletes your current workspace data and loads the "${ccPresetLabel(key)}" preset.\n\nType  confirm delete  to proceed:`);
     if (!v || v.trim().toLowerCase() !== 'confirm delete') { try { toast('Cancelled - your data is unchanged.', 'info'); } catch (_) {} return; }
   }
@@ -18521,7 +18529,7 @@ function loadPreset(key) {
     // Call the base app's sample loader
     if (typeof buildSampleState === 'function') {
       const sample = buildSampleState();
-      state.subscriptions = sample.subscriptions || sample;
+      state.subscriptions = sample.subs || sample.subscriptions || [];
       state.invoices = sample.invoices || [];
       if (sample.employees) state.employees = sample.employees;
     }
