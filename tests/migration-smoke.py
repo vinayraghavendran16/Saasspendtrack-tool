@@ -139,3 +139,21 @@ assert conn.execute("SELECT used FROM invites WHERE token_hash='invite-cap'").fe
 assert conn.execute("SELECT COUNT(*) FROM memberships WHERE account_id='account-1' AND status='active'").fetchone() == (50,)
 assert conn.execute("SELECT COUNT(*) FROM sessions WHERE id='overcap-session'").fetchone() == (0,)
 print("PASS: invitation SQL transaction, replay prevention, workspace isolation and seat cap")
+
+# Analytics schema: isolated real SQLite, repeatable migration, constraints.
+usage_db = sqlite3.connect(":memory:")
+usage_migration = (root / "migrations/005_usage_events.sql").read_text()
+usage_db.executescript(usage_migration)
+usage_db.executescript(usage_migration)
+usage_db.execute("INSERT INTO usage_events VALUES (?,?,?,?,?)", ("event-a","account-a","actor-a","login",100))
+usage_db.execute("INSERT OR IGNORE INTO usage_events VALUES (?,?,?,?,?)", ("event-a","account-a","actor-a","login",100))
+usage_db.execute("INSERT INTO usage_events VALUES (?,?,?,?,?)", ("event-b","account-b","actor-b","login",200))
+assert usage_db.execute("SELECT COUNT(*) FROM usage_events WHERE account_id=?", ("account-a",)).fetchone() == (1,)
+try:
+    usage_db.execute("INSERT INTO usage_events VALUES (?,?,?,?,?)", ("invalid","account-a","actor-a","arbitrary",100))
+except sqlite3.IntegrityError:
+    pass
+else:
+    raise AssertionError("Unknown analytics event accepted")
+assert usage_db.execute("SELECT COUNT(*) FROM usage_events").fetchone() == (2,)
+print("PASS: usage schema, idempotent migration, duplicate event prevention and event allowlist")
