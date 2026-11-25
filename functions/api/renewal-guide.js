@@ -40,7 +40,13 @@ export async function onRequestPost({ request, env }) {
   try {
     const gate = await requireEntitledRole(request, env, 'member');
     if (gate.response) return gate.response;
-    const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000);
+    let aiEnabled = false;
+    try {
+      const row = await env.DB.prepare('SELECT enabled, consent_version FROM workspace_ai_settings WHERE account_id=?').bind(gate.membership.account_id).first();
+      aiEnabled = row?.enabled === 1 && row?.consent_version === 'workspace-ai-v2';
+    } catch (_) {}
+    if (!aiEnabled) return new Response(JSON.stringify({ok:false,error:'ai_consent_required'}),{status:403,headers});
+    const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000, {failClosed:true});
     if (!_rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many AI requests. Try again shortly." }), { status: 429, headers });
     if (!env.ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ ok: false, error: "not_configured", message: "ANTHROPIC_API_KEY is not set on the server." }), { status: 501, headers });
@@ -78,9 +84,7 @@ STRICT RULES - accuracy over completeness:
       body: JSON.stringify(payload),
     });
     if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      let apiMessage = ""; try { apiMessage = JSON.parse(errText)?.error?.message || ""; } catch (_) {}
-      return new Response(JSON.stringify({ ok: false, error: "upstream", message: apiMessage || errText.slice(0, 400) }), { status: 200, headers });
+      return new Response(JSON.stringify({ ok: false, error: "upstream", message: "AI service unavailable. Try again later." }), { status: 200, headers });
     }
     const data = await r.json();
     const blocks = data.content || [];
@@ -101,6 +105,6 @@ STRICT RULES - accuracy over completeness:
     await recordUsage(env, {accountId:gate.membership.account_id,email:gate.user.email,eventName:'renewal_reviewed'});
     return new Response(JSON.stringify({ ok: true, vendor, guide, sources, checkedAt: new Date().toISOString(), model }), { status: 200, headers });
   } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }), { status: 200, headers });
+    return new Response(JSON.stringify({ ok: false, error: "exception", message: "AI request could not be completed." }), { status: 200, headers });
   }
 }
