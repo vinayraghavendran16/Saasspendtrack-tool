@@ -1,6 +1,6 @@
 # Preview validation — 2026-11-26
 
-Production decision: HOLD. Draft PR #33 remains unmerged. No production deployment, data or configuration was changed.
+Superseded for final gate status by [the final release report](final-release-gates-2026-11-26.md). Historical decision at this test stage: HOLD. Draft PR #33 remains unmerged. No production deployment, data or configuration was changed.
 
 ## Candidate and isolation
 

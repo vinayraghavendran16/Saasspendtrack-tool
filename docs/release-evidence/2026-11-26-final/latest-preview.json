@@ -1,10 +1,10 @@
 {
-  "url": "https://0c0bd6f3.saasspendtrack.pages.dev",
-  "sha": "90af049e2d47e1cc46acd2a35f3d5b48d6c51c08",
+  "url": "https://cfa24b31.saasspendtrack.pages.dev",
+  "sha": "0f8bb8d71bb503123f47c459fc7708befdb4919c",
   "stage": {
     "name": "deploy",
-    "started_on": "2026-11-25T19:20:58.34033Z",
-    "ended_on": "2026-11-25T19:21:08.119941Z",
+    "started_on": "2026-11-25T19:23:59.71739Z",
+    "ended_on": "2026-11-25T19:24:07.667569Z",
     "status": "success"
   },
   "bindings": {
@@ -12,7 +12,7 @@
       "id": "ccdbb7a7-9cb5-45d7-8bac-8b8024626fc8"
     }
   },
-  "preview_key_configured": false,
-  "deployed_key_configured": false,
+  "preview_key_configured": true,
+  "deployed_key_configured": true,
   "production_binding_unchanged": true
 }

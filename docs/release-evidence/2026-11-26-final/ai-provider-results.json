@@ -1,0 +1,141 @@
+{
+  "deployment": "https://cfa24b31.saasspendtrack.pages.dev",
+  "sha": "0f8bb8d71bb503123f47c459fc7708befdb4919c",
+  "results": [
+    {
+      "test": "default-denied extraction",
+      "passed": true
+    },
+    {
+      "test": "member cannot enable consent",
+      "passed": true
+    },
+    {
+      "test": "outdated consent rejected",
+      "passed": true
+    },
+    {
+      "test": "owner v2 consent enabled",
+      "passed": true
+    },
+    {
+      "test": "short input rejected before provider processing",
+      "passed": true
+    },
+    {
+      "test": "successful real Anthropic extraction",
+      "passed": true
+    },
+    {
+      "test": "supplier customer currency amount dates and seats correct",
+      "passed": true
+    },
+    {
+      "test": "other tenant cannot inherit consent with supplied identity",
+      "passed": true
+    },
+    {
+      "test": "other owner independently enables consent",
+      "passed": true
+    },
+    {
+      "test": "second tenant extraction uses only its own contract",
+      "passed": true
+    },
+    {
+      "test": "member cannot revoke owner consent",
+      "passed": true
+    },
+    {
+      "test": "owner revokes consent",
+      "passed": true
+    },
+    {
+      "test": "revocation blocks subsequent extraction",
+      "passed": true
+    },
+    {
+      "test": "consent audit records enable and revoke",
+      "passed": true
+    },
+    {
+      "test": "extraction does not write financial workspace state",
+      "passed": true
+    }
+  ],
+  "synthetic_provider_responses": {
+    "workspace_a": {
+      "ok": true,
+      "data": {
+        "vendor_name": "Cedar Example Software",
+        "customer_name": "Orion Example Labs",
+        "order_type": "new",
+        "seats": 10,
+        "currency": "EUR",
+        "total_contract_value": 1200,
+        "annual_value": 1200,
+        "term_months": 12,
+        "billing_frequency": "annual",
+        "term_start_date": "2027-01-01",
+        "term_end_date": "2027-12-31",
+        "payment_terms_days": 30,
+        "auto_renews": false,
+        "summary": "New 12-month subscription for 10 software seats from Cedar Example Software to Orion Example Labs, totaling EUR 1,200 billed annually on Net 30 terms. It does not auto-renew.",
+        "confidence": 85
+      },
+      "model": "claude-sonnet-5-5",
+      "usage": {
+        "input_tokens": 2099,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 484,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      }
+    },
+    "workspace_b": {
+      "ok": true,
+      "data": {
+        "vendor_name": "Maple Example Cloud",
+        "customer_name": "River Example Studio",
+        "seats": 20,
+        "term_months": 12,
+        "term_start_date": "2027-02-01",
+        "term_end_date": "2028-01-31",
+        "total_contract_value": 24000,
+        "annual_value": 24000,
+        "currency": "INR",
+        "billing_frequency": "annual",
+        "auto_renews": false,
+        "summary": "Maple Example Cloud supplies 20 software seats to River Example Studio for 12 months (2027-02-01 to 2028-01-31) at a total of INR 24,000, billed annually, with no automatic renewal.",
+        "confidence": 80
+      },
+      "model": "claude-sonnet-5-5",
+      "usage": {
+        "input_tokens": 2067,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 437,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      }
+    }
+  },
+  "synthetic_cleanup": true
+}

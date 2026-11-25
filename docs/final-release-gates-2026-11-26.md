@@ -1,6 +1,8 @@
 # Final release gates — 2026-11-26
 
-**Decision: NO-GO pending live AI validation. No merge or production deployment is authorized.**
+**Decision: GO for owner release review within the verified scope. All requested technical validation gates passed. Production execution remains NO-GO until explicit merge/deployment/migration approval.**
+
+Final live candidate: `0f8bb8d71bb503123f47c459fc7708befdb4919c`, https://cfa24b31.saasspendtrack.pages.dev . This includes application fix `90af049`; intervening and subsequent evidence commits change documentation only. Cloudflare already deployed this development push after the secret was saved, so no redundant deployment was required. Deployment metadata confirms encrypted secret presence and exclusive sst-preview binding. No secret value was inspected or printed.
 
 ## Backup and isolated restore: passed
 
@@ -28,7 +30,7 @@ Error-handling validation exposed an application defect: extraction accepted a p
 
 109 unit assertions and all invoked regression/security/isolation/consent/browser-cache/migration suites pass. New extraction tests cover malformed results, successful mocked tool and text responses, upstream 429, network failure and zero provider calls without consent. Mocked success is not real Anthropic success. CI evidence is recorded by SHA; refresh checks after each new PR head before approval.
 
-## AI provider setup and pending live gate
+## AI provider setup and completed live gate
 
 Provider: Anthropic Claude (`api.anthropic.com`). Exact server secret: `ANTHROPIC_API_KEY`. Use a fresh, workspace-scoped preview key, not an organization/admin or production key. This implementation does not send an explicit workspace header, so the key itself should be scoped to the preview workspace.
 
@@ -38,19 +40,31 @@ Provider: Anthropic Claude (`api.anthropic.com`). Exact server secret: `ANTHROPI
 4. Tell the agent only that configuration is complete. A new development Preview deployment is required; existing immutable deployments do not acquire the secret retroactively. Verify its SHA, Preview environment and exclusive sst-preview binding before tests.
 5. Run a synthetic contract through the actual provider and verify supplier, EUR currency, amount, dates and seats. Verify no consent/stale consent/other tenant denial, permitted extraction after explicit v2 consent, revocation, member permission restrictions, and unchanged saved workspace data. Provider/network/malformed response errors have deterministic regression coverage; distinguish those from live-provider results.
 
-On immutable preview https://0c0bd6f3.saasspendtrack.pages.dev (90af049), six live assertions passed: default consent denial, v2 enablement, explicit 501 not_configured without the key, other-tenant denial even with a supplied workspaceId, revocation and denial after revocation. Synthetic fixtures and their rate-limit counters were removed. See [live AI gate evidence](release-evidence/2026-11-26-final/ai-live-gate.json). At inspection, neither Preview configuration nor the new deployment has the key. This is the only immediate credential blocker; no successful live extraction is claimed.
+On immutable preview https://0c0bd6f3.saasspendtrack.pages.dev (90af049), six live assertions passed: default consent denial, v2 enablement, explicit 501 not_configured without the key, other-tenant denial even with a supplied workspaceId, revocation and denial after revocation. Synthetic fixtures and their rate-limit counters were removed. See [live AI gate evidence](release-evidence/2026-11-26-final/ai-live-gate.json). At inspection, neither Preview configuration nor the new deployment has the key. This historical missing-key gate was subsequently resolved as described below.
+
+## Successful live AI verification
+
+The user configured a preview-only encrypted `ANTHROPIC_API_KEY`. All 15 live assertions passed on the final immutable candidate. Both independent synthetic contracts were processed by real Anthropic model `claude-sonnet-5-5` (auto-discovered; EXTRACT_MODEL unset): Cedar Example Software at EUR 1200 for 10 seats, and Maple Example Cloud at INR 24000 for 20 seats. Supplier/customer, first contract term dates, currency, total and nonrenewal matched the stated facts. The second response contained only its own contract details.
+
+Default denial, rejection of outdated consent, owner v2 enablement, member enable/revoke denial, short-input validation, foreign-workspace consent isolation despite a client-supplied workspaceId, revocation, subsequent extraction denial, and enable/revoke audit rows passed. Extraction did not create or alter app_data. All synthetic identities, sessions, consent events and rate-limit rows were removed. Provider/network/malformed response failures are covered by deterministic regression tests, not deliberate disruption of the real provider.
+
+[All 15 assertions and synthetic provider responses](release-evidence/2026-11-26-final/ai-provider-results.json). The responses contain synthetic data only. This replaces the earlier missing-key NO-GO decision. Prior concurrency/browser/currency and backup/restore results remain applicable; application changes since those tests are confined to extraction validation and error redaction.
 
 ## Final production approval checklist
 
 - [x] Authorized read-only production inspection and backup creation.
 - [x] Verified separate isolated restore, full-row counts/content/currency preservation, integrity and migration compatibility.
 - [x] Recovery bookmark and encrypted backup identifiers recorded.
-- [ ] Live AI extraction and consent/tenant checks on the new immutable candidate after preview key configuration.
-- [ ] All CI/security checks green on the exact final PR head; rerun live checks if application behavior changes.
-- [ ] Owner stores backup/key in secure durable storage and selects retention for the isolated restored customer-data copy.
+- [x] Live AI extraction and consent/tenant checks on the new immutable candidate after preview key configuration.
+- [x] CI/security/Pages passed on tested head 0f8bb8d. Final evidence-head checks are recorded directly in PR #33 after push; rerun affected live checks if application behavior changes.
+- [ ] Operational release decision: select off-device backup/key custody and retention for the isolated restored customer-data copy. The verified local encrypted backup remains available; off-device replication is not claimed.
 - [ ] Confirm recovery objectives and post-backup-write reconciliation; a restored snapshot can lose later writes.
 - [ ] Explicit production release authorization, maintenance window and migration/deployment plan. Existing authorization covers backup/inspection only.
 
 Follow the [production release and rollback checklist](release-readiness-2026-11-26.md#backup-rollback-and-production-release-checklist). Do not blindly revert to pre-versioned save code or remove additive schema. Preserve the failed state before any authorized recovery; restore only after a separately approved incident decision. No production restore was exercised here.
 
 Sources: [Cloudflare D1 commands](https://developers.cloudflare.com/d1/wrangler-commands/), [Pages bindings/secrets](https://developers.cloudflare.com/pages/functions/bindings/), [Claude API keys](https://platform.claude.com/docs/en/get-api-key).
+
+## Scope limits
+
+These passes cover the requested preview release gates, not exhaustive product UAT. Existing browser evidence covers Chromium and Chrome, not Safari/Firefox, all mobile/accessibility flows or every feature. Earlier real sign-in/invitation delivery was user-confirmed; no redundant emails were sent. Production release authorization and operational recovery/retention decisions remain with the owner.
