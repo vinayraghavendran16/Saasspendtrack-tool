@@ -10,3 +10,20 @@ wrangler.toml
 .gitignore
 *.bak
 scripts/
+
+# Never publish internal or unbundled development sources.
+extensions*.js
+index.src.html
+app.js
+bundle.py
+functions/
+docs/
+tests/
+migrations/
+cron-worker/
+trial-tracking/
+*.md
+*.sql
+.env*
+.github/
+package.json
