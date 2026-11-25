@@ -1,0 +1,57 @@
+{
+  "isolated_database": "31d88e3c-911c-4dde-bdfe-886cba572722",
+  "migrations_applied_only_to_restore": [
+    "001_workspace_ai_consent.sql",
+    "002_app_data_version.sql"
+  ],
+  "app_data_rows_preserved": 5,
+  "all_legacy_revisions": 1,
+  "original_columns_exact_match": true,
+  "quick_check": [
+    {
+      "quick_check": "ok"
+    }
+  ],
+  "consent_default": [
+    {
+      "cid": 0,
+      "name": "account_id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "enabled",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": "0",
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "consent_version",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "changed_by",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "changed_at",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ]
+}

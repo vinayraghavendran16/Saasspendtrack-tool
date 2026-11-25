@@ -1,0 +1,16 @@
+{
+  "method": "parameterized individual inserts after schema creation",
+  "initial_bulk_import": "failed atomically: SQLITE_TOOBIG statement too long",
+  "duration_seconds": 17.09,
+  "counts": {
+    "users": 9,
+    "login_tokens": 12,
+    "sessions": 6,
+    "email_log": 19,
+    "app_data": 5,
+    "rate_limits": 19,
+    "accounts": 8,
+    "memberships": 4,
+    "invites": 0
+  }
+}
