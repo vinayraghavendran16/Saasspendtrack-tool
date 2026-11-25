@@ -59,7 +59,7 @@ export async function onRequestGet({ request, env }) {
 
   // Bound deletion work per tick. Missing analytics schema must not interrupt mail.
   let usagePurged = null;
-  try {
+  if (env.USAGE_RETENTION_ENABLED === 'true') try {
     const result = await env.DB.prepare(
       'DELETE FROM usage_events WHERE id IN (SELECT id FROM usage_events WHERE occurred_at < ? ORDER BY occurred_at LIMIT 5000)'
     ).bind(t - 90 * DAY).run();
