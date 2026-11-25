@@ -1,3 +1,4 @@
+import { recordUsage } from '../_shared/usage.js';
 import { requireEntitledRole, rateLimit } from '../_shared/util.js';
 // Cloudflare Pages Function - POST /api/extract
 // World-class contract extraction: sends contract text to the Anthropic API
@@ -258,6 +259,7 @@ export async function onRequestPost({ request, env }) {
     if (!validContract(result) || !result.vendor_name.trim() || result.confidence < 0 || result.confidence > 100) {
       return new Response(JSON.stringify({ ok: false, error: "invalid_result", message: "The provider returned invalid contract data. Please retry." }), { status: 200, headers });
     }
+    await recordUsage(env, {accountId:gate.membership.account_id,email:gate.user.email,eventName:'extraction_completed'});
     return new Response(
       JSON.stringify({ ok: true, data: result, model, usage: data.usage || null }),
       { status: 200, headers }
