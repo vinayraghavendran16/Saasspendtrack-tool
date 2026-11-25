@@ -1,3 +1,4 @@
+import { hasAiConsent, aiFetch } from '../../_shared/ai-gateway.js';
 import { requireEntitledRole, rateLimit, isPublicHttpsHost } from '../../_shared/util.js';
 // Cloudflare Pages Function — POST /api/preset/generate
 // Generates a demo workspace preset (a plausible SaaS stack) for a company,
@@ -9,17 +10,17 @@ import { requireEntitledRole, rateLimit, isPublicHttpsHost } from '../../_shared
 
 const MODEL_DEFAULT = "claude-3-5-sonnet-20241022";
 let _cachedModel = null;
-async function listModels(env) {
-  const r = await fetch("https://api.anthropic.com/v1/models?limit=100", { headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" } });
+async function listModels(env, accountId) {
+  const r = await aiFetch(env, accountId, "https://api.anthropic.com/v1/models?limit=100", { headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" } });
   if (!r.ok) return [];
   const j = await r.json().catch(() => ({}));
   return (j.data || []).filter((m) => m && m.id);
 }
-async function resolveModel(env) {
+async function resolveModel(env, accountId) {
   if (env.EXTRACT_MODEL) return env.EXTRACT_MODEL;
   if (_cachedModel) return _cachedModel;
   try {
-    const models = await listModels(env);
+    const models = await listModels(env, accountId);
     if (models.length) {
       const byNewest = (a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""));
       const sonnets = models.filter((m) => /sonnet/i.test(m.id)).sort(byNewest);
@@ -95,13 +96,7 @@ export async function onRequestPost({ request, env }) {
     const gate = await requireEntitledRole(request, env, 'member');
     if (gate.response) return gate.response;
     // Never transmit customer-supplied data to an AI provider without opt-in.
-    let aiEnabled = false;
-    try {
-      const row = await env.DB.prepare(
-        'SELECT enabled, consent_version FROM workspace_ai_settings WHERE account_id=?',
-      ).bind(gate.membership.account_id).first();
-      aiEnabled = row?.enabled === 1 && row?.consent_version === 'workspace-ai-v2';
-    } catch (_) { /* fail closed */ }
+    const aiEnabled = await hasAiConsent(env, gate.membership.account_id);
     if (!aiEnabled) return new Response(JSON.stringify({ ok: false, error: 'ai_consent_required' }), { status: 403, headers });
     const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000, { failClosed: true });
     if (!_rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many AI requests. Try again shortly." }), { status: 429, headers });
@@ -121,7 +116,7 @@ export async function onRequestPost({ request, env }) {
     try { domain = new URL(url).hostname.replace(/^www\./, ""); } catch (_) {}
     const region = (body.region || "").toString().slice(0, 40); // optional hint, e.g. "India"
     const today = new Date().toISOString().slice(0, 10);
-    const model = await resolveModel(env);
+    const model = await resolveModel(env, gate.membership.account_id);
 
     const system = `You build realistic DEMO workspaces for a SaaS spend-management tool. Today is ${today}.
 A sales rep will load this workspace to show a prospect what the product looks like with their own kind of data. It does NOT need to be their real stack - it needs to be a believable one for a company like theirs.
@@ -157,7 +152,7 @@ Make the mix fit the industry (e.g. manufacturing -> ERP/CAD/MES; D2C -> ads/mar
       }],
     };
 
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await aiFetch(env, gate.membership.account_id, "https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
       body: JSON.stringify(payload),
