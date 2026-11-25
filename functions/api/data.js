@@ -1,3 +1,4 @@
+import { recordUsage } from '../_shared/usage.js';
 // Per-account app data (subscriptions, invoices, settings).
 //   GET  /api/data -> the signed-in user's saved state (or { empty:true })
 //   PUT  /api/data -> replace it (entitled users only)
@@ -109,6 +110,7 @@ export async function onRequestPut({ request, env }) {
   }
 
   let saved;
+  let subscriptionsChanged = (snapshot.subscriptions || []).some(s => s.fromPreset !== true);
   if (expectedVersion === 0) {
     // Exactly one first writer can create a workspace. Others receive 409.
     saved = await env.DB.prepare(
@@ -121,6 +123,7 @@ export async function onRequestPut({ request, env }) {
     let previous;
     try { previous = JSON.parse(current.data); } catch { previous = null; }
     if (!validSnapshot(previous)) return json({ error: 'invalid_saved_data' }, 503);
+    subscriptionsChanged = JSON.stringify((previous.subscriptions || []).filter(s => s.fromPreset !== true)) !== JSON.stringify((snapshot.subscriptions || []).filter(s => s.fromPreset !== true));
     const previousCode = workspaceCurrency(previous);
     const needsReview = !validCurrency(previous, previousCode);
     if (correction) {
@@ -149,5 +152,8 @@ export async function onRequestPut({ request, env }) {
     ).bind(body, now(), key, expectedVersion).first();
   }
   if (!saved) return versionConflict();
+  if (!correction && subscriptionsChanged) {
+    await recordUsage(env, {accountId:ctx.membership.account_id,email:user.email,eventName:'subscription_saved',eventId:String(saved.version)});
+  }
   return json({ ok: true, version: saved.version });
 }
