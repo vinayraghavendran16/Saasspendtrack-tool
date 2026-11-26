@@ -21,6 +21,7 @@ const env = { DB: {
         if (/FROM sessions/i.test(sql)) return { email: args[0] };
         if (/FROM users WHERE email/i.test(sql)) return users.get(args[0]) || null;
         if (/FROM memberships WHERE email/i.test(sql)) return members.get(args[0]) || null;
+        if (/LEFT JOIN workspace_ai_locks/i.test(sql)) { const row=settings.get(args[0]); return row ? {...row,locked:locks.get(args[0])?.locked ?? 0} : null; }
         if (/FROM workspace_ai_locks/i.test(sql)) return locks.get(args[0]) || null;
         if (/FROM workspace_ai_settings/i.test(sql)) return settings.get(args[0]) || null;
         return null;
