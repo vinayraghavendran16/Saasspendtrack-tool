@@ -209,3 +209,34 @@ for migration in files:
 assert legacy.execute("SELECT DISTINCT version FROM app_data").fetchall()==[(1,)]
 assert legacy.execute("SELECT COUNT(*) FROM workspace_ai_settings").fetchone()==(0,)
 print("PASS: full 001–008 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
+
+
+# Offline recovery drill: actual SQLite backup API, isolated temporary files.
+# This is not a Cloudflare D1 restore or a production RPO/RTO measurement.
+import tempfile
+from pathlib import Path
+with tempfile.TemporaryDirectory(prefix="sst-synthetic-recovery-") as temp:
+    backup_path = Path(temp) / "snapshot.sqlite"
+    all_tables = [r[0] for r in legacy.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+    all_columns = {t:[r[1] for r in legacy.execute("PRAGMA table_info("+t+")")] for t in all_tables}
+    legacy.commit()
+    expected = snapshot(legacy, all_columns)
+    schema = legacy.execute("SELECT type,name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name").fetchall()
+    with sqlite3.connect(backup_path) as backup:
+        legacy.backup(backup)
+    backup.close()
+    # Simulate a subsequent committed write, which must not silently appear in the older snapshot.
+    legacy.execute("UPDATE app_data SET version=version+1 WHERE email=?", ("migration-0@example.invalid",))
+    legacy.commit()
+    restored = sqlite3.connect(":memory:")
+    source = sqlite3.connect(backup_path.as_uri()+"?mode=ro", uri=True)
+    source.backup(restored)
+    source.close()
+    assert restored.execute("PRAGMA integrity_check").fetchone()==("ok",)
+    assert not restored.execute("PRAGMA foreign_key_check").fetchall()
+    assert snapshot(restored, all_columns)==expected
+    assert restored.execute("SELECT type,name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type,name").fetchall()==schema
+    assert restored.execute("SELECT version FROM app_data WHERE email=?", ("migration-0@example.invalid",)).fetchone()==(1,)
+    assert legacy.execute("SELECT version FROM app_data WHERE email=?", ("migration-0@example.invalid",)).fetchone()==(2,)
+    restored.close()
+print("PASS: synthetic SQLite backup/restore, exact schema and rows, integrity, post-snapshot write boundary")
