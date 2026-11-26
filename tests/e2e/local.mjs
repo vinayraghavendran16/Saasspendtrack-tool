@@ -25,6 +25,7 @@ await test('workspace JSON export',async()=>{await p.goto(origin+'/#subscription
 await test('subscription CSV export',async()=>{const[d]=await Promise.all([p.waitForEvent('download'),p.locator('#csv-subs-btn').click()]);await d.saveAs(out+'/renewals.csv');assert.match(await fs.readFile(out+'/renewals.csv','utf8'),/Synthetic Cedar Local/);});
 await test('responsive accessibility scan',async()=>{const scans=[];for(const width of [1440,768,390]){await p.setViewportSize({width,height:900});await p.goto(origin+'/#subscriptions');await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor({state:'attached'});await p.locator('#subscriptions').evaluate(async section=>{await document.fonts.ready;await Promise.all(section.getAnimations().map(animation=>animation.finished));});const a=await new AxeBuilder({page:p}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();const overflow=await p.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));scans.push({width,overflow,violations:a.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))}))});await p.screenshot({path:out+`/responsive-${width}.png`,fullPage:true});}await fs.writeFile(out+'/accessibility.json',JSON.stringify(scans,null,2));for(const {width,violations} of scans)assert.deepEqual(violations,[],`Accessibility violations at ${width}px: ${JSON.stringify(violations)}`);assert.ok(scans.every(s=>s.overflow.scroll<=s.overflow.width),'No document overflow');});
 await p.setViewportSize({width:1440,height:1000});
+const workspaceWrite=r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT';
 
 await test('invoice creation, edit and payment persist after reload',async()=>{
   await p.goto(origin+'/#invoices');
@@ -34,7 +35,6 @@ await test('invoice creation, edit and payment persist after reload',async()=>{
   const row=p.locator('#inv-tbody tr').filter({hasText:invoiceNumber});
   const modal=p.locator('#inv-modal');
   const save=modal.getByRole('button',{name:'Save',exact:true});
-  const workspaceWrite=r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT';
 
   await p.locator('#add-inv-btn').click();
   await modal.locator('#inv-sub').selectOption(vendor.id);
@@ -108,6 +108,70 @@ await test('subscription deletion confirms the invoice cascade and persists',asy
   await row.waitFor({state:'detached'});
   await p.goto(origin+'/#invoices');
   await p.locator('#inv-empty').waitFor();
+});
+
+await test('team directory imports, filters and removes employees',async()=>{
+  await p.goto(origin+'/#team');
+  const csv=[
+    'Employee ID,Email,Title,Department',
+    'SST-001,alex@example.invalid,"Analyst, Senior",Finance',
+    'SST-002,jordan@example.invalid,Engineer,IT'
+  ].join('\n');
+  await Promise.all([
+    p.waitForResponse(workspaceWrite),
+    p.locator('#team-file').setInputFiles({name:'synthetic-team.csv',mimeType:'text/csv',buffer:Buffer.from(csv)})
+  ]);
+  assert.deepEqual(data.employees.map(({employeeId,title,department})=>({employeeId,title,department})),[
+    {employeeId:'SST-001',title:'Analyst, Senior',department:'Finance'},
+    {employeeId:'SST-002',title:'Engineer',department:'IT'}
+  ]);
+
+  const table=p.locator('#team-tbody');
+  const finance=table.getByRole('row').filter({hasText:'SST-001'});
+  const it=table.getByRole('row').filter({hasText:'SST-002'});
+  await p.reload();
+  await it.waitFor();
+  await p.locator('#team-filter-dept').selectOption('Finance');
+  await finance.waitFor();
+  await it.waitFor({state:'detached'});
+  await Promise.all([
+    p.waitForResponse(workspaceWrite),
+    finance.getByRole('button',{name:'Remove',exact:true}).click()
+  ]);
+  assert.deepEqual(data.employees.map(e=>e.employeeId),['SST-002']);
+  await p.reload();
+  await it.waitFor();
+  await finance.waitFor({state:'detached'});
+  const rollup=p.locator('#team-rollup-tbody tr').filter({hasText:'IT'});
+  assert.equal(await rollup.locator('td').nth(1).textContent(),'1');
+});
+
+await test('seat allocation changes persist and update unused spend',async()=>{
+  await p.goto(origin+'/#subscriptions');
+  const vendor=p.locator('#sub-tbody tr').filter({hasText:'Synthetic Cedar Local'});
+  const modal=p.locator('#modal');
+  const save=modal.getByRole('button',{name:'Save',exact:true});
+  await vendor.getByRole('button',{name:'Edit',exact:true}).click();
+  await modal.locator('#f-lic-total').fill('10');
+  await modal.locator('#f-lic-assigned').fill('8');
+  await modal.locator('#f-lic-utilized').fill('6');
+  await Promise.all([p.waitForResponse(workspaceWrite),save.click()]);
+  await modal.waitFor({state:'hidden'});
+
+  await p.goto(origin+'/#consumption');
+  const usage=p.locator('#cons-tbody tr').filter({hasText:'Synthetic Cedar Local'});
+  await usage.getByText('$48.00',{exact:true}).waitFor();
+  await usage.getByRole('button',{name:'Edit seats',exact:true}).click();
+  await modal.locator('#f-lic-assigned').fill('7');
+  await modal.locator('#f-lic-utilized').fill('5');
+  await Promise.all([p.waitForResponse(workspaceWrite),save.click()]);
+  const {licenses,assigned,utilized}=data.subscriptions.find(s=>s.id==='local-cedar');
+  assert.deepEqual({licenses,assigned,utilized},{licenses:10,assigned:7,utilized:5});
+
+  await p.reload();
+  await usage.getByText('$60.00',{exact:true}).waitFor();
+  assert.deepEqual((await usage.locator('td').allTextContents()).slice(2,9).map(text=>text.trim()),
+    ['10','7','5','5','50%','$60.00','$720.00']);
 });
 
 await browser.close();server.close();process.exitCode=results.some(r=>r.status==='failed')?1:0;
