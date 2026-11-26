@@ -184,3 +184,19 @@ assert.deepEqual(corrected.data, {
 });
 assert.equal((await correct('a@example.com', {}, 5)).status, 409);
 console.log('PASS: currency correction requires owner confirmation and a current revision, and preserves amounts');
+
+
+// Synthetic concurrency stress: real handler logic, in-memory D1 mock.
+// This is not a deployed latency or database capacity benchmark.
+const stressStart = performance.now();
+const stressResults = await Promise.all(Array.from({length:100},(_,i)=>
+  put('a@example.com',{...corrected.data,stressMarker:i},5)));
+assert.equal(stressResults.filter(r=>r.status===200).length,1);
+assert.equal(stressResults.filter(r=>r.status===409).length,99);
+const final = await (await get('a@example.com')).json();
+assert.equal(final.version,6);
+assert.ok(Number.isInteger(final.data.stressMarker));
+const other = await (await get('b@example.com')).json();
+assert.equal(other.version,3);
+assert.equal(other.data.stressMarker,undefined);
+console.log('PASS: 100 competing synthetic writes, exactly one winner, foreign workspace unchanged; mock elapsed '+Math.round(performance.now()-stressStart)+' ms');
