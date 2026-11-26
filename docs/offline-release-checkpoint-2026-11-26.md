@@ -58,3 +58,7 @@ Before the maintenance window, capture the actual production deployment ID and s
 - A fresh 708,015-byte production export was encrypted on the operator's Mac and verified by decryption. The in-memory restore of that snapshot passed migrations 003–008, integrity and foreign-key checks, and exact row comparison across all 11 pre-existing application tables.
 - Migrations 003–008 also passed on the earlier separate D1 restore `sst-restore-validation-20261126` (`31d88e3c-911c-4dde-bdfe-886cba572722`). Operator output showed `quick_check = ok`, no foreign-key violations, and the `ai_egress_audit.request_id` column. The fresh snapshot was exercised locally; the remote rehearsal used the earlier restore.
 - Recovery sign-off, a verified fallback or tested write-freeze recovery path, and explicit production authorization remain open.
+
+### Workspace write-freeze rehearsal
+
+On 2026-11-27 IST, the operator installed the three recovery triggers from `b90ed91` on the separate D1 restore `31d88e3c-911c-4dde-bdfe-886cba572722`. A no-op update against an existing workspace row failed with the expected freeze marker. The unfreeze script then executed all three drop statements successfully. This verifies D1 trigger enforcement and script cleanup. App-level save behavior during and after a freeze remains to be verified on the isolated Preview. The triggers cover only `app_data`; other writers and post-snapshot reconciliation remain part of the recovery plan.
