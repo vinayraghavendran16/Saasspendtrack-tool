@@ -16,64 +16,7 @@
       trial" control, so the distributor can re-demo cleanly.
    ========================================================================== */
 
-/* ---------- Geo detection (for Razorpay routing only) ----------
-   Pricing display is USD-only everywhere. Geo state is kept so the
-   Upgrade button can route to the right Razorpay page:
-     Indian visitors → India page (INR + GST on the page)
-     Everyone else   → International page (USD)
-   Preference saved in localStorage 'sst-geo', shared with site. */
-const RAZORPAY_INDIA  = 'https://rzp.io/rzp/NCGW9GyD';
-const RAZORPAY_GLOBAL = 'https://rzp.io/rzp/INTERNATIONAL-PLACEHOLDER';
-function geoGet() {
-  try {
-    const v = localStorage.getItem('sst-geo');
-    if (v === 'india' || v === 'global') return v;
-  } catch (_) {}
-  const lang = (navigator.language || '').toLowerCase();
-  if (lang.includes('-in') || lang.startsWith('hi') || lang.startsWith('ta') || lang.startsWith('te') || lang.startsWith('bn') || lang.startsWith('mr') || lang.startsWith('gu') || lang.startsWith('kn') || lang.startsWith('ml') || lang.startsWith('pa')) return 'india';
-  return 'global';
-}
-function geoSet(g) {
-  try { localStorage.setItem('sst-geo', g); } catch (_) {}
-  try { ensureTrialBanner(); } catch (_) {}
-}
-function payUrl() { return geoGet() === 'india' ? RAZORPAY_INDIA : RAZORPAY_GLOBAL; }
-/* Sync any static [data-pay-geo] links in the DOM (e.g. the Plans view
-   button in index.html) to the current geo's Razorpay URL on load. */
-function refreshPayGeoLinks() {
-  document.querySelectorAll('[data-pay-geo]').forEach(a => { a.href = payUrl(); });
-}
-document.addEventListener('DOMContentLoaded', () => setTimeout(refreshPayGeoLinks, 50));
-
-// IP confirmation on first load - used only to set the right Razorpay URL
-(function geoIpBackfill() {
-  let has = false;
-  try { has = !!localStorage.getItem('sst-geo'); } catch (_) {}
-  if (has) return;
-  setTimeout(() => {
-    fetch('https://ipapi.co/json/')
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(d => {
-        if (!d || !d.country_code) return;
-        const next = d.country_code === 'IN' ? 'india' : 'global';
-        try {
-          if (!localStorage.getItem('sst-geo')) {
-            localStorage.setItem('sst-geo', next);
-            // Refresh any mounted Upgrade links
-            refreshPayGeoLinks();
-            ensureTrialBanner();
-          }
-        } catch (_) {}
-      })
-      .catch(() => {});
-  }, 1200);
-})();
-window.AskTrackGeo = { get: geoGet, set: geoSet };
-
-// Display is always USD. Only one headline, one sub-line, one price.
-function priceHeadline()   { return '$3,499'; }
-function priceWithPeriod() { return '$3,499/yr'; }
-function priceSubline()    { return 'Billed annually · Indian customers: 18% GST added at checkout · Includes 250 active contracts'; }
+const ANNUAL_PLANS_URL = 'https://saasspendtrack.com/pricing/';
 
 /* ---------- Helpers ---------- */
 function trialState() {
@@ -113,17 +56,17 @@ function ensureExpiryGate() {
         <div class="eg-plan">
           <div class="eg-plan-head">
             <div>
-              <div class="eg-plan-name">SaaS Spend Track</div>
+              <div class="eg-plan-name">Growth</div>
               <div class="eg-plan-tag">The full platform. Every feature. Every user.</div>
             </div>
-            <div class="eg-plan-price"><span class="eg-price-main">${priceHeadline()}</span><span class="eg-price-period">/year</span></div>
+            <div class="eg-plan-price"><span class="eg-price-main">$2,000</span><span class="eg-price-period">/year</span></div>
           </div>
-          <div class="eg-plan-inr">${priceSubline()}</div>
+          <div class="eg-plan-inr">Paid annually upfront in USD · Includes 250 active contracts</div>
           <div class="eg-plan-small">$100/year per 50 additional contracts above 250. Everything else stays flat.</div>
         </div>
 
         <div class="eg-actions">
-          <a href="${payUrl()}" data-pay-geo="1" target="_blank" rel="noopener" class="btn-primary btn-lg">Upgrade now</a>
+          <a href="${ANNUAL_PLANS_URL}" target="_blank" rel="noopener" class="btn-primary btn-lg">View upgrade plans</a>
           <button class="btn-link" id="eg-paid">I've already paid - mark as active</button>
         </div>
 
@@ -188,7 +131,7 @@ function ensureTrialBanner() {
       <b>${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'}</b> left in your trial
       ${t.inGrace ? ' - upgrade now to keep access' : ''}
     </span>
-    <a href="${payUrl()}" data-pay-geo="1" target="_blank" rel="noopener" class="trial-banner-cta">${t.inGrace ? 'Upgrade' : 'Upgrade ' + priceWithPeriod()}</a>
+    <a href="${ANNUAL_PLANS_URL}" target="_blank" rel="noopener" class="trial-banner-cta">View upgrade plans</a>
   `;
 }
 
