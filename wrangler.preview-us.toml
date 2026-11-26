@@ -1,0 +1,14 @@
+name = "saasspendtrack-preview-us"
+compatibility_date = "2026-11-26"
+
+# D1 jurisdiction is immutable creation-time metadata, not a binding setting.
+# Cloudflare D1 info confirms this database is jurisdiction=us, region=WNAM.
+# Keep this file local/migration configuration; dashboard env configs remain
+# the source of truth for the Pages Production and Preview environments.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sst-preview-us"
+database_id = "1f35200e-11ae-498d-a7a7-a0909259084c"
+migrations_dir = "migrations"
+migrations_table = "d1_migrations"
