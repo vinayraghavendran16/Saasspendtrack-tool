@@ -153,7 +153,7 @@ function onepagerHtml(s) {
       <div class="op-diff">
         <div class="op-diff-title">Why this, not Zluri or Spendflo?</div>
         <ul>
-          <li><b>Built for India &amp; APAC</b> - lakh/crore, Indian SaaS stack seeded, INR invoicing supported</li>
+          <li><b>Built for India &amp; APAC</b> - lakh/crore, Indian SaaS stack seeded</li>
           <li><b>On-prem by custom quote</b> for BFSI, healthcare, public sector and other regulated industries</li>
           <li><b>$2,000/year for Growth</b> compared with a reported $36,820 median annual Zluri contract</li>
           <li><b>Browser-only</b> - data never leaves your organisation unless you choose to sync a connector</li>
