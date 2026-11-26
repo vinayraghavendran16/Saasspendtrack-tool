@@ -51,3 +51,10 @@ Before the maintenance window, capture the actual production deployment ID and s
 - The first run passed 22 checks. The JSON export assertion failed after reload. The runner was updated to wait for the synthetic workspace to hydrate, then the retry passed 23 checks with zero failures on the same deployment.
 - The fixture helper verified the isolated US Preview database binding and AI-disabled flag. The operator's Terminal output confirmed scoped cleanup left zero rows after each run. No private fixture manifests are included.
 - Production remains on hold pending recovery sign-off and explicit authorization.
+
+## Recovery rehearsal — 2026-11-27 IST
+
+- Read-only production schema inspection confirmed the AI consent tables and `app_data.version INTEGER DEFAULT 1`. Tables introduced by 003–008 were absent.
+- A fresh 708,015-byte production export was encrypted on the operator's Mac and verified by decryption. The in-memory restore of that snapshot passed migrations 003–008, integrity and foreign-key checks, and exact row comparison across all 11 pre-existing application tables.
+- Migrations 003–008 also passed on the earlier separate D1 restore `sst-restore-validation-20261126` (`31d88e3c-911c-4dde-bdfe-886cba572722`). Operator output showed `quick_check = ok`, no foreign-key violations, and the `ai_egress_audit.request_id` column. The fresh snapshot was exercised locally; the remote rehearsal used the earlier restore.
+- Recovery sign-off, a verified fallback or tested write-freeze recovery path, and explicit production authorization remain open.
