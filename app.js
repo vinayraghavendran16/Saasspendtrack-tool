@@ -2807,7 +2807,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const lock = document.createElement('button');
   lock.type='button'; lock.disabled=true; lock.textContent='Lock AI processing';
   const evidence=document.createElement('a');
-  evidence.href='/api/ai/evidence'; evidence.textContent='Download AI privacy evidence'; evidence.hidden=true;
+  evidence.href='/api/ai/evidence'; evidence.download='sst-ai-privacy-evidence.json';
+  evidence.textContent='Download AI privacy evidence'; evidence.hidden=true;
   const history=document.createElement('button'); history.type='button'; history.textContent='View AI audit history'; history.hidden=true;
   const output=document.createElement('pre'); output.style.whiteSpace='pre-wrap'; output.setAttribute('aria-live','polite');
   section.append(lock,document.createTextNode(' '),evidence,document.createTextNode(' '),history,output);
