@@ -1,0 +1,21 @@
+{
+  "id": "9bde3b8e-1644-449f-81b9-45bcc3114d67",
+  "url": "https://9bde3b8e.saasspendtrack.pages.dev",
+  "environment": "preview",
+  "deployment_trigger": {
+    "type": "github:push",
+    "metadata": {
+      "branch": "development/cloud-foundation-audit",
+      "commit_hash": "f3d9f54af4d7af0214fb242a42fc4b0151b61805",
+      "commit_message": "Cover workspace currency rules in authenticated preview smoke test",
+      "commit_dirty": false
+    }
+  },
+  "d1_databases": {
+    "DB": {
+      "id": "ccdbb7a7-9cb5-45d7-8bac-8b8024626fc8"
+    }
+  },
+  "APP_URL": "https://development-cloud-foundation.saasspendtrack.pages.dev",
+  "AI_key_present": false
+}

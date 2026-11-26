@@ -1,20 +1,20 @@
+import { authAppUrl } from '../../_shared/auth-url.js';
 // GET /api/account/accept?token=...
-// Validates a single-use invite, joins the invitee to the account, ensures a
-// user row (inheriting the owner's entitlement so they can use the app), creates
-// a session, and redirects into the app. Mirrors auth/verify.js.
+// Accept a single-use invite with an atomic D1 batch. No session cookie is
+// issued unless both the membership and token redemption were committed.
 import {
-  sha256Hex, randomToken, now, DAY, SESSION_DAYS, TRIAL_DAYS, sessionCookie,
+  sha256Hex, randomToken, now, SESSION_DAYS, sessionCookie,
   normalizeEmail, countAccountMembers, MAX_MEMBERS,
 } from '../../_shared/util.js';
 
 function redirect(location, cookie) {
-  const headers = { Location: location };
+  const headers = { Location: location, 'Cache-Control': 'no-store' };
   if (cookie) headers['Set-Cookie'] = cookie;
   return new Response(null, { status: 302, headers });
 }
 
 export async function onRequestGet({ request, env }) {
-  const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
+  const appUrl = authAppUrl(request, env);
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
   if (!token) return redirect(`${appUrl}/?invite=invalid`);
@@ -22,48 +22,70 @@ export async function onRequestGet({ request, env }) {
   const tokenHash = await sha256Hex(token);
   const t = now();
   const inv = await env.DB.prepare('SELECT * FROM invites WHERE token_hash=?').bind(tokenHash).first();
-  if (!inv || inv.used || inv.expires_at < t) return redirect(`${appUrl}/?invite=expired`);
-
+  if (!inv || inv.used || inv.expires_at <= t) return redirect(`${appUrl}/?invite=expired`);
   const email = normalizeEmail(inv.email);
+  if (!email || !['member', 'admin'].includes(inv.role)) return redirect(`${appUrl}/?invite=invalid`);
 
-  // One account per member: refuse if they already belong elsewhere.
+  // One account per member: refuse reassignment, and do not downgrade owners.
   const existing = await env.DB.prepare('SELECT * FROM memberships WHERE email=?').bind(email).first();
-  if (existing && existing.account_id !== inv.account_id) {
-    return redirect(`${appUrl}/?invite=other_account`);
-  }
-  // Cap re-check at accept time (invites could have outpaced the cap).
-  if (!existing) {
+  if (existing && existing.account_id !== inv.account_id) return redirect(`${appUrl}/?invite=other_account`);
+  if (existing && existing.role === 'owner') return redirect(`${appUrl}/?invite=invalid`);
+  // Suspended members being reactivated consume a seat, unlike active members.
+  if (!existing || existing.status !== 'active') {
     const count = await countAccountMembers(env, inv.account_id);
     if (count >= MAX_MEMBERS) return redirect(`${appUrl}/?invite=full`);
   }
 
-  // Burn the invite (single use).
-  await env.DB.prepare('UPDATE invites SET used=1 WHERE token_hash=?').bind(tokenHash).run();
+  // Never fabricate a fresh trial if an invited account has no valid owner.
+  const account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?')
+    .bind(inv.account_id).first();
+  if (!account || !normalizeEmail(account.owner_email)) return redirect(`${appUrl}/?invite=invalid`);
+  const owner = await env.DB.prepare('SELECT * FROM users WHERE email=?')
+    .bind(normalizeEmail(account.owner_email)).first();
+  if (!owner) return redirect(`${appUrl}/?invite=invalid`);
 
-  // Ensure a user row so the member is entitled - inherit the owner's plan/status.
-  const u = await env.DB.prepare('SELECT email FROM users WHERE email=?').bind(email).first();
-  if (!u) {
-    const account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?').bind(inv.account_id).first();
-    const ownerUser = account
-      ? await env.DB.prepare('SELECT * FROM users WHERE email=?').bind(account.owner_email).first()
-      : null;
-    const status = (ownerUser && ownerUser.status) || 'trial';
-    const trialEnds = (ownerUser && ownerUser.trial_ends_at) || (t + TRIAL_DAYS * DAY);
-    const plan = (ownerUser && ownerUser.plan) || null;
-    await env.DB.prepare('INSERT OR IGNORE INTO users (email, created_at, trial_ends_at, status, plan) VALUES (?,?,?,?,?)')
-      .bind(email, t, trialEnds, status, plan).run();
-  }
-
-  // Create or activate the membership.
-  await env.DB.prepare(
-    `INSERT INTO memberships (email, account_id, role, status, invited_by, created_at) VALUES (?,?,?,?,?,?)
-     ON CONFLICT(email) DO UPDATE SET account_id=excluded.account_id, role=excluded.role, status='active'`,
-  ).bind(email, inv.account_id, inv.role, 'active', inv.invited_by, t).run();
-
-  // Sign them in.
   const sid = randomToken(32);
-  await env.DB.prepare('INSERT INTO sessions (id, email, created_at, expires_at) VALUES (?,?,?,?)')
-    .bind(sid, email, t, t + SESSION_DAYS * DAY).run();
+  try {
+    // D1.batch executes sequentially inside one transaction. The second
+    // statement uses SQLite changes() to make a failed concurrent redemption
+    // a NOT NULL constraint error, rolling back the entire batch.
+    // The final statement similarly rolls back if membership activation was
+    // blocked by a cross-account conflict or the seat cap.
+    const results = await env.DB.batch([
+      env.DB.prepare(
+        'UPDATE invites SET used=1 WHERE token_hash=? AND used=0 AND expires_at>? RETURNING token_hash',
+      ).bind(tokenHash, t),
+      env.DB.prepare(
+        `INSERT INTO sessions (id, email, created_at, expires_at)
+         VALUES (?,?,?,CASE WHEN changes()=1 THEN ? ELSE NULL END)`,
+      ).bind(sid, email, t, t + SESSION_DAYS * 86400000),
+      env.DB.prepare(
+        'INSERT OR IGNORE INTO users (email, created_at, trial_ends_at, status, plan) VALUES (?,?,?,?,?)',
+      ).bind(email, t, owner.trial_ends_at, owner.status, owner.plan || null),
+      env.DB.prepare(
+        `INSERT INTO memberships (email, account_id, role, status, invited_by, created_at)
+         SELECT ?,?,?, 'active', ?,?
+         WHERE (SELECT COUNT(*) FROM memberships WHERE account_id=? AND status='active') < ?
+            OR EXISTS (SELECT 1 FROM memberships WHERE email=? AND account_id=? AND status='active')
+         ON CONFLICT(email) DO UPDATE SET
+           role=excluded.role, status='active'
+         WHERE memberships.account_id=excluded.account_id AND memberships.role!='owner'`,
+      ).bind(email, inv.account_id, inv.role, inv.invited_by, t,
+        inv.account_id, MAX_MEMBERS, email, inv.account_id),
+      env.DB.prepare(
+        `UPDATE sessions SET expires_at=CASE WHEN EXISTS (
+           SELECT 1 FROM memberships WHERE email=? AND account_id=? AND status='active'
+         ) THEN expires_at ELSE NULL END WHERE id=?`,
+      ).bind(email, inv.account_id, sid),
+    ]);
+    if (!results[0]?.results?.length) return redirect(`${appUrl}/?invite=expired`);
+  } catch (_) {
+    // A failed transaction does not consume the token. Concurrent replays
+    // may find it already consumed by the winning transaction.
+    const latest = await env.DB.prepare('SELECT used FROM invites WHERE token_hash=?')
+      .bind(tokenHash).first().catch(() => null);
+    return redirect(`${appUrl}/?invite=${latest?.used ? 'expired' : 'error'}`);
+  }
 
   return redirect(`${appUrl}/?invite=ok`, sessionCookie(sid));
 }

@@ -1,0 +1,18 @@
+{
+  "url": "https://cfa24b31.saasspendtrack.pages.dev",
+  "sha": "0f8bb8d71bb503123f47c459fc7708befdb4919c",
+  "stage": {
+    "name": "deploy",
+    "started_on": "2026-11-25T19:23:59.71739Z",
+    "ended_on": "2026-11-25T19:24:07.667569Z",
+    "status": "success"
+  },
+  "bindings": {
+    "DB": {
+      "id": "ccdbb7a7-9cb5-45d7-8bac-8b8024626fc8"
+    }
+  },
+  "preview_key_configured": true,
+  "deployed_key_configured": true,
+  "production_binding_unchanged": true
+}

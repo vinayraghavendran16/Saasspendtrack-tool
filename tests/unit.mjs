@@ -21,6 +21,8 @@ section('validation & cookies');
 ok(U.normalizeEmail(' Foo@Bar.COM ') === 'foo@bar.com', 'email normalize');
 ok(U.normalizeEmail('nope') === null, 'email reject');
 ok(U.parseCookies({ headers: { get: () => 'sst_session=xyz; a=1' } }).sst_session === 'xyz', 'cookie parse');
+ok(U.parseCookies({ headers: { get: () => 'broken=%ZZ; sst_session=xyz' } }).sst_session === 'xyz', 'malformed unrelated cookie does not crash auth');
+ok(U.parseCookies({ headers: { get: () => 'sst_session=%ZZ' } }).sst_session === undefined, 'malformed session rejected');
 ok(U.sessionCookie('s').includes('HttpOnly') && U.sessionCookie('s').includes('Secure'), 'cookie flags');
 ok(U.isAdmin({ ADMIN_EMAILS: 'a@x.com, b@x.com' }, 'B@X.com') === true, 'isAdmin match');
 ok(U.isAdmin({ ADMIN_EMAILS: 'a@x.com' }, 'c@x.com') === false, 'isAdmin reject');
@@ -53,6 +55,12 @@ r = await U.rateLimit(rlEnv, 'k', 3, 1000);
 ok(!r.ok && r.count === 4, 'over limit blocked');
 r = await U.rateLimit({ DB: { prepare: () => { throw new Error('x'); } } }, 'k', 1, 1000);
 ok(r.ok, 'rate limiter fails open on error');
+for (const row of [null, {count:0}, {count:'1'}]) {
+  const invalid = await U.rateLimit({ DB: { prepare: () => ({bind: () => ({first: async () => row})}) } }, 'k', 1, 1000, {failClosed:true});
+  ok(!invalid.ok && invalid.unavailable, 'invalid counter fails closed');
+}
+r = await U.rateLimit({ DB: { prepare: () => { throw new Error('D1 down'); } } }, 'auth:login', 1, 1000, { failClosed: true });
+ok(!r.ok && r.unavailable === true, 'security rate limiter fails closed on D1 error');
 
 // ---- data endpoint (entitled-gated writes) ----
 section('data endpoint');
@@ -61,7 +69,9 @@ function dataEnv(store, user, membership) {
   const mem = membership === undefined ? (user ? { email: user.email, account_id: 'A', role: 'owner', status: 'active' } : null) : membership;
   return { DB: { prepare(sql) { return { bind: (...a) => ({
     first: async () => sql.includes('sessions') ? (user ? { email: user.email, expires_at: Date.now() + 1e9 } : null)
-      : sql.includes('app_data') ? store.row
+      : sql.includes('SELECT data, version FROM app_data') ? store.row
+      : sql.includes('INSERT OR IGNORE INTO app_data') ? (!store.row ? (store.row = { data: a[1], version: 1 }, store.saved = a[1], { version: 1 }) : null)
+      : sql.includes('UPDATE app_data SET') ? (store.row?.version === a[3] ? (store.row = { data: a[0], version: a[3] + 1 }, store.saved = a[0], { version: store.row.version }) : null)
       : sql.includes('memberships') ? mem
       : sql.includes('accounts') ? (user ? { id: 'A', owner_email: user.email } : null)
       : user,
@@ -69,11 +79,11 @@ function dataEnv(store, user, membership) {
   }) }; } } };
 }
 const active = { email: 'u@x.com', status: 'active', trial_ends_at: 0 };
-const req = { headers: { get: () => 'sst_session=s' } };
+const req = { headers: { get: (k) => k.toLowerCase() === 'if-match' ? '0' : 'sst_session=s' } };
 let res = await DATA.onRequestGet({ request: req, env: dataEnv({ row: null }, active) });
 ok((await res.json()).empty === true, 'GET empty when no data');
 const store = {};
-res = await DATA.onRequestPut({ request: { ...req, text: async () => JSON.stringify({ subscriptions: [1] }) }, env: dataEnv(store, active) });
+res = await DATA.onRequestPut({ request: { ...req, text: async () => JSON.stringify({ subscriptions: [{ id: 'test-subscription' }] }) }, env: dataEnv(store, active) });
 ok((await res.json()).ok === true && store.saved.includes('subscriptions'), 'PUT saves when entitled');
 res = await DATA.onRequestPut({ request: { ...req, text: async () => '{}' },
   env: dataEnv({}, { email: 'e', status: 'trial', trial_ends_at: Date.now() - 1 }) });
@@ -142,7 +152,7 @@ ok(r6.status === 403, 'member-remove admin cannot remove an admin');
 section('accounts self-provision (ensureAccountSchema)');
 let schemaThrew = false;
 try { await U.ensureAccountSchema({ DB: { prepare: () => ({ run: async () => { throw new Error('no ddl'); } }) } }); } catch (_) { schemaThrew = true; }
-ok(!schemaThrew, 'ensureAccountSchema fails open when DDL throws');
+ok(schemaThrew, 'ensureAccountSchema fails closed when DDL throws');
 const ddl = [];
 const recDB = { prepare: (s) => ({ run: async () => { ddl.push(s); } }) };
 await U.ensureAccountSchema({ DB: recDB });
@@ -151,6 +161,59 @@ await U.ensureAccountSchema({ DB: recDB });
 const joined = ddl.join('|');
 ok(/CREATE TABLE IF NOT EXISTS accounts/.test(joined) && /memberships/.test(joined) && /invites/.test(joined), 'ensureAccountSchema creates accounts/memberships/invites');
 ok(ddl.length === firstCount && firstCount === 7, 'ensureAccountSchema runs its 7 statements once per DB');
+
+// Provisioning must not leave orphan accounts if the membership insert fails.
+function provisioningEnv({ rejectMembership = false } = {}) {
+  const accounts = new Map();
+  const memberships = new Map();
+  const DB = {
+    prepare(sql) {
+      return {
+        run: async () => ({ success: true }), // CREATE TABLE / INDEX
+        bind(...args) {
+          return {
+            sql, args,
+            async run() { return { success: true }; },
+            async first() {
+              if (/SELECT \* FROM memberships WHERE email=/i.test(sql)) return memberships.get(args[0]) || null;
+              return null;
+            },
+          };
+        },
+      };
+    },
+    async batch(statements) {
+      const nextAccounts = new Map(accounts);
+      const nextMemberships = new Map(memberships);
+      for (const { sql, args } of statements) {
+        if (/INSERT INTO accounts/i.test(sql)) nextAccounts.set(args[0], { id: args[0], owner_email: args[2] });
+        else if (/INSERT INTO memberships/i.test(sql)) {
+          if (rejectMembership || nextMemberships.has(args[0])) throw new Error('membership insert failed');
+          nextMemberships.set(args[0], { email: args[0], account_id: args[1], role: args[2], status: args[3] });
+        } else throw new Error('unexpected statement');
+      }
+      accounts.clear();
+      memberships.clear();
+      for (const [k, v] of nextAccounts) accounts.set(k, v);
+      for (const [k, v] of nextMemberships) memberships.set(k, v);
+      return statements.map(() => ({ success: true }));
+    },
+  };
+  return { env: { DB }, accounts, memberships };
+}
+const provisioning = provisioningEnv();
+const firstLogin = await Promise.all([
+  U.ensureAccountForUser(provisioning.env, { email: 'new@x.com' }),
+  U.ensureAccountForUser(provisioning.env, { email: 'new@x.com' }),
+]);
+ok(firstLogin.every(row => row && row.account_id === firstLogin[0].account_id),
+  'concurrent first logins resolve to the same account');
+ok(provisioning.accounts.size === 1 && provisioning.memberships.size === 1,
+  'concurrent first logins cannot leave an orphan account');
+const rejectedProvisioning = provisioningEnv({ rejectMembership: true });
+const rejectedMembership = await U.ensureAccountForUser(rejectedProvisioning.env, { email: 'fail@x.com' });
+ok(rejectedMembership === null && rejectedProvisioning.accounts.size === 0,
+  'failed membership insert rolls back the new account');
 
 // ---- rb2b ingest (secret gate + field mapping) ----
 section('rb2b ingest');
@@ -216,7 +279,7 @@ g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account
 ok(g.response && g.response.status === 403, 'requireRole 403 suspended member');
 // New user with no membership is lazily made owner of their own account.
 g = await U.requireRole(rReq, roleEnv('new@x.com', { email: 'new@x.com' }, null), 'member');
-ok(!g.response && g.membership.role === 'owner', 'requireRole lazily provisions owner for new user');
+ok(g.response && g.response.status === 403, 'requireRole denies owner privileges when membership creation cannot be confirmed');
 
 // ---- preset generator endpoint (validation + gating; no network) ----
 section('preset generator');
@@ -226,6 +289,7 @@ function presetEnv(user, key) {
   return { ANTHROPIC_API_KEY: key, ADMIN_EMAILS: '', DB: { prepare(sql) { return { bind: (...a) => ({
     first: async () => {
       if (/sessions/i.test(sql)) return user ? { email: user.email, expires_at: Date.now() + 1e9 } : null;
+      if (/workspace_ai_settings/i.test(sql)) return { enabled: 1, consent_version: 'workspace-ai-v2' };
       if (/rate/i.test(sql)) return { count: ++rl };
       if (/memberships/i.test(sql)) return user ? { email: user.email, account_id: 'A', role: 'owner', status: 'active' } : null;
       if (/accounts/i.test(sql)) return user ? { id: 'A', owner_email: user.email } : null;
@@ -257,7 +321,7 @@ import * as MEMBERS from '../functions/api/account/members.js';
 function acct3Env(o) {
   o = o || {};
   return { ADMIN_EMAILS: o.adminEmails || '', DB: { prepare(sql) { let b;
-    return { bind: (...a) => { b = a; return {
+    return { bind: (...a) => { b = a; return { sql, args: a,
       first: async () => {
         if (/FROM sessions/i.test(sql)) return o.sessionEmail ? { email: o.sessionEmail, expires_at: Date.now() + 1e9 } : null;
         if (/FROM users WHERE email/i.test(sql)) return (o.users || {})[b[0]] || null;
@@ -266,6 +330,10 @@ function acct3Env(o) {
         if (/COUNT\(\*\) c FROM memberships/i.test(sql)) return { c: o.memberCount || 0 };
         if (/COUNT\(\*\) c FROM invites/i.test(sql)) return { c: o.pendingCount || 0 };
         if (/FROM invites WHERE token_hash/i.test(sql)) return (o.invitesByHash || {})[b[0]] || null;
+        if (/INSERT INTO rate_limits/i.test(sql)) return { count: 1 };
+        if (/INSERT INTO invites \(token_hash/i.test(sql)) return o.lateCapAtInsert ? null : { token_hash: b[0] };
+        if (/UPDATE invites SET used=1/i.test(sql)) { const inv = (o.invitesByHash || {})[b[0]]; if (!inv || inv.used || inv.expires_at <= b[1]) return null; inv.used = 1; return { token_hash: b[0] }; }
+        if (/SELECT account_id, status FROM memberships/i.test(sql)) return (o.members || {})[b[0]] || null;
         return null;
       },
       all: async () => {
@@ -273,8 +341,22 @@ function acct3Env(o) {
         if (/FROM invites WHERE account_id/i.test(sql)) return { results: o.pendingList || [] };
         return { results: [] };
       },
-      run: async () => {},
+      run: async () => { if (/INSERT INTO memberships/i.test(sql)) { o.members ||= {}; o.members[b[0]] = { email: b[0], account_id: b[1], role: b[2], status: 'active' }; } },
     }; }, };
+  }, async batch(stmts) {
+    const claim = stmts[0].args;
+    const inv = (o.invitesByHash || {})[claim[0]];
+    if (!inv || inv.used || inv.expires_at <= claim[1]) throw new Error('already redeemed');
+    if (o.failBatch) throw new Error('simulated D1 batch failure');
+    const memberArgs = stmts[3].args;
+    const email = memberArgs[0];
+    const prior = (o.members || {})[email];
+    if (prior && prior.account_id !== inv.account_id) throw new Error('other workspace');
+    if ((!prior || prior.status !== 'active') && (o.memberCount || 0) >= 50) throw new Error('capacity exceeded');
+    inv.used = 1;
+    o.members ||= {};
+    o.members[email] = { email, account_id: memberArgs[1], role: memberArgs[2], status: 'active' };
+    return [{ results: [{ token_hash: claim[0] }] }];
   } } };
 }
 const admEnv = (over) => acct3Env(Object.assign({
@@ -282,7 +364,7 @@ const admEnv = (over) => acct3Env(Object.assign({
   members: { 'adm@x.com': { email: 'adm@x.com', account_id: 'A', role: 'admin', status: 'active' } },
   accounts: { A: { id: 'A', owner_email: 'own@x.com' } }, memberCount: 2, pendingCount: 0,
 }, over || {}));
-const iReq = (bodyObj) => ({ headers: { get: () => 'sst_session=s' }, json: async () => bodyObj });
+const iReq = (bodyObj) => ({ url: 'https://app.saasspendtrack.com/api/account/invite', headers: { get: () => 'sst_session=s' }, json: async () => bodyObj });
 // A plain member cannot invite.
 let ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com' }), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': {} }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } } }) });
 ok(ra3.status === 403, 'invite 403 when caller is only a member');
@@ -295,6 +377,9 @@ ok(ra3.status === 409 && (await ra3.json()).error === 'other_account', 'invite 4
 // 50-member cap blocks.
 ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'member' }), env: admEnv({ memberCount: 50 }) });
 ok(ra3.status === 403 && (await ra3.json()).error === 'member_cap', 'invite 403 at member cap');
+// A concurrent request can claim the final seat after the preflight count.
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'last@x.com' }), env: admEnv({ memberCount: 49, lateCapAtInsert: true }) });
+ok(ra3.status === 403 && (await ra3.json()).error === 'member_cap', 'invite INSERT enforces cap after preflight race');
 // Happy path (no ZEPTOMAIL_TOKEN -> email no-ops, no network).
 ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'admin' }), env: admEnv() });
 let jx3 = await ra3.json();
@@ -305,11 +390,21 @@ ok(ra3.status === 302 && ra3.headers.get('Location').includes('invite=invalid'),
 // Accept: valid single-use invite -> session + redirect ok.
 const tok = 'tok-123';
 const th = await U.sha256Hex(tok);
-ra3 = await ACCEPT.onRequestGet({
-  request: { url: 'https://app.saasspendtrack.com/api/account/accept?token=' + tok },
-  env: acct3Env({ invitesByHash: { [th]: { account_id: 'A', email: 'inv@x.com', role: 'member', used: 0, expires_at: Date.now() + 1e9, invited_by: 'own@x.com' } }, accounts: { A: { id: 'A', owner_email: 'own@x.com' } }, users: { 'own@x.com': { status: 'active', trial_ends_at: Date.now() + 9e9 } }, memberCount: 1 }),
-});
+const validInvite = { account_id: 'A', email: 'inv@x.com', role: 'member', used: 0, expires_at: Date.now() + 1e9, invited_by: 'own@x.com' };
+const acceptState = { invitesByHash: { [th]: validInvite },
+  accounts: { A: { id: 'A', owner_email: 'own@x.com' } },
+  users: { 'own@x.com': { status: 'active', trial_ends_at: Date.now() + 9e9 } }, memberCount: 1 };
+const acceptEnv = acct3Env(acceptState);
+const acceptReq = { url: 'https://app.saasspendtrack.com/api/account/accept?token=' + tok };
+ra3 = await ACCEPT.onRequestGet({ request: acceptReq, env: acceptEnv });
 ok(ra3.status === 302 && ra3.headers.get('Location').includes('invite=ok') && !!ra3.headers.get('Set-Cookie'), 'accept 302 ok + session cookie');
+ok(validInvite.used === 1 && acceptState.members['inv@x.com']?.status === 'active', 'accept commits redemption with membership');
+ra3 = await ACCEPT.onRequestGet({ request: acceptReq, env: acceptEnv });
+ok(ra3.headers.get('Location').includes('invite=expired') && !ra3.headers.get('Set-Cookie'), 'invite replay never issues a second session');
+const failingInvite = { ...validInvite, used: 0 };
+const failingState = { ...acceptState, failBatch: true, invitesByHash: { [th]: failingInvite }, members: {} };
+ra3 = await ACCEPT.onRequestGet({ request: acceptReq, env: acct3Env(failingState) });
+ok(ra3.headers.get('Location').includes('invite=error') && !ra3.headers.get('Set-Cookie') && failingInvite.used === 0, 'failed transaction leaves invite retryable');
 // Members list: member sees roster, no manage; admin can manage + sees invites.
 ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': { email: 'm@x.com', status: 'active' } }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } }, roster: [{ email: 'm@x.com', role: 'member', status: 'active' }], pendingList: [{ email: 'p@x.com' }] }) });
 jx3 = await ra3.json();
@@ -333,24 +428,34 @@ function acctThrowEnv() {
     }; }, };
   } } };
 }
-ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acctThrowEnv() });
-jx3 = await ra3.json();
-ok(ra3.status === 200 && jx3.pendingSetup === true && jx3.members.length === 1 && jx3.members[0].email === 'own@x.com', 'members: degrades to sole owner + pendingSetup when tables missing (no 500)');
+let blockedMissingSchema = false;
+try { ra3 = await MEMBERS.onRequestGet({ request: iReq({}), env: acctThrowEnv() }); blockedMissingSchema = ra3.status >= 400; } catch (_) { blockedMissingSchema = true; }
+ok(blockedMissingSchema, 'members: missing schema must not imply owner access');
 // ---- accounts Phase 2: shared-workspace data keying + /api/me account ----
 section('accounts phase 2 (shared workspace)');
 import * as ME from '../functions/api/me.js';
-function acctEnv(user, membership, account, store) {
+function acctEnv(user, membership, account, store, ownerUser = null) {
   return { DB: { prepare(sql) { let bound;
     return { bind: (...a) => { bound = a; return {
       first: async () => {
         if (/FROM sessions/i.test(sql)) return user ? { email: user.email, expires_at: Date.now() + 1e9 } : null;
-        if (/FROM users/i.test(sql)) return user;
+        if (/FROM users/i.test(sql)) return bound[0] === user?.email ? user : (ownerUser || user);
         if (/FROM memberships/i.test(sql)) return membership;
         if (/FROM accounts/i.test(sql)) return account;
-        if (/FROM app_data/i.test(sql)) return store[bound[0]] != null ? { data: store[bound[0]] } : null;
+        if (/FROM app_data/i.test(sql)) return store[bound[0]] != null ? { data: store[bound[0]], version: 1 } : null;
+        if (/INSERT OR IGNORE INTO app_data/i.test(sql)) {
+          if (store[bound[0]] != null) return null;
+          store[bound[0]] = bound[1];
+          return { version: 1 };
+        }
+        if (/UPDATE app_data SET/i.test(sql)) {
+          if (store[bound[2]] == null || bound[3] !== 1) return null;
+          store[bound[2]] = bound[0];
+          return { version: 2 };
+        }
         return null;
       },
-      run: async () => { if (/INTO app_data/i.test(sql)) store[bound[0]] = bound[1]; },
+      run: async () => {},
     }; } };
   } } };
 }
@@ -359,7 +464,7 @@ const p2owner = { email: 'owner@x.com', status: 'active', trial_ends_at: Date.no
 const p2acct = { id: 'A', owner_email: 'owner@x.com', name: 'Acme' };
 const p2memMember = { email: 'member@x.com', account_id: 'A', role: 'member', status: 'active' };
 const p2memOwner = { email: 'owner@x.com', account_id: 'A', role: 'owner', status: 'active' };
-const p2req = { headers: { get: () => 'sst_session=s' }, text: async () => JSON.stringify({ hi: 1 }) };
+const p2req = { headers: { get: (k) => k.toLowerCase() === 'if-match' ? '0' : 'sst_session=s' }, text: async () => JSON.stringify({ hi: 1 }) };
 // Member reads the OWNER's app_data row (shared workspace).
 let p2store = { 'owner@x.com': JSON.stringify({ shared: true }) };
 let p2res = await DATA.onRequestGet({ request: p2req, env: acctEnv(p2member, p2memMember, p2acct, p2store) });
@@ -381,6 +486,32 @@ let meb = await p2res.json();
 ok(meb.account && meb.account.id === 'A' && meb.account.role === 'member' && meb.account.isOwner === false, 'me returns account+role (member)');
 p2res = await ME.onRequestGet({ request: p2req, env: acctEnv(p2owner, p2memOwner, p2acct, {}) });
 ok((await p2res.json()).account.isOwner === true, 'me marks owner isOwner');
+
+// Workspace billing is owner-scoped even when a teammate's trial differs.
+const staleMember = { ...p2member, status: 'expired', trial_ends_at: Date.now() - 1000 };
+const paidOwner = { ...p2owner, status: 'active', trial_ends_at: Date.now() + 9e9 };
+p2res = await ME.onRequestGet({ request: p2req,
+  env: acctEnv(staleMember, p2memMember, p2acct, {}, paidOwner) });
+let sharedEnt = await p2res.json();
+ok(sharedEnt.entitled === true && sharedEnt.status === 'active' && sharedEnt.email === staleMember.email,
+  'expired member inherits paid workspace entitlement without identity change');
+p2res = await DATA.onRequestPut({ request: p2req,
+  env: acctEnv(staleMember, p2memMember, p2acct, {}, paidOwner) });
+ok(p2res.status === 200, 'expired member can save in paid workspace');
+const expiredOwner = { ...p2owner, status: 'expired', trial_ends_at: Date.now() - 1000 };
+p2res = await ME.onRequestGet({ request: p2req,
+  env: acctEnv(p2member, p2memMember, p2acct, {}, expiredOwner) });
+sharedEnt = await p2res.json();
+ok(sharedEnt.entitled === false && sharedEnt.status === 'expired',
+  'active teammate cannot bypass expired workspace billing');
+p2res = await DATA.onRequestPut({ request: p2req,
+  env: acctEnv(p2member, p2memMember, p2acct, {}, expiredOwner) });
+ok(p2res.status === 403, 'expired workspace blocks member writes');
+p2res = await ME.onRequestGet({ request: p2req,
+  env: acctEnv(p2member, { ...p2memMember, status: 'suspended' }, p2acct, {}, paidOwner) });
+sharedEnt = await p2res.json();
+ok(p2res.status === 403 && sharedEnt.entitled === false,
+  'suspended member never inherits workspace entitlement');
 
 // ---- result ----
 console.log(`\n${pass} passed, ${fail} failed`);

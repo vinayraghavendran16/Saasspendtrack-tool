@@ -1,0 +1,32 @@
+{
+  "deployment": "https://0c0bd6f3.saasspendtrack.pages.dev",
+  "sha": "90af049e2d47e1cc46acd2a35f3d5b48d6c51c08",
+  "results": [
+    {
+      "test": "no consent denies extraction",
+      "passed": true
+    },
+    {
+      "test": "v2 consent accepted",
+      "passed": true
+    },
+    {
+      "test": "missing provider key returns explicit not_configured",
+      "passed": true
+    },
+    {
+      "test": "tenant B cannot inherit tenant A consent",
+      "passed": true
+    },
+    {
+      "test": "revocation accepted",
+      "passed": true
+    },
+    {
+      "test": "revoked consent denies extraction",
+      "passed": true
+    }
+  ],
+  "synthetic_cleanup": true,
+  "successful_provider_call": "BLOCKED: preview API key absent"
+}

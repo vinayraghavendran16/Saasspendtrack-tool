@@ -47,12 +47,16 @@
       fetch('/api/auth/request', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email: email }),
+      }).then(function (response) {
+        return response.json().then(function (result) {
+          if (!response.ok || result.ok !== true || result.emailed !== true) throw new Error('email_failed');
+        });
       }).then(function () {
         gate.querySelector('#sst-login-body').innerHTML =
           '<div class="sst-gate__msg sst-gate__msg--ok" role="status">Check your inbox at <b>' + esc(email) +
           '</b> for your sign-in link. It expires in 15 minutes.</div>';
       }).catch(function () {
-        btn.disabled = false; btn.textContent = 'Email me a sign-in link';
+        btn.disabled = false; btn.textContent = 'Send failed — try again';
       });
     });
   }

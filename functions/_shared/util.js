@@ -53,10 +53,14 @@ export function safeEqual(a, b) {
 
 export function parseCookies(request) {
   const header = request.headers.get('Cookie') || '';
-  const out = {};
+  const out = Object.create(null);
   header.split(';').forEach((p) => {
     const i = p.indexOf('=');
-    if (i > -1) out[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim());
+    if (i > -1) {
+      const key = p.slice(0, i).trim();
+      try { out[key] = decodeURIComponent(p.slice(i + 1).trim()); }
+      catch (_) { /* Ignore malformed cookie values, never crash authentication. */ }
+    }
   });
   return out;
 }
@@ -106,9 +110,9 @@ export function isAdmin(env, email) {
   return list.includes(email.toLowerCase());
 }
 
-// Fixed-window rate limiter backed by D1. Fails OPEN on any error so a limiter
-// problem never blocks real users.
-export async function rateLimit(env, key, limit, windowMs) {
+// Fixed-window D1 rate limiter. Security-sensitive callers opt into fail-closed
+// behavior so a counter/storage fault never becomes an abuse-control bypass.
+export async function rateLimit(env, key, limit, windowMs, { failClosed = false } = {}) {
   const t = now();
   const threshold = t - windowMs;
   try {
@@ -119,10 +123,13 @@ export async function rateLimit(env, key, limit, windowMs) {
          window_start = CASE WHEN window_start < ?3 THEN ?2 ELSE window_start END
        RETURNING count`,
     ).bind(key, t, threshold).first();
-    const count = row ? row.count : 1;
+    if (!row || !Number.isSafeInteger(row.count) || row.count < 1) {
+      return { ok: !failClosed, count: 0, limit, unavailable: true };
+    }
+    const count = row.count;
     return { ok: count <= limit, count, limit };
   } catch (_) {
-    return { ok: true, count: 0, limit };
+    return { ok: !failClosed, count: 0, limit, unavailable: true };
   }
 }
 
@@ -187,13 +194,27 @@ export async function requireAdmin(request, env) {
 // fails open to that same solo-owner, so this never bricks a single-user install.
 // Returns { response } on failure, or { user, ent, membership } on success.
 export async function requireEntitledRole(request, env, minRole = 'member') {
-  const gate = await requireEntitled(request, env);
-  if (gate.response) return gate;                       // 401 anon / 403 not_entitled
-  const { user, ent } = gate;
-  const membership = await ensureAccountForUser(env, user);
-  if (!membership || membership.status !== 'active') return { response: json({ error: 'no_account' }, 403) };
-  if (!roleAtLeast(membership.role, minRole)) return { response: json({ error: 'forbidden' }, 403) };
-  return { user, ent, membership };
+  const user = await getUserFromSession(request, env);
+  if (!user) return { response: unauthorized('sign in required') };
+  // Billing belongs to the workspace. A teammate's personal trial expiry
+  // must not override the owner's active subscription (or vice versa).
+  const ctx = await getAccountContext(env, user);
+  if (!ctx) return { response: json({ error: 'no_account' }, 403) };
+  if (!roleAtLeast(ctx.membership.role, minRole)) return { response: json({ error: 'forbidden' }, 403) };
+  const ent = await resolveWorkspaceEntitlement(env, user, ctx);
+  if (!ent?.entitled) return { response: json({ error: 'not_entitled' }, 403) };
+  return { user, ent, membership: ctx.membership };
+}
+
+// The owner's billing record is authoritative for every active workspace
+// member. Preserve the signed-in member's email in the entitlement response.
+export async function resolveWorkspaceEntitlement(env, user, ctx) {
+  if (!user || !ctx || !ctx.ownerEmail || ctx.membership.status !== 'active') return null;
+  const owner = normalizeEmail(user.email) === ctx.ownerEmail ? user :
+    await env.DB.prepare('SELECT * FROM users WHERE email=?').bind(ctx.ownerEmail).first();
+  if (!owner) return null; // do not invent an entitlement when the owner is missing
+  const entitlement = await resolveEntitlement(env, owner);
+  return { ...entitlement, email: normalizeEmail(user.email) };
 }
 
 // Reads the session cookie and returns the user row, or null.
@@ -224,10 +245,8 @@ export function roleAtLeast(role, min) {
 export async function getMembership(env, email) {
   const e = normalizeEmail(email);
   if (!e) return null;
-  // Fail open if the accounts tables are not migrated yet: no membership, not a 500.
-  try {
-    return await env.DB.prepare('SELECT * FROM memberships WHERE email=?').bind(e).first();
-  } catch (_) { return null; }
+  // Never interpret a database failure as an absent membership.
+  return env.DB.prepare('SELECT * FROM memberships WHERE email=?').bind(e).first();
 }
 
 // Count active members of an account.
@@ -263,7 +282,8 @@ export async function ensureAccountSchema(env) {
     for (const s of stmts) { const st = env.DB.prepare(s); await (st.bind ? st.bind() : st).run(); }
     _accountSchemaReady.add(env.DB);
   } catch (err) {
-    console.error('ensureAccountSchema failed (continuing in solo mode)', err && err.message);
+    console.error('ensureAccountSchema failed', err && err.message);
+    throw err;
   }
 }
 
@@ -276,12 +296,18 @@ export async function ensureAccountForUser(env, user) {
   const accountId = crypto.randomUUID();
   const ts = now();
   try {
-    await env.DB.prepare('INSERT INTO accounts (id, name, owner_email, plan, created_at) VALUES (?,?,?,?,?)')
-      .bind(accountId, null, email, (user && user.plan) || null, ts).run();
-    await env.DB.prepare('INSERT INTO memberships (email, account_id, role, status, invited_by, created_at) VALUES (?,?,?,?,?,?)')
-      .bind(email, accountId, 'owner', 'active', null, ts).run();
+    // Both rows must commit atomically. Two simultaneous first logins may
+    // attempt provisioning; the losing membership INSERT rolls back its
+    // account INSERT, leaving no orphan workspace behind.
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO accounts (id, name, owner_email, plan, created_at) VALUES (?,?,?,?,?)')
+        .bind(accountId, null, email, (user && user.plan) || null, ts),
+      env.DB.prepare('INSERT INTO memberships (email, account_id, role, status, invited_by, created_at) VALUES (?,?,?,?,?,?)')
+        .bind(email, accountId, 'owner', 'active', null, ts),
+    ]);
   } catch (_) { /* race: another request created it; re-read below */ }
-  return (await getMembership(env, email)) || { email, account_id: accountId, role: 'owner', status: 'active' };
+  // Do not invent owner privileges if provisioning or a lookup failed.
+  return await getMembership(env, email);
 }
 
 // Gate: require the session user to be an active member of their account with at
@@ -311,8 +337,8 @@ export async function countPendingInvites(env, accountId) {
 export async function getAccountContext(env, user) {
   const membership = await ensureAccountForUser(env, user);
   if (!membership) return null;
-  let account = null;
-  try { account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?').bind(membership.account_id).first(); } catch (_) {}
-  const ownerEmail = (account && account.owner_email) || normalizeEmail(user && user.email);
-  return { membership, account, ownerEmail };
+  if (membership.status !== 'active') return null;
+  const account = await env.DB.prepare('SELECT * FROM accounts WHERE id=?').bind(membership.account_id).first();
+  if (!account || !normalizeEmail(account.owner_email)) return null;
+  return { membership, account, ownerEmail: normalizeEmail(account.owner_email) };
 }

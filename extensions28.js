@@ -37,6 +37,7 @@ const CCY_SYMBOL = {
 };
 
 function subCcy(sub) {
+  if (state.settings?.currency) return workspaceCurrency();
   return (sub && sub.currency && KNOWN_CCY.includes(sub.currency)) ? sub.currency : 'USD';
 }
 
@@ -46,6 +47,7 @@ function getFxRates() {
 }
 
 function displayCcy() {
+  if (state.settings?.currency) return workspaceCurrency();
   try { return (state.settings && state.settings.display && state.settings.display.currency) || 'USD'; }
   catch (_) { return 'USD'; }
 }
@@ -73,155 +75,11 @@ if (typeof window.monthlyCost === 'function' && !window.monthlyCost._p50) {
   const orig = window.monthlyCost;
   window.monthlyCost = function (sub) {
     const raw = orig(sub);                   // monthly, in sub.currency
+    if (state.settings?.currency) return raw;
     const from = subCcy(sub);
     return toUSD(raw, from);                 // normalise to USD for summing
   };
   window.monthlyCost._p50 = true;
-}
-
-/* ---------------- Bulk import integration ---------------- */
-
-/* Extend extensions23 (Bulk CSV) with a Currency column.
-   - Header aliases: currency, ccy, curr
-   - Also auto-detects per-cell symbol prefix on cost: ₹, €, £, ¥, AED, S$, etc.
-   - The mapping dropdown gets a new Currency row.
-
-   We patch at runtime because extensions23 is already loaded; we
-   can't change its FIELDS array in place but we CAN intercept the
-   row-building step. Hook: monkey-patch BulkImport's internal
-   buildPreviewRows via the public window.BulkImport facade.
-
-   Simpler and more reliable: do our own cost-cell symbol detection
-   after Phase 44 builds its rows. Hook into the commit step so
-   each new subscription gets a currency field assigned. */
-
-(function patchBulkImport() {
-  if (!window.BulkImport) {
-    setTimeout(patchBulkImport, 500);
-    return;
-  }
-  if (window.BulkImport._p50) return;
-
-  // Replace parseCSV with a pass-through that also leaves the original
-  // cost cell accessible. Actually we don't need to touch parseCSV -
-  // we patch state.subscriptions.push during commit via a Proxy-free
-  // approach: tap into the renderAll cycle right after commit to
-  // enrich new rows that lack a currency.
-
-  // Simpler: watch for new subscriptions that were imported via
-  // importedVia='bulk_csv' and don't have currency set, infer from
-  // their original cost cell. But we don't have the original cell.
-  // So: detect per-cell symbol in cost and set sub.currency at commit
-  // time via a periodic "enrich" scan.
-
-  // Easiest path: scan new subs in state.subscriptions every time
-  // Settings or Bulk Import runs, and set currency from the
-  // formatted cost string if present in sub.importedCostString.
-
-  // Since extensions23 doesn't record the original cost string, we
-  // add that now by wrapping parseCSV. Even cleaner: fence-and-patch
-  // the module via a second-pass enrichment:
-  const _origOpen = window.BulkImport.open;
-  window.BulkImport.open = function () {
-    const r = _origOpen.apply(this, arguments);
-    setTimeout(injectCurrencyColumn, 50);
-    return r;
-  };
-  window.BulkImport._p50 = true;
-})();
-
-/* Add a visible Currency row to the bulk-import column mapping,
-   populated from the headers. Implemented as DOM augmentation so
-   we don't have to modify the shipped extensions23 FIELDS array. */
-function injectCurrencyColumn() {
-  // Only act on step 2 of the bulk import modal
-  const grid = document.querySelector('.bi-map-grid');
-  if (!grid) { setTimeout(injectCurrencyColumn, 200); return; }
-  if (grid.querySelector('[data-field="currency"]')) return;
-
-  // Read the current header options from an existing select
-  const anySelect = grid.querySelector('.bi-map-select');
-  if (!anySelect) return;
-
-  // Append a new row for Currency
-  const label = document.createElement('label');
-  label.className = 'bi-map-label';
-  label.innerHTML = `
-    <span class="bi-map-name">Currency</span>
-    <span class="bi-map-hint">USD / INR / EUR / GBP... (or auto-detected from cost cell prefix)</span>
-  `;
-  const select = anySelect.cloneNode(true);
-  select.dataset.field = 'currency';
-  select.value = '';
-  // Auto-pick a column if headers include "currency" / "ccy"
-  const options = Array.from(select.options);
-  const alias = options.find(o => /currency|^ccy$|curr\b/i.test(o.textContent.trim()));
-  if (alias) select.value = alias.value;
-
-  grid.appendChild(label);
-  grid.appendChild(select);
-
-  // Hook change → write into a shared bulk-import state we can read on commit
-  select.onchange = () => {
-    window._p50_currencyCol = select.value === '' ? null : parseInt(select.value, 10);
-  };
-  if (select.value !== '') window._p50_currencyCol = parseInt(select.value, 10);
-
-  // Monkey-patch the import commit path once, to apply currency per row.
-  patchImportCommit();
-}
-
-/* Wrap state.subscriptions.push briefly during commit so new rows
-   coming out of the bulk-import flow get currency assigned. We do this
-   on the Import button click. */
-function patchImportCommit() {
-  const btn = document.querySelector('.bi-step-body #bi-import');
-  if (!btn || btn._p50) return;
-  btn._p50 = true;
-  const originalClick = btn.onclick;
-  btn.onclick = (ev) => {
-    // Capture the raw CSV rows + currency column index for use inside push()
-    // extensions23 stores biState in a closure we can't reach, but the DOM
-    // preview rows have name + raw cost - we parse the cost cells to detect
-    // symbols as a fallback.
-    const colIdx = (typeof window._p50_currencyCol === 'number') ? window._p50_currencyCol : null;
-
-    // Wrap push for the duration of this click
-    const origPush = Array.prototype.push;
-    const added = [];
-    Array.prototype.push = function (...items) {
-      items.forEach(it => {
-        if (it && typeof it === 'object' && it.name && it.importedVia === 'bulk_csv' && !it.currency) {
-          it.currency = detectCurrency(it) || 'USD';
-          added.push(it.name);
-        }
-      });
-      return origPush.apply(this, items);
-    };
-    try {
-      if (typeof originalClick === 'function') originalClick.call(btn, ev);
-    } finally {
-      Array.prototype.push = origPush;
-    }
-    if (added.length) console.log('[Phase 50] Imported with per-currency:', added.length);
-  };
-}
-
-/* Infer currency from a sub's cost string / notes. If sub.cost
-   is itself a formatted string with a symbol, use that. */
-function detectCurrency(sub) {
-  // Try to look at the raw cost field - bulk import coerces to number
-  // so we may not have the symbol anymore. Fallback: notes field.
-  const text = String(sub.notes || '') + ' ' + String(sub.name || '');
-  if (/₹|\bINR\b|\bRs\.?\b|rupees?/i.test(text)) return 'INR';
-  if (/€|\bEUR\b/.test(text))                     return 'EUR';
-  if (/£|\bGBP\b/.test(text))                     return 'GBP';
-  if (/\bAUD\b|\bA\$/.test(text))                 return 'AUD';
-  if (/\bSGD\b|\bS\$/.test(text))                 return 'SGD';
-  if (/\bJPY\b|¥/.test(text))                     return 'JPY';
-  if (/\bCAD\b|\bC\$/.test(text))                 return 'CAD';
-  if (/\bAED\b|د\.إ/.test(text))                  return 'AED';
-  return null;
 }
 
 /* ---------------- Per-row currency tag on subscription tables ---------------- */
@@ -256,6 +114,10 @@ function annotateSubRows() {
    We can't easily detect that modal without reading it, so expose
    a helper that lets the user edit via the Command Palette: */
 function openCurrencyEditor() {
+  if (state.settings?.currency) {
+    toast('Subscriptions use the workspace currency (' + workspaceCurrency() + ').', 'info');
+    return;
+  }
   const subs = (state.subscriptions || []).filter(s => s.active !== false);
   if (!subs.length) { alert('No subscriptions to edit.'); return; }
 
@@ -311,6 +173,7 @@ window.SubCurrency = {
   edit: openCurrencyEditor,
   get: (id) => { const s = (state.subscriptions || []).find(x => x.id === id); return s ? subCcy(s) : null; },
   set: (id, ccy) => {
+    if (state.settings?.currency) throw new Error('Subscriptions use the workspace currency.');
     if (!KNOWN_CCY.includes(ccy)) throw new Error('Unknown currency');
     const s = (state.subscriptions || []).find(x => x.id === id);
     if (!s) throw new Error('No such subscription');

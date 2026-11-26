@@ -22,7 +22,7 @@ function firstArray(obj, depth = 0) {
   for (const k of Object.keys(obj)) { const got = firstArray(obj[k], depth + 1); if (got) return got; }
   return null;
 }
-function flatten(rec, prefix = "", out = {}, depth = 0) {
+function flatten(rec, prefix = "", out = Object.create(null), depth = 0) {
   if (rec == null || typeof rec !== "object" || depth > 3) { if (prefix) out[prefix] = rec; return out; }
   if (Array.isArray(rec)) { out[prefix] = rec.map((v) => (v && typeof v === "object" ? JSON.stringify(v) : v)).join("; "); return out; }
   for (const [k, v] of Object.entries(rec)) {
@@ -41,7 +41,7 @@ export async function onRequestPost({ request, env }) {
   try {
     const gate = await requireEntitledRole(request, env, 'member');
     if (gate.response) return gate.response;
-    const rl = await rateLimit(env, "clm:" + gate.user.email, 30, 3600000);
+    const rl = await rateLimit(env, "clm:" + gate.user.email, 30, 3600000, { failClosed: true });
     if (!rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many sync requests. Try again shortly." }), { status: 429, headers });
     const b = await request.json().catch(() => ({}));
     const baseUrl = String(b.baseUrl || "").trim().replace(/\/+$/, "");
@@ -54,13 +54,14 @@ export async function onRequestPost({ request, env }) {
     if (!isPublicHttpsHost(baseUrl)) return new Response(JSON.stringify({ ok: false, error: "bad_host", message: "That host is not allowed." }), { status: 400, headers });
     if (!token) return new Response(JSON.stringify({ ok: false, error: "no_token", message: "Enter your API token." }), { status: 400, headers });
     const url = baseUrl + (path.startsWith("/") ? path : "/" + path);
-    const reqHeaders = { accept: "application/json" };
+    if (!isPublicHttpsHost(url) || new URL(url).origin !== new URL(baseUrl).origin) return new Response(JSON.stringify({ ok: false, error: "bad_host" }), { status: 400, headers });
+    const reqHeaders = Object.assign(Object.create(null), { accept: "application/json" });
     if (scheme === "bearer") reqHeaders[headerName] = `Bearer ${token}`;
     else if (scheme === "basic") reqHeaders[headerName] = `Basic ${btoa(token)}`;
     else reqHeaders[headerName] = token; // raw api-key header
-    const r = await fetch(url, { headers: reqHeaders, redirect: "follow" });
+    const r = await fetch(url, { headers: reqHeaders, redirect: "error", signal: AbortSignal.timeout(15000) });
     const text = await r.text();
-    if (!r.ok) return new Response(JSON.stringify({ ok: false, error: "upstream", status: r.status, message: `CLM API returned ${r.status}. Check the token, base URL and endpoint.`, sample: text.slice(0, 200) }), { status: 200, headers });
+    if (!r.ok) return new Response(JSON.stringify({ ok: false, error: "upstream", status: r.status, message: `CLM API returned ${r.status}. Check the token, base URL and endpoint.` }), { status: 200, headers });
     let json; try { json = JSON.parse(text); } catch (_) { return new Response(JSON.stringify({ ok: false, error: "not_json", message: "The endpoint didn't return JSON. Check the path." }), { status: 200, headers }); }
     const arr = recordsPath ? getPath(json, recordsPath) : firstArray(json);
     if (!Array.isArray(arr) || !arr.length) return new Response(JSON.stringify({ ok: false, error: "no_records", message: "No array of records found. Set the records path (e.g. data.records)." }), { status: 200, headers });
@@ -69,7 +70,7 @@ export async function onRequestPost({ request, env }) {
     rows.slice(0, 50).forEach((row) => Object.keys(row).forEach((k) => { if (!keys.includes(k)) keys.push(k); }));
     return new Response(JSON.stringify({ ok: true, count: rows.length, keys: keys.slice(0, 60), rows }), { status: 200, headers });
   } catch (e) {
-    console.error("clm-sync exception", String((e && e.message) || e));
+    console.error("clm-sync request failed");
     return new Response(JSON.stringify({ ok: false, error: "exception", message: "Something went wrong. Check the URL, token and path." }), { status: 200, headers });
   }
 }

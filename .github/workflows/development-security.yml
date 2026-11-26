@@ -1,0 +1,27 @@
+name: Development security checks
+on:
+  push:
+    branches:
+      - development/cloud-foundation-audit
+  pull_request:
+    branches:
+      - main
+      - development/cloud-foundation-audit
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check
+      - run: npm test
+      - run: node tests/security-regression.mjs
+      - run: node tests/workspace-isolation.mjs
+      - run: python3 tests/migration-smoke.py
+      - run: node tests/ai-consent.mjs
+      - run: node tests/welcome-email.mjs
+      - run: node tests/browser-cache-safety.mjs

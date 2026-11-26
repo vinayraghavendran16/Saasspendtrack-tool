@@ -1,7 +1,9 @@
 // SaaS Spend Track - vanilla JS app with localStorage persistence.
 
-const STORAGE_KEY = 'saasspendtrack.v1';
-const CYCLE_MONTHS = { weekly: 1/4.345, monthly: 1, quarterly: 3, yearly: 12 };
+const STORAGE_KEY = 'saasspendtrack.v1'; // Legacy data: read-only until explicit import.
+const UNSYNCED_DRAFT_KEY = 'saasspendtrack.unsynced-draft.v1'; // Old global recovery key: preserve read-only.
+const WORKSPACE_DRAFT_PREFIX = 'saasspendtrack.workspace-draft.v2.'; // Scoped to authenticated workspace.
+const CYCLE_MONTHS = Object.freeze({ weekly: 12/52, monthly: 1, quarterly: 3, yearly: 12 });
 const AVATAR_COLORS = ['#7c5cff', '#35d0ba', '#ff8a4c', '#4cb1ff', '#ff5c7a', '#ffb545', '#a374ff', '#4cd3ff'];
 
 let state = { subscriptions: [] };
@@ -18,11 +20,20 @@ function ensureStateShape() {
   if (!state.settings.plan) state.settings.plan = 'free';
   if (!state.settings.billingCycle) state.settings.billingCycle = 'annual';
 }
+// Legacy browser data is retained as an import candidate, never displayed as
+// authenticated workspace data. A signed-in account must hydrate from D1.
+let _legacyBrowserData = null;
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) state = JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        _legacyBrowserData = parsed;
+      }
+    }
   } catch (_) {}
+  state = { subscriptions: [] };
   ensureStateShape();
 }
 
@@ -89,9 +100,86 @@ function subTeam(id) { return state.subscriptions.find(s => s.id === id)?.team |
 // Storage: localStorage is the instant local cache; the server (D1, keyed to the
 // signed-in account) is the source of truth so data follows the user across
 // devices. save() writes the cache immediately and debounces a push to the server.
+// The browser cache is not proof of workspace ownership. Do not PUT anything
+// until the authenticated server has resolved the current workspace.
+let _serverHydrated = false;
+let _serverVersion = null;
+let _serverSaveBlocked = false;
+let _serverSaveInFlight = false;
+let _localEditCounter = 0;
+let _legacyImportPending = false;
+let _legacyImportDirty = false;
+let _workspaceDraftKey = null;
+let _draftRecoveryPending = false;
+function showDraftRecoveryBanner() {
+  if (!_workspaceDraftKey || document.getElementById('workspace-draft-recovery')) return;
+  const banner = document.createElement('section');
+  banner.id = 'workspace-draft-recovery';
+  banner.setAttribute('role', 'alert');
+  banner.style.cssText = 'padding:14px;margin:12px;border:1px solid #eab308;border-radius:8px;';
+  const description = document.createElement('p');
+  description.textContent = 'Unsynced workspace changes were found on this browser. Automatic saving is paused. Export the recovery draft, compare it with the server workspace, then explicitly discard the draft to resume editing.';
+  const exportButton = document.createElement('button');
+  exportButton.type = 'button';
+  exportButton.textContent = 'Export recovery draft';
+  exportButton.addEventListener('click', () => {
+    const raw = localStorage.getItem(_workspaceDraftKey);
+    if (!raw) return alert('Recovery draft is no longer available.');
+    const url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'saasspendtrack-workspace-recovery.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  });
+  const discardButton = document.createElement('button');
+  discardButton.type = 'button';
+  discardButton.textContent = 'Discard draft and resume';
+  discardButton.style.marginLeft = '12px';
+  discardButton.addEventListener('click', () => {
+    if (!confirm('Discard the unsynced recovery draft for this workspace? Export and review it first. This cannot be undone.')) return;
+    try { localStorage.removeItem(_workspaceDraftKey); }
+    catch (_) { return alert('Could not remove the recovery draft. Saving remains paused.'); }
+    _draftRecoveryPending = false;
+    _serverSaveBlocked = false;
+    banner.remove();
+    toast('Recovery draft discarded. Server workspace remains unchanged.', 'info');
+    if (_legacyImportPending && _serverHydrated && _serverVersion === 0) showLegacyImportPrompt();
+  });
+  banner.append(description, exportButton, discardButton);
+  (document.querySelector('main') || document.body).prepend(banner);
+}
+function setAuthenticatedWorkspace(workspaceId) {
+  if (typeof workspaceId !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(workspaceId)) {
+    _serverSaveBlocked = true;
+    toast('Cannot verify workspace identity. Saving is paused.', 'error');
+    return false;
+  }
+  _workspaceDraftKey = WORKSPACE_DRAFT_PREFIX + workspaceId;
+  try { _draftRecoveryPending = !!localStorage.getItem(_workspaceDraftKey); }
+  catch (_) { _draftRecoveryPending = true; }
+  if (_draftRecoveryPending) {
+    _serverSaveBlocked = true;
+    toast('An unsynced draft exists for this workspace. It was not overwritten or uploaded. Export it before continuing.', 'error');
+    showDraftRecoveryBanner();
+  }
+  return true;
+}
 function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
-  scheduleServerSave();
+  _localEditCounter++;
+  if (_legacyImportPending) _legacyImportDirty = true;
+  // Never overwrite the legacy cache. It may belong to another account or
+  // contain unreviewed currencies. Keep an isolated recovery draft instead.
+  // Drafts are never auto-displayed or uploaded to a newly signed-in workspace.
+  // Never overwrite a pre-existing recovery draft or create a global draft
+  // before the server has identified this account's workspace.
+  if (_serverHydrated && _workspaceDraftKey && !_draftRecoveryPending && !_legacyImportPending) {
+    try { localStorage.setItem(_workspaceDraftKey, JSON.stringify({
+      savedAt: new Date().toISOString(), data: state, serverVersion: _serverVersion,
+      workspaceId: _workspaceDraftKey.slice(WORKSPACE_DRAFT_PREFIX.length),
+    })); } catch (_) {}
+  }
+  if (_serverHydrated && !_serverSaveBlocked && !_legacyImportPending && !_draftRecoveryPending) scheduleServerSave();
 }
 
 let _serverSaveTimer = null;
@@ -100,18 +188,314 @@ function scheduleServerSave() {
   _serverSaveTimer = setTimeout(pushServerSave, 1200);
 }
 async function pushServerSave() {
+  if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending || _draftRecoveryPending) return;
+  if (_serverSaveInFlight) return; // The active save will flush newer local changes.
+  _serverSaveInFlight = true;
+  const snapshot = JSON.stringify(state);
+  const editRevision = _localEditCounter;
   try {
-    await fetch('/api/data', {
+    const response = await fetch('/api/data', {
       method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(state),
+      headers: { 'content-type': 'application/json', 'If-Match': String(_serverVersion) },
+      body: snapshot,
     });
-  } catch (_) { /* offline or not signed in: cache still holds it */ }
+    if (response.status === 409 || response.status === 428) {
+      _serverSaveBlocked = true;
+      toast('Another person updated this workspace. Your local changes are preserved; reload to reconcile before saving.', 'error');
+      return;
+    }
+    if (!response.ok) {
+      const problem = await response.json().catch(() => null);
+      if (['invalid_currency', 'currency_locked', 'currency_review_required'].includes(problem?.error)) {
+        toast(problem.message + ' Your browser copy is preserved.', 'error');
+        return;
+      }
+      console.warn('Workspace save was not accepted:', response.status);
+      toast('Workspace changes could not be saved. Your browser copy is preserved.', 'error');
+      return;
+    }
+    const saved = await response.json();
+    if (!Number.isSafeInteger(saved.version) || saved.version <= _serverVersion) {
+      _serverSaveBlocked = true;
+      toast('Could not verify the saved workspace revision. Saving paused to protect your data.', 'error');
+      return;
+    }
+    _serverVersion = saved.version;
+    if (editRevision === _localEditCounter) {
+      try { if (_workspaceDraftKey) localStorage.removeItem(_workspaceDraftKey); } catch (_) {}
+    } else scheduleServerSave();
+  } catch (_) {
+    toast('Workspace changes are not synced. Your browser copy is preserved.', 'error');
+  } finally {
+    _serverSaveInFlight = false;
+  }
 }
 
-// Pull the authoritative copy from the server after first paint. If the server
-// has nothing yet (new account / first device), seed it from the local cache.
+// Explicit one-time migration for records stored by older browser-only builds.
+// The original legacy key remains untouched even after a successful import.
+async function offerLegacyImport() {
+  if (!_legacyBrowserData || _serverVersion !== 0 || !_serverHydrated || !_legacyImportPending || _draftRecoveryPending || _serverSaveBlocked) return;
+  if (_legacyImportDirty) {
+    alert('Changes were made while reviewing the legacy import. Import is paused to prevent replacing those edits. Reload and review the import before editing.');
+    return;
+  }
+  const legacy = _legacyBrowserData;
+  const subscriptions = Array.isArray(legacy.subscriptions) ? legacy.subscriptions : [];
+  const invoices = Array.isArray(legacy.invoices) ? legacy.invoices : [];
+  const employees = Array.isArray(legacy.employees) ? legacy.employees : [];
+  const count = subscriptions.length + invoices.length + employees.length;
+  if (!count) return;
+  const currency = prompt(
+    'Import ' + subscriptions.length + ' subscriptions, ' + invoices.length +
+    ' invoices and ' + employees.length + ' employees from this browser?\\n\\n' +
+    'These records have NOT been verified as belonging to this workspace. ' +
+    'Check their ownership and original currency before continuing.\\n\\n' +
+    'Enter the original 3-letter currency code (for example USD, INR, EUR). ' +
+    'Amounts will NOT be converted. Cancel to leave everything untouched.'
+  );
+  if (currency === null) return;
+  const code = currency.trim().toUpperCase();
+  try {
+    if (!/^[A-Z]{3}$/.test(code) || (typeof Intl.supportedValuesOf === 'function' && !Intl.supportedValuesOf('currency').includes(code))) throw new Error('invalid');
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: code });
+  } catch (_) {
+    alert('Import cancelled: enter a valid ISO three-letter currency code.');
+    return;
+  }
+  const existingCurrencies = new Set([...subscriptions, ...invoices]
+    .map(item => typeof item.currency === 'string' ? item.currency.toUpperCase() : null)
+    .filter(Boolean));
+  if (existingCurrencies.size && (existingCurrencies.size !== 1 || !existingCurrencies.has(code))) {
+    alert('Import cancelled: existing currency labels differ from your selection. Review and export your browser records before importing.');
+    return;
+  }
+  if (!confirm('Confirm import into THIS signed-in workspace?\\n\\n' +
+    subscriptions.length + ' subscriptions; ' + invoices.length + ' invoices; ' +
+    employees.length + ' employees.\\n\\n' +
+    'I confirm that ALL monetary records originally use ' + code +
+    ', including records without currency labels. If any currency is unknown or mixed, cancel.\\n\\n' +
+    'Amounts will not be converted. The original browser data will be retained. Import cannot be automatically undone.')) return;
+  const imported = JSON.parse(JSON.stringify(legacy));
+  if (!imported.settings || typeof imported.settings !== 'object') imported.settings = {};
+  imported.settings.currency = code;
+  imported.settings.display = { ...imported.settings.display, currency: code };
+  // Preserve original amounts; label previously unlabeled records with the reviewed currency.
+  for (const item of [...(imported.subscriptions || []), ...(imported.invoices || [])]) {
+    if (!item.currency) item.currency = code;
+  }
+  imported.settings.legacyImportCurrencyReviewed = true;
+  imported.settings.legacyImportAt = new Date().toISOString();
+  const res = await fetch('/api/data', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', 'If-Match': '0' },
+    body: JSON.stringify(imported),
+  }).catch(() => null);
+  if (!res || !res.ok) {
+    alert('Import was not completed. The workspace may have changed or the connection failed. Reload to check before retrying.');
+    _serverSaveBlocked = true;
+    return;
+  }
+  const result = await res.json();
+  if (!Number.isSafeInteger(result.version) || result.version < 1) {
+    _serverSaveBlocked = true;
+    alert('Import response could not be verified. Reload before making changes.');
+    return;
+  }
+  _serverVersion = result.version;
+  _legacyImportPending = false;
+  _legacyImportDirty = false;
+  document.getElementById('legacy-import-banner')?.remove();
+  state = imported;
+  ensureStateShape();
+  renderAll();
+  toast('Legacy records imported with original ' + code + ' amounts. The browser backup was preserved.', 'info');
+}
+function showLegacyImportPrompt() {
+  if (_draftRecoveryPending || _serverSaveBlocked || document.getElementById('legacy-import-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'legacy-import-banner';
+  banner.setAttribute('role', 'status');
+  banner.style.cssText = 'padding:14px;margin:12px;border:1px solid #eab308;border-radius:8px;';
+  const message = document.createElement('span');
+  message.textContent = 'Older records were found in this browser. They have not been added to your workspace. Review ownership and currency before importing. ';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = 'Review legacy import';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try { await offerLegacyImport(); } finally { button.disabled = false; }
+  });
+  const startFresh = document.createElement('button');
+  startFresh.type = 'button';
+  startFresh.textContent = 'Start with empty workspace';
+  startFresh.style.marginLeft = '12px';
+  startFresh.addEventListener('click', () => {
+    if (_draftRecoveryPending || _serverSaveBlocked || !_legacyImportPending) return;
+    if (!confirm('Start with an empty workspace? Older browser records will stay in this browser and will NOT be imported.')) return;
+    _legacyImportPending = false;
+    _legacyImportDirty = false;
+    _serverSaveBlocked = false;
+    banner.remove();
+    // Never upload a pre-review draft into the fresh workspace.
+    state = { subscriptions: [] };
+    ensureStateShape();
+    _localEditCounter++;
+    // Recovery drafts may only be removed by the dedicated recovery action.
+    renderAll();
+  });
+  banner.append(message, button, startFresh);
+  (document.querySelector('main') || document.body).prepend(banner);
+}
+
+function hasReviewAmount(value) {
+  return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) &&
+    Number.isFinite(Number(value));
+}
+
+function showCurrencyReview(snapshot, review) {
+  if (document.getElementById('currency-review')) return;
+  const dialog = document.createElement('dialog');
+  dialog.id = 'currency-review';
+  dialog.setAttribute('aria-labelledby', 'currency-review-title');
+  dialog.addEventListener('cancel', event => event.preventDefault());
+
+  const title = document.createElement('h2');
+  title.id = 'currency-review-title';
+  title.textContent = 'Review workspace currencies';
+
+  const description = document.createElement('p');
+  description.textContent = 'The workspace dashboard and editing are paused during currency review. The totals below use saved currency labels. Export the subscriptions and invoices to check the labels against the source documents.';
+
+  const supported = new Set(Intl.supportedValuesOf?.('currency') || []);
+  const currencies = new Map();
+  function currencyGroup(record) {
+    const label = record.currency == null || record.currency === ''
+      ? 'Unlabeled'
+      : typeof record.currency === 'string' ? record.currency.toUpperCase() : 'Invalid label';
+    if (!currencies.has(label)) {
+      currencies.set(label, { count: 0, monthly: 0, invoiced: 0, excluded: 0 });
+    }
+    const group = currencies.get(label);
+    group.count++;
+    return supported.has(label) ? group : null;
+  }
+  for (const subscription of snapshot.subscriptions || []) {
+    const group = currencyGroup(subscription);
+    if (!group || subscription.active === false) continue;
+    const amount = subscription.cost;
+    if (!Object.hasOwn(CYCLE_MONTHS, subscription.cycle) || !hasReviewAmount(amount)) {
+      group.excluded++;
+      continue;
+    }
+    group.monthly += monthlyCostInOriginalCurrency(subscription);
+  }
+  for (const invoice of snapshot.invoices || []) {
+    const group = currencyGroup(invoice);
+    if (!group) continue;
+    if (hasReviewAmount(invoice.amount)) group.invoiced += Number(invoice.amount);
+    else group.excluded++;
+  }
+  const summary = document.createElement('p');
+  const savedCurrency = snapshot.settings?.currency ?? 'USD (default)';
+  summary.textContent = 'Workspace currency: ' + String(savedCurrency);
+  const breakdown = document.createElement('ul');
+  for (const [label, group] of currencies) {
+    const item = document.createElement('li');
+    const { count, monthly, invoiced, excluded } = group;
+    item.textContent = label + ': ' + count.toLocaleString() + (count === 1 ? ' record' : ' records');
+    if (supported.has(label)) {
+      const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency', currency: label, currencyDisplay: 'code',
+      });
+      item.textContent += ' · Active monthly spend ' + formatter.format(monthly) +
+        ' · Total recorded invoices ' + formatter.format(invoiced);
+      if (excluded) item.textContent += ' · ' + excluded + ' excluded (invalid amount or billing frequency)';
+    } else {
+      item.textContent += ' · Excluded from totals';
+    }
+    breakdown.append(item);
+  }
+  breakdown.hidden = !currencies.size;
+
+  const exportButton = document.createElement('button');
+  exportButton.type = 'button';
+  exportButton.className = 'btn';
+  exportButton.textContent = 'Export records for review';
+  exportButton.onclick = () => downloadFile('workspace-currency-review.json', JSON.stringify({
+    workspaceCurrency: snapshot.settings?.currency ?? null,
+    subscriptions: snapshot.subscriptions || [],
+    invoices: snapshot.invoices || [],
+  }, null, 2), 'application/json');
+
+  dialog.append(title, description, summary, breakdown, exportButton);
+  if (review?.canCorrectCurrency) {
+    const form = document.createElement('form');
+    const label = document.createElement('label');
+    label.textContent = 'Verified original currency (ISO code)';
+    const currency = document.createElement('input');
+    currency.type = 'text';
+    currency.required = true;
+    currency.pattern = '[A-Za-z]{3}';
+    currency.maxLength = 3;
+    currency.autocomplete = 'off';
+    label.append(currency);
+
+    const confirmation = document.createElement('label');
+    const verified = document.createElement('input');
+    verified.type = 'checkbox';
+    verified.required = true;
+    confirmation.append(verified, ' I checked the source documents and confirmed that every saved subscription and invoice uses this currency.');
+    const submit = document.createElement('button');
+    submit.className = 'btn';
+    submit.type = 'submit';
+    submit.textContent = 'Correct currency labels';
+    const status = document.createElement('p');
+    status.setAttribute('role', 'status');
+
+    form.append(label, document.createElement('br'), confirmation, document.createElement('br'), submit, status);
+    form.onsubmit = async event => {
+      event.preventDefault();
+      if (!verified.checked || submit.disabled) return;
+      submit.disabled = true;
+      status.textContent = 'Saving verified currency labels…';
+      const response = await fetch('/api/data', {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          'If-Match': String(review.version),
+          'X-Workspace-Action': 'correct-currency',
+        },
+        body: JSON.stringify({
+          workspaceId: review.workspaceId,
+          currency: currency.value.toUpperCase(),
+          confirmed: true,
+        }),
+      }).catch(() => null);
+      if (response?.ok) {
+        location.reload();
+      } else if (response?.status === 409) {
+        status.textContent = 'The saved workspace changed. Reload and review the latest records before trying again.';
+      } else {
+        status.textContent = response?.status === 400
+          ? 'Enter a supported three-letter currency code and confirm the currency of every record.'
+          : 'Currency labels could not be saved. Check your connection and workspace access, then try again.';
+        submit.disabled = false;
+      }
+    };
+    dialog.append(form);
+  } else {
+    const owner = document.createElement('p');
+    owner.textContent = 'Ask the workspace owner to review the original currency labels.';
+    dialog.append(owner);
+  }
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+// Pull the authoritative copy from the server. Never seed a workspace from
+// unverified local browser data; legacy imports require explicit review.
 async function syncFromServer() {
+  const editsAtStart = _localEditCounter;
   let res;
   try {
     res = await fetch('/api/data', { headers: { accept: 'application/json' } });
@@ -120,6 +504,22 @@ async function syncFromServer() {
   let j;
   try { j = await res.json(); } catch (_) { return; }
   if (j && j.data) {
+    if (editsAtStart !== _localEditCounter) {
+      toast('Local changes occurred while loading the workspace. Refresh before continuing to avoid overwriting them.', 'error');
+      return; // Block writes rather than overwrite either copy.
+    }
+    if (!Number.isSafeInteger(j.version) || j.version < 1) {
+      toast('Workspace revision unavailable. Saving is paused to protect your records.', 'error');
+      return;
+    }
+    if (!setAuthenticatedWorkspace(j.workspaceId)) return;
+    if (j.needsCurrencyReview) {
+      _serverSaveBlocked = true;
+      showCurrencyReview(j.data, j);
+      return;
+    }
+    _serverVersion = j.version;
+    _serverHydrated = true;
     state = j.data;
     ensureStateShape();
     try { renderPlanBadge(); } catch (_) {}
@@ -127,38 +527,80 @@ async function syncFromServer() {
     renderAll();
     try { switchView(viewFromHash(), { replaceHistory: true }); } catch (_) {}
   } else if (j && j.empty) {
-    // Server is empty: migrate whatever this browser already has up to it.
-    if ((state.subscriptions && state.subscriptions.length) ||
-        (state.invoices && state.invoices.length)) {
-      pushServerSave();
+    if (!setAuthenticatedWorkspace(j.workspaceId)) return;
+    // Never silently treat local browser records as this workspace's records.
+    // Legacy amounts may be INR, USD or other currencies; importing requires
+    // an explicit currency review and user confirmation in a later workflow.
+    const legacyData = (_legacyBrowserData?.subscriptions?.length) ||
+      (_legacyBrowserData?.invoices?.length) ||
+      (_legacyBrowserData?.employees?.length);
+    if (legacyData) {
+      _legacyImportPending = true;
+      _legacyImportDirty = editsAtStart !== _localEditCounter;
+      // Keep the original browser cache intact for a deliberate, currency-reviewed
+      // import. Never show those records as belonging to this empty workspace.
+      renderAll();
+      _serverVersion = 0;
+      _serverHydrated = true;
+      showLegacyImportPrompt();
+      toast('Older browser records found. Review ownership and currency before importing.', 'info');
+      return; // No uploads unless the user explicitly confirms migration.
+    }
+    // Even an empty browser cache may contain preferences from another account.
+    // Begin with a fresh workspace state, not those cached settings.
+    state = { subscriptions: [] };
+    ensureStateShape();
+    renderAll();
+    _serverVersion = 0;
+    _serverHydrated = true;
+    if (editsAtStart !== _localEditCounter) {
+      toast('Changes made during workspace loading were not uploaded. Refresh before editing.', 'error');
+      _serverSaveBlocked = true;
     }
   }
 }
 
 // -------- math --------
 function monthlyCost(sub) {
-  const months = CYCLE_MONTHS[sub.cycle] || 1;
-  return sub.cost / months;
+  return monthlyCostInOriginalCurrency(sub);
 }
-function periodCost(sub) { return sub.cost || 0; } // cost for one billing period as stored
+function monthlyCostInOriginalCurrency(sub) {
+  const months = Object.hasOwn(CYCLE_MONTHS, sub.cycle) ? CYCLE_MONTHS[sub.cycle] : null;
+  return months ? periodCost(sub) / months : 0;
+}
+function periodCost(sub) { const amount = Number(sub.cost); return Number.isFinite(amount) ? amount : 0; } // cost for one billing period as stored
 
 // Consumption: returns { total, assigned, utilized, unused, utilizationPct, unusedCostMonthly } or null
 function consumption(sub) {
-  const total = Number(sub.licenses) || 0;
-  if (!total) return null;
-  const assigned = Math.min(total, Math.max(0, Number(sub.assigned) || 0));
-  const utilized = Math.min(total, Math.max(0, Number(sub.utilized) || 0));
-  const unused = Math.max(0, total - utilized);
+  const total = Number(sub.licenses);
+  if (!Number.isSafeInteger(total) || total <= 0) return null;
+  const seats = value => {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.min(total, Math.max(0, Math.floor(n))) : 0;
+  };
+  const assigned = seats(sub.assigned);
+  const utilized = seats(sub.utilized);
+  const unused = total - utilized;
   const utilizationPct = Math.round((utilized / total) * 100);
-  const unusedCostMonthly = (unused / total) * monthlyCost(sub);
+  const unusedCostMonthly = sub.active === false ? 0 : (unused / total) * Math.max(0, monthlyCost(sub));
   return { total, assigned, utilized, unused, utilizationPct, unusedCostMonthly };
 }
+function workspaceCurrency() {
+  const code = state.settings?.currency || 'USD';
+  try { new Intl.NumberFormat('en-US', { style: 'currency', currency: code }); return code; }
+  catch (_) { return 'USD'; }
+}
 function formatMoney(n) {
-  return '$' + (Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency', currency: workspaceCurrency(),
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  }).format(Number(n) || 0);
 }
 function formatMoneyShort(n) {
-  if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'k';
-  return '$' + n.toFixed(0);
+  const code = workspaceCurrency();
+  const prefix = code === 'USD' ? String.fromCharCode(36) : code + ' ';
+  if (n >= 1000) return prefix + (n / 1000).toFixed(1) + 'k';
+  return prefix + Number(n || 0).toFixed(0);
 }
 function parseDate(s) { return s ? new Date(s + 'T00:00:00') : null; }
 function daysUntil(dateStr) {
@@ -169,28 +611,35 @@ function daysUntil(dateStr) {
 }
 function addCycles(date, cycle, n) {
   const d = new Date(date);
-  if (cycle === 'weekly')    d.setDate(d.getDate() + 7 * n);
-  else if (cycle === 'monthly')   d.setMonth(d.getMonth() + n);
-  else if (cycle === 'quarterly') d.setMonth(d.getMonth() + 3 * n);
-  else /* yearly */               d.setFullYear(d.getFullYear() + n);
+  if (cycle === 'weekly') { d.setDate(d.getDate() + 7 * n); return d; }
+  const months = { monthly: 1, quarterly: 3, yearly: 12 }[cycle];
+  if (!months) return null;
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months * n);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
   return d;
 }
-// Returns the next renewal that is >= today, projected forward if the
-// stored date is stale. Returns null if the sub has no renewal on file.
 function nextRenewal(sub) {
-  if (!sub.renewal) return null;
   const stored = parseDate(sub.renewal);
+  if (!stored || !Number.isFinite(stored.getTime())) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   if (stored >= today) return stored;
   const cycle = sub.cycle || 'monthly';
-  let d = new Date(stored);
-  // guard against pathological loops (e.g. renewal 20 years ago on weekly)
-  for (let i = 0; i < 400 && d < today; i++) d = addCycles(d, cycle, 1);
+  const months = { monthly: 1, quarterly: 3, yearly: 12 }[cycle];
+  if (cycle !== 'weekly' && !months) return null;
+  const elapsedMonths = (today.getFullYear() - stored.getFullYear()) * 12 + today.getMonth() - stored.getMonth();
+  let n = cycle === 'weekly' ? Math.max(0, Math.floor((today - stored) / 604800000) - 1) : Math.max(0, Math.floor(elapsedMonths / months));
+  let d = addCycles(stored, cycle, n);
+  while (d < today) d = addCycles(stored, cycle, ++n);
   return d;
 }
+function localDateISO(d) {
+  return d && Number.isFinite(d.getTime()) ? [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-') : null;
+}
 function nextRenewalISO(sub) {
-  const d = nextRenewal(sub);
-  return d ? d.toISOString().slice(0, 10) : null;
+  return localDateISO(nextRenewal(sub));
 }
 function formatDate(dateStr) {
   const d = parseDate(dateStr);
@@ -263,11 +712,12 @@ function renderDashboard() {
 
   // Invoices YTD paid / pending
   const yearStart = new Date(new Date().getFullYear(), 0, 1);
-  const paidYtd = state.invoices.filter(i => i.paidDate && parseDate(i.paidDate) >= yearStart);
-  const paidTotal = paidYtd.reduce((s, i) => s + i.amount, 0);
+  const today = new Date(); today.setHours(23, 59, 59, 999);
+  const paidYtd = state.invoices.filter(i => i.paidDate && parseDate(i.paidDate) >= yearStart && parseDate(i.paidDate) <= today);
+  const paidTotal = paidYtd.reduce((s, i) => s + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
   const pending = state.invoices.filter(i => invoiceStatus(i) !== 'paid');
   const overdue = pending.filter(i => invoiceStatus(i) === 'overdue');
-  const pendingTotal = pending.reduce((s, i) => s + i.amount, 0);
+  const pendingTotal = pending.reduce((s, i) => s + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
   animateNumber(document.getElementById('stat-paid'), paidTotal, fmtMoney);
   document.getElementById('stat-paid-sub').textContent = `${paidYtd.length} invoice${paidYtd.length === 1 ? '' : 's'}`;
   animateNumber(document.getElementById('stat-pending'), pendingTotal, fmtMoney);
@@ -484,14 +934,14 @@ function renderNoticeWindows() {
 }
 
 function renderConsumption() {
-  const rows = state.subscriptions
+  const rows = activeSubs()
     .map(s => ({ s, c: consumption(s) }))
     .filter(x => x.c)
     .sort((a, b) => b.c.unusedCostMonthly - a.c.unusedCostMonthly);
 
   // Stat cards
   document.getElementById('cons-vendors').textContent = rows.length;
-  document.getElementById('cons-vendors-sub').textContent = `of ${state.subscriptions.length} subscription${state.subscriptions.length === 1 ? '' : 's'}`;
+  document.getElementById('cons-vendors-sub').textContent = `of ${activeSubs().length} active subscription${activeSubs().length === 1 ? '' : 's'}`;
   const totalSeats    = rows.reduce((s, x) => s + x.c.total, 0);
   const assignedSeats = rows.reduce((s, x) => s + x.c.assigned, 0);
   document.getElementById('cons-assigned').textContent = `${assignedSeats} / ${totalSeats}`;
@@ -503,8 +953,8 @@ function renderConsumption() {
   const wastedMonthly = rows.reduce((s, x) => s + x.c.unusedCostMonthly, 0);
   document.getElementById('cons-wasted').textContent = formatMoney(wastedMonthly);
   document.getElementById('cons-wasted-sub').textContent = wastedMonthly > 0
-    ? `${formatMoney(wastedMonthly * 12)}/yr if left in place`
-    : 'no unused seats';
+    ? `${formatMoney(wastedMonthly * 12)}/yr estimated unused-seat cost`
+    : 'no estimated unused-seat cost';
 
   const tbody = document.getElementById('cons-tbody');
   const empty = document.getElementById('cons-empty');
@@ -544,8 +994,8 @@ function renderVendorTotals() {
   empty.style.display = 'none';
   const rows = state.subscriptions.map(s => {
     const invs = state.invoices.filter(i => i.subId === s.id);
-    const paid = invs.filter(i => i.paidDate).reduce((sum, i) => sum + i.amount, 0);
-    const pend = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + i.amount, 0);
+    const paid = invs.filter(i => i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
+    const pend = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
     const monthly = monthlyCost(s);
     return { s, invCount: invs.length, paid, pend, total: paid + pend, monthly };
   }).sort((a, b) => b.total - a.total || b.monthly - a.monthly);
@@ -808,7 +1258,7 @@ function renderInsights() {
   // Overdue invoices summary
   const od = state.invoices.filter(i => invoiceStatus(i) === 'overdue');
   if (od.length) {
-    const total = od.reduce((s, i) => s + i.amount, 0);
+    const total = od.reduce((s, i) => s + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
     recos.push(`❗ <b>${od.length} overdue invoice${od.length === 1 ? '' : 's'}</b> totaling ${formatMoney(total)}. Clear or dispute before finance closes the month.`);
   }
 
@@ -972,7 +1422,7 @@ function computeAlerts() {
     if (!sub.owner?.email) return;
     const renewal = nextRenewal(sub);
     if (!renewal) return;
-    const renewalISO = renewal.toISOString().slice(0, 10);
+    const renewalISO = localDateISO(renewal);
     ALERT_TRIGGERS.forEach(trigger => {
       const fireOn = new Date(renewal); fireOn.setDate(fireOn.getDate() - trigger);
       const key = alertKey(sub.id, trigger, renewalISO);
@@ -1134,7 +1584,7 @@ function renderAlerts() {
 
     const trigCls = a.trigger === 30 ? 'd30' : a.trigger === 60 ? 'd60' : 'd90';
     const fireISO = a.fireOn.toISOString().slice(0, 10);
-    const renewISO = a.renewalOn.toISOString().slice(0, 10);
+    const renewISO = localDateISO(a.renewalOn);
     const dayFromNow = Math.round((a.fireOn - new Date(new Date().setHours(0,0,0,0))) / 86400000);
     const fireLabel = dayFromNow > 0 ? `in ${dayFromNow}d` : dayFromNow === 0 ? 'today' : `${Math.abs(dayFromNow)}d ago`;
 
@@ -1587,7 +2037,7 @@ function exportErpCsv() {
   const rows = state.subscriptions.map(s => {
     const invs = state.invoices.filter(i => i.subId === s.id);
     const paid = invs.filter(i => i.paidDate).sort((a,b) => (parseDate(b.paidDate) || 0) - (parseDate(a.paidDate) || 0));
-    const open = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + i.amount, 0);
+    const open = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
     const last = paid[0];
     return [
       s.name, s.owner?.email || '', s.team || '', s.category || '', s.cycle, s.cost,
@@ -2037,10 +2487,10 @@ function downloadFile(filename, content, mime) {
   URL.revokeObjectURL(url);
 }
 function exportSubscriptionsCsv() {
-  const headers = ['name','team','category','cost','cycle','monthly_cost','renewal','next_projected_renewal','auto_renew','notice_days','term_length','price_cap_pct','url','notes','active'];
+  const headers = ['name','team','category','cost','currency','cycle','monthly_cost','renewal','next_projected_renewal','auto_renew','notice_days','term_length','price_cap_pct','url','notes','active'];
   const rows = state.subscriptions.map(s => [
-    s.name, s.team || '', s.category || '', s.cost, s.cycle,
-    monthlyCost(s).toFixed(2), s.renewal || '', nextRenewalISO(s) || '',
+    s.name, s.team || '', s.category || '', s.cost, s.currency || workspaceCurrency(), s.cycle,
+    monthlyCostInOriginalCurrency(s).toFixed(2), s.renewal || '', nextRenewalISO(s) || '',
     s.contract?.autoRenew ?? '', s.contract?.noticeDays ?? '', s.contract?.termLength || '',
     s.contract?.priceCapPct ?? '', s.url || '', s.notes || '', s.active !== false ? 'yes' : 'no',
   ]);
@@ -2048,9 +2498,9 @@ function exportSubscriptionsCsv() {
   downloadFile('subscriptions.csv', csv, 'text/csv;charset=utf-8');
 }
 function exportInvoicesCsv() {
-  const headers = ['vendor','team','invoice_number','amount','issue_date','due_date','paid_date','status','notes'];
+  const headers = ['vendor','team','invoice_number','amount','currency','issue_date','due_date','paid_date','status','notes'];
   const rows = state.invoices.map(i => [
-    subName(i.subId), subTeam(i.subId), i.invoiceNumber || '', i.amount,
+    subName(i.subId), subTeam(i.subId), i.invoiceNumber || '', i.amount, i.currency || workspaceCurrency(),
     i.issueDate || '', i.dueDate || '', i.paidDate || '', invoiceStatus(i), i.notes || '',
   ]);
   const csv = [headers, ...rows].map(r => r.map(csvEscape).join(',')).join('\n');
@@ -2065,30 +2515,57 @@ function exportJson() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-function importJson(file) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const data = JSON.parse(reader.result);
-      if (!Array.isArray(data.subscriptions)) throw new Error('Bad file: no subscriptions');
-      // Preserve current settings (Slack webhook, plan, Drive folder) -
-      // an import is data-level, not a factory reset.
-      const preservedSettings = state.settings;
-      state = {
-        subscriptions: data.subscriptions,
-        invoices: Array.isArray(data.invoices) ? data.invoices : [],
-        employees: Array.isArray(data.employees) ? data.employees : [],
-        alertLog: (data.alertLog && typeof data.alertLog === 'object') ? data.alertLog : {},
-        settings: (data.settings && typeof data.settings === 'object') ? data.settings : preservedSettings,
-      };
-      ensureStateShape();
-      save(); renderPlanBadge(); renderPricing(); renderAll();
-      alert(`Imported ${state.subscriptions.length} subscription(s) and ${state.invoices.length} invoice(s).`);
-    } catch (e) {
-      alert('Could not import: ' + e.message);
+function validateWorkspaceBackup(data) {
+  if (!data || !Array.isArray(data.subscriptions)) throw new Error('The backup must include subscriptions.');
+  for (const key of ['subscriptions', 'invoices', 'employees']) {
+    if (key in data && (!Array.isArray(data[key]) ||
+        data[key].some(record => !record || typeof record !== 'object' || Array.isArray(record)))) {
+      throw new Error('Invalid ' + key + ' in the backup.');
     }
-  };
-  reader.readAsText(file);
+  }
+  if ('settings' in data && (!data.settings || typeof data.settings !== 'object' || Array.isArray(data.settings))) {
+    throw new Error('Invalid workspace settings in the backup.');
+  }
+
+  const records = [...data.subscriptions, ...(data.invoices || [])];
+  const currentCode = workspaceCurrency();
+  const code = data.settings?.currency ?? (records.length ? 'USD' : currentCode);
+  const supported = Intl.supportedValuesOf?.('currency');
+  if (typeof code !== 'string' || !/^[A-Z]{3}$/.test(code) || (supported && !supported.includes(code))) {
+    throw new Error('The backup uses an unsupported workspace currency.');
+  }
+  if ((state.subscriptions.length || state.invoices.length) && code !== currentCode) {
+    throw new Error('The backup currency differs from the current workspace currency (' + currentCode + ').');
+  }
+  if (records.some(({ currency }) => currency != null && currency !== '' &&
+      (typeof currency !== 'string' || currency.toUpperCase() !== code))) {
+    throw new Error('The backup contains subscriptions or invoices with conflicting currency labels.');
+  }
+
+  const settings = { ...(data.settings ?? state.settings) };
+  if (data.settings?.currency != null || settings.currency != null) settings.currency = code;
+  return { ...data, settings };
+}
+
+async function importJson(file) {
+  const revision = _localEditCounter;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!_serverHydrated || _serverSaveBlocked || _legacyImportPending || _draftRecoveryPending ||
+        revision !== _localEditCounter) {
+      throw new Error('The workspace is unavailable for restore or changed while reading the backup.');
+    }
+    const backup = validateWorkspaceBackup(data);
+    state = backup;
+    ensureStateShape();
+    save();
+    renderPlanBadge();
+    renderPricing();
+    renderAll();
+    toast('Backup loaded. Workspace changes are queued to save.', 'info');
+  } catch (err) {
+    alert('Could not import: ' + err.message);
+  }
 }
 function clearAll() {
   if (!confirm('Delete ALL subscriptions and invoices? This cannot be undone.')) return;
@@ -2133,7 +2610,7 @@ document.addEventListener('DOMContentLoaded', () => {
   try { applyTheme(localStorage.getItem('saasspendtrack.theme') || 'light'); } catch (_) { applyTheme('light'); }
   const tt = document.getElementById('theme-toggle');
   if (tt) tt.addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
-  if (!state.subscriptions.length && !state.settings.seededOnce) seed({ silent: true });
+  // New workspaces start empty; sample company data is added only by explicit user action.
   renderPlanBadge();
   renderPricing();
   renderAll();
@@ -2305,4 +2782,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   const _hrmsReq = document.getElementById('hrms-request'); if (_hrmsReq) _hrmsReq.addEventListener('click', () => requestEnterprise('HRMS sync', document.getElementById('hrms-status')));
+});
+
+
+// Workspace AI processing: explicit opt-in, disabled until an owner/admin enables it.
+// Kept separate from local application settings: server consent is authoritative.
+document.addEventListener('DOMContentLoaded', async () => {
+  const integrations = document.getElementById('integrations');
+  if (!integrations) return;
+  const section = document.createElement('section');
+  section.setAttribute('aria-label', 'Workspace AI privacy');
+  section.style.cssText = 'margin:20px 0;padding:20px;border:1px solid var(--border,#cbd5e1);border-radius:12px;background:var(--card,#fff)';
+  section.innerHTML = `
+    <h3 style="margin:0 0 10px">Workspace AI privacy</h3>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.6">AI features send submitted contract text or PDF files, workspace financial snapshots and questions, or company website and region details to Anthropic, a third-party AI service. Enable only if your organization approves these disclosures. Manual contract entry remains available without AI processing.</p>
+    <p id="workspace-ai-state" role="status" aria-live="polite">Checking workspace consent…</p>
+    <label style="display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:14px"><input id="workspace-ai-optin" type="checkbox" disabled style="margin-top:3px"> <span>I am authorized to approve third-party AI processing of our workspace's submitted documents, financial data, questions and company details. I understand this setting applies to all workspace members and can be revoked.</span></label>
+    <button type="button" id="workspace-ai-save" disabled>Save AI processing preference</button>
+    <p style="font-size:12px;margin:10px 0 0">Only workspace owners and admins can change this setting. Every change is recorded in the workspace audit log.</p>`;
+  integrations.prepend(section);
+  const status = section.querySelector('#workspace-ai-state');
+  const checkbox = section.querySelector('#workspace-ai-optin');
+  const save = section.querySelector('#workspace-ai-save');
+  try {
+    const response = await fetch('/api/ai/consent', { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) throw new Error(response.status === 503 ? 'AI consent settings are not available until the workspace migration is applied.' : 'Sign in to manage workspace AI settings.');
+    const current = await response.json();
+    checkbox.checked = !!current.enabled;
+    const canManage = current.canManage === true;
+    checkbox.disabled = !canManage;
+    save.disabled = !canManage;
+    status.textContent = (current.enabled
+      ? 'Enabled: workspace members may use AI extraction, spend assistant and preset generation.'
+      : 'Disabled: AI requests are blocked until current consent is granted.') +
+      (canManage ? '' : ' This setting is read-only for your workspace role.');
+  } catch (error) {
+    status.textContent = error.message;
+    return; // Never offer an opt-in if we cannot verify the server's current state.
+  }
+  save.addEventListener('click', async () => {
+    save.disabled = true;
+    status.textContent = 'Saving workspace AI preference…';
+    try {
+      const response = await fetch('/api/ai/consent', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ enabled: checkbox.checked, consentVersion: 'workspace-ai-v2' }),
+      });
+      if (!response.ok) {
+        if (response.status === 403 || response.status === 401) throw new Error('Only a signed-in workspace owner or admin can change this setting.');
+        throw new Error('Could not save the preference. AI processing remains disabled unless the server confirms it is enabled.');
+      }
+      const saved = await response.json();
+      checkbox.checked = !!saved.enabled;
+      status.textContent = saved.enabled ? 'Enabled and recorded: workspace AI features are available.' : 'Disabled and recorded: future AI requests are blocked.';
+    } catch (error) {
+      status.textContent = error.message;
+      // Re-read the server state rather than assuming a failed response has not committed.
+      try {
+        const r = await fetch('/api/ai/consent', { credentials: 'same-origin', cache: 'no-store' });
+        if (r.ok) checkbox.checked = !!(await r.json()).enabled;
+        else checkbox.disabled = true;
+      } catch (_) { checkbox.disabled = true; }
+    } finally {
+      save.disabled = checkbox.disabled;
+    }
+  });
 });

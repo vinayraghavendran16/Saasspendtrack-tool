@@ -1,3 +1,4 @@
+import { authAppUrl } from '../../_shared/auth-url.js';
 // POST /api/auth/request  { email }
 // Creates the user on first sight (starts the trial), issues a one-time
 // magic-link token, and emails the sign-in link.
@@ -14,8 +15,8 @@ export async function onRequestPost({ request, env }) {
   if (!email) return badRequest('valid email required');
 
   // Abuse guard: cap sign-in emails per IP and per address.
-  const ipRl = await rateLimit(env, 'authreq:ip:' + getClientIp(request), 20, 3600000);
-  const emRl = await rateLimit(env, 'authreq:em:' + email, 5, 900000);
+  const ipRl = await rateLimit(env, 'authreq:ip:' + getClientIp(request), 20, 3600000, { failClosed: true });
+  const emRl = await rateLimit(env, 'authreq:em:' + email, 5, 900000, { failClosed: true });
   if (!ipRl.ok || !emRl.ok) {
     return json({ ok: false, error: 'rate_limited', message: 'Too many sign-in requests. Please wait and try again.' }, 429);
   }
@@ -38,7 +39,7 @@ export async function onRequestPost({ request, env }) {
     'INSERT INTO login_tokens (token_hash, email, expires_at, used) VALUES (?,?,?,0)',
   ).bind(tokenHash, email, t + TOKEN_MINUTES * 60000).run();
 
-  const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
+  const appUrl = authAppUrl(request, env);
   const link = `${appUrl}/api/auth/verify?token=${token}`;
 
   const mail = loginLinkEmail(link);

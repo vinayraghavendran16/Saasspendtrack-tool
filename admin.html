@@ -218,9 +218,15 @@
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
       var btn = this; btn.disabled = true; btn.textContent = 'Sending…';
       fetch('/api/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email: email }) }).then(function () {
+        body: JSON.stringify({ email: email }) }).then(function (response) {
+        return response.json().then(function (result) {
+          if (!response.ok || result.ok !== true || result.emailed !== true) throw new Error('email_failed');
+        });
+      }).then(function () {
         document.getElementById('auth-body').innerHTML =
           '<div class="msg ok">Check your inbox for the sign-in link, then reopen this page.</div>';
+      }).catch(function () {
+        btn.disabled = false; btn.textContent = 'Send failed — try again';
       });
     });
   });

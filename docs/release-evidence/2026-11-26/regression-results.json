@@ -1,0 +1,15 @@
+{
+  "commit": "f3d9f54af4d7af0214fb242a42fc4b0151b61805",
+  "commands": {
+    "npm run check": 0,
+    "npm test": 0,
+    "node tests/security-regression.mjs": 0,
+    "node tests/workspace-isolation.mjs": 0,
+    "node tests/ai-consent.mjs": 0,
+    "node tests/welcome-email.mjs": 0,
+    "node tests/browser-cache-safety.mjs": 0,
+    "python3 tests/migration-smoke.py": 0
+  },
+  "unit_assertions_passed": 109,
+  "unit_assertions_failed": 0
+}

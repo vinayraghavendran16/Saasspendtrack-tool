@@ -4,36 +4,76 @@
 
 const SUPPORT_PHONE = '+91-9168481989';
 
+// Accept either the raw Send Mail token or Zoho's copied Authorization value.
+// Never log credentials, recipients, message bodies, or raw provider responses.
+function mailFailure(error, status, diagnostic = {}) {
+  const result = { ok: false, error, ...(status ? { status } : {}), ...diagnostic };
+  console.error('ZeptoMail send failed', result);
+  return result;
+}
+
 export async function sendEmail(env, { to, subject, html }) {
-  const url = env.ZEPTOMAIL_URL || 'https://api.zeptomail.in/v1.1/email';
-  const from = env.FROM_EMAIL || 'hello@saasspendtrack.com';
+  const rawToken = typeof env.ZEPTOMAIL_TOKEN === 'string' ? env.ZEPTOMAIL_TOKEN.trim() : '';
+  if (!rawToken) return mailFailure('no_token');
+  const token = rawToken.replace(/^Zoho-enczapikey\s+/i, '');
+  if (!token || /\s/.test(token) || /^Zoho-enczapikey$/i.test(token)) {
+    return mailFailure('invalid_token_format');
+  }
+  if (rawToken !== env.ZEPTOMAIL_TOKEN || token !== rawToken) {
+    console.info('ZeptoMail token normalized', {
+      outerWhitespaceRemoved: rawToken !== env.ZEPTOMAIL_TOKEN,
+      authorizationPrefixRemoved: token !== rawToken,
+    });
+  }
+  const url = (env.ZEPTOMAIL_URL || 'https://api.zeptomail.in/v1.1/email').trim();
+  const from = (env.FROM_EMAIL || 'hello@saasspendtrack.com').trim();
   const fromName = env.FROM_NAME || 'SaaS Spend Track';
-  const replyTo = env.REPLY_TO || from; // branded, not a personal inbox
-  if (!env.ZEPTOMAIL_TOKEN) {
-    console.error('ZEPTOMAIL_TOKEN not set; cannot send', subject, 'to', to);
-    return { ok: false, error: 'no_token' };
+  const replyTo = (env.REPLY_TO || from).trim();
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      // Do not forward the email or credentials through a provider redirect.
+      redirect: 'manual',
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Zoho-enczapikey ${token}`,
+      },
+      body: JSON.stringify({
+        from: { address: from, name: fromName },
+        to: [{ email_address: { address: to } }],
+        reply_to: [{ address: replyTo, name: fromName }],
+        subject,
+        htmlbody: html,
+      }),
+    });
+    if (res.status >= 300 && res.status < 400) {
+      // Only emit a fixed, known provider origin/path; never an arbitrary Location
+      // (which may contain tokens). Do not forward credentials across redirects.
+      let destination = 'unrecognized';
+      try {
+        const target = new URL(res.headers.get('Location'), url);
+        const knownOrigins = ['https://api.zeptomail.in', 'https://api.zeptomail.com', 'https://cpaas.zoho.in', 'https://cpaas.zoho.com'];
+        if (knownOrigins.includes(target.origin)) {
+          destination = target.origin + (target.pathname === '/v1.1/email' ? '/v1.1/email' : '/[other-path]');
+        }
+      } catch { /* no usable Location */ }
+      if (res.body) await res.body.cancel().catch(() => {});
+      return mailFailure('provider_redirect', res.status, { destination });
+    }
+    // A provider response may echo the email or magic-link token. Do not log it.
+    if (res.body) await res.body.cancel().catch(() => {});
+    if (!res.ok) return mailFailure('provider_rejected', res.status);
+    // Accepted by the provider; inbox delivery still requires an end-to-end check.
+    return { ok: true };
+  } catch (error) {
+    // Classify known runtime failures without exposing exception text.
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') return mailFailure('timeout');
+    if (/redirect/i.test(error?.message || '')) return mailFailure('redirect_rejected');
+    if (/AbortSignal\.timeout/.test(error?.message || '')) return mailFailure('timeout_unsupported');
+    return mailFailure('transport_error');
   }
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: `Zoho-enczapikey ${env.ZEPTOMAIL_TOKEN}`,
-    },
-    body: JSON.stringify({
-      from: { address: from, name: fromName },
-      to: [{ email_address: { address: to } }],
-      reply_to: [{ address: replyTo, name: fromName }],
-      subject,
-      htmlbody: html,
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    console.error('ZeptoMail send failed', res.status, body.slice(0, 300));
-    return { ok: false, status: res.status };
-  }
-  return { ok: true };
 }
 
 const hi = (company) => (company ? `team at ${esc(company)}` : 'there');

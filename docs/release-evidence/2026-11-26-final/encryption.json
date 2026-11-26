@@ -1,0 +1,6 @@
+{
+  "format": "Fernet authenticated encryption",
+  "plaintext_sha256": "331e47f7d0e3815416cf1bafd1fa8b84841f163bbbae6cd3a92e0739264b996e",
+  "ciphertext_sha256": "f590d4bb7c9953440475cbc311227410b7d09338a03d4412f9d92ba8af1fdde3",
+  "decryption_round_trip_verified": true
+}

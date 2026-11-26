@@ -1,0 +1,46 @@
+[
+  {
+    "test": "Chromium and Google Chrome hydrate same cloud workspace",
+    "pass": true
+  },
+  {
+    "test": "browser A saves to cloud",
+    "pass": true
+  },
+  {
+    "test": "stale browser B pauses saves and retains edit",
+    "pass": true
+  },
+  {
+    "test": "stale browser displays conflict feedback",
+    "pass": true
+  },
+  {
+    "test": "reload preserves recovery draft and blocks autosave",
+    "pass": true
+  },
+  {
+    "test": "fresh browser session sees winning save",
+    "pass": true
+  },
+  {
+    "test": "separate browser account sees no owner records",
+    "pass": true
+  },
+  {
+    "test": "legacy cache is not silently uploaded or displayed",
+    "pass": true
+  },
+  {
+    "test": "explicit legacy import preserves original amount and currency",
+    "pass": true
+  },
+  {
+    "test": "legacy browser backup is preserved",
+    "pass": true
+  },
+  {
+    "test": "imported currency persists in another browser",
+    "pass": true
+  }
+]

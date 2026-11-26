@@ -233,7 +233,7 @@ function markComplete(id) {
   const o = ob();
   if (o.completed[id]) return;
   o.completed[id] = new Date().toISOString();
-  save();
+  // Derived onboarding progress is persisted only with an explicit user edit.
   renderChecklist();
   postEvent('onboarding_item_completed', { item_id: id });
   // If every item is done, celebrate + fade the panel.
@@ -247,7 +247,7 @@ function markViewed(viewName) {
   o.viewed = o.viewed || {};
   if (o.viewed[viewName]) return;
   o.viewed[viewName] = new Date().toISOString();
-  save();
+  // Derived onboarding progress is persisted only with an explicit user edit.
   // See if a checklist item is now satisfied.
   CHECKLIST.forEach(it => {
     if (!o.completed[it.id] && it.done()) markComplete(it.id);

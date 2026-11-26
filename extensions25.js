@@ -108,7 +108,7 @@ function patchFormatters() {
     origFormatMoney = window.formatMoney;
     window.formatMoney = function (n) {
       const code = ss().currency || 'USD';
-      if (code === 'USD') return origFormatMoney(n);
+      if (state.settings?.currency || code === 'USD') return origFormatMoney(n);
       const converted = convert(n, code);
       const def = currencyDef(code);
       if (converted == null || isNaN(converted)) return def.symbol + '-';
@@ -123,7 +123,7 @@ function patchFormatters() {
     origFormatMoneyShort = window.formatMoneyShort;
     window.formatMoneyShort = function (n) {
       const code = ss().currency || 'USD';
-      if (code === 'USD') return origFormatMoneyShort(n);
+      if (state.settings?.currency || code === 'USD') return origFormatMoneyShort(n);
       const converted = convert(n, code);
       const def = currencyDef(code);
       if (converted == null || isNaN(converted)) return def.symbol + '-';
@@ -140,7 +140,7 @@ function patchFormatters() {
 function renderSettingsView(host) {
   const s = ss();
   const fx = fxState();
-  const def = currencyDef(s.currency);
+  const fixedCurrency = state.settings?.currency;
   const fxAgeHours = fx.fetchedAt ? Math.round((Date.now() - fx.fetchedAt) / (1000 * 60 * 60)) : null;
   let w = {};
   try { w = workspace(); } catch (_) {}
@@ -166,7 +166,10 @@ function renderSettingsView(host) {
         <button type="button" class="st-save" id="st-save-ws">Save workspace</button>
       </section>
 
-      <section class="st-card">
+      ${fixedCurrency ? `<section class="st-card">
+        <h3>Workspace currency</h3>
+        <p class="st-note">Financial amounts are recorded and reported in <strong>${escapeHtml(fixedCurrency)}</strong>.</p>
+      </section>` : `<section class="st-card">
         <h3>Display currency</h3>
         <p class="st-note">All $ amounts shown in the tool convert to this currency at live FX rates. The underlying contract data is unchanged.</p>
         <label class="st-field">
@@ -185,7 +188,7 @@ function renderSettingsView(host) {
             k !== 'USD' ? `<span><b>${k}</b> ${(+v).toFixed(2)}</span>` : ''
           ).join('')}
         </div>
-      </section>
+      </section>`}
 
       <section class="st-card">
         <h3>Data</h3>
@@ -227,7 +230,8 @@ function renderSettingsView(host) {
   };
 
   // --- Currency change ---
-  host.querySelector('#st-currency').onchange = async (e) => {
+  const currencySelect = host.querySelector('#st-currency');
+  if (currencySelect) currencySelect.onchange = async (e) => {
     const code = e.target.value;
     s.currency = code;
     if (typeof save === 'function') save();
@@ -260,15 +264,7 @@ function renderSettingsView(host) {
   host.querySelector('#st-import-file').onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;
     if (!confirm('Restore will OVERWRITE your current workspace. Continue?')) return;
-    try {
-      const text = await f.text();
-      const data = JSON.parse(text);
-      if (typeof data !== 'object' || !data) throw new Error('Not a workspace file');
-      Object.assign(state, data);
-      if (typeof save === 'function') save();
-      toast('Workspace restored. Reloading.');
-      setTimeout(() => location.reload(), 900);
-    } catch (err) { alert('Restore failed: ' + err.message); }
+    await importJson(f);
   };
 
   // --- Trial controls ---
@@ -383,6 +379,10 @@ if (_prevAll47) {
 window.Settings = {
   open: () => { try { switchView('settings'); } catch (_) {} },
   setCurrency: async (code) => {
+    if (state.settings?.currency) {
+      toast('This workspace reports in ' + workspaceCurrency() + '.', 'info');
+      return;
+    }
     if (!CURRENCIES.some(c => c.code === code)) throw new Error('Unknown currency: ' + code);
     ss().currency = code;
     if (typeof save === 'function') save();
@@ -398,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     wire();
     // Prefetch FX rates in the background if user already set a non-USD currency.
-    if (ss().currency !== 'USD') refreshFx();
+    if (!state.settings?.currency && ss().currency !== 'USD') refreshFx();
   }, 500);
 });
 

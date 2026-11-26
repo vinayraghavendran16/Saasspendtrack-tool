@@ -1,3 +1,4 @@
+import { authAppUrl } from '../../_shared/auth-url.js';
 // POST /api/account/invite  { email, role }
 // Owner/Admin invites a teammate into their account. Enforces the 50-member cap
 // (active members + pending invites), one-account-per-member, and rate limits.
@@ -25,7 +26,7 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error: 'self', message: 'That is your own email.' }, 400);
   }
 
-  const rl = await rateLimit(env, 'invite:' + accountId, 30, 3600000);
+  const rl = await rateLimit(env, 'invite:' + accountId, 30, 3600000, { failClosed: true });
   if (!rl.ok) return json({ ok: false, error: 'rate_limited', message: 'Too many invites. Try again shortly.' }, 429);
 
   // One account per member.
@@ -47,11 +48,22 @@ export async function onRequestPost({ request, env }) {
   const token = randomToken(32);
   const tokenHash = await sha256Hex(token);
   const t = now();
-  await env.DB.prepare(
-    'INSERT INTO invites (token_hash, account_id, email, role, invited_by, expires_at, used, created_at) VALUES (?,?,?,?,?,?,0,?)',
-  ).bind(tokenHash, accountId, email, role, user.email, t + 7 * DAY, t).run();
+  // Re-check the seat cap in the INSERT itself. Concurrent requests can both
+  // pass the earlier user-friendly count check; only the serialized SQL write
+  // may reserve the last available pending-invitation slot.
+  const inserted = await env.DB.prepare(
+    `INSERT INTO invites (token_hash, account_id, email, role, invited_by, expires_at, used, created_at)
+     SELECT ?,?,?,?,?,?,0,?
+     WHERE (SELECT COUNT(*) FROM memberships WHERE account_id=? AND status='active')
+         + (SELECT COUNT(*) FROM invites WHERE account_id=? AND used=0 AND expires_at>?) < ?
+     RETURNING token_hash`,
+  ).bind(tokenHash, accountId, email, role, user.email, t + 7 * DAY, t,
+    accountId, accountId, t, MAX_MEMBERS).first();
+  if (!inserted) {
+    return json({ ok: false, error: 'member_cap', message: `This workspace is at the ${MAX_MEMBERS}-member limit. Contact us to raise it.` }, 403);
+  }
 
-  const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
+  const appUrl = authAppUrl(request, env);
   const link = `${appUrl}/api/account/accept?token=${token}`;
   const mail = inviteEmail(link, user.email);
   const sent = await sendEmail(env, { to: email, subject: mail.subject, html: mail.html });

@@ -1,0 +1,6 @@
+PASS: unauthenticated access denied; distinct empty workspaces; AI disabled
+PASS: persistence, missing precondition, stale writes, tenant isolation
+PASS: currency round-trip, mixed-currency rejection, and unchanged saved amounts and version
+PASS: consent enable, isolation and revocation
+PASS: logout invalidates session
+API smoke complete. Synthetic state remains in workspace A. Browser, audit rows, binding and backup checks remain separate.

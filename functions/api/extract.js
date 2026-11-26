@@ -124,6 +124,22 @@ const EXTRACT_TOOL = {
   },
 };
 
+// Treat model output as untrusted, including text-JSON fallback results.
+function validContract(value, schema = EXTRACT_TOOL.input_schema) {
+  if (schema.type === 'object') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    if ((schema.required || []).some(key => !Object.hasOwn(value, key))) return false;
+    return Object.entries(value).every(([key, item]) =>
+      Object.hasOwn(schema.properties, key) && validContract(item, schema.properties[key]));
+  }
+  if (schema.type === 'array') return Array.isArray(value) && value.every(item => validContract(item, schema.items));
+  if (schema.type === 'number' || schema.type === 'integer') {
+    return typeof value === 'number' && Number.isFinite(value) &&
+      (schema.type !== 'integer' || Number.isInteger(value));
+  }
+  return typeof value === schema.type && (!schema.enum || schema.enum.includes(value));
+}
+
 const SYSTEM = `You are a meticulous commercial-contracts analyst. Extract the requested fields from the provided SaaS/vendor contract, order form, quote or MSA. Rules:
 - The VENDOR is the party supplying the software/service (often defined as "us"/"we"/"our", or shown in the header/logo). The CUSTOMER is the buyer ("you"/"your"). Never confuse them; vendor_name is the supplier.
 - Report money as plain numbers, no symbols or commas. If a grand "Total" is shown, that is total_contract_value. Compute annual_value from the term when possible (e.g. a $600,000 total over 24 months → annual_value 300000).
@@ -158,7 +174,20 @@ export async function onRequestPost({ request, env }) {
   try {
     const gate = await requireEntitledRole(request, env, 'member');
     if (gate.response) return gate.response;
-    const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000);
+    // Workspace consent is required before document contents reach an AI provider.
+    // Missing tables/settings are intentionally denied, never treated as opt-in.
+    let aiEnabled = false;
+    try {
+      const row = await env.DB.prepare(
+        'SELECT enabled, consent_version FROM workspace_ai_settings WHERE account_id=?',
+      ).bind(gate.membership.account_id).first();
+      aiEnabled = row?.enabled === 1 && row?.consent_version === 'workspace-ai-v2';
+    } catch (_) { /* consent unavailable: fail closed */ }
+    if (!aiEnabled) return new Response(
+      JSON.stringify({ ok: false, error: 'ai_consent_required' }),
+      { status: 403, headers },
+    );
+    const _rl = await rateLimit(env, "ai:" + gate.user.email, 60, 3600000, { failClosed: true });
     if (!_rl.ok) return new Response(JSON.stringify({ ok: false, error: "rate_limited", message: "Too many AI requests. Try again shortly." }), { status: 429, headers });
     if (!env.ANTHROPIC_API_KEY) {
       return new Response(
@@ -203,29 +232,31 @@ export async function onRequestPost({ request, env }) {
       body: JSON.stringify(payload),
     });
     if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      let apiMessage = "";
-      try { apiMessage = JSON.parse(errText)?.error?.message || ""; } catch (_) {}
+      // Do not reflect provider response bodies, which may include input or credentials.
       // Use HTTP 200 with ok:false: Cloudflare replaces real 5xx responses with
       // its own HTML error page, which the client can't parse. The client keys
       // off the JSON body's ok flag, not the HTTP status.
       return new Response(
-        JSON.stringify({ ok: false, error: "upstream", upstream_status: r.status, message: apiMessage || errText.slice(0, 400) }),
+        JSON.stringify({ ok: false, error: "upstream", upstream_status: r.status, message: "The AI provider could not complete the request. Please retry later." }),
         { status: 200, headers }
       );
     }
     const data = await r.json();
-    const toolUse = (data.content || []).find((b) => b.type === "tool_use");
+    const blocks = Array.isArray(data.content) ? data.content : [];
+    const toolUse = blocks.find((b) => b.type === "tool_use" && b.name === "record_contract");
     let result = toolUse && toolUse.input;
     // Fallback: if the model answered with text instead of a tool call, pull the
     // first JSON object out of the text.
     if (!result) {
-      const textOut = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+      const textOut = blocks.filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text).join("\n");
       const m = textOut.match(/\{[\s\S]*\}/);
       if (m) { try { result = JSON.parse(m[0]); } catch (_) {} }
     }
     if (!result) {
       return new Response(JSON.stringify({ ok: false, error: "no_result", message: "The model did not return structured data." }), { status: 200, headers });
+    }
+    if (!validContract(result) || !result.vendor_name.trim() || result.confidence < 0 || result.confidence > 100) {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_result", message: "The provider returned invalid contract data. Please retry." }), { status: 200, headers });
     }
     return new Response(
       JSON.stringify({ ok: true, data: result, model, usage: data.usage || null }),
@@ -233,7 +264,7 @@ export async function onRequestPost({ request, env }) {
     );
   } catch (e) {
     return new Response(
-      JSON.stringify({ ok: false, error: "exception", message: String((e && e.message) || e).slice(0, 300) }),
+      JSON.stringify({ ok: false, error: "exception", message: "Contract extraction could not complete. Please retry later." }),
       { status: 200, headers }
     );
   }
