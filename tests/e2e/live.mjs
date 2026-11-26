@@ -46,6 +46,37 @@ for(const who of ['a','b','admin','member']){
 }
 assert.ok(results.every(r=>r.status==='passed'),'Fixture authentication failed; refusing mutations');
 for(const who of ['a','b']){const snapshot=(await api(who,'/api/data')).body;assert.equal(snapshot.workspaceId,run+'-'+who);assert.ok((snapshot.data?.subscriptions||[]).every(s=>s.name.startsWith('Synthetic ')),'Refusing non-synthetic records');}
+if (process.env.SST_TEST_WORKSPACE_FREEZE === '1') {
+ await test('workspace save is blocked during freeze and revision checks resume', async()=>{
+  const trigger='recovery_e2e_'+run.replaceAll('-','_');
+  const ownerEmail=run+'-a@example.invalid';
+  const d1=sql=>execFileSync('npx',['wrangler','d1','execute','sst-preview-us','--remote','--command',sql],{stdio:'pipe',timeout:60000});
+  const before=await api('a','/api/data');
+  assert.equal(before.status,200);
+  const candidate={...before.body.data,settings:{...before.body.data.settings,recoveryProbe:true}};
+  try {
+   d1(`CREATE TRIGGER ${trigger} BEFORE UPDATE ON app_data
+       WHEN OLD.email = '${ownerEmail}'
+       BEGIN SELECT RAISE(ABORT, 'workspace_writes_frozen'); END;`);
+   const frozen=await api('a','/api/data','PUT',candidate,before.body.version);
+   assert.equal(frozen.status,500,'Expected the deployed save to fail during the freeze');
+   const still=await api('a','/api/data');
+   assert.equal(still.status,200);
+   assert.equal(still.body.version,before.body.version);
+   assert.deepEqual(still.body.data,before.body.data);
+  } finally {
+   d1(`DROP TRIGGER IF EXISTS ${trigger};`);
+  }
+  const saved=await api('a','/api/data','PUT',candidate,before.body.version);
+  assert.equal(saved.status,200);
+  assert.equal(saved.body.version,before.body.version+1);
+  assert.equal((await api('a','/api/data','PUT',before.body.data,before.body.version)).status,409);
+  const after=await api('a','/api/data');
+  assert.equal(after.status,200);
+  assert.equal(after.body.version,saved.body.version);
+  assert.equal(after.body.data.settings.recoveryProbe,true);
+ });
+}
 await test('login token replay rejected',async()=>{const r=await api('b','/api/auth/verify?token='+tokens.a);assert.equal(r.status,302);assert.ok(r.headers.location.endsWith('?auth=expired'));});
 await test('workspace identity and isolation',async()=>{const a=await api('a','/api/data'),b=await api('b','/api/data');assert.equal(a.body.workspaceId,run+'-a');assert.equal(b.body.workspaceId,run+'-b');assert.ok(a.body.data.subscriptions.some(s=>s.name==='Synthetic Cedar A'));assert.ok(!(b.body.data?.subscriptions||[]).some(s=>s.name==='Synthetic Cedar A'));});
 await test('missing precondition and concurrent writes',async()=>{let a=await api('a','/api/data');assert.equal((await api('a','/api/data','PUT',a.body.data)).status,428);const data=a.body.data;const race=await Promise.all(['one','two'].map(writer=>api('a','/api/data','PUT',{...data,settings:{...data.settings,e2eWriter:writer}},a.body.version)));assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);const after=await api('a','/api/data');assert.equal(after.body.version,a.body.version+1);assert.equal(after.body.data.settings.e2eWriter,['one','two'][race.findIndex(r=>r.status===200)]);assert.ok(!((await api('b','/api/data')).body.data?.subscriptions||[]).some(s=>s.name==='Synthetic Cedar A'));});
