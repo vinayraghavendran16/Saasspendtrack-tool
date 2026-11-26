@@ -38,3 +38,9 @@ Before production approval, record the following and attach the evidence to the 
 | Rollback target | Record the known-good production deployment and verify that it preserves revision-checked saves and consent enforcement. Keep additive schema during code rollback. |
 
 Use the [existing release and rollback checklist](release-readiness-2026-11-26.md#backup-rollback-and-production-release-checklist) for execution. Production data and credentials stay outside Git.
+
+### Rollback baseline review
+
+The repository's `main` baseline `ec812b4` writes workspace snapshots with an unconditional upsert. The release application `538cdc3` requires a matching revision on updates and advances the stored revision with the write. Reverting to the `main` implementation after migration could overwrite newer data while leaving its revision unchanged. Do not designate that baseline as a write-enabled rollback target.
+
+Before the maintenance window, capture the actual production deployment ID and source, and verify a production-eligible rollback target against the migrated schema in isolation. Until that verification passes, the rollback target remains open. The Git branch comparison alone does not identify the currently serving production deployment.
