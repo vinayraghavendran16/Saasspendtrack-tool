@@ -17,7 +17,7 @@ The implementation/config commit adds the verified preview database ID, a static
 
 ## Cloudflare infrastructure
 
-`wrangler whoami` confirmed the existing Wrangler OAuth session belongs to `vinayraghavendran16@gmail.com`. No token or secret value was printed. Wrangler reported the account scopes include Pages and D1 access, but no Access/Zero Trust application scopes.
+`wrangler whoami` confirmed the existing Wrangler OAuth session belongs to `vinayraghavendran16@gmail.com`. No token or secret value was printed. Wrangler reported the account scopes include Pages and D1 access, but no Access/Zero Trust write scope.
 
 The authoritative read-only `wrangler d1 info sst-preview-us --json` response returned:
 
@@ -38,6 +38,8 @@ USAGE_RETENTION_ENABLED=false
 ```
 
 Only this new Pages project was configured. The existing production project, production database `sst-trial`, APAC preview database, production DNS, cron jobs, and existing Access applications were not changed. No customer data was migrated.
+
+After the prior evidence commit, a read-only Access applications API query succeeded (HTTP 200) and found no application matching either `saasspendtrack-preview-us.pages.dev` or `*.saasspendtrack-preview-us.pages.dev`. The authorized create request for a project-only application covering both host patterns and allowing only `vinayraghavendran16@gmail.com` returned HTTP 403. No Access application or policy was created or changed.
 
 ## Schema and migration reconciliation
 
@@ -70,8 +72,8 @@ The release tests include an AI gateway test that stubs `fetch` and verifies `AI
 
 ## Required before deployment
 
-The current Wrangler identity response did not include Cloudflare Access application read/write scopes. An Access applications API read was attempted, but the automatic approval review timed out before that request ran. No Access application or policy was created, read, or changed. There are no Pages deployments yet, so unauthorized access has not been tested. No application assets were deployed.
+The Access applications read succeeded, but the current Wrangler identity does not have the write permission required to create an Access application. Cloudflare rejected the creation request with HTTP 403. There are no Pages deployments yet, so unauthorized access has not been tested. No application assets were deployed.
 
-The Cloudflare Access API requires an Access application read permission to inspect existing apps and an Access/Zero Trust write permission to create the two project-only protections. Configure the Pages `*.pages.dev` hostname and deployment-alias wildcard for this project only, allow only `vinayraghavendran16@gmail.com`, inspect for overlaps, and test both an authorized and an unauthorized identity before the first app deployment. Cloudflare documents separate protection for the project host and preview deployment aliases. [Pages Access known issue and setup](https://developers.cloudflare.com/pages/platform/known-issues/) · [Access application API permissions](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/list/)
+Grant the Cloudflare API token `Access: Apps and Policies Write` (or the equivalent Access application admin permission) for this account. Then configure the Pages project hostname and deployment-alias wildcard for this project only, allow only `vinayraghavendran16@gmail.com`, inspect for overlaps, and test both an authorized and an unauthorized identity before the first app deployment. Cloudflare documents separate protection for the project host and preview deployment aliases. [Pages Access known issue and setup](https://developers.cloudflare.com/pages/platform/known-issues/) · [Access application API permissions](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/list/) · [Create Access application permissions](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/applications/methods/create/)
 
 After the Access scopes are available: deploy this tested SHA only to `saasspendtrack-preview-us` on a non-production branch; confirm the deployment still binds exclusively to `sst-preview-us`; then run deployed synthetic authentication, save/conflict, tenant isolation, AI-disabled egress, smoke, accessibility, and browser end-to-end checks. Do not merge or deploy to production as part of this preview gate.
