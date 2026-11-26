@@ -24,4 +24,90 @@ await test('privacy evidence download',async()=>{await p.goto(origin+'/#integrat
 await test('workspace JSON export',async()=>{await p.goto(origin+'/#subscriptions');const[d]=await Promise.all([p.waitForEvent('download'),p.locator('#export-btn').click()]);await d.saveAs(out+'/workspace.json');assert.ok(JSON.parse(await fs.readFile(out+'/workspace.json')).subscriptions.some(s=>s.name==='Pointer Regression'));});
 await test('subscription CSV export',async()=>{const[d]=await Promise.all([p.waitForEvent('download'),p.locator('#csv-subs-btn').click()]);await d.saveAs(out+'/renewals.csv');assert.match(await fs.readFile(out+'/renewals.csv','utf8'),/Synthetic Cedar Local/);});
 await test('responsive accessibility scan',async()=>{const scans=[];for(const width of [1440,768,390]){await p.setViewportSize({width,height:900});await p.goto(origin+'/#subscriptions');await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor({state:'attached'});await p.locator('#subscriptions').evaluate(async section=>{await document.fonts.ready;await Promise.all(section.getAnimations().map(animation=>animation.finished));});const a=await new AxeBuilder({page:p}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();const overflow=await p.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));scans.push({width,overflow,violations:a.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))}))});await p.screenshot({path:out+`/responsive-${width}.png`,fullPage:true});}await fs.writeFile(out+'/accessibility.json',JSON.stringify(scans,null,2));for(const {width,violations} of scans)assert.deepEqual(violations,[],`Accessibility violations at ${width}px: ${JSON.stringify(violations)}`);assert.ok(scans.every(s=>s.overflow.scroll<=s.overflow.width),'No document overflow');});
+await p.setViewportSize({width:1440,height:1000});
+
+await test('invoice creation, edit and payment persist after reload',async()=>{
+  await p.goto(origin+'/#invoices');
+  const vendor=data.subscriptions.find(s=>s.name==='Pointer Regression');
+  assert.ok(vendor);
+  const invoiceNumber='SYNTHETIC-LOCAL-042';
+  const row=p.locator('#inv-tbody tr').filter({hasText:invoiceNumber});
+  const modal=p.locator('#inv-modal');
+  const save=modal.getByRole('button',{name:'Save',exact:true});
+  const workspaceWrite=r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT';
+
+  await p.locator('#add-inv-btn').click();
+  await modal.locator('#inv-sub').selectOption(vendor.id);
+  await modal.locator('#inv-number').fill(invoiceNumber);
+  await modal.locator('#inv-amount').fill('125');
+  const dueDate=new Date();
+  dueDate.setDate(dueDate.getDate()+30);
+  await modal.locator('#inv-due').fill(dueDate.toISOString().slice(0,10));
+  await Promise.all([p.waitForResponse(workspaceWrite),save.click()]);
+  await row.getByText('Pending',{exact:true}).waitFor();
+  const created=data.invoices.find(i=>i.invoiceNumber===invoiceNumber);
+  assert.equal(created.subId,vendor.id);
+  assert.equal(created.amount,125);
+
+  await row.getByRole('button',{name:'Edit',exact:true}).click();
+  await modal.locator('#inv-amount').fill('175.50');
+  await Promise.all([p.waitForResponse(workspaceWrite),save.click()]);
+  assert.equal(data.invoices.find(i=>i.id===created.id).amount,175.5);
+  assert.equal(data.invoices.filter(i=>i.invoiceNumber===invoiceNumber).length,1);
+
+  await Promise.all([p.waitForResponse(workspaceWrite),row.getByRole('button',{name:'Mark paid'}).click()]);
+  assert.match(data.invoices.find(i=>i.id===created.id).paidDate,/^\d{4}-\d{2}-\d{2}$/);
+  await p.reload();
+  await p.locator('#inv-filter-status').selectOption('paid');
+  await row.getByText(/^Paid /).waitFor();
+  await row.getByText('$175.50',{exact:true}).waitFor();
+  await p.locator('#inv-filter-status').selectOption('pending');
+  await row.waitFor({state:'detached'});
+});
+
+await test('subscription deletion confirms the invoice cascade and persists',async()=>{
+  await p.goto(origin+'/#subscriptions');
+  const vendor=data.subscriptions.find(s=>s.name==='Pointer Regression');
+  assert.ok(vendor);
+  const row=p.locator('#sub-tbody tr').filter({hasText:vendor.name});
+  const remove=row.getByRole('button',{name:'Delete',exact:true});
+  const previous=version;
+  const invoiceCount=data.invoices.filter(i=>i.subId===vendor.id).length;
+  assert.equal(invoiceCount,1);
+  const confirmation='Delete "'+vendor.name+'" and 1 invoice(s)?';
+
+  const [cancelled]=await Promise.all([
+    p.waitForEvent('dialog').then(async dialog=>{
+      const message=dialog.message();
+      await dialog.dismiss();
+      return message;
+    }),
+    remove.click()
+  ]);
+  assert.equal(cancelled,confirmation);
+  assert.equal(version,previous);
+  assert.equal(data.invoices.filter(i=>i.subId===vendor.id).length,1);
+
+  const preservedSubscriptions=data.subscriptions.filter(s=>s.id!==vendor.id);
+  const preservedInvoices=data.invoices.filter(i=>i.subId!==vendor.id);
+  const [message]=await Promise.all([
+    p.waitForEvent('dialog').then(async dialog=>{
+      const message=dialog.message();
+      await dialog.accept();
+      return message;
+    }),
+    p.waitForResponse(r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT'),
+    remove.click()
+  ]);
+  assert.equal(message,confirmation);
+  assert.equal(version,previous+1);
+  assert.deepEqual(data.subscriptions,preservedSubscriptions);
+  assert.deepEqual(data.invoices,preservedInvoices);
+  await p.reload();
+  await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor();
+  await row.waitFor({state:'detached'});
+  await p.goto(origin+'/#invoices');
+  await p.locator('#inv-empty').waitFor();
+});
+
 await browser.close();server.close();process.exitCode=results.some(r=>r.status==='failed')?1:0;
