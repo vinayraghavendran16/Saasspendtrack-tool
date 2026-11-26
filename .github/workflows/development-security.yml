@@ -36,3 +36,28 @@ jobs:
           path: test-results/local/
           if-no-files-found: ignore
           retention-days: 7
+  cross-engine:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npm run test:e2e:local
+        env:
+          E2E_BROWSER: ${{ matrix.browser }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: local-browser-${{ matrix.browser }}-evidence
+          path: test-results/local/
+          if-no-files-found: ignore
+          retention-days: 7
