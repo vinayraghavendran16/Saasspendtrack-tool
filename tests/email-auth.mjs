@@ -7,8 +7,15 @@ import { onRequestPost } from '../functions/api/auth/request.js';
 import { authAppUrl } from '../functions/_shared/auth-url.js';
 const staleEnv = { APP_URL: 'https://old.saasspendtrack.pages.dev' };
 assert.equal(authAppUrl(new Request('https://new.saasspendtrack.pages.dev/api/auth/request'), staleEnv), 'https://new.saasspendtrack.pages.dev');
+assert.equal(authAppUrl(new Request('https://b344120a.saasspendtrack-preview-us.pages.dev/api/auth/request'), staleEnv), 'https://b344120a.saasspendtrack-preview-us.pages.dev');
+assert.equal(authAppUrl(new Request('https://release-production-integrati.saasspendtrack-preview-us.pages.dev/api/auth/request'), staleEnv), 'https://release-production-integrati.saasspendtrack-preview-us.pages.dev');
 assert.equal(authAppUrl(new Request('https://app.saasspendtrack.com/api/auth/request'), {}), 'https://app.saasspendtrack.com');
+assert.equal(authAppUrl(new Request('https://app.saasspendtrack.com/api/auth/request'), { APP_URL: 'https://configured-production.example/' }), 'https://configured-production.example');
 assert.equal(authAppUrl(new Request('https://evilsaasspendtrack.pages.dev/api/auth/request'), { APP_URL: 'https://configured.example/' }), 'https://configured.example');
+assert.equal(authAppUrl(new Request('https://saasspendtrack.pages.dev.attacker.test/api/auth/request'), { APP_URL: 'https://configured.example/' }), 'https://configured.example');
+assert.equal(authAppUrl(new Request('https://b344120a.saasspendtrack-preview-us.pages.dev.attacker.test/api/auth/request'), { APP_URL: 'https://configured.example/' }), 'https://configured.example');
+assert.equal(authAppUrl(new Request('https://bad..saasspendtrack-preview-us.pages.dev/api/auth/request'), { APP_URL: 'https://configured.example/' }), 'https://configured.example');
+assert.equal(authAppUrl(new Request('http://b344120a.saasspendtrack-preview-us.pages.dev/api/auth/request'), { APP_URL: 'https://configured.example/' }), 'https://configured.example');
 assert.equal(authAppUrl(new Request('https://saasspendtrack.pages.dev/api/auth/request'), {}), 'https://app.saasspendtrack.com');
 
 const originalFetch = globalThis.fetch;
@@ -78,14 +85,39 @@ try {
     first: async () => sql.includes('rate_limits') ? { count: 1 } : { email: mail.to },
     run: async () => { writes.push({ sql, args }); return {}; },
   }; } }; } };
-  for (const status of [202, 500]) {
+  for (const { origin, appUrl, status } of [
+    { origin: 'https://b344120a.saasspendtrack-preview-us.pages.dev', appUrl: 'https://saasspendtrack-preview-us.pages.dev', status: 202 },
+    { origin: 'https://branch.saasspendtrack.pages.dev', appUrl: 'https://old.saasspendtrack.pages.dev', status: 202 },
+    { origin: 'https://app.saasspendtrack.com', appUrl: 'https://app.saasspendtrack.com', status: 500 },
+  ]) {
     let sent;
     globalThis.fetch = async (_, options) => { sent = JSON.parse(options.body); return new Response('{}', { status }); };
-    const response = await onRequestPost({ request: new Request('https://preview.example.com/api/auth/request', { method: 'POST', body: JSON.stringify({ email: mail.to }) }), env: { DB, APP_URL: 'https://preview.example.com', ZEPTOMAIL_TOKEN: 'Zoho-enczapikey test-secret' } });
+    const response = await onRequestPost({ request: new Request(origin + '/api/auth/request', { method: 'POST', body: JSON.stringify({ email: mail.to }) }), env: { DB, APP_URL: appUrl, ZEPTOMAIL_TOKEN: 'Zoho-enczapikey test-secret' } });
     assert.deepEqual(await response.json(), { ok: true, emailed: status === 202 });
-    assert.match(sent.htmlbody, /https:\/\/preview.example.com\/api\/auth\/verify\?token=/);
+    const expectedOrigin = origin.includes('.saasspendtrack-preview-us.pages.dev') || origin.includes('.saasspendtrack.pages.dev') ? origin : appUrl;
+    assert.ok(sent.htmlbody.includes(expectedOrigin + '/api/auth/verify?token='), 'magic link must use the allowed current host or configured production URL');
     assert.match(writes.at(-1).args[0], /^[a-f0-9]{64}$/);
     assert.ok(!sent.htmlbody.includes(writes.at(-1).args[0]), 'database stores a hash, not the emailed token');
+  }
+
+  const { onRequestGet: verifyLogin } = await import('../functions/api/auth/verify.js');
+  const verifyDB = { prepare(sql) { return { bind() { return {
+    first: async () => sql.includes('UPDATE login_tokens') ? { email: mail.to } : null,
+    run: async () => ({}),
+  }; } }; } };
+  const expectedRoot = (origin, appUrl) => (
+    origin.includes('.saasspendtrack-preview-us.pages.dev') || origin.includes('.saasspendtrack.pages.dev')
+      ? origin + '/?auth=ok'
+      : appUrl + '/?auth=ok'
+  );
+  for (const { origin, appUrl } of [
+    { origin: 'https://b344120a.saasspendtrack-preview-us.pages.dev', appUrl: 'https://saasspendtrack-preview-us.pages.dev' },
+    { origin: 'https://branch.saasspendtrack.pages.dev', appUrl: 'https://old.saasspendtrack.pages.dev' },
+    { origin: 'https://app.saasspendtrack.com', appUrl: 'https://app.saasspendtrack.com' },
+  ]) {
+    const response = await verifyLogin({ request: new Request(origin + '/api/auth/verify?token=synthetic'), env: { DB: verifyDB, APP_URL: appUrl } });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get('Location'), expectedRoot(origin, appUrl), 'post-auth redirect must return to the originating preview or configured production app');
   }
 } finally {
   globalThis.fetch = originalFetch;
