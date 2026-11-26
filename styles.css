@@ -143,7 +143,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: var(-
 .nav-group { display: flex; flex-direction: column; gap: 1px; }
 .nav-label {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--text-faint); padding: 12px 10px 4px;
+  color: var(--text-dim); padding: 12px 10px 4px;
 }
 .tabs { display: contents; }
 .tab {
@@ -178,7 +178,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: var(-
 .plan-badge.enterprise .plan-dot { background: var(--success); }
 .plan-badge .plan-left { display: inline-flex; align-items: center; gap: 8px; }
 .plan-badge .plan-cta { font-size: 11px; color: var(--accent); font-weight: 600; }
-.data-note { font-size: 11px; color: var(--text-faint); padding: 0 4px; line-height: 1.4; }
+.data-note { font-size: 11px; color: var(--text-dim); padding: 0 4px; line-height: 1.4; }
 
 .main-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
@@ -511,7 +511,7 @@ button.stat-card { cursor: pointer; }
 .current-plan-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
 /* ---------- modals / forms ---------- */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(16,24,40,0.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(16,24,40,0.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 9500; padding: 20px; }
 .modal-backdrop[hidden] { display: none; }
 .modal { width: 100%; max-width: 560px; max-height: calc(100vh - 40px); overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; box-shadow: var(--shadow-lg); }
 .modal h2 { font-size: 16px; font-weight: 650; margin-bottom: 16px; }

@@ -177,7 +177,7 @@ function ensureTrialBanner() {
     if (topbar && topbar.parentNode) topbar.parentNode.insertBefore(b, topbar);
   }
   const t = trialState();
-  if (t.isPaid) { b.hidden = true; return; }
+  if (t.daysLeft == null || t.isPaid) { b.hidden = true; return; }
   if (!t.isTrial) { b.hidden = true; return; }
   if (t.expired) { b.hidden = true; return; } // the gate handles this
   b.hidden = false;

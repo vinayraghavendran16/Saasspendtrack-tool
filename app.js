@@ -4,7 +4,7 @@ const STORAGE_KEY = 'saasspendtrack.v1'; // Legacy data: read-only until explici
 const UNSYNCED_DRAFT_KEY = 'saasspendtrack.unsynced-draft.v1'; // Old global recovery key: preserve read-only.
 const WORKSPACE_DRAFT_PREFIX = 'saasspendtrack.workspace-draft.v2.'; // Scoped to authenticated workspace.
 const CYCLE_MONTHS = Object.freeze({ weekly: 12/52, monthly: 1, quarterly: 3, yearly: 12 });
-const AVATAR_COLORS = ['#7c5cff', '#35d0ba', '#ff8a4c', '#4cb1ff', '#ff5c7a', '#ffb545', '#a374ff', '#4cd3ff'];
+const AVATAR_COLORS = ['#6941c6', '#087f73', '#a94312', '#175cd3', '#c01048', '#854a0e', '#6938b9', '#026aa2'];
 
 let state = { subscriptions: [] };
 let uiSort = { key: 'renewal', dir: 'asc' };

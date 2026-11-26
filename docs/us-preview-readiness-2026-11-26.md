@@ -144,3 +144,18 @@ The existing Access app/policy was inspected read-only in the dashboard and the 
 - The remaining requirement is the Codex desktop browser-attachment **network policy** capability (and, per the diagnostic, a current desktop build). Site-specific browser permission alone does not satisfy that separate attachment policy. No unrestricted access is needed; configure/update the scoped network policy for the already-authorized Preview and Access origins, then retry attachment.
 - `npm run test:release` was rerun on release HEAD `af721d0` and passed, including the US Preview-only smoke-target safeguards. GitHub Actions `Development security checks` also passed on that exact HEAD, run [45782554130](https://github.com/vinayraghavendran16/Saasspendtrack-tool/actions/runs/45782554130).
 - Live synthetic-workspace API and UI E2E remains unverified until the authenticated browser can be attached. No session material was extracted or used and no Preview workspace was changed during this retry.
+
+
+## Dedicated Playwright validation — 2026-11-26
+
+The owner authenticated a new isolated Playwright profile through Cloudflare Access. No existing Chrome credentials or cookies were extracted. Baseline deployment `63477a2c` / application SHA `13b4d925492a3e04ef667ce95eb04d8aa9787def` was tested using synthetic run `sst-us-e2e-20261126-8b731`.
+
+Live API tests passed: synthetic login, token replay rejection, distinct workspace identity, missing If-Match rejection (428), concurrent writers (one 200 and one 409), owner/admin/member privacy permissions, blocked role escalation/cross-workspace role changes, invitation acceptance and replay rejection, privacy evidence and audit query validation, AI-disabled endpoint denials (403), member/admin data writes, fresh-context persistence/isolation, and logout with replay of the invalidated test session (401). Legacy browser import preserved EUR 99.50 and the original cache; attempted currency relabelling returned 422. This tests invitation redemption, not email delivery.
+
+Playwright confirmed a UI defect: onboarding widgets (z-index 450) intercepted the subscription modal Save button (z-index 50). The modal is now above app widgets and below the authentication gate. WCAG scans identified unnamed subscription filters and low contrast navigation text/avatar initials; corresponding source and deployed HTML are corrected. The obsolete trial banner no longer displays null days.
+
+The full automated release suite passes after source/bundle parity was restored. New local Playwright regression tests pass for pointer Save, privacy/JSON/subscription CSV downloads, zero detected WCAG A/AA violations in the subscription view at 1440/768/390px, and no document overflow. Local API stubs are explicitly separate from live evidence. The reusable harness, scoped fixture preparation/cleanup helper and CI local browser job are in `tests/e2e/`.
+
+**Outstanding integration blocker:** live workspace usage returned HTTP 503. Read-only deployment inspection confirms `USAGE_HMAC_SECRET` is absent; `USAGE_RETENTION_ENABLED=false`. No secret or analytics configuration was changed. AI remains globally disabled. Consent enablement/revocation and positive AI delivery audit events were deliberately not exercised. Missing audit records are not proof of zero transmission; automated provider-call guards are separate evidence.
+
+Post-fix Preview deployment, exact-commit CI evidence, live UI rerun and fixture cleanup are pending in this checkpoint. Do not infer release approval from the local regression results.

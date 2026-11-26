@@ -9,6 +9,13 @@
     "check": "for f in $(find functions -name '*.js'); do node --check \"$f\" || exit 1; done && node --check app.js && node --check scripts/preview-api-smoke.mjs && node --check sw.js && node --check auth-gate.js && echo 'syntax ok'",
     "test:preview": "node scripts/preview-api-smoke.mjs",
     "test:release": "npm run check && npm test && node tests/security-regression.mjs && node tests/workspace-isolation.mjs && python3 tests/migration-smoke.py && node tests/ai-consent.mjs && node tests/welcome-email.mjs && node tests/browser-cache-safety.mjs && node tests/preview-asset-allowlist.mjs && node tests/preview-api-target.mjs",
-    "build:preview-us": "node scripts/build-preview-us.mjs"
+    "build:preview-us": "node scripts/build-preview-us.mjs",
+    "test:e2e:local": "node tests/e2e/local.mjs",
+    "test:e2e:live": "node tests/e2e/live.mjs",
+    "test:e2e:authenticate": "node tests/e2e/authenticate.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.1",
+    "playwright": "1.58.2"
   }
 }

@@ -179,7 +179,7 @@ input[type="search"], input[type="url"], input[type="password"], input[type="tel
 .nav-group { display: flex; flex-direction: column; gap: 1px; }
 .nav-label {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--text-faint); padding: 12px 10px 4px;
+  color: var(--text-dim); padding: 12px 10px 4px;
 }
 .tabs { display: contents; }
 .tab {
@@ -214,7 +214,7 @@ input[type="search"], input[type="url"], input[type="password"], input[type="tel
 .plan-badge.enterprise .plan-dot { background: var(--success); }
 .plan-badge .plan-left { display: inline-flex; align-items: center; gap: 8px; }
 .plan-badge .plan-cta { font-size: 11px; color: var(--accent); font-weight: 600; }
-.data-note { font-size: 11px; color: var(--text-faint); padding: 0 4px; line-height: 1.4; }
+.data-note { font-size: 11px; color: var(--text-dim); padding: 0 4px; line-height: 1.4; }
 
 .main-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
@@ -579,7 +579,7 @@ button.stat-card { cursor: pointer; }
 .current-plan-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
 /* ---------- modals / forms ---------- */
-.modal-backdrop { position: fixed; inset: 0; background: rgba(16,24,40,0.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(16,24,40,0.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 9500; padding: 20px; }
 .modal-backdrop[hidden] { display: none; }
 .modal { width: 100%; max-width: 560px; max-height: calc(100vh - 40px); overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; box-shadow: var(--shadow-lg); }
 .modal h2 { font-size: 16px; font-weight: 650; margin-bottom: 16px; }
@@ -2951,10 +2951,10 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
       <div><h2>Subscriptions</h2><p class="page-sub">All vendors, owners, billing cycles and next renewal dates in one register.</p></div>
       <div class="controls">
         <input id="search" type="search" placeholder="Search…" />
-        <select id="filter-category">
+        <select id="filter-category" aria-label="Filter subscriptions by category">
           <option value="">All categories</option>
         </select>
-        <select id="filter-status">
+        <select id="filter-status" aria-label="Filter subscriptions by status">
           <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="paused">Paused</option>
@@ -3618,7 +3618,7 @@ const STORAGE_KEY = 'saasspendtrack.v1'; // Legacy data: read-only until explici
 const UNSYNCED_DRAFT_KEY = 'saasspendtrack.unsynced-draft.v1'; // Old global recovery key: preserve read-only.
 const WORKSPACE_DRAFT_PREFIX = 'saasspendtrack.workspace-draft.v2.'; // Scoped to authenticated workspace.
 const CYCLE_MONTHS = Object.freeze({ weekly: 12/52, monthly: 1, quarterly: 3, yearly: 12 });
-const AVATAR_COLORS = ['#7c5cff', '#35d0ba', '#ff8a4c', '#4cb1ff', '#ff5c7a', '#ffb545', '#a374ff', '#4cd3ff'];
+const AVATAR_COLORS = ['#6941c6', '#087f73', '#a94312', '#175cd3', '#c01048', '#854a0e', '#6938b9', '#026aa2'];
 
 let state = { subscriptions: [] };
 let uiSort = { key: 'renewal', dir: 'asc' };
@@ -16006,7 +16006,7 @@ function ensureTrialBanner() {
     if (topbar && topbar.parentNode) topbar.parentNode.insertBefore(b, topbar);
   }
   const t = trialState();
-  if (t.isPaid) { b.hidden = true; return; }
+  if (t.daysLeft == null || t.isPaid) { b.hidden = true; return; }
   if (!t.isTrial) { b.hidden = true; return; }
   if (t.expired) { b.hidden = true; return; } // the gate handles this
   b.hidden = false;
