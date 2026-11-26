@@ -145,17 +145,17 @@ function onepagerHtml(s) {
     <!-- Band 3: Pricing + differentiator -->
     <div class="op-section op-pricing-band">
       <div class="op-pricing">
-        <div class="op-price-head">One plan. Everything included.</div>
-        <div class="op-price-main">$3,499<span>/year</span></div>
-        <div class="op-price-inr">Billed annually · Indian customers: 18% GST added at checkout · Includes 250 active contracts · $100/yr per 50 additional</div>
-        <div class="op-price-list">Unlimited users · Unlimited departments · Every feature · Trial free, no credit card</div>
+        <div class="op-price-head">Growth · Annual upfront · Price locked for life</div>
+        <div class="op-price-main">$2,000<span>/year</span></div>
+        <div class="op-price-inr">Includes 250 active contracts · $100/year per 50 additional</div>
+        <div class="op-price-list">Unlimited users · Founding: $1,499/year while available · 7-day free trial, no credit card</div>
       </div>
       <div class="op-diff">
         <div class="op-diff-title">Why this, not Zluri or Spendflo?</div>
         <ul>
           <li><b>Built for India &amp; APAC</b> - lakh/crore, Indian SaaS stack seeded, INR invoicing supported</li>
-          <li><b>On-prem available</b> for BFSI, healthcare, public sector and other regulated industries</li>
-          <li><b>10× cheaper</b> than US enterprise alternatives (Zluri starts at ~$30,000/year)</li>
+          <li><b>On-prem by custom quote</b> for BFSI, healthcare, public sector and other regulated industries</li>
+          <li><b>$2,000/year for Growth</b> compared with a reported $36,820 median annual Zluri contract</li>
           <li><b>Browser-only</b> - data never leaves your organisation unless you choose to sync a connector</li>
           <li><b>Live in minutes</b>, not months - no implementation team</li>
         </ul>
