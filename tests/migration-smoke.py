@@ -173,3 +173,39 @@ assert conn.execute("SELECT enabled FROM workspace_ai_settings WHERE account_id=
 conn.execute("INSERT INTO ai_egress_audit(id,account_id,operation,outcome,occurred_at,request_id) VALUES (?,?,?,?,?,?)",("audit-1","account-1","messages","authorized",100,"request-1"))
 assert conn.execute("SELECT request_id FROM ai_egress_audit WHERE account_id=?",("account-1",)).fetchone()==("request-1",)
 print("PASS: AI lock database enforcement, unlock remains disabled, audit correlation")
+
+
+# Full legacy-to-release migration chain on a separate synthetic database.
+legacy = sqlite3.connect(":memory:")
+legacy.execute("PRAGMA foreign_keys=ON")
+legacy.executescript((root / "schema.sql").read_text())
+for i, currency in enumerate(("USD", "EUR", "INR")):
+    email = f"migration-{i}@example.invalid"
+    account = f"migration-account-{i}"
+    legacy.execute("INSERT INTO users(email,created_at,trial_ends_at,status,currency) VALUES (?,?,?,?,?)", (email,1,100000,"active",currency))
+    legacy.execute("INSERT INTO accounts(id,owner_email,created_at) VALUES (?,?,?)",(account,email,1))
+    legacy.execute("INSERT INTO memberships(email,account_id,role,status,created_at) VALUES (?,?,?,?,?)",(email,account,"owner","active",1))
+    import json
+    payload = json.dumps({"subscriptions":[{"name":"Synthetic","cost":99.50,"currency":currency,"cycle":"yearly"}],"settings":{"currency":currency}})
+    legacy.execute("INSERT INTO app_data(email,data,updated_at) VALUES (?,?,?)",(email,payload,1))
+    legacy.execute("INSERT INTO sessions VALUES (?,?,?,?)",(f"synthetic-session-{i}",email,1,100000))
+    legacy.execute("INSERT INTO login_tokens VALUES (?,?,?,?)",(f"synthetic-token-{i}",email,100000,0))
+    legacy.execute("INSERT INTO email_log VALUES (?,?,?)",(email,"welcome",1))
+    legacy.execute("INSERT INTO rate_limits VALUES (?,?,?)",(f"synthetic-limit-{i}",1,1))
+    legacy.execute("INSERT INTO invites(token_hash,account_id,email,expires_at,created_at) VALUES (?,?,?,?,?)",(f"synthetic-invite-{i}",account,f"invite-{i}@example.invalid",100000,1))
+legacy.commit()
+tables = [r[0] for r in legacy.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+def snapshot(db, columns):
+    return {t: sorted(db.execute("SELECT "+",".join(cols)+" FROM "+t).fetchall(),key=repr) for t,cols in columns.items()}
+columns = {t:[r[1] for r in legacy.execute("PRAGMA table_info("+t+")")] for t in tables}
+before = snapshot(legacy,columns)
+files = sorted((root / "migrations").glob("*.sql"))
+assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,9)]
+for migration in files:
+    legacy.executescript(migration.read_text())
+    assert snapshot(legacy,columns)==before, migration.name+" changed legacy data"
+    assert legacy.execute("PRAGMA integrity_check").fetchone()==("ok",)
+    assert not legacy.execute("PRAGMA foreign_key_check").fetchall()
+assert legacy.execute("SELECT DISTINCT version FROM app_data").fetchall()==[(1,)]
+assert legacy.execute("SELECT COUNT(*) FROM workspace_ai_settings").fetchone()==(0,)
+print("PASS: full 001–008 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
