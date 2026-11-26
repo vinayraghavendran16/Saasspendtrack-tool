@@ -23,4 +23,16 @@ jobs:
       - run: npm ci
       - run: npm run test:release
       - run: npx playwright install --with-deps chromium
+      # Use the runner's supported user namespace configuration, keeping Chromium sandboxed.
+      - name: Configure Chromium user namespaces on ephemeral CI runner
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          unshare --user --map-root-user true
       - run: npm run test:e2e:local
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: local-browser-regression-evidence
+          path: test-results/local/
+          if-no-files-found: ignore
+          retention-days: 7
