@@ -22,3 +22,19 @@ Decision: HOLD production. Cloudflare dashboard access has resumed. Wrangler rem
 - Repeat affected UI workflows on immutable post-fix deployment; clean up only exact synthetic fixture run.
 - Confirm production migration state and fresh authorized backup/restore plan, no customer-data transfer without approval.
 - Separate explicit production authorization. No merge, deployment, migrations, DNS, cron or AI changes authorized by this checkpoint.
+
+## Recovery sign-off for the integrated candidate
+
+The local drill was rerun and passed on the tested application tree. It verified all eight migrations, legacy row/currency preservation, exact synthetic snapshot restoration, database integrity, and exclusion of a write committed after the snapshot. The earlier isolated D1 restore with production data covered migrations 001–002. Its bulk SQL import hit `SQLITE_TOOBIG`; parameterized restoration succeeded.
+
+Before production approval, record the following and attach the evidence to the candidate:
+
+| Decision or evidence | Required record |
+| --- | --- |
+| Recovery point and downtime | Owner-approved maximum tolerable data loss and downtime, plus the maintenance window. |
+| Backup and key custody | Owner-approved off-device location, separately controlled recovery key, retrieval verification and retention for the backup and isolated copy. Record identifiers only. |
+| Production-data restore | With approval, record a fresh snapshot, isolated unbound D1 target, actual migration state, parameterized restore results, missing migrations applied in order, integrity and redacted row comparisons, and elapsed recovery time. |
+| Post-snapshot writes | Record the write-freeze or reconciliation procedure, the snapshot cutoff, who reconciles later writes, and validation before reopening writes. |
+| Rollback target | Record the known-good production deployment and verify that it preserves revision-checked saves and consent enforcement. Keep additive schema during code rollback. |
+
+Use the [existing release and rollback checklist](release-readiness-2026-11-26.md#backup-rollback-and-production-release-checklist) for execution. Production data and credentials stay outside Git.
