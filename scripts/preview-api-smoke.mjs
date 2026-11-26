@@ -7,11 +7,12 @@ import { parseUsPreviewUrl } from './preview-api-target.mjs';
 const url = parseUsPreviewUrl(process.env.PREVIEW_URL || 'https://invalid.example');
 assert.equal(process.env.PREVIEW_TEST_CONFIRM, 'disposable-empty-workspaces');
 assert.equal(process.env.PREVIEW_DB_VERIFIED, 'sst-preview-us', 'Independently verify the isolated US preview DB binding before running');
+// Use fresh empty disposable accounts, not the existing nonempty E2E fixtures.
 const a = process.env.PREVIEW_OWNER_A_COOKIE;
 const b = process.env.PREVIEW_OWNER_B_COOKIE;
 assert.ok(a && b && a !== b, 'Two distinct disposable sessions required');
 async function call(cookie, path, method='GET', body, version) {
-  const headers = { accept: 'application/json' };
+  const headers = { accept: 'application/json', origin: url.origin };
   if (cookie) headers.cookie = cookie;
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (version !== undefined) headers['If-Match'] = String(version);
@@ -20,14 +21,17 @@ async function call(cookie, path, method='GET', body, version) {
 }
 function check(r, status) { assert.equal(r.status,status); return r.body; }
 async function run() {
-  check(await call(null,'/api/data'),401);
+  // Cloudflare Access may intercept requests without its own session.
+  const access = process.env.PREVIEW_ACCESS_COOKIE;
+  assert.ok(access && /^CF_Authorization=[^;\s]+$/.test(access), 'Dedicated Access-only session required');
+  check(await call(access,'/api/data'),401);
   const first = check(await call(a,'/api/data'),200);
   const second = check(await call(b,'/api/data'),200);
   assert.ok(first.workspaceId && second.workspaceId && first.workspaceId !== second.workspaceId, 'Separate workspaces required');
   assert.ok(first.empty === true && first.version === 0 && second.empty === true && second.version === 0, 'Refusing to modify nonempty workspaces');
   const consentA = check(await call(a,'/api/ai/consent'),200);
   const consentB = check(await call(b,'/api/ai/consent'),200);
-  assert.ok(consentA.canManage && consentB.canManage && !consentA.enabled && !consentB.enabled, 'Fresh owner/admin sessions required');
+  assert.ok(consentA.canManage && consentB.canManage && !consentA.enabled && !consentB.enabled && consentA.canEnable === false && consentB.canEnable === false, 'Fresh owner/admin sessions required');
   console.log('PASS: unauthenticated access denied; distinct empty workspaces; AI disabled');
   const sample = { subscriptions:[], settings:{previewSmokeMarker:crypto.randomUUID()} };
   check(await call(a,'/api/data','PUT',sample),428);
@@ -70,16 +74,13 @@ async function run() {
   assert.equal(check(await call(b, '/api/data'), 200).empty, true);
   console.log('PASS: currency round-trip, mixed-currency rejection, and unchanged saved amounts and version');
 
-  const consent = enabled => call(a,'/api/ai/consent','POST',{enabled,consentVersion:'workspace-ai-v2'});
-  try {
-    assert.equal(check(await consent(true),200).enabled,true);
-    assert.equal(check(await call(a,'/api/ai/consent'),200).enabled,true);
-    assert.equal(check(await call(b,'/api/ai/consent'),200).enabled,false);
-  } finally {
-    assert.equal(check(await consent(false),200).enabled,false);
+  // Read-only consent checks: never mutate AI settings during US Preview validation.
+  for (const cookie of [a,b]) {
+    const policy = check(await call(cookie,'/api/ai/consent'),200);
+    assert.equal(policy.enabled,false);
+    assert.equal(policy.canEnable,false);
   }
-  assert.equal(check(await call(a,'/api/ai/consent'),200).enabled,false);
-  console.log('PASS: consent enable, isolation and revocation');
+  console.log('PASS: effective AI policy disabled; no consent mutations');
   check(await call(a,'/api/auth/logout','POST'),200);
   check(await call(a,'/api/data'),401);
   console.log('PASS: logout invalidates session');
