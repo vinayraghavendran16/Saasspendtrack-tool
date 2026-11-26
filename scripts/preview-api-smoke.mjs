@@ -1,12 +1,12 @@
 // Live API smoke test: disposable preview accounts only. Never use production sessions.
-// Set PREVIEW_URL, PREVIEW_OWNER_A_COOKIE, PREVIEW_OWNER_B_COOKIE and
-// PREVIEW_TEST_CONFIRM=disposable-empty-workspaces. Cookies stay local; never print them.
+// Set PREVIEW_URL to the isolated US Preview, PREVIEW_OWNER_A_COOKIE,
+// PREVIEW_OWNER_B_COOKIE and PREVIEW_TEST_CONFIRM=disposable-empty-workspaces.
+// Confirm PREVIEW_DB_VERIFIED=sst-preview-us. Cookies stay local; never print them.
 import assert from 'node:assert/strict';
-const url = new URL(process.env.PREVIEW_URL || 'https://invalid.example');
-assert.match(url.origin, /^https:\/\/[a-f0-9]{8}\.saasspendtrack\.pages\.dev$/);
-assert.equal(url.href, url.origin + '/');
+import { parseUsPreviewUrl } from './preview-api-target.mjs';
+const url = parseUsPreviewUrl(process.env.PREVIEW_URL || 'https://invalid.example');
 assert.equal(process.env.PREVIEW_TEST_CONFIRM, 'disposable-empty-workspaces');
-assert.equal(process.env.PREVIEW_DB_VERIFIED, 'sst-preview', 'Independently verify the deployment DB binding before running');
+assert.equal(process.env.PREVIEW_DB_VERIFIED, 'sst-preview-us', 'Independently verify the isolated US preview DB binding before running');
 const a = process.env.PREVIEW_OWNER_A_COOKIE;
 const b = process.env.PREVIEW_OWNER_B_COOKIE;
 assert.ok(a && b && a !== b, 'Two distinct disposable sessions required');
