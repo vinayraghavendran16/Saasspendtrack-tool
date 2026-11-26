@@ -16,10 +16,10 @@ Decision: HOLD production. Cloudflare dashboard access has resumed. Wrangler rem
 - [ ] Owner review of backup/key custody, retention, recovery objectives and acceptable downtime. No assumptions about these decisions.
 
 ## Deferred live gates
-- Authenticate Wrangler in the release workspace and review relevant audit logs before configuration changes.
+- Wrangler authentication on the deployment Mac and isolated Preview deployment completed.
 - Dashboard preflight verified the Preview environment binds `DB` to `sst-preview-us`, AI is globally disabled, and the owner-only Access application covers the base and wildcard Preview hostnames. Both the base and current immutable hostname redirected unauthenticated requests. Reverify the immutable deployment after upload.
-- Configure missing USAGE_HMAC_SECRET only in Preview, deploy exact tested application and verify usage API.
-- Repeat affected UI workflows on immutable post-fix deployment; clean up only exact synthetic fixture run.
+- Preview-only usage secret configured and authenticated usage reporting verified.
+- All 23 live assertions passed on the immutable candidate. Both synthetic runs were cleaned up and scoped counts verified zero.
 - Confirm production migration state and fresh authorized backup/restore plan, no customer-data transfer without approval.
 - Separate explicit production authorization. No merge, deployment, migrations, DNS, cron or AI changes authorized by this checkpoint.
 
@@ -44,3 +44,10 @@ Use the [existing release and rollback checklist](release-readiness-2026-11-26.m
 The repository's `main` baseline `ec812b4` writes workspace snapshots with an unconditional upsert. The release application `538cdc3` requires a matching revision on updates and advances the stored revision with the write. Reverting to the `main` implementation after migration could overwrite newer data while leaving its revision unchanged. Do not designate that baseline as a write-enabled rollback target.
 
 Before the maintenance window, capture the actual production deployment ID and source, and verify a production-eligible rollback target against the migrated schema in isolation. Until that verification passes, the rollback target remains open. The Git branch comparison alone does not identify the currently serving production deployment.
+
+## Live US Preview validation — 2026-11-27 IST
+
+- Immutable deployment [6e85ac8f](https://6e85ac8f.saasspendtrack-preview-us.pages.dev), ID `6e85ac8f-4056-4772-8e8f-decd24894adb`, application source `538cdc3`, live runner `75cd29e`.
+- The first run passed 22 checks. The JSON export assertion failed after reload. The runner was updated to wait for the synthetic workspace to hydrate, then the retry passed 23 checks with zero failures on the same deployment.
+- The fixture helper verified the isolated US Preview database binding and AI-disabled flag. The operator's Terminal output confirmed scoped cleanup left zero rows after each run. No private fixture manifests are included.
+- Production remains on hold pending recovery sign-off and explicit authorization.
