@@ -6,7 +6,7 @@ if(sql.includes('FROM sessions'))return {email:'owner@example.invalid'};
 if(sql.includes('FROM users'))return {email:'owner@example.invalid',status:'active'};
 if(sql.includes('FROM memberships'))return {email:'owner@example.invalid',account_id:'a',role:'owner',status:'active'};
 if(sql.includes('FROM accounts'))return {id:'a',owner_email:'owner@example.invalid'};
-if(sql.includes('workspace_ai_settings'))return {enabled:consent ? 1 : 0,consent_version:'workspace-ai-v2'};
+if(sql.includes('workspace_ai_settings'))return {enabled:consent ? 1 : 0,consent_version:'workspace-ai-v2',locked:0};
 if(sql.includes('rate_limits'))return {count:1};return null;},async run(){return {success:true}}}}}}}};
 
 const originalFetch = globalThis.fetch;
