@@ -7133,8 +7133,8 @@ function downloadFile(filename, content, mime) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000);
 }
 function exportSubscriptionsCsv() {
   const headers = ['name','team','category','cost','currency','cycle','monthly_cost','renewal','next_projected_renewal','auto_renew','notice_days','term_length','price_cap_pct','url','notes','active'];
@@ -7162,8 +7162,8 @@ function exportJson() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'saas-spendtrack-export.json';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 30000);
 }
 function validateWorkspaceBackup(data) {
   if (!data || !Array.isArray(data.subscriptions)) throw new Error('The backup must include subscriptions.');
