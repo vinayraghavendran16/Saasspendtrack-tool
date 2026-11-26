@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {hasAiConsent,aiFetch} from '../functions/_shared/ai-gateway.js';
 let row=null, broken=false, locked=false, auditBroken=false, calls=[], audits=[];
-const env={DB:{prepare(sql){return {bind(...args){return {async first(){if(broken)throw Error('DB unavailable');assert.equal(args[0],'workspace-a');return sql.includes('workspace_ai_locks')?{locked:locked?1:0}:row;},async run(){assert.match(sql,/INSERT INTO ai_egress_audit/);if(auditBroken)throw Error('audit unavailable');audits.push(args);}};}};}}};
+const env={DB:{prepare(sql){return {bind(...args){return {async first(){if(broken)throw Error('DB unavailable');assert.equal(args[0],'workspace-a');assert.match(sql,/LEFT JOIN workspace_ai_locks/);return row?{...row,locked:locked?1:0}:null;},async run(){assert.match(sql,/INSERT INTO ai_egress_audit/);if(auditBroken)throw Error('audit unavailable');audits.push(args);}};}};}}};
 const original=globalThis.fetch;
 globalThis.fetch=async (url,options)=>{calls.push({url,options});return new Response('{}');};
 const url='https://api.anthropic.com/v1/messages';

@@ -1,9 +1,8 @@
 export async function hasAiConsent(env, accountId) {
   if (!accountId || env.AI_GLOBAL_DISABLED === 'true') return false;
   try {
-    const row=await env.DB.prepare('SELECT enabled, consent_version FROM workspace_ai_settings WHERE account_id=?').bind(accountId).first();
-    const lock=await env.DB.prepare('SELECT locked FROM workspace_ai_locks WHERE account_id=?').bind(accountId).first();
-    return lock?.locked!==1 && row?.enabled===1 && row?.consent_version==='workspace-ai-v2';
+    const row=await env.DB.prepare('SELECT s.enabled, s.consent_version, COALESCE(l.locked,0) AS locked FROM workspace_ai_settings s LEFT JOIN workspace_ai_locks l ON l.account_id=s.account_id WHERE s.account_id=?').bind(accountId).first();
+    return row?.locked===0 && row?.enabled===1 && row?.consent_version==='workspace-ai-v2';
   } catch (_) { return false; }
 }
 const destinations=new Map([
