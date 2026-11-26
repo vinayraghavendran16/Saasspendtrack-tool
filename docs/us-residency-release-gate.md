@@ -22,3 +22,6 @@ Create a new empty database, without changing either existing binding:
 Record the returned UUID. Then add it as a separate preview-only binding and apply migrations to the empty database. Do not copy production or customer data into it. Verify with:
 `npx wrangler@latest d1 info sst-preview-us --json`
 Expected jurisdiction is `us`. Inspect migration history, schema parity, all automated tests and browser smoke tests before any production decision.
+
+## US preview validation update
+Operator screenshots confirm sst-preview-us jurisdiction us, WNAM, foundational schema and direct SQL migrations 001–008 completed. Wrangler migrations commands returned 7404 while name-based execute succeeded; automatic migration ledger remains unreconciled. Latest operator release-suite screenshot after source parity fix shows 109 core tests passed and subsequent release checks passed; exact tested HEAD not visible. Remote column/trigger checks and empty customer table counts not evidenced yet. Before deployment create a separate access-protected Pages project with DB bound only to sst-preview-us, no production secrets or cron, and verify the binding independently. No production changes authorized.
