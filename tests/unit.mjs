@@ -289,7 +289,7 @@ function presetEnv(user, key) {
   return { ANTHROPIC_API_KEY: key, ADMIN_EMAILS: '', DB: { prepare(sql) { return { bind: (...a) => ({
     first: async () => {
       if (/sessions/i.test(sql)) return user ? { email: user.email, expires_at: Date.now() + 1e9 } : null;
-      if (/workspace_ai_settings/i.test(sql)) return { enabled: 1, consent_version: 'workspace-ai-v2' };
+      if (/workspace_ai_settings/i.test(sql)) return { enabled: 1, consent_version: 'workspace-ai-v2', locked: 0 };
       if (/rate/i.test(sql)) return { count: ++rl };
       if (/memberships/i.test(sql)) return user ? { email: user.email, account_id: 'A', role: 'owner', status: 'active' } : null;
       if (/accounts/i.test(sql)) return user ? { id: 'A', owner_email: user.email } : null;
