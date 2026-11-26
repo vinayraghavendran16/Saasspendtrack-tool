@@ -922,7 +922,7 @@ function handleSubmit(e) {
   if (isNew) {
     const limit = PLANS[currentPlan()].subLimit;
     if (state.subscriptions.length >= limit) {
-      if (confirm(`Free plan is capped at ${limit} subscriptions. Open the pricing page to upgrade to Pro?`)) {
+      if (confirm(`Free plan is capped at ${limit} subscriptions. Open the pricing page to compare annual plans?`)) {
         window.open('https://saasspendtrack.com/#pricing', '_blank', 'noopener');
       }
       return;

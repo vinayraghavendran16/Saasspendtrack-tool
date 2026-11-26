@@ -5,8 +5,7 @@
 (function () {
   'use strict';
 
-  var PAY_INDIA = 'https://rzp.io/rzp/NCGW9GyD';
-  var PAY_GLOBAL = 'https://rzp.io/rzp/MhqdtN2a';
+  var ANNUAL_PLANS_URL = 'https://saasspendtrack.com/pricing/';
 
   function el(html) {
     var d = document.createElement('div');
@@ -65,8 +64,7 @@
       '<div class="sst-gate__logo">SaaS Spend Track</div>' +
       '<h2 id="sst-paywall-title">Your trial has ended</h2>' +
       '<p>Your access is paused but your data is safe. Upgrade to unlock your dashboard again.</p>' +
-      '<a class="sst-btn sst-btn--pair" href="' + PAY_INDIA + '" target="_blank" rel="noopener">Pay in ₹ (India)</a>' +
-      '<a class="sst-btn sst-btn--pair" href="' + PAY_GLOBAL + '" target="_blank" rel="noopener">Pay in $ (Global)</a>' +
+      '<a class="sst-btn" href="' + ANNUAL_PLANS_URL + '" target="_blank" rel="noopener">View upgrade plans</a>' +
       '<button class="sst-btn sst-btn--ghost" id="sst-paid">I’ve paid - refresh my access</button>' +
       '<div class="sst-gate__foot"><a href="#" id="sst-logout">Sign out</a></div>' +
       '</div></div>');
