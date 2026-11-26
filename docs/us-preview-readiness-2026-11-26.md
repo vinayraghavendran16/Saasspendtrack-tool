@@ -159,3 +159,8 @@ The full automated release suite passes after source/bundle parity was restored.
 **Outstanding integration blocker:** live workspace usage returned HTTP 503. Read-only deployment inspection confirms `USAGE_HMAC_SECRET` is absent; `USAGE_RETENTION_ENABLED=false`. No secret or analytics configuration was changed. AI remains globally disabled. Consent enablement/revocation and positive AI delivery audit events were deliberately not exercised. Missing audit records are not proof of zero transmission; automated provider-call guards are separate evidence.
 
 Post-fix Preview deployment, exact-commit CI evidence, live UI rerun and fixture cleanup are pending in this checkpoint. Do not infer release approval from the local regression results.
+
+
+## CI browser regression verification — 2026-11-26
+
+GitHub Actions [45816801426](https://github.com/vinayraghavendran16/Saasspendtrack-tool/actions/runs/45816801426) completed successfully at `325af1dd6c361ea9d371cdf8ffb4815895a56241`. Release suite passed (109 core tests plus additional suites); sandboxed Chromium local tests passed for pointer save, privacy evidence download, JSON export, CSV export and responsive accessibility scan. Synthetic browser evidence artifact `15116575909` retained for seven days. These are local stub-backed browser results, not live post-fix deployment evidence. CI runner user namespaces were enabled on the ephemeral runner; Chromium sandbox remains enabled. No application deployment or database changes made in this checkpoint. Remaining gates: preview-only redeployment of corrected application, live UI rerun, usage secret configuration and verification, fixture cleanup, and outstanding manual/security review. Production remains HOLD.
