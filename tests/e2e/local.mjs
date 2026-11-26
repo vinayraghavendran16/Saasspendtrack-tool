@@ -13,12 +13,12 @@ let data={subscriptions:[{id:'local-cedar',name:'Synthetic Cedar Local',cost:144
 await ctx.route(url=>url.href!==origin+'/api/ai/evidence',async route=>{const u=new URL(route.request().url());if(u.origin!==origin)return route.abort();if(!u.pathname.startsWith('/api/'))return route.continue();let body={},status=200;switch(u.pathname){case '/api/me':body={authenticated:true,entitled:true,status:'trial',email:'local@example.invalid',daysLeft:1,trialEndsAt:Date.now()+86400000,account:{id:'local-test',role:'owner',name:'Local Synthetic',isOwner:true}};break;case '/api/data':if(route.request().method()==='PUT'){assert.equal(route.request().headers()['if-match'],String(version));data=route.request().postDataJSON();version++;}body={data,version,workspaceId:'local-test'};break;case '/api/ai/consent':body={enabled:false,canEnable:false,canManage:true,canLock:true};break;case '/api/ai/audit':body={records:[]};break;case '/api/account/members':body={members:[],invites:[],role:'owner',canManage:true};break;default:body={};}await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});});
 const p=await ctx.newPage();async function test(name,fn){try{await fn();results.push({name,status:'passed'});console.log('PASS',name)}catch(e){results.push({name,status:'failed',error:e.message});console.error('FAIL',name,e.message)}await fs.writeFile(out+'/results.json',JSON.stringify(results,null,2))}
 await p.goto(origin+'/#subscriptions');await p.locator('#subscriptions').getByText('Synthetic Cedar Local',{exact:true}).filter({visible:true}).waitFor();
-await test('pointer save unobstructed by onboarding widget',async()=>{await p.getByRole('button',{name:/Add subscription/}).click();await p.locator('#f-name').fill('Pointer Regression');await p.locator('#f-cost').fill('25');await Promise.all([p.waitForResponse(r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT'),p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click()]);await p.locator('#modal').waitFor({state:'hidden'});assert.ok(data.subscriptions.some(s=>s.name==='Pointer Regression'));await p.screenshot({path:out+'/pointer-save.png'});});
+await test('pointer save unobstructed by onboarding widget',async()=>{await p.getByRole('button',{name:/Add subscription/}).click();await p.locator('#f-name:focus').waitFor();await p.locator('#f-name').fill('Pointer Regression');await p.locator('#f-cost').fill('25');await Promise.all([p.waitForResponse(r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT'),p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click()]);await p.locator('#modal').waitFor({state:'hidden'});assert.ok(data.subscriptions.some(s=>s.name==='Pointer Regression'));await p.screenshot({path:out+'/pointer-save.png'});});
 await test('subscription search and empty results',async()=>{await p.goto(origin+'/#subscriptions');const search=p.locator('#search');await search.fill('Pointer Regression');await p.locator('#sub-tbody').getByText('Pointer Regression',{exact:true}).waitFor();assert.equal(await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).count(),0);await search.fill('no-such-synthetic-subscription');assert.equal(await p.locator('#sub-tbody').getByText('Pointer Regression',{exact:true}).count(),0);await search.fill('');await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor();});
-await test('negative subscription cost rejected without persistence',async()=>{await p.getByRole('button',{name:/Add subscription/}).click();await p.locator('#f-name').fill('Invalid Negative Cost');await p.locator('#f-cost').fill('-1');const previous=version;assert.equal(await p.locator('#f-cost').evaluate(el=>el.validity.rangeUnderflow),true);await p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click();assert.equal(version,previous);assert.ok(!data.subscriptions.some(s=>s.name==='Invalid Negative Cost'));await p.reload();await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor();await p.locator('#modal').waitFor({state:'hidden'});});
+await test('negative subscription cost rejected without persistence',async()=>{await p.getByRole('button',{name:/Add subscription/}).click();await p.locator('#f-name:focus').waitFor();await p.locator('#f-name').fill('Invalid Negative Cost');await p.locator('#f-cost').fill('-1');const previous=version;assert.equal(await p.locator('#f-cost').evaluate(el=>el.validity.rangeUnderflow),true);await p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click();assert.equal(version,previous);assert.ok(!data.subscriptions.some(s=>s.name==='Invalid Negative Cost'));await p.reload();await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor();await p.locator('#modal').waitFor({state:'hidden'});});
 await test('billing cycle normalization and seat utilization',async()=>{const values=await p.evaluate(()=>({monthly:monthlyCost({cost:100,cycle:'monthly'}),yearly:monthlyCost({cost:1200,cycle:'yearly'}),quarterly:monthlyCost({cost:300,cycle:'quarterly'}),invalid:monthlyCost({cost:100,cycle:'invalid'}),seats:consumption({cost:1200,cycle:'yearly',licenses:10,assigned:8,utilized:6}),paused:consumption({cost:1200,cycle:'yearly',licenses:10,assigned:8,utilized:6,active:false})}));assert.equal(values.monthly,100);assert.equal(values.yearly,100);assert.equal(values.quarterly,100);assert.equal(values.invalid,0);assert.equal(values.seats.unused,4);assert.equal(values.seats.utilizationPct,60);assert.equal(values.seats.unusedCostMonthly,40);assert.equal(values.paused.unusedCostMonthly,0);});
 await test('renewal calendar edge cases',async()=>{const values=await p.evaluate(()=>{const add=(date,cycle,n)=>localDateISO(addCycles(parseDate(date),cycle,n));const today=new Date();today.setHours(0,0,0,0);const future=new Date(today);future.setDate(future.getDate()+10);const past=new Date(today);past.setDate(past.getDate()-8);const projected=nextRenewal({renewal:localDateISO(past),cycle:'weekly'});return {leap:add('2024-01-31','monthly',1),nonLeap:add('2025-01-31','monthly',1),anchor:add('2024-01-31','monthly',2),annual:add('2024-02-29','yearly',1),quarter:add('2025-01-31','quarterly',1),weekly:add('2025-12-29','weekly',1),missing:nextRenewalISO({}),future:nextRenewalISO({renewal:localDateISO(future),cycle:'monthly'}),expectedFuture:localDateISO(future),projectedValid:projected>=today&&projected<future};});assert.equal(values.leap,'2024-02-29');assert.equal(values.nonLeap,'2025-02-28');assert.equal(values.anchor,'2024-03-31');assert.equal(values.annual,'2025-02-28');assert.equal(values.quarter,'2025-04-30');assert.equal(values.weekly,'2026-01-05');assert.equal(values.missing,null);assert.equal(values.future,values.expectedFuture);assert.equal(values.projectedValid,true);});
-await test('subscription edit persists after reload',async()=>{await p.goto(origin+'/#subscriptions');const row=p.locator('#sub-tbody tr').filter({hasText:'Pointer Regression'});await row.getByRole('button',{name:'Edit',exact:true}).click();await p.locator('#f-cost').fill('37.50');const previous=version;await Promise.all([p.waitForResponse(r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT'),p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click()]);await p.locator('#modal').waitFor({state:'hidden'});assert.equal(version,previous+1);assert.equal(data.subscriptions.find(s=>s.name==='Pointer Regression').cost,37.5);await p.reload();await p.locator('#sub-tbody tr').filter({hasText:'Pointer Regression'}).getByText('$37.50',{exact:true}).first().waitFor();});
+await test('subscription edit persists after reload',async()=>{await p.goto(origin+'/#subscriptions');const row=p.locator('#sub-tbody tr').filter({hasText:'Pointer Regression'});await row.getByRole('button',{name:'Edit',exact:true}).click();await p.locator('#f-name:focus').waitFor();await p.locator('#f-cost').fill('37.50');const previous=version;await Promise.all([p.waitForResponse(r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT'),p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click()]);await p.locator('#modal').waitFor({state:'hidden'});assert.equal(version,previous+1);assert.equal(data.subscriptions.find(s=>s.name==='Pointer Regression').cost,37.5);await p.reload();await p.locator('#sub-tbody tr').filter({hasText:'Pointer Regression'}).getByText('$37.50',{exact:true}).first().waitFor();});
 await test('cancellation notice calendar',async()=>{const result=await p.evaluate(()=>{const today=new Date();today.setHours(0,0,0,0);const future=new Date(today);future.setDate(future.getDate()+60);const s={renewal:localDateISO(future),cycle:'yearly',contract:{noticeDays:30}};const w=computeNoticeWindow(s);return {left:w.daysLeft,toRenewal:w.daysToRenewal,missing:computeNoticeWindow({...s,contract:{}})};});assert.equal(result.left,30);assert.equal(result.toRenewal,60);assert.equal(result.missing,null);});
 await test('privacy evidence download',async()=>{await p.goto(origin+'/#integrations');await p.locator('#workspace-ai-state').filter({hasText:'AI disabled.'}).waitFor();const[d]=await Promise.all([p.waitForEvent('download'),p.getByRole('link',{name:'Download AI privacy evidence'}).click()]);assert.equal(d.suggestedFilename(),'sst-ai-privacy-evidence.json');await d.saveAs(out+'/privacy.json');assert.equal(JSON.parse(await fs.readFile(out+'/privacy.json')).policy.enabled,false);});
 await test('workspace JSON export',async()=>{await p.goto(origin+'/#subscriptions');const[d]=await Promise.all([p.waitForEvent('download'),p.locator('#export-btn').click()]);await d.saveAs(out+'/workspace.json');assert.ok(JSON.parse(await fs.readFile(out+'/workspace.json')).subscriptions.some(s=>s.name==='Pointer Regression'));});
@@ -152,6 +152,7 @@ await test('seat allocation changes persist and update unused spend',async()=>{
   const modal=p.locator('#modal');
   const save=modal.getByRole('button',{name:'Save',exact:true});
   await vendor.getByRole('button',{name:'Edit',exact:true}).click();
+  await p.locator('#f-name:focus').waitFor();
   await modal.locator('#f-lic-total').fill('10');
   await modal.locator('#f-lic-assigned').fill('8');
   await modal.locator('#f-lic-utilized').fill('6');
@@ -162,6 +163,7 @@ await test('seat allocation changes persist and update unused spend',async()=>{
   const usage=p.locator('#cons-tbody tr').filter({hasText:'Synthetic Cedar Local'});
   await usage.getByText('$48.00',{exact:true}).waitFor();
   await usage.getByRole('button',{name:'Edit seats',exact:true}).click();
+  await p.locator('#f-name:focus').waitFor();
   await modal.locator('#f-lic-assigned').fill('7');
   await modal.locator('#f-lic-utilized').fill('5');
   await Promise.all([p.waitForResponse(workspaceWrite),save.click()]);
@@ -172,6 +174,47 @@ await test('seat allocation changes persist and update unused spend',async()=>{
   await usage.getByText('$60.00',{exact:true}).waitFor();
   assert.deepEqual((await usage.locator('td').allTextContents()).slice(2,9).map(text=>text.trim()),
     ['10','7','5','5','50%','$60.00','$720.00']);
+});
+
+await test('250-subscription workspace loads and filters accurately',async()=>{
+  const subscriptionCount=250;
+  data={
+    ...data,
+    subscriptions:Array.from({length:subscriptionCount},(_,index)=>({
+      id:'bulk-'+index,
+      name:'Bulk Vendor '+String(index+1).padStart(3,'0'),
+      cost:120,
+      currency:'USD',
+      cycle:'monthly',
+      active:true
+    }))
+  };
+  const rows=p.locator('#sub-tbody tr');
+  const waitForRows=count=>p.waitForFunction(expected=>
+    document.querySelectorAll('#sub-tbody tr').length===expected, count);
+
+  await p.goto(origin+'/#subscriptions');
+  const loadStart=performance.now();
+  await p.reload();
+  await waitForRows(subscriptionCount);
+  const loadMs=Math.round(performance.now()-loadStart);
+  assert.equal(await rows.first().locator('td').first().getByText('Bulk Vendor 001',{exact:true}).count(),1);
+
+  const search=p.locator('#search');
+  const filterStart=performance.now();
+  await search.fill('Bulk Vendor 250');
+  await waitForRows(1);
+  await rows.getByText('Bulk Vendor 250',{exact:true}).waitFor();
+  const filterMs=Math.round(performance.now()-filterStart);
+
+  const clearStart=performance.now();
+  await search.fill('');
+  await waitForRows(subscriptionCount);
+  const clearMs=Math.round(performance.now()-clearStart);
+
+  const timings={engine,subscriptionCount,loadMs,filterMs,clearMs};
+  console.log('250-subscription timings (ms)',JSON.stringify(timings));
+  await fs.writeFile(path.join(out,'large-workspace.json'),JSON.stringify(timings,null,2));
 });
 
 await browser.close();server.close();process.exitCode=results.some(r=>r.status==='failed')?1:0;
