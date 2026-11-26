@@ -240,3 +240,37 @@ with tempfile.TemporaryDirectory(prefix="sst-synthetic-recovery-") as temp:
     assert legacy.execute("SELECT version FROM app_data WHERE email=?", ("migration-0@example.invalid",)).fetchone()==(2,)
     restored.close()
 print("PASS: synthetic SQLite backup/restore, exact schema and rows, integrity, post-snapshot write boundary")
+
+# The freeze protects the snapshot table across both deployed save protocols.
+recovery = root / "scripts" / "recovery"
+freeze = (recovery / "freeze-workspace-writes.sql").read_text()
+unfreeze = (recovery / "unfreeze-workspace-writes.sql").read_text()
+email = "migration-0@example.invalid"
+writes = [
+    ("INSERT INTO app_data (email, data, updated_at) VALUES (?, '{}', 1) "
+     "ON CONFLICT(email) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at", (email,)),
+    ("INSERT OR IGNORE INTO app_data (email, data, updated_at, version) "
+     "VALUES (?, '{}', 1, 1)", ("new-recovery@example.invalid",)),
+    ("UPDATE app_data SET data='{}', version=version+1 WHERE email=? AND version=2", (email,)),
+    ("DELETE FROM app_data WHERE email=?", (email,)),
+]
+expected = snapshot(legacy, all_columns)
+legacy.executescript(freeze)
+legacy.executescript(freeze)
+for statement, args in writes:
+    try:
+        legacy.execute(statement, args)
+    except sqlite3.IntegrityError as error:
+        assert str(error) == "workspace_writes_frozen"
+    else:
+        raise AssertionError("Workspace mutation succeeded during recovery freeze")
+assert snapshot(legacy, all_columns) == expected
+legacy.executescript(unfreeze)
+legacy.executescript(unfreeze)
+assert legacy.execute(
+    "UPDATE app_data SET version=version+1 WHERE email=? AND version=1", (email,)
+).rowcount == 0
+assert legacy.execute(
+    "UPDATE app_data SET version=version+1 WHERE email=? AND version=2", (email,)
+).rowcount == 1
+print("PASS: recovery freeze rejects legacy and revision-checked writes, and guarded saves resume after unfreeze")
