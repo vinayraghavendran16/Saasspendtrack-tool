@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
@@ -37,6 +38,9 @@ try{
  assert.equal(await page.locator('#trend-chart svg circle').count(),2);
  assert.equal(await page.locator('#trend-chart svg line').count(),1);
  assert.equal(await page.locator('#trend-results tr').count(),3);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+ assert.deepEqual(audit.violations.map(v=>({id:v.id,impact:v.impact})),[]);
  await page.close();
  }
  }finally{await browser.close();}
