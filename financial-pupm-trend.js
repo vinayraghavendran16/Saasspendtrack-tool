@@ -34,4 +34,7 @@ async function load(){
  status.textContent='Observed invoices only; ledger completeness not established.';
  }catch(e){if(seq===generation)status.textContent=e.message;}
 }
-form.addEventListener('submit',e=>{e.preventDefault();load();});month.addEventListener('change',()=>{generation++;table.replaceChildren();document.getElementById('trend-chart').replaceChildren();status.textContent='Reporting month changed. Load trend to refresh.';});
+form.addEventListener('submit',e=>{e.preventDefault();load();});function invalidate(){generation++;table.replaceChildren();document.getElementById('trend-chart').replaceChildren();status.textContent='Inputs or source evidence changed. Load trend to refresh.';}
+month.addEventListener('change',invalidate);
+form.addEventListener('input',invalidate);
+document.addEventListener('financial-population-changed',invalidate);
