@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {refreshFinancialNavigation as refresh,clearFinancialNavigation as clear} from '../financial-navigation.js';
+let link=null,anchor={parentElement:{},after(el){link=el;}};
+globalThis.document={getElementById(){return link;},querySelector(){return anchor;},createElement(){return {remove(){link=null;}};}};
+const ok=()=>({ok:true,json:async()=>({financialIntelligence:true})});
+globalThis.fetch=async()=>ok();
+await refresh();assert.equal(link.href,'/financial-intelligence.html');
+await refresh();assert.equal(link.id,'financial-intelligence-nav');
+globalThis.fetch=async()=>({ok:false});await refresh();assert.equal(link,null);
+globalThis.fetch=async()=>{throw Error('offline');};await refresh();assert.equal(link,null);
+let resolve;globalThis.fetch=()=>new Promise(r=>resolve=r);
+const pending=refresh();clear();resolve(ok());await pending;assert.equal(link,null);
+globalThis.fetch=async()=>ok();anchor=null;await refresh();assert.equal(link,null);
+console.log('financial navigation lifecycle passed');
