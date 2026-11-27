@@ -137,3 +137,10 @@ db.execute("INSERT INTO checkout_release_evidence(checkout_id,link_id,provider_s
 db.execute("UPDATE checkout_intents SET status='expired',founding_slot=NULL WHERE id='c2'")
 assert db.execute("SELECT founding_slot FROM checkout_intents WHERE id='c2'").fetchone()==(None,)
 print('PASS: duplicate ledger race and verified capacity release')
+
+db.executescript(next((root/'migrations').glob('032_*')).read_text())
+db.execute("INSERT INTO legacy_founding_allocations VALUES (2,'27','fixture-evidence',1)")
+rejects(lambda:db.execute("INSERT INTO legacy_founding_allocations VALUES (3,'28','collision',1)"))
+rejects(lambda:db.execute("INSERT INTO checkout_intents(id,account_id,owner_email,tier,amount,currency,founding_slot,created_at,expires_at) VALUES ('legacy-repeat','27','27@example.test','founding',149900,'USD',25,1,2)"))
+rejects(lambda:db.execute("DELETE FROM legacy_founding_allocations"))
+print('PASS: historical allocation collision and immutability')
