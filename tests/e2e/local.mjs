@@ -112,6 +112,8 @@ await test('subscription deletion confirms the invoice cascade and persists',asy
 
 await test('team directory imports, filters and removes employees',async()=>{
   await p.goto(origin+'/#team');
+  await p.reload();
+  await p.locator('#team-file').waitFor({state:'attached'});
   const csv=[
     'Employee ID,Email,Title,Department',
     'SST-001,alex@example.invalid,"Analyst, Senior",Finance',
@@ -148,7 +150,9 @@ await test('team directory imports, filters and removes employees',async()=>{
 
 await test('seat allocation changes persist and update unused spend',async()=>{
   await p.goto(origin+'/#subscriptions');
+  await p.reload();
   const vendor=p.locator('#sub-tbody tr').filter({hasText:'Synthetic Cedar Local'});
+  await vendor.waitFor();
   const modal=p.locator('#modal');
   const save=modal.getByRole('button',{name:'Save',exact:true});
   await vendor.getByRole('button',{name:'Edit',exact:true}).click();
