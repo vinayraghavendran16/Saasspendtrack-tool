@@ -5086,49 +5086,57 @@ function renderDashboardEmptyState() {
   });
 }
 
-/* -------- Dashboard spend-breakdown filters (period / department / category) --------
-   These scope the Spend-by-category, Spend-by-team and Vendor-totals panels only.
-   Date range includes a subscription whose contract term overlaps the window (run-rate
-   subs with no term dates are ongoing and always count), and scopes the vendor-totals
-   invoice columns to invoices dated within the window. The headline KPI cards stay on
-   the full active book. */
+/* Dashboard filters are transient view state, never persisted. */
+let dashboardViewFilters = { range: 'all', dept: '', cat: '' };
+let dashboardFilterState = null;
 function dashFilters() {
-  const f = (state.settings && state.settings.dashFilters) || {};
-  return { range: f.range || 'all', dept: f.dept || '', cat: f.cat || '' };
+  if (dashboardFilterState !== state) {
+    dashboardFilterState = state;
+    dashboardViewFilters = { range: 'all', dept: '', cat: '' };
+  }
+  return dashboardViewFilters;
 }
 function setDashFilters(patch) {
-  if (!state.settings) state.settings = {};
-  state.settings.dashFilters = Object.assign({}, dashFilters(), patch);
-  save();
+  dashboardViewFilters = { ...dashFilters(), ...patch };
   renderDashboard();
 }
-function dashRangeDates(range) {
-  const now = new Date();
-  if (range === 'mtd') return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
-  if (range === 'qtd') { const q = Math.floor(now.getMonth() / 3) * 3; return { start: new Date(now.getFullYear(), q, 1), end: now }; }
-  if (range === 'ytd') return { start: new Date(now.getFullYear(), 0, 1), end: now };
-  if (range === '12m') { const s = new Date(now); s.setFullYear(s.getFullYear() - 1); return { start: s, end: now }; }
-  return null;
+function dashDepartment(s) { return s.team || s.department || 'Unassigned'; }
+function dashCategory(s) { return s.category || 'Uncategorized'; }
+function dashDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const d = parseDate(value);
+  if (!d || !Number.isFinite(d.getTime())) return null;
+  const [y,m,day] = value.split('-').map(Number);
+  return d.getFullYear() === y && d.getMonth()+1 === m && d.getDate() === day ? d : null;
+}
+function dashRangeDates(range, now = new Date()) {
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59,999);
+  let start;
+  if (range === 'mtd') start = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (range === 'qtd') start = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1);
+  if (range === 'ytd') start = new Date(now.getFullYear(), 0, 1);
+  if (range === '12m') {
+    const y = now.getFullYear()-1, m = now.getMonth();
+    start = new Date(y,m,Math.min(now.getDate(),new Date(y,m+1,0).getDate()));
+  }
+  return start ? { start, end } : null;
 }
 function subInDashRange(s, r) {
   if (!r) return true;
-  const start = s.startDate ? parseDate(s.startDate) : null;
-  const end = s.endDate ? parseDate(s.endDate) : null;
-  if (!start && !end) return true;
-  if (start && start > r.end) return false;
-  if (end && end < r.start) return false;
-  return true;
+  const start = dashDate(s.startDate), end = dashDate(s.endDate);
+  if ((s.startDate && !start) || (s.endDate && !end) || (start && end && start > end)) return false;
+  return !(start && start > r.end) && !(end && end < r.start);
+}
+function passesDashDimensions(s, f) {
+  return (!f.dept || dashDepartment(s) === f.dept) && (!f.cat || dashCategory(s) === f.cat);
 }
 function passesDashFilters(s, f, r) {
-  if (f.dept && (s.department || '') !== f.dept) return false;
-  if (f.cat && (s.category || '') !== f.cat) return false;
-  return subInDashRange(s, r);
+  return passesDashDimensions(s,f) && subInDashRange(s,r);
 }
 function invInDashRange(i, r) {
   if (!r) return true;
-  const d = parseDate(i.paidDate || i.dueDate || i.issueDate);
-  if (!d) return true;
-  return d >= r.start && d <= r.end;
+  const d = dashDate(i.paidDate || i.dueDate);
+  return !!d && d >= r.start && d <= r.end;
 }
 function ensureDashFilterControls() {
   const rangeSel = document.getElementById('dfb-range');
@@ -5136,7 +5144,7 @@ function ensureDashFilterControls() {
   const catSel = document.getElementById('dfb-cat');
   if (!rangeSel || !deptSel || !catSel) return;
   const f = dashFilters();
-  const depts = [...new Set(state.subscriptions.map(s => s.department).filter(Boolean))].sort();
+  const depts = [...new Set(state.subscriptions.map(dashDepartment))].sort();
   const cats = [...new Set(state.subscriptions.map(s => s.category).filter(Boolean))].sort();
   deptSel.innerHTML = '<option value="">All departments</option>' + depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
   catSel.innerHTML = '<option value="">All categories</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
@@ -5158,22 +5166,25 @@ function renderDashboard() {
   const active = activeSubs();
   const _df = dashFilters();
   const _dr = dashRangeDates(_df.range);
-  const dashSubs = active.filter(s => passesDashFilters(s, _df, _dr));
+  const selectedSubs = state.subscriptions.filter(s => passesDashFilters(s, _df, _dr));
+  const dashSubs = selectedSubs.filter(s => s.active !== false);
   ensureDashFilterControls();
-  const totalMonthly = active.reduce((sum, s) => sum + monthlyCost(s), 0);
+  const totalMonthly = dashSubs.reduce((sum, s) => sum + monthlyCost(s), 0);
   const totalAnnual = totalMonthly * 12;
-  const paused = state.subscriptions.length - active.length;
+  const paused = selectedSubs.length - dashSubs.length;
 
   animateNumber(document.getElementById('stat-monthly'), totalMonthly, fmtMoney);
-  document.getElementById('stat-monthly-sub').textContent = `${active.length} active · ${paused} paused`;
+  document.getElementById('stat-monthly-sub').textContent = `${dashSubs.length} active · ${paused} paused`;
   animateNumber(document.getElementById('stat-annual'), totalAnnual, fmtMoney);
 
   // Invoices YTD paid / pending
-  const yearStart = new Date(new Date().getFullYear(), 0, 1);
-  const today = new Date(); today.setHours(23, 59, 59, 999);
-  const paidYtd = state.invoices.filter(i => i.paidDate && parseDate(i.paidDate) >= yearStart && parseDate(i.paidDate) <= today);
+  const scopedIds = new Set(state.subscriptions.filter(s => passesDashDimensions(s, _df)).map(s => s.id));
+  const scopedInvoices = state.invoices.filter(i => (!_df.dept && !_df.cat || scopedIds.has(i.subId)) && invInDashRange(i, _dr));
+  const today = new Date(); today.setHours(23,59,59,999);
+  const paidYtd = scopedInvoices.filter(i => { const d = dashDate(i.paidDate); return d && d <= today; });
+  document.getElementById('stat-paid').closest('.stat-card').querySelector('.stat-label').textContent = 'Invoices paid (' + ({all:'all time',mtd:'this month',qtd:'this quarter',ytd:'YTD','12m':'last 12 months'}[_df.range] || 'all time') + ')';
   const paidTotal = paidYtd.reduce((s, i) => s + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
-  const pending = state.invoices.filter(i => invoiceStatus(i) !== 'paid');
+  const pending = scopedInvoices.filter(i => invoiceStatus(i) !== 'paid');
   const overdue = pending.filter(i => invoiceStatus(i) === 'overdue');
   const pendingTotal = pending.reduce((s, i) => s + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
   animateNumber(document.getElementById('stat-paid'), paidTotal, fmtMoney);
@@ -5211,7 +5222,7 @@ function renderDashboard() {
   // Team chart (scoped by the dashboard spend filters)
   const byTeam = {};
   dashSubs.forEach(s => {
-    const t = s.team || 'Unassigned';
+    const t = dashDepartment(s);
     byTeam[t] = (byTeam[t] || 0) + monthlyCost(s);
   });
   const teamEntries = Object.entries(byTeam).sort((a,b) => b[1] - a[1]);
@@ -5465,7 +5476,7 @@ function renderVendorTotals() {
     const invs = state.invoices.filter(i => i.subId === s.id && invInDashRange(i, _vr));
     const paid = invs.filter(i => i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
     const pend = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
-    const monthly = monthlyCost(s);
+    const monthly = s.active === false ? 0 : monthlyCost(s);
     return { s, invCount: invs.length, paid, pend, total: paid + pend, monthly };
   }).sort((a, b) => b.total - a.total || b.monthly - a.monthly);
 
