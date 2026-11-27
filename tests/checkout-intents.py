@@ -69,3 +69,17 @@ with tempfile.TemporaryDirectory() as tmp:
     assert results.count(('c3',))==1, results
     assert results.count(None)==7, results
 print('PASS: eight concurrent connections produce one provider claim')
+
+# Execute the actual entitlement INSERT from the webhook against SQLite.
+import re
+from datetime import datetime, timezone
+source=(root/'functions/api/razorpay/test-webhook.js').read_text()
+sql=re.search(r'env.DB.prepare\(`(INSERT INTO payment_ledger[\s\S]*?)`\)',source).group(1)
+db.execute('CREATE TABLE users(email TEXT PRIMARY KEY)')
+db.execute("INSERT INTO users VALUES ('4@example.test')")
+db.execute("UPDATE checkout_intents SET status='created',link_id='plink_leap' WHERE id='c4'")
+def millis(s): return int(datetime.fromisoformat(s).replace(tzinfo=timezone.utc).timestamp()*1000)
+t=millis('2028-02-29T12:00:00.123')
+db.execute(sql,('pay_leap',t,t,'c4'))
+assert db.execute("SELECT entitlement_until FROM payment_ledger WHERE payment_id='pay_leap'").fetchone()==(millis('2029-02-28T12:00:00.123'),)
+print('PASS: actual webhook SQL leap-day entitlement')
