@@ -10,7 +10,7 @@ for(const patch of [{amount:1},{currency:'INR'},{reference_id:'wrong'},{short_ur
 assert.equal((await inspectProviderLink(env,c,mock({status:'expired'}))).terminalUnpaid,true);
 assert.equal((await inspectProviderLink(env,c,mock({status:'expired',payments:null}))).terminalUnpaid,true);
 assert.equal((await inspectProviderLink(env,c,mock({status:'cancelled',payments:null}))).terminalUnpaid,true);
-assert.equal((await inspectProviderLink(env,c,mock({status:'expired',payments:[]})).terminalUnpaid,true);
+assert.equal((await inspectProviderLink(env,c,mock({status:'expired',payments:[]}))).terminalUnpaid,true);
 assert.equal((await inspectProviderLink(env,c,mock({status:'expired',payments:[{payment_id:'pay_fixture'}]}))).terminalUnpaid,false);
 assert.equal((await inspectProviderLink(env,c,mock({status:'expired',amount_paid:1,payments:null}))).terminalUnpaid,false);
 assert.equal((await inspectProviderLink(env,c,mock({status:'cancelled',amount_paid:1}))).terminalUnpaid,false);
