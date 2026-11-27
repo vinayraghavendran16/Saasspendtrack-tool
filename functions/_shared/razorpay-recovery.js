@@ -9,6 +9,9 @@ export async function inspectProviderLink(env, checkout, transport=fetch) {
   const link=await response.json();
   if(link.id!==checkout.link_id||link.reference_id!==checkout.id||link.amount!==checkout.amount||link.currency!==checkout.currency||String(link.customer?.email||'').trim().toLowerCase()!==checkout.owner_email) throw new Error('provider_identity_mismatch');
   if(!Number.isSafeInteger(link.amount_paid)||link.amount_paid<0||link.amount_paid>checkout.amount) throw new Error('provider_amount_invalid');
-  const terminalUnpaid=['cancelled','expired'].includes(link.status)&&link.amount_paid===0&&Array.isArray(link.payments)&&link.payments.length===0;
+  // Razorpay documents payments as null until a payment is successfully captured.
+  // A terminal status plus zero amount_paid and null/empty payments is safe evidence.
+  const noCapturedPayments=link.payments==null||(Array.isArray(link.payments)&&link.payments.length===0);
+  const terminalUnpaid=['cancelled','expired'].includes(link.status)&&link.amount_paid===0&&noCapturedPayments;
   return {linkId:link.id,status:link.status,amountPaid:link.amount_paid,terminalUnpaid};
 }
