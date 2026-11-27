@@ -17,8 +17,6 @@ for n in range(39,44):
 DIGEST='a'*64
 db.execute("INSERT INTO ai_artifacts VALUES ('a','msa1','contract-1','active')")
 db.execute("INSERT INTO ai_artifact_versions VALUES ('a','msa1',?,'[\"Clause 8.2\"]',1)",(DIGEST,))
-db.execute("INSERT INTO ai_artifacts VALUES ('b','msa1','contract-b','active')")
-db.execute("INSERT INTO ai_artifact_versions VALUES ('b','msa1',?,'[\"Clause 8.2\"]',1)",(DIGEST,))
 db.commit()
 
 def count(table,account='a'):
