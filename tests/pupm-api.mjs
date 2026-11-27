@@ -62,3 +62,15 @@ assert.equal(series[2].metric.amountMinor,'4950000');
 const missing=await trend({request:trq('end=2020-01&months=1&currency=EUR'),env:tf.env});
 assert.equal((await missing.json()).periods[0].status,'missing_currency_records');
 console.log('historical trend handler fixture passed');
+
+const {onRequestGet:capabilities}=await import('../functions/api/financial/capabilities.js');
+assert.equal((await capabilities({request:req(),env:{}})).status,404);
+assert.equal((await capabilities({request:req(undefined,false),env:fixture().env})).status,401);
+for(const f of [fixture('member'),fixture('admin'),fixture('owner','suspended'),fixture('owner','active',false)])assert.equal((await capabilities({request:req(),env:f.env})).status,403);
+for(const [pupm,reviews] of [[true,false],[false,true],[true,true]]){
+ const env={...fixture().env,PUPM_ENABLED:String(pupm),DECISION_INTELLIGENCE_ENABLED:String(reviews)};
+ const res=await capabilities({request:req(),env});
+ assert.equal(res.status,200);
+ assert.deepEqual(await res.json(),{financialIntelligence:true,pupm,reviews});
+}
+console.log('financial capability authorization passed');
