@@ -200,7 +200,7 @@ def snapshot(db, columns):
 columns = {t:[r[1] for r in legacy.execute("PRAGMA table_info("+t+")")] for t in tables}
 before = snapshot(legacy,columns)
 files = sorted((root / "migrations").glob("*.sql"))
-assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,31)]
+assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,34)]
 for migration in files:
     legacy.executescript(migration.read_text())
     assert snapshot(legacy,columns)==before, migration.name+" changed legacy data"
