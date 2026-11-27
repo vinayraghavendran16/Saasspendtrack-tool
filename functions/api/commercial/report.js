@@ -5,7 +5,7 @@ import {reportCsv} from '../../_shared/report-csv.js';
 export async function onRequestGet({request,env}){
  if(env.COMMERCIAL_REPORTS_ENABLED!=='true')return new Response(null,{status:404});
  const auth=await requireEntitledRole(request,env,'admin');
- if(auth instanceof Response)return auth;
+ if(auth.response)return auth.response;
  const q=new URL(request.url).searchParams;
  const start=q.get('start'),end=q.get('end'),grain=q.get('grain')??'month',fiscalStartMonth=Number(q.get('fiscalStartMonth')??1);
  try{reportPeriod(start,end,grain);if(!Number.isInteger(fiscalStartMonth)||fiscalStartMonth<1||fiscalStartMonth>12)throw Error();}catch{return new Response('Invalid period',{status:400});}
