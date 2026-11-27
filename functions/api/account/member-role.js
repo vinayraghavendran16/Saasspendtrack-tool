@@ -27,11 +27,16 @@ export async function onRequestPost({ request, env }) {
   if (membership.role !== 'owner' && (target.role === 'admin' || role === 'admin')) {
     return json({ error: 'forbidden', message: 'Only the owner can manage admins.' }, 403);
   }
-  if (target.role === role) return json({ ok: true, email, role, unchanged: true });
 
   try {
-    await env.DB.prepare('UPDATE memberships SET role=? WHERE email=? AND account_id=?')
-      .bind(role, email, membership.account_id).run();
+    const changed = await env.DB.prepare(
+      `UPDATE memberships SET role=? WHERE email=? AND account_id=? AND role IN ('member','admin')
+       AND EXISTS (SELECT 1 FROM memberships AS actor
+          WHERE actor.email=? AND actor.account_id=memberships.account_id AND actor.status='active'
+          AND (actor.role='owner' OR (actor.role='admin' AND memberships.role='member' AND ?='member')))
+       RETURNING email`
+    ).bind(role, email, membership.account_id, normalizeEmail(user.email), role).first();
+    if (!changed) return json({ error: 'membership_changed', message: 'Workspace membership or authorization changed. Reload and try again.' }, 409);
   } catch (err) {
     console.error('member-role update failed', err && err.message);
     return json({ error: 'server', message: 'Could not update the role. Please try again.' }, 500);

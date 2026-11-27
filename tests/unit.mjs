@@ -330,6 +330,17 @@ function acct3Env(o) {
   return { ADMIN_EMAILS: o.adminEmails || '', DB: { prepare(sql) { let b;
     return { bind: (...a) => { b = a; return { sql, args: a,
       first: async () => {
+        if (/^(UPDATE memberships SET role=|DELETE FROM memberships WHERE email=)/i.test(sql) && /RETURNING email/i.test(sql)) {
+          const removing = /^DELETE/i.test(sql);
+          const [email, accountId, actorEmail] = removing ? b : b.slice(1);
+          const target = (o.members || {})[email];
+          const actor = (o.members || {})[actorEmail];
+          if (!target || !actor || target.account_id !== accountId || actor.account_id !== accountId ||
+              actor.status !== 'active' || !['member','admin'].includes(target.role)) return null;
+          if (actor.role !== 'owner' && !(actor.role === 'admin' && target.role === 'member' && (removing || b[0] === 'member'))) return null;
+          if (removing) delete o.members[email]; else target.role = b[0];
+          return { email };
+        }
         if (/FROM sessions/i.test(sql)) return o.sessionEmail ? { email: o.sessionEmail, expires_at: Date.now() + 1e9 } : null;
         if (/FROM users WHERE email/i.test(sql)) return (o.users || {})[b[0]] || null;
         if (/FROM memberships WHERE email/i.test(sql)) return (o.members || {})[b[0]] || null;

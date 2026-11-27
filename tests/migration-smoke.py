@@ -59,23 +59,24 @@ conn.execute("INSERT INTO users (email,created_at,trial_ends_at,status) VALUES (
              ("owner@example.com", 1, 100000, "active"))
 conn.execute("INSERT INTO accounts (id,owner_email,created_at) VALUES (?,?,?)",
              ("account-2", "other-owner@example.com", 1))
+conn.execute("INSERT INTO memberships (email,account_id,role,status,created_at) VALUES (?,?,?,?,?)", ('owner@example.com','account-1','owner','active',1))
 conn.commit()
 ts = 1000
 
-def add_invite(token_hash, email, account_id="account-1"):
+def add_invite(token_hash, email, account_id="account-1", role="member", issuer="owner@example.com"):
     conn.execute("INSERT INTO invites (token_hash,account_id,email,role,invited_by,expires_at,used,created_at) "
                  "VALUES (?,?,?,?,?,?,0,?)",
-                 (token_hash, account_id, email, "member", "owner@example.com", 100000, ts))
+                 (token_hash, account_id, email, role, issuer, 100000, ts))
     conn.commit()
 
-def claim_invite(token_hash, email, sid, account_id="account-1"):
+def claim_invite(token_hash, email, sid, account_id="account-1", role="member", issuer="owner@example.com"):
     args = [
         (token_hash, ts),
         (sid, email, ts, 100000),
-        (email, ts, 100000, "active", None),
-        (email, account_id, "member", "owner@example.com", ts,
+        (email, ts, ts, "expired", None),
+        (email, account_id, role, issuer, ts,
          account_id, 50, email, account_id),
-        (email, account_id, sid),
+        (email, account_id, role, sid),
     ]
     with conn:
         results = [conn.execute(sql, params).fetchall()
@@ -124,7 +125,66 @@ conn.commit()
 assert conn.execute("SELECT used FROM invites WHERE token_hash='invite-fail'").fetchone() == (0,)
 assert conn.execute("SELECT COUNT(*) FROM memberships WHERE email='retry@example.com'").fetchone() == (0,)
 
-for i in range(49):  # accepted member above + 49 = 50 active seats
+assert conn.execute("SELECT status,plan,trial_ends_at FROM users WHERE email='new@example.com'").fetchone() == ("expired",None,ts)
+# Existing personal entitlement remains unchanged.
+conn.execute("INSERT INTO users (email,created_at,trial_ends_at,status,plan) VALUES (?,?,?,?,?)",
+             ("existing-paid@example.com",1,100000,"active","annual"))
+add_invite("invite-paid","existing-paid@example.com")
+claim_invite("invite-paid","existing-paid@example.com","paid-session")
+assert conn.execute("SELECT status,plan FROM users WHERE email='existing-paid@example.com'").fetchone() == ("active","annual")
+# Revoked, demoted and unauthorized issuers cannot redeem old invitations.
+conn.execute("INSERT INTO memberships (email,account_id,role,status,created_at) VALUES (?,?,?,?,?)",
+             ("issuer@example.com","account-1","admin","active",ts))
+for token, role, actor_role, status in [
+    ("unauthorized-admin","admin","admin","active"),
+    ("demoted","member","member","active"),
+    ("suspended","member","admin","suspended"),
+]:
+    conn.execute("UPDATE memberships SET role=?,status=? WHERE email='issuer@example.com'",(actor_role,status))
+    add_invite(token,token+"@example.com",role=role,issuer="issuer@example.com")
+    try:
+        claim_invite(token,token+"@example.com",token+"-session",role=role,issuer="issuer@example.com")
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Unauthorized redemption: "+token)
+    assert conn.execute("SELECT used FROM invites WHERE token_hash=?",(token,)).fetchone()==(0,)
+    assert conn.execute("SELECT COUNT(*) FROM sessions WHERE id=?",(token+"-session",)).fetchone()==(0,)
+conn.execute("DELETE FROM memberships WHERE email='issuer@example.com'")
+conn.commit()
+add_invite("removed-issuer","removed-issuer@example.com",issuer="issuer@example.com")
+try:
+    claim_invite("removed-issuer","removed-issuer@example.com","removed-issuer-session",issuer="issuer@example.com")
+except sqlite3.IntegrityError:
+    pass
+else:
+    raise AssertionError("Removed inviter still authorized")
+assert conn.execute("SELECT used FROM invites WHERE token_hash='removed-issuer'").fetchone()==(0,)
+# Owner can grant admin; admin cannot remove or demote another admin.
+add_invite("owner-grant-admin","admin@example.com",role="admin")
+claim_invite("owner-grant-admin","admin@example.com","admin-session",role="admin")
+conn.execute("UPDATE memberships SET role='admin' WHERE email='new@example.com'")
+conn.commit()
+for file, verb, params in [
+    ("member-remove.js","DELETE FROM memberships",("admin@example.com","account-1","new@example.com")),
+    ("member-role.js","UPDATE memberships SET role=",("member","admin@example.com","account-1","new@example.com","member")),
+]:
+    source=(root/"functions/api/account"/file).read_text()
+    sql=next(x for x in re.findall(tick+"([^"+tick+"]*)"+tick,source,re.S) if x.startswith(verb))
+    assert conn.execute(sql,params).fetchone() is None
+    assert conn.execute("SELECT role FROM memberships WHERE email='admin@example.com'").fetchone()==("admin",)
+    conn.commit()
+    # Current owner remains authorized, even when target is admin.
+    args=list(params)
+    args[-1 if file=="member-remove.js" else -2]="owner@example.com"
+    with conn:
+        assert conn.execute(sql,args).fetchone()==("admin@example.com",)
+        if file=="member-remove.js":
+            conn.execute("INSERT INTO memberships (email,account_id,role,status,created_at) VALUES (?,?,?,?,?)",("admin@example.com","account-1","admin","active",ts))
+        else:
+            conn.execute("UPDATE memberships SET role='admin' WHERE email='admin@example.com'")
+count=conn.execute("SELECT COUNT(*) FROM memberships WHERE account_id='account-1' AND status='active'").fetchone()[0]
+for i in range(50-count):  # include owner and all existing active members
     conn.execute("INSERT INTO memberships (email,account_id,role,status,created_at) VALUES (?,?,?,?,?)",
                  (f"seat{i}@example.com", "account-1", "member", "active", ts))
 conn.commit()

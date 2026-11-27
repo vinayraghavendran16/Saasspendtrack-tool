@@ -11,7 +11,7 @@ import { sendEmail, loginLinkEmail } from '../../_shared/email.js';
 export async function onRequestPost({ request, env }) {
   let body;
   try { body = await request.json(); } catch { return badRequest('invalid json'); }
-  const email = normalizeEmail(body.email);
+  const email = normalizeEmail(body?.email);
   if (!email) return badRequest('valid email required');
 
   // Abuse guard: cap sign-in emails per IP and per address.
@@ -25,12 +25,9 @@ export async function onRequestPost({ request, env }) {
 
   // Create the user (and start the trial) if new. INSERT OR IGNORE keeps the
   // original trial_ends_at on repeat sign-ins.
-  const existed = await env.DB.prepare('SELECT email FROM users WHERE email=?').bind(email).first();
-  if (!existed) {
-    await env.DB.prepare(
-      'INSERT INTO users (email, created_at, trial_ends_at, status) VALUES (?,?,?,?)',
-    ).bind(email, t, t + TRIAL_DAYS * DAY, 'trial').run();
-  }
+  await env.DB.prepare(
+    'INSERT OR IGNORE INTO users (email, created_at, trial_ends_at, status) VALUES (?,?,?,?)',
+  ).bind(email, t, t + TRIAL_DAYS * DAY, 'trial').run();
 
   // Issue a single-use token (store only its hash).
   const token = randomToken(32);

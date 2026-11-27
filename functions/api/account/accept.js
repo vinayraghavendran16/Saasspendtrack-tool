@@ -56,7 +56,15 @@ export async function onRequestGet({ request, env }) {
     // blocked by a cross-account conflict or the seat cap.
     const results = await env.DB.batch([
       env.DB.prepare(
-        'UPDATE invites SET used=1 WHERE token_hash=? AND used=0 AND expires_at>? RETURNING token_hash',
+        `UPDATE invites SET used=1 WHERE token_hash=? AND used=0 AND expires_at>?
+          AND EXISTS (SELECT 1 FROM memberships AS actor
+            WHERE actor.email=invites.invited_by AND actor.account_id=invites.account_id
+              AND actor.status='active'
+              AND (actor.role='owner' OR (actor.role='admin' AND invites.role='member')))
+          AND EXISTS (SELECT 1 FROM accounts a JOIN memberships m
+            ON m.email=a.owner_email AND m.account_id=a.id
+            WHERE a.id=invites.account_id AND m.status='active' AND m.role='owner')
+          RETURNING token_hash`,
       ).bind(tokenHash, t),
       env.DB.prepare(
         `INSERT INTO sessions (id, email, created_at, expires_at)
@@ -64,7 +72,7 @@ export async function onRequestGet({ request, env }) {
       ).bind(storedSid, email, t, t + SESSION_DAYS * 86400000),
       env.DB.prepare(
         'INSERT OR IGNORE INTO users (email, created_at, trial_ends_at, status, plan) VALUES (?,?,?,?,?)',
-      ).bind(email, t, owner.trial_ends_at, owner.status, owner.plan || null),
+      ).bind(email, t, t, 'expired', null),
       env.DB.prepare(
         `INSERT INTO memberships (email, account_id, role, status, invited_by, created_at)
          SELECT ?,?,?, 'active', ?,?
@@ -77,9 +85,9 @@ export async function onRequestGet({ request, env }) {
         inv.account_id, MAX_MEMBERS, email, inv.account_id),
       env.DB.prepare(
         `UPDATE sessions SET expires_at=CASE WHEN EXISTS (
-           SELECT 1 FROM memberships WHERE email=? AND account_id=? AND status='active'
+           SELECT 1 FROM memberships WHERE email=? AND account_id=? AND status='active' AND role=?
          ) THEN expires_at ELSE NULL END WHERE id=?`,
-      ).bind(email, inv.account_id, storedSid),
+      ).bind(email, inv.account_id, inv.role, storedSid),
     ]);
     if (!results[0]?.results?.length) return redirect(`${appUrl}/?invite=expired`);
   } catch (_) {
