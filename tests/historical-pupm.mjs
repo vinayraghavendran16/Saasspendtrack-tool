@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {historicalPupm} from '../functions/_shared/historical-pupm.js';
+const cost={scope:'sales',month:'2027-01',currency:'USD',basis:'invoiced',amountMinor:'100000'};
+const count={scope:'sales',month:'2027-01',denominator:'employees',count:20};
+const run=(costs=[cost],counts=[count])=>historicalPupm({costs,counts,denominator:'employees'});
+assert.deepEqual(run()[0].pupmMinor,{numerator:'100000',denominator:'20'});
+assert.equal(run([cost],[{...count,month:'2027-02'}])[0].pupmMinor,null);
+assert.equal(run([cost],[{...count,scope:'it'}])[0].pupmMinor,null);
+assert.equal(run([cost],[{...count,count:0}])[0].pupmMinor,null);
+assert.throws(()=>run([cost,cost]));
+assert.throws(()=>run([cost],[count,count]));
+assert.equal(run([cost,{...cost,currency:'EUR'}]).length,2);
+console.log('historical PUPM fixtures passed');
