@@ -2,6 +2,7 @@ name: Combined migration rehearsal
 on:
   push:
     branches: ['security/**']
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
