@@ -8,7 +8,7 @@ export async function processPaymentNotifications(env){
   let accepted=false;
   try{
    const p=await env.DB.prepare('SELECT * FROM payment_ledger WHERE payment_id=?').bind(id).first();
-   if(p){const m=paidEmail({amount:p.amount,currency:p.currency,expiresAt:p.entitlement_until});accepted=(await sendEmail(env,{to:p.customer_email,...m})).ok===true;}
+   if(p){const prior=await env.DB.prepare('SELECT 1 FROM payment_ledger WHERE customer_email=? AND entitlement_until<? LIMIT 1').bind(p.customer_email,p.entitlement_until).first();const m=paidEmail({renewal:!!prior,amount:p.amount,currency:p.currency,expiresAt:p.entitlement_until});accepted=(await sendEmail(env,{to:p.customer_email,...m})).ok===true;}
   }catch{}
   await env.DB.prepare("UPDATE payment_notification_outbox SET status=?,next_attempt_at=?,lease_until=NULL WHERE payment_id=? AND status='leased' AND lease_until=?").bind(accepted?'accepted':claim.attempts>=5?'dead':'pending',Date.now()+Math.min(3600000,60000*2**claim.attempts),id,lease).run();
  }
