@@ -1,3 +1,4 @@
+import { readExtractionInput } from '../_shared/extract-input.js';
 import { hasAiConsent, aiFetch } from '../_shared/ai-gateway.js';
 import { recordUsage } from '../_shared/usage.js';
 import { requireEntitledRole, rateLimit } from '../_shared/util.js';
@@ -191,14 +192,9 @@ export async function onRequestPost({ request, env }) {
         { status: 501, headers }
       );
     }
-    const body = await request.json().catch(() => ({}));
-    const text = (body.text || "").toString();
-    const pdfBase64 = (body.pdf_base64 || "").toString();
-    const mediaType = (body.media_type || "application/pdf").toString();
-    const hasPdf = pdfBase64.length > 100;
-    if (!hasPdf && (!text.trim() || text.length < 40)) {
-      return new Response(JSON.stringify({ ok: false, error: "no_input" }), { status: 400, headers });
-    }
+    const input = await readExtractionInput(request);
+    if (input.error) return new Response(JSON.stringify({ok:false,error:input.error}), {status:input.status,headers});
+    const {text,pdfBase64,mediaType,hasPdf} = input;
     const model = await resolveModel(env, gate.membership.account_id);
     // Prefer the native PDF document block (Claude reads tables and scanned
     // pages directly) when the raw PDF is supplied; otherwise send the text.
