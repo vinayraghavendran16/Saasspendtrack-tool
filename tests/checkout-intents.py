@@ -8,7 +8,7 @@ CREATE TABLE accounts(id TEXT PRIMARY KEY, owner_email TEXT);
 CREATE TABLE memberships(email TEXT PRIMARY KEY, account_id TEXT, role TEXT, status TEXT);
 """)
 root=Path(__file__).resolve().parents[1]
-for pattern in ('009_*','028_*'):
+for pattern in ('009_*','028_*','029_*','030_*','031_*'):
     db.executescript(next((root/'migrations').glob(pattern)).read_text())
 def owner(i):
     db.execute('INSERT INTO accounts VALUES (?,?)',(str(i),f'{i}@example.test'))
@@ -42,3 +42,10 @@ assert db.execute("SELECT COUNT(*) FROM checkout_events WHERE checkout_id='c1'")
 assert db.execute('PRAGMA integrity_check').fetchone()==('ok',)
 assert not db.execute('PRAGMA foreign_key_check').fetchall()
 print('PASS: checkout schema regression')
+
+db.execute("INSERT INTO checkout_provider_claims(checkout_id,claimed_at) VALUES ('c2',1)")
+rejects(lambda:db.execute("INSERT INTO checkout_provider_claims(checkout_id,claimed_at) VALUES ('c2',1)"))
+rejects(lambda:db.execute("UPDATE checkout_intents SET status='cancelled',founding_slot=NULL WHERE id='c2'"))
+rejects(lambda:db.execute("DELETE FROM checkout_provider_claims WHERE checkout_id='c2'"))
+rejects(lambda:db.execute("INSERT INTO checkout_provider_claims(checkout_id,claimed_at) VALUES ('c3',2)"))
+print('PASS: provider claim uniqueness and release guards')
