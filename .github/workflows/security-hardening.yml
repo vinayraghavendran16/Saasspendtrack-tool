@@ -15,5 +15,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node tests/payment-policy.mjs
-      - run: node tests/session-token.mjs
+      - run: npm run test:hardening
