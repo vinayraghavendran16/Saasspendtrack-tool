@@ -39,7 +39,7 @@ export async function onRequestPost({ request, env }) {
   // D1 batch is transactional. A duplicate ledger primary key rolls back the entire batch.
   try {
     await env.DB.batch([
-      env.DB.prepare('INSERT INTO payment_ledger (payment_id,link_id,customer_email,tier,amount,currency,recorded_at,entitlement_until) VALUES (?,?,?,?,?,?,?,?)').bind(paymentId,linkId,email,tier,amount,currency,t,t+365*86400000),
+      env.DB.prepare('INSERT INTO payment_ledger (payment_id,link_id,customer_email,tier,amount,currency,recorded_at,entitlement_until) SELECT ?,?,?,?,?,?,?, CAST(strftime(\'%s\', datetime(MAX(?,COALESCE(MAX(entitlement_until),0))/1000, \'unixepoch\', \'+12 months\')) AS INTEGER)*1000 FROM payment_ledger WHERE customer_email=?').bind(paymentId,linkId,email,tier,amount,currency,t,t,email),
       env.DB.prepare('INSERT INTO users (email,created_at,trial_ends_at,status,plan,paid_at,rp_payment_id,amount_paid,currency) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET status=excluded.status,plan=excluded.plan,paid_at=excluded.paid_at,rp_payment_id=excluded.rp_payment_id,amount_paid=excluded.amount_paid,currency=excluded.currency').bind(email,t,t,'active',plan,t,paymentId,amount,currency)
     ]);
   } catch (err) {
@@ -57,15 +57,17 @@ export async function onRequestPost({ request, env }) {
     } catch (_) { console.warn('Conversion analytics unavailable'); }
   }
 
-  // Confirmation email, once.
+  const ledger = await env.DB.prepare('SELECT entitlement_until FROM payment_ledger WHERE payment_id=?').bind(paymentId).first();
+  const emailKind = 'paid:'+paymentId;
+  // Confirmation email, once per payment.
   const already = await env.DB.prepare('SELECT 1 FROM email_log WHERE email=? AND kind=?')
-    .bind(email, 'paid').first();
+    .bind(email, emailKind).first();
   if (!already) {
-    const m = paidEmail();
+    const m = paidEmail({renewal:!!existing?.paid_at,amount,currency,expiresAt:ledger?.entitlement_until});
     const ok = await sendEmail(env, { to: email, subject: m.subject, html: m.html });
     if (ok.ok) {
       await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
-        .bind(email, 'paid', t).run();
+        .bind(email, emailKind, t).run();
     }
   }
 
