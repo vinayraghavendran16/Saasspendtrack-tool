@@ -19,12 +19,12 @@ async function load(){
  for(const r of o.observations.filter(x=>x.denominator==='employees')){
  const div=node('div','');div.append(node('p',r.source_id+' · '+r.population+' employees'));
  const reason=node('input','');reason.placeholder='Selection rationale';reason.maxLength=1000;reason.setAttribute('aria-label','Selection rationale for '+r.source_id);
- const button=node('button','Select source');button.type='button';button.addEventListener('click',async()=>{if(busy||m!==month.value||!reason.value.trim())return;busy=true;button.disabled=true;try{await api('population-selection',{observationId:r.id,reason:reason.value});await load();}catch(e){status.textContent=e.message;}finally{busy=false;button.disabled=false;}});
+ const button=node('button','Select source');button.type='button';button.addEventListener('click',async()=>{if(busy||m!==month.value||!reason.value.trim())return;busy=true;button.disabled=true;try{await api('population-selection',{observationId:r.id,reason:reason.value});document.dispatchEvent(new Event('financial-population-changed'));await load();}catch(e){status.textContent=e.message;}finally{busy=false;button.disabled=false;}});
  div.append(reason,button);observations.append(div);
  }
  }catch(e){if(seq===generation)status.textContent=e.message;}
 }
 $('pupm-filter').addEventListener('submit',e=>{e.preventDefault();load();});
 month.addEventListener('change',load);
-$('pupm-entry').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;busy=true;const f=new FormData(e.currentTarget);try{await api('population',{month:month.value,denominator:'employees',count:Number(f.get('count')),sourceId:f.get('sourceId'),sourceRecordId:f.get('sourceRecordId')});await load();}catch(e){status.textContent=e.message;}finally{busy=false;}});
+$('pupm-entry').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;busy=true;const f=new FormData(e.currentTarget);try{await api('population',{month:month.value,denominator:'employees',count:Number(f.get('count')),sourceId:f.get('sourceId'),sourceRecordId:f.get('sourceRecordId')});document.dispatchEvent(new Event('financial-population-changed'));await load();}catch(e){status.textContent=e.message;}finally{busy=false;}});
 load();
