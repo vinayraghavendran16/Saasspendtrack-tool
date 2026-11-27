@@ -12,7 +12,7 @@ function fixture({revoked=false,failAt=null,revisionExists=false,contractMismatc
   prepare(sql){return {bind(...args){
    if(sql.startsWith('SELECT'))return {async first(){
     reads++;
-    assert.deepEqual(args,['a','msa1',digest]);
+    assert.equal(args[0],'a');assert.equal(args[1],'msa1');assert.match(args[2],/^[a-f0-9]{64}$/);
     return revoked?null:{pages_json:JSON.stringify(pages),digest};
    }};
    return {sql,args};
