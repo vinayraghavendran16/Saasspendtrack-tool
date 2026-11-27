@@ -10,3 +10,20 @@ for(const [route,method,flag] of [[scenarios,'Get','AOP_ENABLED'],[scenarios,'Po
  assert.equal((await handler({request,env:{[flag]:'true'}})).status,401);
 }
 console.log('12 advanced feature gate assertions passed');
+
+// Direct CLM proxy must remain closed even if a legacy flag is set.
+const clm = await import('../functions/api/clm-sync.js');
+const previousFetch = globalThis.fetch;
+let outbound = 0;
+globalThis.fetch = async () => { outbound++; throw new Error('unexpected network request'); };
+try {
+  for (const env of [{}, { CLM_ENABLED:'true', CLM_SYNC_ENABLED:'true' }]) {
+    const request = new Request('https://example.invalid/api/clm-sync',{method:'POST',body:JSON.stringify({baseUrl:'https://example.invalid',token:'synthetic'})});
+    const response = await clm.onRequestPost({request,env});
+    assert.equal(response.status,503);
+    assert.equal((await response.json()).error,'feature_unavailable');
+  }
+  assert.equal((await clm.onRequestOptions()).status,405);
+  assert.equal(outbound,0);
+} finally { globalThis.fetch = previousFetch; }
+console.log('PASS: generic CLM proxy cannot be enabled or make outbound requests');
