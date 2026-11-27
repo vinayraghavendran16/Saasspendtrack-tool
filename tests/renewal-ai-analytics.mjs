@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {summarizeRenewalAI as summarize} from '../functions/_shared/renewal-ai-analytics.js';
+const p=(recommendation_id,revision,published_at)=>({recommendation_id,revision,published_at,contract_id:'c'});
+const a=(id,recommendation_id,revision,action,occurred_at)=>({id,recommendation_id,revision,action,occurred_at});
+const input={start:10,end:50,asOf:100,publications:[p('r',1,10),p('r',2,20),p('s',1,30),p('t',1,40)],actions:[a('1','r',1,'accept',15),a('2','r',2,'reject',25),a('3','s',1,'accept',35),a('4','s',1,'reject',35),a('5','t',1,'accept',101)],challenges:[{id:'c1',recommendation_id:'r',revision:2,challenged_at:26}],resolutions:[{challenge_id:'c1',resolved_at:28,disposition:'insufficient_evidence'}]};
+const result=summarize(input);
+assert.equal(result.recommendations,3);assert.equal(result.responded,2);assert.equal(result.rejected,1);assert.equal(result.accepted,0);assert.equal(result.ambiguousResponses,1);assert.equal(result.medianFirstResponseMs,5);assert.equal(result.blockingChallenges,1);assert.equal(result.resolvedChallenges,1);assert.equal(result.financialOutcomeStatus,'not_evaluated');
+assert.equal(summarize({...input,publications:[]}).responseRate,null);
+assert.throws(()=>summarize({...input,publications:[...input.publications,input.publications[0]]}),/duplicate/);
+assert.throws(()=>summarize({...input,asOf:1}),/window/);
+console.log('PASS renewal AI cohort semantics');
