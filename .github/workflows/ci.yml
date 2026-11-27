@@ -19,7 +19,7 @@ jobs:
         run: node tests/unit.mjs
   financial-browser:
     if: github.head_ref == 'development/post-v1-decision-intelligence-20261127'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
