@@ -17,3 +17,17 @@ jobs:
         run: for f in $(find functions -name '*.js'); do node --check "$f" || exit 1; done
       - name: Run unit tests (auth, entitlement, rate limit, SSRF, data)
         run: node tests/unit.mjs
+  financial-browser:
+    if: github.head_ref == 'development/post-v1-decision-intelligence-20261127'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: node tests/e2e/financial.mjs
