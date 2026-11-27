@@ -3,7 +3,7 @@ import {json,getUserFromSession,getMembership,rateLimit,now,randomToken} from '.
 // Reservation only. Provider creation and reconciliation must be implemented
 // before enabling this endpoint. Expired reservations are never freed by time alone.
 export async function onRequestPost({request,env}) {
-  if (env.CHECKOUT_RESERVATIONS_ENABLED !== 'true') return json({error:'checkout_disabled'},503);
+  if (env.CHECKOUT_ISOLATED_SANDBOX!=='true' || env.CHECKOUT_RESERVATIONS_ENABLED !== 'true') return json({error:'checkout_disabled'},503);
   if (request.headers.get('origin') !== new URL(request.url).origin) return json({error:'invalid_origin'},403);
   try {
     const user=await getUserFromSession(request,env);
