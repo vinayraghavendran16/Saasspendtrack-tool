@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import {sessionStorageId} from '../functions/_shared/session-token.js';
+const tokens=new Map(), sessions=new Map();
+for(const [i,email] of ['a@example.com','b@example.com','removed@example.com','member@example.com','owner@example.com','admin@example.com'].entries()){const token=(i+1).toString(16).padStart(64,'0');tokens.set(email,token);sessions.set(await sessionStorageId(token),email);}
 import { onRequestGet, onRequestPut } from '../functions/api/data.js';
 
 // Exercise real endpoint guards with two distinct workspaces and a shared D1 mock.
@@ -24,7 +27,7 @@ const env = { DB: {
     let args = [];
     const bound = {
       async first() {
-        if (/FROM sessions/i.test(sql)) return { email: args[0], expires_at: Date.now() + 10000 };
+        if (/FROM sessions/i.test(sql)) return { email: sessions.get(args[0]), expires_at: Date.now() + 10000 };
         if (/FROM users WHERE email/i.test(sql)) return users[args[0]] || null;
         if (/FROM memberships WHERE email/i.test(sql)) {
           if (failMembershipLookup) throw new Error('D1 unavailable');
@@ -55,7 +58,7 @@ const env = { DB: {
   },
 } };
 function req(email, method = 'GET', body, version = 0) {
-  const headers = { Cookie: 'sst_session=' + email };
+  const headers = { Cookie: 'sst_session=' + tokens.get(email) };
   if (version !== null) headers['If-Match'] = String(version);
   return new Request('https://app.example.com/api/data', {
     method, headers, ...(body ? { body: JSON.stringify(body) } : {}),
