@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {evaluateDecision} from '../functions/_shared/decision-evaluation.js';
+const baseline={scopeKey:'crm',currency:'USD',periodKey:'2027',recurringMinor:120000,exitMinor:0,migrationMinor:0,overlapMinor:0};
+const option=(id,cost,extra={})=>({...baseline,id,recurringMinor:cost,evidence:'verified',contractEligibility:'allowed',businessRequirements:'met',...extra});
+const alternatives=[option('resize',90000),option('blocked',1000,{contractEligibility:'blocked'}),option('assumed',2000,{evidence:'assumed'}),option('unknown',3000,{businessRequirements:'unknown'})];
+const run=(objective='efficiency',a=alternatives)=>evaluateDecision({baseline,alternatives:a,objective});
+assert.equal(run().suggestedAlternativeId,'resize');
+assert.equal(run().alternatives[0].netSavingsMinor,'30000');
+assert.equal(run().alternatives.filter(x=>x.eligible).length,1);
+assert.equal(run('growth').suggestedAlternativeId,null);
+assert.equal(run('risk').suggestedAlternativeId,null);
+assert.equal(run('efficiency',[option('expensive',130000)]).suggestedAlternativeId,null);
+assert.throws(()=>run('efficiency',[option('x',1),option('x',2)]));
+assert.throws(()=>run('efficiency',[option('x',1,{currency:'EUR'})]));
+assert.equal(run().status,'requires_human_review');
+console.log('9 decision evaluation assertions passed');
