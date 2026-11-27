@@ -1,5 +1,6 @@
 import {json,requireEntitledRole} from '../../_shared/util.js';
 import {reconcilePopulation} from '../../_shared/population-reconciliation.js';
+import {invoicedPupm} from '../../_shared/invoiced-pupm.js';
 export async function onRequestGet({request,env}){
  if(env.PUPM_ENABLED!=='true')return new Response(null,{status:404});
  const g=await requireEntitledRole(request,env,'owner');if(g.response)return g.response;
@@ -11,11 +12,6 @@ export async function onRequestGet({request,env}){
  if(population.status!=='available')return json({...base,metrics:[]});
  const {results:rows=[]}=await env.DB.prepare("SELECT kind,currency,CAST(amount_minor AS TEXT) AS amount_minor FROM reporting_financial_facts WHERE account_id=? AND effective_date>=? AND effective_date<=? AND kind IN ('invoice','credit') LIMIT 10001").bind(a,month+'-01',month+'-31').all();
  if(rows.length>10000)return json({error:'ledger_limit_exceeded'},422);
- const totals=new Map();
- for(const r of rows){
- if(!/^[A-Z]{3}$/.test(r.currency)||!/^\d{1,19}$/.test(r.amount_minor))return json({error:'ledger_sign_or_currency_requires_review'},422);
- const amount=BigInt(r.amount_minor)*(r.kind==='credit'?-1n:1n);
- totals.set(r.currency,(totals.get(r.currency)??0n)+amount);
- }
- return json({...base,metrics:[...totals].map(([currency,amount])=>({currency,amountMinor:String(amount),pupmMinor:{numerator:String(amount),denominator:String(population.count)}})),ledgerStatus:rows.length?'records_present':'missing'});
+ let metrics;try{metrics=invoicedPupm(rows,population.count);}catch{return json({error:'ledger_sign_or_currency_requires_review'},422);}
+ return json({...base,metrics,ledgerStatus:rows.length?'records_present':'missing'});
 }
