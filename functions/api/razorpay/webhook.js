@@ -39,7 +39,7 @@ export async function onRequestPost({ request, env }) {
   // D1 batch is transactional. A duplicate ledger primary key rolls back the entire batch.
   try {
     await env.DB.batch([
-      env.DB.prepare('INSERT INTO payment_ledger (payment_id,link_id,customer_email,tier,amount,currency,recorded_at,entitlement_until) SELECT ?,?,?,?,?,?,?, CAST(strftime(\'%s\', datetime(MAX(?,COALESCE(MAX(entitlement_until),0))/1000, \'unixepoch\', \'+12 months\')) AS INTEGER)*1000 FROM payment_ledger WHERE customer_email=?').bind(paymentId,linkId,email,tier,amount,currency,t,t,email),
+      env.DB.prepare('INSERT INTO payment_ledger (payment_id,link_id,customer_email,tier,amount,currency,recorded_at,entitlement_until) SELECT ?,?,?,?,?,?,?, CAST(strftime(\'%s\', datetime(MAX(?,COALESCE(MAX(entitlement_until),0))/1000, \'unixepoch\', CASE WHEN strftime(\'%m-%d\',MAX(?,COALESCE(MAX(entitlement_until),0))/1000,\'unixepoch\')=\'02-29\' THEN \'+365 days\' ELSE \'+12 months\' END)) AS INTEGER)*1000 FROM payment_ledger WHERE customer_email=?').bind(paymentId,linkId,email,tier,amount,currency,t,t,t,email),
       env.DB.prepare('INSERT INTO users (email,created_at,trial_ends_at,status,plan,paid_at,rp_payment_id,amount_paid,currency) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET status=excluded.status,plan=excluded.plan,paid_at=excluded.paid_at,rp_payment_id=excluded.rp_payment_id,amount_paid=excluded.amount_paid,currency=excluded.currency').bind(email,t,t,'active',plan,t,paymentId,amount,currency)
     ]);
   } catch (err) {
