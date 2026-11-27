@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {onRequestGet as pupm} from '../functions/api/financial/pupm.js';
 import {onRequestGet as population,onRequestPost as ingest} from '../functions/api/financial/population.js';
+import {onRequestGet as trend} from '../functions/api/financial/pupm-trend.js';
 const email='owner@example.invalid';
 function fixture(role='owner',status='active',entitled=true){
  const calls=[];
@@ -43,3 +44,21 @@ assert.equal((await ingest({request:req({...b,sourceId:'x'.repeat(5000)}),env:f.
 assert.equal((await ingest({request:req(b),env:f.env})).status,201);
 assert.equal((await population({request:req(),env:f.env})).status,200);
 console.log('PUPM API handler fixture passed');
+
+const tf=fixture();
+const trq=(query,cookie=true)=>new Request('https://example.invalid/api/financial/pupm-trend?'+query,{headers:cookie?{Cookie:'sst_session='+'a'.repeat(64)}:{}});
+const q='end=2020-01&months=3&currency=USD&accountId=b';
+assert.equal((await trend({request:trq(q),env:{}})).status,404);
+assert.equal((await trend({request:trq(q,false),env:tf.env})).status,401);
+assert.equal((await trend({request:trq(q),env:fixture('member').env})).status,403);
+assert.equal((await trend({request:trq('end=2020-01&months=13&currency=USD'),env:tf.env})).status,400);
+const trendResponse=await trend({request:trq(q),env:tf.env});
+assert.equal(trendResponse.status,200);
+const series=(await trendResponse.json()).periods;
+assert.deepEqual(series.map(p=>p.month),['2019-11','2019-12','2020-01']);
+assert.equal(series[0].changeBasisPoints,null);
+assert.equal(series[1].changeBasisPoints,'0');
+assert.equal(series[2].metric.amountMinor,'4950000');
+const missing=await trend({request:trq('end=2020-01&months=1&currency=EUR'),env:tf.env});
+assert.equal((await missing.json()).periods[0].status,'missing_currency_records');
+console.log('historical trend handler fixture passed');
