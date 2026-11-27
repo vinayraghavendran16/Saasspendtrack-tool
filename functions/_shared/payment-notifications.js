@@ -1,8 +1,9 @@
 import {sendEmail,paidEmail} from './email.js';
 export async function processPaymentNotifications(env){
- const now=Date.now(),lease=now+120000;
+ const now=Date.now();
  const {results=[]}=await env.DB.prepare("SELECT payment_id FROM payment_notification_outbox WHERE (status='pending' AND next_attempt_at<=?) OR (status='leased' AND lease_until<=?) LIMIT 20").bind(now,now).all();
  for(const {payment_id:id} of results){
+  const lease=Date.now()+120000;
   const claim=await env.DB.prepare("UPDATE payment_notification_outbox SET status='leased',lease_until=?,attempts=attempts+1 WHERE payment_id=? AND ((status='pending' AND next_attempt_at<=?) OR (status='leased' AND lease_until<=?)) RETURNING attempts").bind(lease,id,now,now).first();
   if(!claim)continue;
   let accepted=false;
