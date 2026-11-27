@@ -82,10 +82,10 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function shell(heading, paragraphs, action) {
+function shell(heading, paragraphs, action, reason = 'You are receiving this account-related email from SaaS Spend Track.') {
   const body = paragraphs.map((p) => `    <p style="margin:0 0 14px;">${p}</p>`).join('\n');
   const btn = action
-    ? `    <p style="margin:24px 0;"><a href="${action.url}" style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;">${action.label} &rarr;</a></p>`
+    ? `    <p style="margin:24px 0;"><a href="${esc(action.url)}" style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;">${action.label} &rarr;</a></p>`
     : '';
   return `
 <div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#101828;line-height:1.55;font-size:15px;max-width:560px;margin:0 auto;">
@@ -100,7 +100,7 @@ ${btn}
     <hr style="border:0;border-top:1px solid #e4e7ec;margin:22px 0;"/>
     <p style="font-size:13px;color:#667085;">Any questions, hit reply or message ${SUPPORT_PHONE}. I read every one of these personally.</p>
     <p style="font-size:12px;color:#98a2b3;margin-top:16px;">Vinay &middot; Whizzlead Solutions OPC Private Limited<br/>
-    You're getting this because you started a SaaS Spend Track trial. Reply <b>stop</b> to opt out.</p>
+    ${esc(reason)}</p>
   </div>
 </div>`;
 }
@@ -153,14 +153,25 @@ export function welcomeEmail(company, appUrl) {
   };
 }
 
-export function paidEmail() {
+export function paidEmail({renewal=false, amount, currency, expiresAt} = {}) {
+  const details = [];
+  if (Number.isSafeInteger(amount) && currency === 'USD') details.push('Payment received: ' + esc(new Intl.NumberFormat('en-US',{style:'currency',currency}).format(amount/100)) + '.');
+  if (Number.isSafeInteger(expiresAt)) details.push('Access valid through the expiry date shown in your account: ' + esc(new Date(expiresAt).toISOString().slice(0,10)) + ' (UTC).');
   return {
-    subject: "You're all set - welcome to SaaS Spend Track",
-    html: shell("You're in", [
-      'Payment received and your account is active. Thank you.',
-      'Your GST invoice will follow separately. Reply to this email if you need anything at all.',
-    ]),
+    subject: renewal ? 'Your SaaS Spend Track renewal is confirmed' : 'Your SaaS Spend Track payment is confirmed',
+    html: shell('Payment confirmed', ['Thank you. Your payment has been received and your access is active.', ...details, 'Reply to this email if you need billing assistance.'], {url:'https://app.saasspendtrack.com/',label:'Open your workspace'}),
   };
+}
+
+export function subscriptionLifecycleEmail(kind, expiresAt) {
+  const date = esc(new Date(expiresAt).toISOString().slice(0,10));
+  const expired = kind === 'expired' || kind === 'after3' || kind === 'after7';
+  const subject = expired ? 'Your SaaS Spend Track subscription has expired' : 'Your SaaS Spend Track subscription expires on ' + date;
+  return {subject,html:shell(subject,[expired ? 'Your paid access has expired.' : 'Your current paid access expires on ' + date + ' (UTC).','Review your subscription and renewal options in your account.'],{url:'https://app.saasspendtrack.com/#pricing',label:'Review subscription'})};
+}
+
+export function paymentFailureEmail() {
+  return {subject:'Your SaaS Spend Track payment was unsuccessful',html:shell('Payment unsuccessful',['We could not confirm your attempted payment. No additional access has been granted for this attempt.','Review your billing options or contact us if you need help.'],{url:'https://app.saasspendtrack.com/#pricing',label:'Review billing'})};
 }
 
 // --- Cadence (fired from trial start by the hourly tick) ---
