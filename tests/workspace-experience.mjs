@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {workspaceExperience} from '../functions/_shared/workspace-experience.js';
+import {visibleModules} from '../functions/_shared/module-registry.js';
+import {resolveNavigation} from '../functions/_shared/navigation-compatibility.js';
+assert.deepEqual(visibleModules(),[]);
+assert.deepEqual(visibleModules({authorizedPages:['plans'],enabledPages:[]}),[]);
+const authorizedPages=['executive-overview','licence-usage','plans'],enabledPages=['executive-overview','licence-usage','approvals'];
+const result=workspaceExperience({authorizedPages,enabledPages,persona:'cfo',pinnedPages:['dashboard','consumption','approvals','plans','dashboard']});
+assert.deepEqual(result.pins,['executive-overview','licence-usage']);
+assert.equal(result.landingPage,'executive-overview');
+assert.equal(resolveNavigation('pricing',result.groups),null);
+assert.equal(resolveNavigation('__proto__',result.groups),null);
+assert.deepEqual(workspaceExperience({persona:'cro'}),{groups:[],pins:[],landingPage:null});
+assert.throws(()=>workspaceExperience({pinnedPages:Array(31).fill('dashboard')}));
+console.log('workspace experience fixtures passed');
