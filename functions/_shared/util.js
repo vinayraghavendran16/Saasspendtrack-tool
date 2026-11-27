@@ -8,10 +8,12 @@ export const TOKEN_MINUTES = 15;
 export const now = () => Date.now();
 
 export function json(data, status = 200, headers = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8', ...headers },
-  });
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set('Content-Type', 'application/json; charset=utf-8');
+  responseHeaders.set('Cache-Control', 'no-store');
+  responseHeaders.set('X-Content-Type-Options', 'nosniff');
+  responseHeaders.set('Referrer-Policy', 'no-referrer');
+  return new Response(JSON.stringify(data), { status, headers: responseHeaders });
 }
 
 export function badRequest(msg) { return json({ error: msg }, 400); }
