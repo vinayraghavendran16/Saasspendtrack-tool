@@ -1,6 +1,6 @@
 import {json,getUserFromSession,getMembership} from '../../_shared/util.js';
 export async function onRequestPost({request,env}) {
-  if(env.CHECKOUT_RESERVATIONS_ENABLED!=='true') return json({error:'checkout_disabled'},503);
+  if (env.CHECKOUT_ISOLATED_SANDBOX!=='true' || env.CHECKOUT_RESERVATIONS_ENABLED!=='true') return json({error:'checkout_disabled'},503);
   if(request.headers.get('origin')!==new URL(request.url).origin) return json({error:'invalid_origin'},403);
   try {
     const u=await getUserFromSession(request,env);
