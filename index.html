@@ -2841,7 +2841,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
         <span class="stat-sub">projected yearly total</span>
       </button>
       <button type="button" class="stat-card" data-goto="invoices" data-inv-status="paid" title="View paid invoices">
-        <span class="stat-label">Invoices paid (YTD)</span>
+        <span class="stat-label">Invoices paid (all time)</span>
         <span class="stat-value" id="stat-paid">$0</span>
         <span class="stat-sub" id="stat-paid-sub">0 invoices</span>
       </button>
@@ -2853,7 +2853,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
     </div>
 
     <div class="dash-filter-bar" id="dash-filter-bar">
-      <span class="dfb-label">Spend breakdown</span>
+      <span class="dfb-label">Dashboard filters</span>
       <label>Period
         <select id="dfb-range">
           <option value="all">All time</option>
@@ -2870,7 +2870,7 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
         <select id="dfb-cat"><option value="">All categories</option></select>
       </label>
       <button type="button" class="icon-btn" id="dfb-clear" hidden>Clear filters</button>
-      <span class="dfb-note" id="dfb-note"></span>
+      <span class="dfb-note" id="dfb-note" aria-live="polite"></span>
     </div>
 
     <div class="panel-grid">
@@ -5133,7 +5133,14 @@ function passesDashDimensions(s, f) {
 function passesDashFilters(s, f, r) {
   return passesDashDimensions(s,f) && subInDashRange(s,r);
 }
+function dashPaid(i, now = new Date()) {
+  const d = dashDate(i.paidDate);
+  const end = new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59,999);
+  return !!d && d <= end;
+}
 function invInDashRange(i, r) {
+  // Invalid/future payment claims are not financial facts; do not silently count them as paid or unpaid.
+  if (i.paidDate && !dashPaid(i)) return false;
   if (!r) return true;
   const d = dashDate(i.paidDate || i.dueDate);
   return !!d && d >= r.start && d <= r.end;
@@ -5145,7 +5152,10 @@ function ensureDashFilterControls() {
   if (!rangeSel || !deptSel || !catSel) return;
   const f = dashFilters();
   const depts = [...new Set(state.subscriptions.map(dashDepartment))].sort();
-  const cats = [...new Set(state.subscriptions.map(s => s.category).filter(Boolean))].sort();
+  const cats = [...new Set(state.subscriptions.map(dashCategory))].sort();
+  // Remove stale selections if the underlying workspace changes in place.
+  if (f.dept && !depts.includes(f.dept)) f.dept = '';
+  if (f.cat && !cats.includes(f.cat)) f.cat = '';
   deptSel.innerHTML = '<option value="">All departments</option>' + depts.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
   catSel.innerHTML = '<option value="">All categories</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
   rangeSel.value = f.range; deptSel.value = f.dept; catSel.value = f.cat;
@@ -5164,11 +5174,11 @@ function ensureDashFilterControls() {
 function renderDashboard() {
   renderDashboardEmptyState();
   const active = activeSubs();
+  ensureDashFilterControls();
   const _df = dashFilters();
   const _dr = dashRangeDates(_df.range);
   const selectedSubs = state.subscriptions.filter(s => passesDashFilters(s, _df, _dr));
   const dashSubs = selectedSubs.filter(s => s.active !== false);
-  ensureDashFilterControls();
   const totalMonthly = dashSubs.reduce((sum, s) => sum + monthlyCost(s), 0);
   const totalAnnual = totalMonthly * 12;
   const paused = selectedSubs.length - dashSubs.length;
@@ -5179,9 +5189,9 @@ function renderDashboard() {
 
   // Invoices YTD paid / pending
   const scopedIds = new Set(state.subscriptions.filter(s => passesDashDimensions(s, _df)).map(s => s.id));
-  const scopedInvoices = state.invoices.filter(i => (!_df.dept && !_df.cat || scopedIds.has(i.subId)) && invInDashRange(i, _dr));
+  const scopedInvoices = state.invoices.filter(i => scopedIds.has(i.subId) && invInDashRange(i, _dr));
   const today = new Date(); today.setHours(23,59,59,999);
-  const paidYtd = scopedInvoices.filter(i => { const d = dashDate(i.paidDate); return d && d <= today; });
+  const paidYtd = scopedInvoices.filter(i => dashPaid(i, today));
   document.getElementById('stat-paid').closest('.stat-card').querySelector('.stat-label').textContent = 'Invoices paid (' + ({all:'all time',mtd:'this month',qtd:'this quarter',ytd:'YTD','12m':'last 12 months'}[_df.range] || 'all time') + ')';
   const paidTotal = paidYtd.reduce((s, i) => s + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
   const pending = scopedInvoices.filter(i => invoiceStatus(i) !== 'paid');
@@ -5201,9 +5211,9 @@ function renderDashboard() {
   if (noteEl) {
     const anyActive = _df.range !== 'all' || _df.dept || _df.cat;
     const filteredMonthly = dashSubs.reduce((sum, s) => sum + monthlyCost(s), 0);
-    noteEl.textContent = anyActive ? `${dashSubs.length} of ${active.length} vendors · ${formatMoney(filteredMonthly)}/mo` : '';
+    noteEl.textContent = `${dashSubs.length} of ${active.length} active subscriptions · ${formatMoney(filteredMonthly)}/mo run-rate${anyActive ? ' · Filtered' : ''}`;
   }
-  const byCat = {};
+  const byCat = Object.create(null);
   dashSubs.forEach(s => {
     const c = s.category || 'Uncategorized';
     byCat[c] = (byCat[c] || 0) + monthlyCost(s);
@@ -5220,7 +5230,7 @@ function renderDashboard() {
   `).join('') : '<p class="empty" style="padding:20px 0">Add subscriptions to see the breakdown.</p>';
 
   // Team chart (scoped by the dashboard spend filters)
-  const byTeam = {};
+  const byTeam = Object.create(null);
   dashSubs.forEach(s => {
     const t = dashDepartment(s);
     byTeam[t] = (byTeam[t] || 0) + monthlyCost(s);
@@ -5469,14 +5479,14 @@ function renderVendorTotals() {
   }
   const _vf = dashFilters();
   const _vr = dashRangeDates(_vf.range);
-  const vendorSubs = state.subscriptions.filter(s => passesDashFilters(s, _vf, _vr));
+  const vendorSubs = state.subscriptions.filter(s => passesDashDimensions(s, _vf) && (subInDashRange(s, _vr) || state.invoices.some(i => i.subId === s.id && invInDashRange(i, _vr))));
   if (!vendorSubs.length) { tbody.innerHTML = ''; empty.style.display = 'block'; empty.textContent = 'No vendors match the current filters.'; return; }
   empty.style.display = 'none';
   const rows = vendorSubs.map(s => {
     const invs = state.invoices.filter(i => i.subId === s.id && invInDashRange(i, _vr));
     const paid = invs.filter(i => i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
     const pend = invs.filter(i => !i.paidDate).reduce((sum, i) => sum + (Number.isFinite(Number(i.amount)) ? Number(i.amount) : 0), 0);
-    const monthly = s.active === false ? 0 : monthlyCost(s);
+    const monthly = s.active === false || !subInDashRange(s, _vr) ? 0 : monthlyCost(s);
     return { s, invCount: invs.length, paid, pend, total: paid + pend, monthly };
   }).sort((a, b) => b.total - a.total || b.monthly - a.monthly);
 
