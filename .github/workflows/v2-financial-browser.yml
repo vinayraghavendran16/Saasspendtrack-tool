@@ -16,3 +16,5 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: node tests/e2e/financial.mjs
+
+      - run: node tests/e2e/renewal-ai.mjs
