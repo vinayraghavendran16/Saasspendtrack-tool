@@ -1,6 +1,6 @@
 // Provider adapter only; not exposed as an endpoint.
 export async function createProviderLink(env, checkout, transport=fetch) {
-  if (env.CHECKOUT_PROVIDER_ENABLED !== 'true') throw new Error('provider_disabled');
+  if (env.CHECKOUT_ISOLATED_SANDBOX!=='true'||env.CHECKOUT_PROVIDER_ENABLED !== 'true') throw new Error('provider_disabled');
   const key=env.RAZORPAY_KEY_ID, secret=env.RAZORPAY_KEY_SECRET;
   if (!key?.startsWith('rzp_test_') || !secret) throw new Error('test_credentials_required');
   const amount={founding:149900,standard:200000}[checkout.tier];
