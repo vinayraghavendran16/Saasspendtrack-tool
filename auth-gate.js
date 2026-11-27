@@ -79,7 +79,15 @@
     gate.querySelector('#sst-paid').addEventListener('click', function () { location.reload(); });
     gate.querySelector('#sst-logout').addEventListener('click', function (e) {
       e.preventDefault();
-      fetch('/api/auth/logout', { method: 'POST' }).then(function () { location.reload(); });
+      var link = e.currentTarget;
+      link.textContent = 'Signing out…';
+      fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', cache: 'no-store' })
+        .then(function (response) {
+          if (!response.ok) throw new Error('logout_failed');
+          location.reload();
+        }).catch(function () {
+          link.textContent = 'Sign out failed — retry';
+        });
     });
   }
 
