@@ -1,5 +1,6 @@
 import {json,requireEntitledRole} from '../../_shared/util.js';
 import {validateObservation} from '../../_shared/pupm-observation.js';
+import {auditStatement} from '../../_shared/platform-audit.js';
 const enabled=env=>env.PUPM_ENABLED==='true';
 export async function onRequestPost({request,env}){
  if(!enabled(env))return new Response(null,{status:404});
@@ -14,7 +15,12 @@ export async function onRequestPost({request,env}){
  }catch{return json({error:'invalid_observation'},400);}
  const id=crypto.randomUUID();
  try{
- const saved=await env.DB.prepare("INSERT INTO pupm_population_observations(account_id,id,scope_type,scope_id,month,denominator,population,active_window_days,source_id,source_record_id,recorded_at,supersedes_id) VALUES(?,?,'organization',?,?,?,?,?,?,?,?,?) RETURNING id").bind(account,id,account,r.month,r.denominator,r.count,r.activeWindowDays,r.sourceId,r.sourceRecordId,r.recordedAt,b.supersedesId??null).first();
+ const write=env.DB.prepare("INSERT INTO pupm_population_observations(account_id,id,scope_type,scope_id,month,denominator,population,active_window_days,source_id,source_record_id,recorded_at,supersedes_id) VALUES(?,?,'organization',?,?,?,?,?,?,?,?,?) RETURNING id").bind(account,id,account,r.month,r.denominator,r.count,r.activeWindowDays,r.sourceId,r.sourceRecordId,r.recordedAt,b.supersedesId??null);
+ let saved;
+ if(env.PLATFORM_AUDIT_ENABLED==='true'){
+ const audit=auditStatement(env.DB,{accountId:account,actorId:g.user.email,actorType:'user',mode:'api',correlationId:id},{action:b.supersedesId?'correct':'create',entityType:'population_observation',entityId:id,outcome:'committed',changedFields:['population','denominator','month']},['population','denominator','month']);
+ const results=await env.DB.batch([write,audit]);saved=results[0].results[0];
+ }else saved=await write.first();
  return json({id:saved.id,status:'recorded',sourceTrust:'owner_reported'},201);
  }catch{return json({error:'observation_write_failed'},409);}
 }
