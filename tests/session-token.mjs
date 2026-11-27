@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createHash,webcrypto} from 'node:crypto';
+import {sessionStorageId} from '../functions/_shared/session-token.js';
+if (!globalThis.crypto) globalThis.crypto=webcrypto;
+const token='ab'.repeat(32);
+const expected='sha256:'+createHash('sha256').update('sst-session-v1:'+token).digest('hex');
+assert.equal(await sessionStorageId(token),expected);
+assert.equal(await sessionStorageId(token),await sessionStorageId(token));
+assert.notEqual(await sessionStorageId(token),await sessionStorageId('cd'.repeat(32)));
+assert.notEqual(await sessionStorageId(token),token);
+for(const invalid of [null,undefined,42,'','a'.repeat(63),'g'.repeat(64),expected]) assert.equal(await sessionStorageId(invalid),null);
+console.log('11 session digest assertions passed');
