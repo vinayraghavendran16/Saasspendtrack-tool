@@ -387,8 +387,10 @@ ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'last@x.com' }), env: 
 ok(ra3.status === 403 && (await ra3.json()).error === 'member_cap', 'invite INSERT enforces cap after preflight race');
 // Happy path (no ZEPTOMAIL_TOKEN -> email no-ops, no network).
 ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'admin' }), env: admEnv() });
+ok(ra3.status === 403 && (await ra3.json()).error === 'forbidden', 'admin cannot invite another admin');
+ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com', role: 'member' }), env: admEnv() });
 let jx3 = await ra3.json();
-ok(jx3.ok === true && jx3.invited === 'new@x.com' && jx3.role === 'admin', 'invite ok creates invite');
+ok(jx3.ok === true && jx3.invited === 'new@x.com' && jx3.role === 'member', 'admin can invite a member');
 // Accept: no token -> redirect invalid.
 ra3 = await ACCEPT.onRequestGet({ request: { url: 'https://app.saasspendtrack.com/api/account/accept' }, env: acct3Env({}) });
 ok(ra3.status === 302 && ra3.headers.get('Location').includes('invite=invalid'), 'accept 302 invalid without token');
