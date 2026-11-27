@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {verifyDocumentEvidence as verify} from '../functions/_shared/ai-evidence-verification.js';
+const pages=['Clause 8.2: Renewal requires written notice.'];
+const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(pages)))),b=>b.toString(16).padStart(2,'0')).join('');
+const artifact={accountId:'a',id:'msa1',digest,pages};
+const quote='Clause 8.2';
+const ref={artifactId:'msa1',artifactDigest:digest,locator:{page:1,start:0,end:quote.length,quote}};
+const resolve=async(a,id,d)=>{assert.equal(a,'a');assert.equal(id,'msa1');assert.equal(d,digest);return artifact;};
+assert.equal((await verify('a',ref,resolve)).status,'verified_text_span');
+assert.equal((await verify('a',ref,async()=>null)).status,'unavailable');
+assert.equal((await verify('a',ref,async()=>({...artifact,accountId:'b'}))).status,'unavailable');
+assert.equal((await verify('a',ref,async()=>({...artifact,pages:['altered']}))).status,'version_mismatch');
+assert.equal((await verify('a',ref,async()=>({...artifact,digest:'0'.repeat(64)}))).status,'version_mismatch');
+assert.equal((await verify('a',{...ref,locator:{...ref.locator,quote:'Clause 9.9'}},resolve)).status,'quote_mismatch');
+assert.equal((await verify('a',{...ref,locator:{...ref.locator,page:2}},resolve)).status,'invalid_locator');
+assert.equal((await verify('a',{...ref,locator:{...ref.locator,start:-1}},resolve)).status,'invalid_locator');
+console.log('AI evidence verification checks passed');
