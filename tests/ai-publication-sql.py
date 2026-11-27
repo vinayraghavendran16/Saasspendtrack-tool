@@ -9,7 +9,7 @@ db.executescript("""CREATE TABLE accounts(id TEXT PRIMARY KEY);
 INSERT INTO accounts VALUES ('a'),('b');
 CREATE TABLE commercial_contracts(account_id TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(account_id,id));
 INSERT INTO commercial_contracts VALUES ('a','contract-1'),('a','contract-2'),('b','contract-b');""")
-for n in range(39,44):
+for n in range(39,45):
     matches=list((root/'migrations').glob(f'{n:03d}_*.sql'))
     assert len(matches)==1,(n,matches)
     db.executescript(matches[0].read_text())
@@ -67,3 +67,16 @@ except sqlite3.IntegrityError:pass
 else:raise AssertionError('Revoked artifact accepted')
 assert count('ai_recommendation_revisions')==1
 print('PASS: real SQLite publication success, rollback, tenant/contract/audit constraints, duplicate revision and sealed evidence')
+
+def response(id, action='accept', audit_action='accept', actor='owner', audit_actor='owner', contract='contract-1', revision=1, outcome='committed', audit_time=20):
+    with db:
+        db.execute("INSERT INTO platform_audit_events(account_id,id,occurred_at,actor_type,actor_id,mode,action,entity_type,entity_id,outcome,correlation_id,changed_fields_json,schema_version) VALUES (?,?,?,'user',?,'api',?,'ai_recommendation','rec-1',?,?,'[]',1)",('a',id,audit_time,audit_actor,audit_action,outcome,id))
+        db.execute("INSERT INTO ai_recommendation_actions VALUES (?,?,?,?,?,?,?,?,?)",('a',id,'rec-1',revision,contract,action,actor,20,id))
+response('response-1')
+for i,kwargs in enumerate([dict(audit_action='reject'),dict(audit_actor='other'),dict(contract='contract-2'),dict(revision=2),dict(outcome='observed'),dict(audit_time=21)]):
+    before=(count('platform_audit_events'),count('ai_recommendation_actions'))
+    try:response('invalid-'+str(i),**kwargs)
+    except sqlite3.IntegrityError:pass
+    else:raise AssertionError(kwargs)
+    assert before==(count('platform_audit_events'),count('ai_recommendation_actions'))
+print('PASS action audit correspondence and rollback')
