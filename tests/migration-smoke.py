@@ -281,3 +281,17 @@ assert legacy.execute(
     "UPDATE app_data SET version=version+1 WHERE email=? AND version=2", (email,)
 ).rowcount == 1
 print("PASS: recovery freeze rejects legacy and revision-checked writes, and guarded saves resume after unfreeze")
+
+# Exercise the actual scheduled expiry SQL against a payment committed after selection.
+cron_source = (root / "functions/api/cron/tick.js").read_text()
+expiry_sql = cron_source.split('env.DB.prepare("UPDATE users SET status=', 1)[1].split('").bind(u.email,t)', 1)[0]
+expiry_sql = "UPDATE users SET status=" + expiry_sql
+email = "expiry-race@example.invalid"
+legacy.execute("INSERT INTO users(email,created_at,trial_ends_at,status) VALUES (?,?,?,?)", (email,1,10,"trial"))
+legacy.execute("UPDATE users SET status='active',paid_at=20 WHERE email=?", (email,))
+assert legacy.execute(expiry_sql,(email,20)).fetchone() is None
+assert legacy.execute("SELECT status,paid_at FROM users WHERE email=?", (email,)).fetchone()==("active",20)
+legacy.execute("UPDATE users SET status='trial',paid_at=NULL WHERE email=?", (email,))
+assert legacy.execute(expiry_sql,(email,20)).fetchone()==(email,)
+assert legacy.execute("SELECT status FROM users WHERE email=?", (email,)).fetchone()==("expired",)
+print("PASS: scheduled trial expiry cannot overwrite a committed payment")
