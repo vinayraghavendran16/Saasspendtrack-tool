@@ -9,7 +9,7 @@ db.executescript("""CREATE TABLE accounts(id TEXT PRIMARY KEY);
 INSERT INTO accounts VALUES ('a'),('b');
 CREATE TABLE commercial_contracts(account_id TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(account_id,id));
 INSERT INTO commercial_contracts VALUES ('a','contract-1'),('a','contract-2'),('b','contract-b');""")
-for n in range(39,47):
+for n in range(39,48):
     matches=list((root/'migrations').glob(f'{n:03d}_*.sql'))
     assert len(matches)==1,(n,matches)
     db.executescript(matches[0].read_text())
@@ -118,3 +118,32 @@ denied(lambda:action('new-revision-no-approval','execute',38,2))
 action('new-revision-approval','approve',39,2)
 action('new-revision-execution','execute',40,2)
 print('PASS challenge lifecycle, stale approval, resolution rollback and superseded revision gates')
+
+# Execute the exact endpoint SQL, not a separately maintained approximation.
+import re
+api=(root/'functions/api/renewals/ai-analytics.js').read_text()
+cohort=re.search(r'const cohort="([^"]+)";',api).group(1)
+queries=[cohort+' LIMIT 10001']
+for tail in re.findall(r"scoped\('WITH cohort AS \('\+cohort\+'([^']+)'",api):
+    queries.append('WITH cohort AS ('+cohort+tail)
+assert len(queries)==4
+# Identical recommendation and revision identifiers in another tenant.
+db.execute("INSERT INTO ai_artifacts VALUES ('b','msa1','contract-b','active')")
+db.execute("INSERT INTO ai_artifact_versions VALUES ('b','msa1',?,'[\"Clause 8.2\"]',1)",(DIGEST,))
+db.commit()
+write(account='b',contract='contract-b')
+with db:
+    db.execute("INSERT INTO platform_audit_events(account_id,id,occurred_at,actor_type,actor_id,mode,action,entity_type,entity_id,outcome,correlation_id,changed_fields_json,schema_version) VALUES ('b','b-action',20,'user','other','api','accept','ai_recommendation','rec-1','committed','b-action','[]',1)")
+    db.execute("INSERT INTO ai_recommendation_actions VALUES ('b','b-action','rec-1',1,'contract-b','accept','other',20,'b-action')")
+def snapshot(account):
+    return [db.execute(q,(account,0,50) if i==0 else (account,0,50,account,100)).fetchall() for i,q in enumerate(queries)]
+a,b=snapshot('a'),snapshot('b')
+assert len(a[0])==2 and len(b[0])==1
+assert all(row[2]=='contract-1' for row in a[0])
+assert b[0][0][2]=='contract-b'
+assert all(row[0]!='b-action' for row in a[1])
+assert len(b[1])==1 and b[1][0][0]=='b-action'
+assert len(a[2])==1 and len(a[3])==1 and not b[2] and not b[3]
+plan=db.execute('EXPLAIN QUERY PLAN '+queries[0],('a',0,50)).fetchall()
+assert any('ai_publication_account_time' in str(row) for row in plan),plan
+print('PASS actual endpoint SQL tenant isolation and indexed cohort lookup')
