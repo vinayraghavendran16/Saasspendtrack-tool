@@ -11,7 +11,11 @@ export async function onRequestPost({request,env}) {
   if(!l||!p||!/^pay_[A-Za-z0-9]+$/.test(p.id||'')||!/^plink_[A-Za-z0-9]+$/.test(l.id||'')||l.status!=='paid'||p.status!=='captured'||p.captured!==true) return reply('review required',422);
   try {
     const c=await env.DB.prepare('SELECT * FROM checkout_intents WHERE id=? AND link_id=?').bind(l.reference_id,l.id).first();
-    if(!c||c.currency!=='USD'||l.currency!==c.currency||p.currency!==c.currency||l.amount!==c.amount||l.amount_paid!==c.amount||p.amount!==c.amount||normalizeEmail(l.customer?.email)!==c.owner_email||(p.email&&normalizeEmail(p.email)!==c.owner_email)) return reply('review required',422);
+    if(!c) {
+      const pending=await env.DB.prepare("SELECT c.id FROM checkout_intents c JOIN checkout_provider_claims q ON q.checkout_id=c.id WHERE c.id=? AND c.status='reserved' AND q.completed_at IS NULL").bind(l.reference_id).first();
+      return reply(pending?'retry after link recovery':'review required',pending?503:422);
+    }
+    if(c.currency!=='USD'||l.currency!==c.currency||p.currency!==c.currency||l.amount!==c.amount||l.amount_paid!==c.amount||p.amount!==c.amount||normalizeEmail(l.customer?.email)!==c.owner_email||(p.email&&normalizeEmail(p.email)!==c.owner_email)) return reply('review required',422);
     if(c.status==='paid') return reply(c.payment_id===p.id?'already processed':'review required',c.payment_id===p.id?200:422);
     if(c.status!=='created') return reply('review required',422);
     const t=now();
