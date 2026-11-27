@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {onRequestGet} from '../functions/api/renewals/ai-analytics-capabilities.js';
 const email='owner@example.invalid',req=(cookie=true)=>new Request('https://example.invalid/api/renewals/ai-analytics-capabilities',{headers:cookie?{Cookie:'sst_session='+'a'.repeat(64)}:{}});
 function env(role='owner',status='active',entitled=true){
- const DB={prepare(sql){return {bind(){return {async first(){
+ const DB={prepare(sql){return {bind(){return {async run(){assert.match(sql,/^CREATE /);},async first(){
  if(sql.includes('FROM sessions'))return {email};
  if(sql.includes('FROM users'))return {email,status:entitled?'active':'expired',trial_ends_at:0};
  if(sql.includes('FROM memberships'))return {account_id:'a',role,status};
