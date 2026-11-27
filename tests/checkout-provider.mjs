@@ -33,8 +33,37 @@ const listMock=(payload,status=200)=>async()=>Response.json(payload,{status});
 assert.equal((await discoverLostLink(env,lostCheckout,listMock({payment_links:[found]}))).linkId,found.id);
 await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({payment_links:[]})),/provider_link_not_found_manual_review/);
 await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({payment_links:[found,{...found,id:'plink_second'}]})),/multiple_provider_links_manual_review/);
-await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({payment_links:[{...found,amount:1}]})),/provider_identity_mismatch_manual_review/);
+await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({payment_links:[{...found,amount:1}]})),/provider_amount_currency_mismatch/);
 await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({payment_links:[{...found,short_url:'https://evil.invalid'}]})),/provider_url_invalid_manual_review/);
 await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({error:'unavailable'},503)),/provider_lookup_unavailable/);
 await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({unexpected:[]})),/provider_response_invalid/);
 console.log('PASS: lost-link recovery distinguishes missing, duplicate, invalid and unavailable provider results');
+
+for (const [transport, code] of [
+  [async () => { throw new TypeError('opaque network error'); }, 'provider_network_failure'],
+  [async (_, {signal}) => { await new Promise(resolve => signal.addEventListener('abort', resolve, {once:true})); throw signal.reason; }, 'provider_timeout'],
+  [async () => new Response('<html>unexpected</html>'), 'provider_invalid_json'],
+  [listMock({error:{description:'The api key provided is invalid'}}, 400), 'invalid_test_credentials'],
+  [listMock({}, 401), 'provider_authentication_failed'],
+  [listMock({error:{description:'Customer email is required'}}, 400), 'provider_validation_failed'],
+  [listMock({error:{description:'Currency not supported'}}, 400), 'provider_unsupported_currency'],
+  [listMock({payment_links:[{...found,reference_id:'wrong'}]}), 'provider_reference_mismatch'],
+  [listMock({payment_links:[{...found,customer:[] }]}), 'provider_customer_mismatch'],
+  [listMock({payment_links:[null]}), 'provider_response_invalid']
+]) {
+  if (code === 'provider_timeout') {
+    const {requestPaymentLinks} = await import('../functions/_shared/razorpay-provider.js');
+    const signal = AbortSignal.timeout(5);
+    const keepAlive = setTimeout(() => {}, 100);
+    try {
+      await assert.rejects(requestPaymentLinks(env, transport, {signal}), {message:code});
+    } finally {
+      clearTimeout(keepAlive);
+    }
+  } else {
+    await assert.rejects(discoverLostLink(env,lostCheckout,transport), {message:code});
+  }
+}
+await assert.rejects(discoverLostLink({...env,RAZORPAY_KEY_SECRET:''},lostCheckout,forbidden), {message:'provider_configuration_missing'});
+assert.equal(outbound,0);
+console.log('PASS: sanitized provider diagnostics for transport, authentication, validation and identity failures');
