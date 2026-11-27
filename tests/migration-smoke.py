@@ -200,7 +200,7 @@ def snapshot(db, columns):
 columns = {t:[r[1] for r in legacy.execute("PRAGMA table_info("+t+")")] for t in tables}
 before = snapshot(legacy,columns)
 files = sorted((root / "migrations").glob("*.sql"))
-assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,47)]
+assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,48)]
 for migration in files:
     legacy.executescript(migration.read_text())
     assert snapshot(legacy,columns)==before, migration.name+" changed legacy data"
@@ -215,7 +215,7 @@ audit = legacy.execute("SELECT actor_email,kind,detail FROM vendor_case_events W
 assert audit == ("system@saasspendtrack.internal","status_changed",'{"from":"open","to":"awaiting_vendor"}'), audit
 print("PASS: case status audit trigger respects NOT NULL actor and records explicit system principal")
 
-print("PASS: full 001–046 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
+print("PASS: full 001–047 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
 
 
 # Offline recovery drill: actual SQLite backup API, isolated temporary files.
