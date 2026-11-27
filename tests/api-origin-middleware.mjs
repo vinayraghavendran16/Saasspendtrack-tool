@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {onRequest} from '../functions/_middleware.js';
+const call=async(method,path,origin,expected)=>{let nextCalled=false;const headers=new Headers();if(origin!==undefined)headers.set('Origin',origin);const response=await onRequest({request:new Request('https://app.saasspendtrack.com'+path,{method,headers}),next:async()=>{nextCalled=true;return new Response('next')}});assert.equal(response.status,expected,method+' '+path+' status');assert.equal(nextCalled,expected===200,method+' '+path+' next');};
+await call('POST','/api/data','https://app.saasspendtrack.com',200);
+await call('PUT','/api/data','https://app.saasspendtrack.com',200);
+await call('DELETE','/api/account/member-remove','https://app.saasspendtrack.com',200);
+await call('POST','/api/data','https://attacker.example',403);
+await call('POST','/api/data',undefined,403);
+await call('PATCH','/api/governance/update-case','null',403);
+await call('POST','/api/razorpay/webhook',undefined,200);
+await call('POST','/api/rb2b/ingest',undefined,200);
+await call('POST','/api/cron/payment-notifications',undefined,200);
+await call('GET','/api/me',undefined,200);
+await call('POST','/assets/submit',undefined,200);
+console.log('11 API origin middleware assertions passed');
