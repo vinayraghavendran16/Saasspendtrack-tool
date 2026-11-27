@@ -10,8 +10,13 @@ export async function onRequestGet({request,env}){
  months=trendMonths(end,Number(count));
  }catch{return json({error:'invalid_range'},400);}
  const periods=[];let previous=null;
- for(const month of months){
- const response=await monthlyPupm(env,g.membership.account_id,month);
+ // Bound concurrent monthly reads to three; retain chronological output.
+ const responses=[];
+ for(let i=0;i<months.length;i+=3){
+ responses.push(...await Promise.all(months.slice(i,i+3).map(month=>monthlyPupm(env,g.membership.account_id,month))));
+ }
+ for(const [i,month] of months.entries()){
+ const response=responses[i];
  const data=await response.json();
  const metric=response.ok?data.metrics.find(r=>r.currency===currency)??null:null;
  periods.push({month,metric,status:!response.ok?'unavailable':metric?'observed':data.population.status==='available'?'missing_currency_records':data.population.status,changeBasisPoints:changeBasisPoints(previous,metric)});
