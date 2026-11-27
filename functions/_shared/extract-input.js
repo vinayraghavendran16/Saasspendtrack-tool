@@ -28,7 +28,7 @@ export async function readExtractionInput(request) {
           pdfBase64.length % 4 !== 0 ||
           /[^A-Za-z0-9+/=]/.test(pdfBase64) ||
           /=/.test(pdfBase64.slice(0,-2)) ||
-          !/^JVBERi0/.test(pdfBase64)) return {error:'invalid_pdf',status:400};
+          !atob(pdfBase64.slice(0,8)).startsWith('%PDF-')) return {error:'invalid_pdf',status:400};
       const bytes = pdfBase64.length / 4 * 3 - (pdfBase64.endsWith('==') ? 2 : pdfBase64.endsWith('=') ? 1 : 0);
       if (bytes > MAX_PDF_BYTES) return {error:'too_large',status:413};
       try { atob(pdfBase64); } catch { return {error:'invalid_pdf',status:400}; }
