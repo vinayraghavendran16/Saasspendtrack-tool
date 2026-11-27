@@ -83,7 +83,7 @@ async function loadDetail(record,trigger){
  function paragraph(value){const p=document.createElement('p');p.textContent=String(value);fragment.append(p);}
  function section(title,values){const h=document.createElement('h3');h.textContent=title;fragment.append(h);if(!values.length){paragraph('None recorded.');return;}const ul=document.createElement('ul');for(const value of values){const li=document.createElement('li');li.textContent=String(value);ul.append(li);}fragment.append(ul);}
  paragraph(d.recommendationId+' · Revision '+d.revision);paragraph('Model version: '+d.modelVersion);section('Why this recommendation?',[d.rationale]);section('Assumptions',d.assumptions);section('Limitations',d.limitations);const heading=document.createElement('h3');heading.textContent='Evidence references';fragment.append(heading);const output=document.createElement('div');output.setAttribute('role','status');for(const e of d.evidence){const p=document.createElement('p'),b=document.createElement('button');b.type='button';b.textContent='View '+e.artifact_type+' · '+e.evidence_kind;b.disabled=e.availability!=='available';p.append(b);if(b.disabled)p.append(document.createTextNode(' — unavailable'));b.addEventListener('click',()=>loadEvidence(record,e,output));fragment.append(p);}fragment.append(output);paragraph('Evidence availability is not a guarantee that the recommendation is correct.');
- content.replaceChildren(fragment);status.textContent='Explanation loaded.';
+ content.replaceChildren(fragment);status.textContent='Explanation loaded.';mountChallenge(record,content,ctrl);
  }catch(e){if(current!==generation||detailController!==ctrl||e.name==='AbortError')return;status.textContent='Unable to load explanation. Select the recommendation to retry.';}
 }
 
@@ -99,4 +99,18 @@ async function loadEvidence(record,evidence,output){
  if(d.recommendationId!==record.recommendation_id||d.revision!==record.revision||d.evidenceId!==evidence.id||d.verification!=='verified_text_span'||typeof d.quote!=='string'||d.quote.length>4000||!Number.isSafeInteger(d.page)||d.page<1||!Number.isSafeInteger(d.start)||!Number.isSafeInteger(d.end)||d.start<0||d.end-d.start!==d.quote.length||! /^[a-f0-9]{64}$/.test(d.artifactDigest))throw Error('invalid evidence');
  const label=document.createElement('p'),quote=document.createElement('blockquote'),version=document.createElement('p');label.textContent='Verified extracted text · Page '+d.page+' · '+d.artifactType;quote.textContent=d.quote;version.textContent='Extracted-text SHA-256: '+d.artifactDigest;version.style.overflowWrap='anywhere';output.replaceChildren(label,quote,version);
  }catch(e){if(current!==generation||detailController!==detail||evidenceController!==ctrl||e.name==='AbortError')return;output.textContent='Unable to verify source evidence. Try again.';}
+}
+
+function mountChallenge(record,content,ctrl){
+ const form=document.createElement('form'),h=document.createElement('h3'),label=document.createElement('label'),select=document.createElement('select'),reasonLabel=document.createElement('label'),reason=document.createElement('textarea'),submit=document.createElement('button'),status=document.createElement('p');
+ h.textContent='Challenge this recommendation';label.textContent='Challenge category ';reasonLabel.textContent='Reason ';reason.required=true;reason.maxLength=4000;submit.type='submit';submit.textContent='Submit challenge';status.setAttribute('role','status');
+ for(const [value,name] of [['source_accuracy','Source accuracy'],['interpretation','Interpretation'],['assumption','Assumption'],['calculation','Calculation'],['completeness','Missing information'],['recommendation','Recommendation']]){const o=document.createElement('option');o.value=value;o.textContent=name;select.append(o);}
+ label.append(select);reasonLabel.append(reason);form.append(h,label,reasonLabel,submit,status);content.append(form);
+ form.addEventListener('submit',async e=>{
+ e.preventDefault();if(submit.disabled||detailController!==ctrl||!reason.value.trim())return;
+ submit.disabled=true;status.textContent='Submitting challenge…';
+ try{const r=await fetch('/api/renewals/ai-challenges',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({recommendationId:record.recommendation_id,revision:record.revision,category:select.value,reason:reason.value}),signal:ctrl.signal});
+ if(detailController!==ctrl)return;if([401,403].includes(r.status)){clearPrivateView('Session verification required.');return;}if(r.status!==201)throw Error('not committed');const d=await r.json();if(detailController!==ctrl)return;if(typeof d.challengeId!=='string')throw Error('invalid response');reason.value='';status.textContent='Challenge recorded. Approval is blocked pending appropriate resolution.';submit.disabled=false;
+ }catch(e){if(detailController!==ctrl)return;status.textContent='Submission not confirmed. Check challenge history before retrying.';}
+ });
 }
