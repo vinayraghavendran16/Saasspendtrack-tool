@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {reconcilePopulation as r} from '../functions/_shared/population-reconciliation.js';
+const a={id:'a',denominator:'employees',population:100};
+assert.equal(r([],'employees').status,'missing');
+assert.equal(r([a],'employees').count,100);
+assert.equal(r([a,{...a,id:'b'}],'employees').status,'source_conflict');
+assert.equal(r([a,{...a,id:'b',population:120}],'employees').count,null);
+assert.equal(r([{...a,population:0}],'employees').status,'zero_population');
+assert.throws(()=>r([{...a,population:-1}],'employees'));
+console.log('population reconciliation passed');
