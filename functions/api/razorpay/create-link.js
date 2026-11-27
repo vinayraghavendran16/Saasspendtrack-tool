@@ -2,7 +2,7 @@ import {json,getUserFromSession,getMembership,now} from '../../_shared/util.js';
 import {createProviderLink} from '../../_shared/razorpay-checkout.js';
 
 export async function onRequestPost({request,env}) {
-  if (env.CHECKOUT_RESERVATIONS_ENABLED!=='true' || env.CHECKOUT_PROVIDER_ENABLED!=='true' || !env.RAZORPAY_KEY_ID?.startsWith('rzp_test_') || !env.RAZORPAY_KEY_SECRET) return json({error:'checkout_disabled'},503);
+  if (env.CHECKOUT_ISOLATED_SANDBOX!=='true' || env.CHECKOUT_RESERVATIONS_ENABLED!=='true' || env.CHECKOUT_PROVIDER_ENABLED!=='true' || !env.RAZORPAY_KEY_ID?.startsWith('rzp_test_') || !env.RAZORPAY_KEY_SECRET) return json({error:'checkout_disabled'},503);
   if (request.headers.get('origin')!==new URL(request.url).origin) return json({error:'invalid_origin'},403);
   try {
     const user=await getUserFromSession(request,env);
