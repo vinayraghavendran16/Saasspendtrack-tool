@@ -1,0 +1,6 @@
+# Expanded release scope — 2026-11-27
+Target: today, conditional on evidence, not a deployment authorization override.
+Mandatory: exact candidate CI, security remediation, payment entitlement, session issuers, migration rehearsal, backup/recovery, production config and smoke checks. No unresolved high/critical findings.
+Expanded scope: transactional email lifecycle, ownership and transfer, default routing, renewal/notice alerts, reseller/publisher/product/SKU hierarchy, escalation cases, usage architecture. Migrations 009–013 are untested; do not apply blindly. Verify ledger, dependencies, legacy data preservation, tenant constraints and rollback compatibility.
+Only expose features with complete API/UI, authorization, migration, and end-to-end evidence. Incomplete features must be excluded from the production candidate or demonstrably disabled server-side and hidden in UI; hiding UI alone is insufficient. Do not advertise live usage integrations or send customer notifications until validated. Preserve current customer access and data.
+Reconcile security branch with latest main and production integration candidate, including pricing changes. Test exact resulting commit. Existing approval remains conditional on mandatory gates. No deployment, migration or customer email performed by this document.
