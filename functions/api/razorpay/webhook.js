@@ -5,7 +5,6 @@ import { getMembership } from '../../_shared/util.js';
 // Razorpay calls this on payment events. We verify the signature, then flip the
 // paying user to 'active'. Configure the same secret in the Razorpay dashboard.
 import { hmacSha256Hex, safeEqual, now, normalizeEmail } from '../../_shared/util.js';
-import { sendEmail, paidEmail } from '../../_shared/email.js';
 
 export async function onRequestPost({ request, env }) {
   const raw = await request.text(); // raw body required for signature check
@@ -57,19 +56,8 @@ export async function onRequestPost({ request, env }) {
     } catch (_) { console.warn('Conversion analytics unavailable'); }
   }
 
-  const ledger = await env.DB.prepare('SELECT entitlement_until FROM payment_ledger WHERE payment_id=?').bind(paymentId).first();
-  const emailKind = 'paid:'+paymentId;
-  // Confirmation email, once per payment.
-  const already = await env.DB.prepare('SELECT 1 FROM email_log WHERE email=? AND kind=?')
-    .bind(email, emailKind).first();
-  if (!already) {
-    const m = paidEmail({renewal:!!existing?.paid_at,amount,currency,expiresAt:ledger?.entitlement_until});
-    const ok = await sendEmail(env, { to: email, subject: m.subject, html: m.html });
-    if (ok.ok) {
-      await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
-        .bind(email, emailKind, t).run();
-    }
-  }
+  // Migration 015 enqueues confirmation atomically with the payment ledger.
+  // The scheduled worker is the sole sender; never send directly here.
 
   console.log('razorpay: payment recorded');
   return new Response('ok', { status: 200 });
