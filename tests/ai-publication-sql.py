@@ -9,7 +9,7 @@ db.executescript("""CREATE TABLE accounts(id TEXT PRIMARY KEY);
 INSERT INTO accounts VALUES ('a'),('b');
 CREATE TABLE commercial_contracts(account_id TEXT NOT NULL,id TEXT NOT NULL,PRIMARY KEY(account_id,id));
 INSERT INTO commercial_contracts VALUES ('a','contract-1'),('a','contract-2'),('b','contract-b');""")
-for n in range(39,45):
+for n in range(39,47):
     matches=list((root/'migrations').glob(f'{n:03d}_*.sql'))
     assert len(matches)==1,(n,matches)
     db.executescript(matches[0].read_text())
@@ -80,3 +80,41 @@ for i,kwargs in enumerate([dict(audit_action='reject'),dict(audit_actor='other')
     else:raise AssertionError(kwargs)
     assert before==(count('platform_audit_events'),count('ai_recommendation_actions'))
 print('PASS action audit correspondence and rollback')
+
+def action(id,verb,ts,revision=1):
+    with db:
+        db.execute("INSERT INTO platform_audit_events(account_id,id,occurred_at,actor_type,actor_id,mode,action,entity_type,entity_id,outcome,correlation_id,changed_fields_json,schema_version) VALUES ('a',?,?,'user','owner','api',?,'ai_recommendation','rec-1','committed',?,'[]',1)",(id,ts,verb,id))
+        db.execute("INSERT INTO ai_recommendation_actions VALUES ('a',?,'rec-1',?,'contract-1',?,'owner',?,?)",(id,revision,verb,ts,id))
+def denied(fn):
+    before=(count('platform_audit_events'),count('ai_recommendation_actions'),count('ai_challenge_resolutions'))
+    try:fn()
+    except sqlite3.IntegrityError:pass
+    else:raise AssertionError('invalid lifecycle transition accepted')
+    assert before==(count('platform_audit_events'),count('ai_recommendation_actions'),count('ai_challenge_resolutions'))
+denied(lambda:action('no-approval','execute',30))
+action('approval-1','approve',31)
+action('challenge-action','challenge',32)
+with db:
+    db.execute("INSERT INTO ai_recommendation_challenges VALUES ('a','challenge-1','rec-1',1,'assumption','Incorrect assumption','owner',32)")
+    db.execute("INSERT INTO ai_challenge_submissions VALUES ('a','challenge-1','challenge-action')")
+denied(lambda:action('blocked-approval','approve',33))
+denied(lambda:action('blocked-execution','execute',33))
+def resolve(id,disposition,replacement=None):
+    with db:
+        db.execute("INSERT INTO platform_audit_events(account_id,id,occurred_at,actor_type,actor_id,mode,action,entity_type,entity_id,outcome,correlation_id,changed_fields_json,schema_version) VALUES ('a',?,34,'user','owner','api','resolve','ai_challenge','challenge-1','committed',?,'[]',1)",(id,id))
+        db.execute("INSERT INTO ai_challenge_resolutions VALUES ('a','challenge-1',?,?,'Reviewed evidence','owner',34,?)",(disposition,replacement,id))
+denied(lambda:resolve('bad-replacement','revised',2))
+resolve('resolution-1','upheld')
+denied(lambda:resolve('duplicate-resolution','upheld'))
+denied(lambda:action('stale-approval','execute',35))
+action('fresh-approval','approve',36)
+action('execution-record','execute',37)
+db.execute("UPDATE ai_artifacts SET status='active' WHERE account_id='a' AND id='msa1'")
+db.commit()
+write(revision=2)
+denied(lambda:action('superseded','approve',38))
+denied(lambda:action('superseded-execution','execute',38))
+denied(lambda:action('new-revision-no-approval','execute',38,2))
+action('new-revision-approval','approve',39,2)
+action('new-revision-execution','execute',40,2)
+print('PASS challenge lifecycle, stale approval, resolution rollback and superseded revision gates')
