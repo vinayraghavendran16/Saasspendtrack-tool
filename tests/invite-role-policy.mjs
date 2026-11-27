@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {canInviteRole} from '../functions/_shared/role-policy.js';
+assert.equal(canInviteRole('owner','admin'),true);
+assert.equal(canInviteRole('owner','member'),true);
+assert.equal(canInviteRole('admin','member'),true);
+assert.equal(canInviteRole('admin','admin'),false);
+assert.equal(canInviteRole('member','admin'),false);
+assert.equal(canInviteRole('member','member'),false);
+assert.equal(canInviteRole('unknown','member'),false);
+assert.equal(canInviteRole('owner','owner'),false);
+console.log('workspace invitation role policy assertions passed');
