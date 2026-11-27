@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {createProviderLink} from '../functions/_shared/razorpay-checkout.js';
 import {inspectProviderLink} from '../functions/_shared/razorpay-recovery.js';
+import {discoverLostLink} from '../functions/_shared/razorpay-lost-link.js';
 const env={CHECKOUT_PROVIDER_ENABLED:'true',CHECKOUT_ISOLATED_SANDBOX:'true',RAZORPAY_KEY_ID:'rzp_test_fixture',RAZORPAY_KEY_SECRET:'fixture'};
 const c={id:'a'.repeat(32),tier:'founding',amount:149900,currency:'USD',status:'reserved',owner_email:'owner@example.invalid',expires_at:Date.now()+1800000,link_id:'plink_fixture'};
 const link={id:c.link_id,reference_id:c.id,amount:c.amount,currency:c.currency,status:'created',short_url:'https://rzp.io/i/fixture',customer:{email:c.owner_email},amount_paid:0,payments:[]};
@@ -25,3 +26,15 @@ for(const overrides of [{CHECKOUT_ISOLATED_SANDBOX:'false'},{RAZORPAY_KEY_ID:'rz
 }
 assert.equal(outbound,0);
 console.log('PASS: disabled or live provider configuration cannot initiate network requests');
+
+const lostCheckout={...c,link_id:null};
+const found={id:'plink_found',reference_id:lostCheckout.id,amount:lostCheckout.amount,currency:lostCheckout.currency,status:'created',short_url:'https://rzp.io/i/found',customer:{email:lostCheckout.owner_email}};
+const listMock=(payload,status=200)=>async()=>Response.json(payload,{status});
+assert.equal((await discoverLostLink(env,lostCheckout,listMock({payment_links:[found]}))).linkId,found.id);
+await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({payment_links:[]})),/provider_link_not_found_manual_review/);
+await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({payment_links:[found,{...found,id:'plink_second'}]})),/multiple_provider_links_manual_review/);
+await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({payment_links:[{...found,amount:1}]})),/provider_identity_mismatch_manual_review/);
+await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({payment_links:[{...found,short_url:'https://evil.invalid'}]})),/provider_url_invalid_manual_review/);
+await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({error:'unavailable'},503)),/provider_lookup_unavailable/);
+await assert.rejects(()=>discoverLostLink(env,lostCheckout,listMock({unexpected:[]})),/provider_response_invalid/);
+console.log('PASS: lost-link recovery distinguishes missing, duplicate, invalid and unavailable provider results');
