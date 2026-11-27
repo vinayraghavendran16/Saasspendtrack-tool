@@ -16,7 +16,8 @@ try{
  const browser=await engine.launch({headless:true});
  try{
  for(const width of [390,1280]){
- const page=await browser.newPage({viewport:{width,height:900}});
+ const context=await browser.newContext({viewport:{width,height:900}});
+ const page=await context.newPage();
  await page.route('https://fonts.googleapis.com/**',route=>route.abort());
  await page.route('https://fonts.gstatic.com/**',route=>route.abort());
  let enabled=false;
@@ -46,7 +47,8 @@ try{
  await page.locator('#trend-form [name="currency"]').fill('EUR');
  assert.equal(await page.locator('#trend-chart svg').count(),0);
  assert.equal(await page.locator('#trend-results tr').count(),0);
- await page.close();
+ await context.close();
+ console.log(engine.name()+' '+width+'px financial checks passed');
  }
  }finally{await browser.close();}
  }
