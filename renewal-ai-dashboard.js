@@ -6,8 +6,9 @@ form.elements.start.value=date(today-30*day);form.elements.end.value=date(today-
 form.elements.end.max=date(today-day);form.elements.start.max=date(today-day);
 let generation=0,controller,registerController,registerCursor='',registerWindow=null;
 const registerButton=el('renewal-register-load'),registerStatus=el('renewal-register-status');
-let detailController,detailTrigger;
-function resetDetail(){detailController?.abort();detailController=null;detailTrigger=null;el('renewal-detail').hidden=true;el('renewal-detail-content').replaceChildren();el('renewal-detail-status').textContent='';}
+let detailController,detailTrigger,evidenceController;
+function resetEvidence(){evidenceController?.abort();evidenceController=null;}
+function resetDetail(){resetEvidence();detailController?.abort();detailController=null;detailTrigger=null;el('renewal-detail').hidden=true;el('renewal-detail-content').replaceChildren();el('renewal-detail-status').textContent='';}
 function resetRegister(){resetDetail();registerController?.abort();registerController=null;registerCursor='';registerWindow=null;el('renewal-register').replaceChildren();registerStatus.textContent='';registerButton.disabled=false;registerButton.textContent='Load recommendations';}
 
 function clearPrivateView(message='Checking access…'){generation++;controller?.abort();resetRegister();panel.hidden=true;results.hidden=true;el('renewal-kpis').replaceChildren();el('renewal-bars').replaceChildren();for(const id of ['renewal-metrics','renewal-decisions','renewal-challenges'])el(id).replaceChildren();el('renewal-cutoff').textContent='';status.textContent=message;}
@@ -81,7 +82,21 @@ async function loadDetail(record,trigger){
  const fragment=document.createDocumentFragment();
  function paragraph(value){const p=document.createElement('p');p.textContent=String(value);fragment.append(p);}
  function section(title,values){const h=document.createElement('h3');h.textContent=title;fragment.append(h);if(!values.length){paragraph('None recorded.');return;}const ul=document.createElement('ul');for(const value of values){const li=document.createElement('li');li.textContent=String(value);ul.append(li);}fragment.append(ul);}
- paragraph(d.recommendationId+' · Revision '+d.revision);paragraph('Model version: '+d.modelVersion);section('Why this recommendation?',[d.rationale]);section('Assumptions',d.assumptions);section('Limitations',d.limitations);section('Evidence references',d.evidence.map(e=>e.artifact_type+' · '+e.evidence_kind+' · '+e.availability));paragraph('Evidence availability is not a guarantee that the recommendation is correct.');
+ paragraph(d.recommendationId+' · Revision '+d.revision);paragraph('Model version: '+d.modelVersion);section('Why this recommendation?',[d.rationale]);section('Assumptions',d.assumptions);section('Limitations',d.limitations);const heading=document.createElement('h3');heading.textContent='Evidence references';fragment.append(heading);const output=document.createElement('div');output.setAttribute('role','status');for(const e of d.evidence){const p=document.createElement('p'),b=document.createElement('button');b.type='button';b.textContent='View '+e.artifact_type+' · '+e.evidence_kind;b.disabled=e.availability!=='available';p.append(b);if(b.disabled)p.append(document.createTextNode(' — unavailable'));b.addEventListener('click',()=>loadEvidence(record,e,output));fragment.append(p);}fragment.append(output);paragraph('Evidence availability is not a guarantee that the recommendation is correct.');
  content.replaceChildren(fragment);status.textContent='Explanation loaded.';
  }catch(e){if(current!==generation||detailController!==ctrl||e.name==='AbortError')return;status.textContent='Unable to load explanation. Select the recommendation to retry.';}
+}
+
+async function loadEvidence(record,evidence,output){
+ resetEvidence();const ctrl=new AbortController();evidenceController=ctrl;const current=generation,detail=detailController;
+ output.replaceChildren();output.textContent='Verifying source evidence…';
+ try{
+ const r=await fetch('/api/renewals/ai-evidence?'+new URLSearchParams({id:record.recommendation_id,revision:String(record.revision),evidenceId:evidence.id}),{credentials:'same-origin',cache:'no-store',signal:ctrl.signal});
+ if(current!==generation||detailController!==detail||evidenceController!==ctrl)return;
+ if([401,403].includes(r.status)){clearPrivateView('Renewal analytics is not available for this session.');return;}
+ if(!r.ok){output.textContent='Source evidence is unavailable or could not be verified.';return;}
+ const d=await r.json();if(current!==generation||detailController!==detail||evidenceController!==ctrl)return;
+ if(d.recommendationId!==record.recommendation_id||d.revision!==record.revision||d.evidenceId!==evidence.id||d.verification!=='verified_text_span'||typeof d.quote!=='string'||d.quote.length>4000||!Number.isSafeInteger(d.page)||d.page<1||!Number.isSafeInteger(d.start)||!Number.isSafeInteger(d.end)||d.start<0||d.end-d.start!==d.quote.length||! /^[a-f0-9]{64}$/.test(d.artifactDigest))throw Error('invalid evidence');
+ const label=document.createElement('p'),quote=document.createElement('blockquote'),version=document.createElement('p');label.textContent='Verified extracted text · Page '+d.page+' · '+d.artifactType;quote.textContent=d.quote;version.textContent='Extracted-text SHA-256: '+d.artifactDigest;version.style.overflowWrap='anywhere';output.replaceChildren(label,quote,version);
+ }catch(e){if(current!==generation||detailController!==detail||evidenceController!==ctrl||e.name==='AbortError')return;output.textContent='Unable to verify source evidence. Try again.';}
 }
