@@ -144,3 +144,11 @@ rejects(lambda:db.execute("INSERT INTO legacy_founding_allocations VALUES (3,'28
 rejects(lambda:db.execute("INSERT INTO checkout_intents(id,account_id,owner_email,tier,amount,currency,founding_slot,created_at,expires_at) VALUES ('legacy-repeat','27','27@example.test','founding',149900,'USD',25,1,2)"))
 rejects(lambda:db.execute("DELETE FROM legacy_founding_allocations"))
 print('PASS: historical allocation collision and immutability')
+
+# Execute the actual aggregate health SQL against the migration fixture.
+health_source=(root/'functions/_shared/checkout-health.js').read_text()
+health_sql=re.search(r'db.prepare\(`([\s\S]*?)`\)',health_source).group(1)
+health=db.execute(health_sql,(0,0)).fetchone()
+assert health[3]==db.execute('SELECT count(*) FROM checkout_intents WHERE founding_slot IS NOT NULL').fetchone()[0]+1
+assert 0<=health[3]<=25
+print('PASS: historical and current allocations included in health totals')
