@@ -6,7 +6,9 @@ form.elements.start.value=date(today-30*day);form.elements.end.value=date(today-
 form.elements.end.max=date(today-day);form.elements.start.max=date(today-day);
 let generation=0,controller,registerController,registerCursor='',registerWindow=null;
 const registerButton=el('renewal-register-load'),registerStatus=el('renewal-register-status');
-function resetRegister(){registerController?.abort();registerController=null;registerCursor='';registerWindow=null;el('renewal-register').replaceChildren();registerStatus.textContent='';registerButton.disabled=false;registerButton.textContent='Load recommendations';}
+let detailController,detailTrigger;
+function resetDetail(){detailController?.abort();detailController=null;detailTrigger=null;el('renewal-detail').hidden=true;el('renewal-detail-content').replaceChildren();el('renewal-detail-status').textContent='';}
+function resetRegister(){resetDetail();registerController?.abort();registerController=null;registerCursor='';registerWindow=null;el('renewal-register').replaceChildren();registerStatus.textContent='';registerButton.disabled=false;registerButton.textContent='Load recommendations';}
 
 function clearPrivateView(message='Checking access…'){generation++;controller?.abort();resetRegister();panel.hidden=true;results.hidden=true;el('renewal-kpis').replaceChildren();el('renewal-bars').replaceChildren();for(const id of ['renewal-metrics','renewal-decisions','renewal-challenges'])el(id).replaceChildren();el('renewal-cutoff').textContent='';status.textContent=message;}
 function onLifecycle(){clearPrivateView();if(document.visibilityState==='visible')load();}
@@ -60,7 +62,26 @@ registerButton.addEventListener('click',async()=>{
  const d=await r.json();if(current!==generation||registerController!==requestController)return;
  if(!Array.isArray(d.records)||d.records.length>50||!(d.nextCursor===null||typeof d.nextCursor==='string')||d.nextCursor===cursor||d.records.some(x=>typeof x.recommendation_id!=='string'||typeof x.contract_id!=='string'||!Number.isSafeInteger(x.revision)||x.revision<1||!Number.isSafeInteger(x.published_at)))throw Error('invalid register');
  const fragment=document.createDocumentFragment();
- for(const x of d.records){const tr=document.createElement('tr');for(const value of [x.recommendation_id,x.revision,x.contract_id,new Date(x.published_at).toISOString()]){const td=document.createElement('td');td.textContent=String(value);tr.append(td);}fragment.append(tr);}
+ for(const x of d.records){const tr=document.createElement('tr');const cell=document.createElement('td'),button=document.createElement('button');button.type='button';button.textContent=x.recommendation_id;button.addEventListener('click',()=>loadDetail(x,button));cell.append(button);tr.append(cell);for(const value of [x.revision,x.contract_id,new Date(x.published_at).toISOString()]){const td=document.createElement('td');td.textContent=String(value);tr.append(td);}fragment.append(tr);}
  el('renewal-register').append(fragment);registerCursor=d.nextCursor;registerButton.textContent='Load next page';registerButton.disabled=d.nextCursor===null;registerStatus.textContent=d.records.length?d.records.length+' recommendations loaded.'+(d.nextCursor===null?' End of register.':''):'No further recommendations.';
  }catch(e){if(current!==generation||registerController!==requestController||e.name==='AbortError')return;registerStatus.textContent='Unable to load recommendations. Try again.';registerButton.disabled=false;}
 });
+
+el('renewal-detail-close').addEventListener('click',()=>{const trigger=detailTrigger;resetDetail();trigger?.focus();});
+async function loadDetail(record,trigger){
+ resetDetail();detailTrigger=trigger;const current=generation,ctrl=new AbortController();detailController=ctrl;
+ const panel=el('renewal-detail'),status=el('renewal-detail-status'),content=el('renewal-detail-content');panel.hidden=false;status.textContent='Loading explanation…';el('renewal-detail-title').focus();
+ try{
+ const r=await fetch('/api/renewals/ai-recommendation-detail?'+new URLSearchParams({id:record.recommendation_id,revision:String(record.revision)}),{credentials:'same-origin',cache:'no-store',signal:ctrl.signal});
+ if(current!==generation||detailController!==ctrl)return;
+ if([401,403].includes(r.status)){clearPrivateView('Renewal analytics is not available for this session.');return;}
+ if(!r.ok)throw Error('detail unavailable');
+ const d=await r.json();if(current!==generation||detailController!==ctrl)return;
+ if(d.recommendationId!==record.recommendation_id||d.revision!==record.revision||typeof d.rationale!=='string'||!Array.isArray(d.assumptions)||!Array.isArray(d.limitations)||!Array.isArray(d.evidence)||d.evidence.length>20)throw Error('invalid detail');
+ const fragment=document.createDocumentFragment();
+ function paragraph(value){const p=document.createElement('p');p.textContent=String(value);fragment.append(p);}
+ function section(title,values){const h=document.createElement('h3');h.textContent=title;fragment.append(h);if(!values.length){paragraph('None recorded.');return;}const ul=document.createElement('ul');for(const value of values){const li=document.createElement('li');li.textContent=String(value);ul.append(li);}fragment.append(ul);}
+ paragraph(d.recommendationId+' · Revision '+d.revision);paragraph('Model version: '+d.modelVersion);section('Why this recommendation?',[d.rationale]);section('Assumptions',d.assumptions);section('Limitations',d.limitations);section('Evidence references',d.evidence.map(e=>e.artifact_type+' · '+e.evidence_kind+' · '+e.availability));paragraph('Evidence availability is not a guarantee that the recommendation is correct.');
+ content.replaceChildren(fragment);status.textContent='Explanation loaded.';
+ }catch(e){if(current!==generation||detailController!==ctrl||e.name==='AbortError')return;status.textContent='Unable to load explanation. Select the recommendation to retry.';}
+}
