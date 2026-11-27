@@ -1,3 +1,4 @@
+import { sessionStorageId } from '../../_shared/session-token.js';
 import { recordUsage } from '../../_shared/usage.js';
 import { getMembership } from '../../_shared/util.js';
 import { authAppUrl } from '../../_shared/auth-url.js';
@@ -32,9 +33,10 @@ export async function onRequestGet({ request, env }) {
 
   // Create the session.
   const sid = randomToken(32);
+  const storedId = await sessionStorageId(sid);
   await env.DB.prepare(
     'INSERT INTO sessions (id, email, created_at, expires_at) VALUES (?,?,?,?)',
-  ).bind(sid, row.email, t, t + SESSION_DAYS * DAY).run();
+  ).bind(storedId, row.email, t, t + SESSION_DAYS * DAY).run();
   await env.DB.prepare('UPDATE users SET last_login_at=? WHERE email=?').bind(t, row.email).run();
 
   // Record only redeemed authentication, never a requested magic link.
@@ -42,7 +44,7 @@ export async function onRequestGet({ request, env }) {
   try {
     const membership = await getMembership(env, row.email);
     if (membership?.account_id && membership.status === 'active') {
-      await recordUsage(env, {accountId:membership.account_id,email:row.email,eventName:'login',eventId:sid});
+      await recordUsage(env, {accountId:membership.account_id,email:row.email,eventName:'login',eventId:randomToken(32)});
     }
   } catch (_) { console.warn('Login analytics unavailable'); }
 

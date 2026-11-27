@@ -1,10 +1,10 @@
+import { validatePaidLink } from '../../_shared/payment-policy.js';
 import { recordUsage } from '../../_shared/usage.js';
 import { getMembership } from '../../_shared/util.js';
 // POST /api/razorpay/webhook
 // Razorpay calls this on payment events. We verify the signature, then flip the
 // paying user to 'active'. Configure the same secret in the Razorpay dashboard.
 import { hmacSha256Hex, safeEqual, now, normalizeEmail } from '../../_shared/util.js';
-import { sendEmail, paidEmail } from '../../_shared/email.js';
 
 export async function onRequestPost({ request, env }) {
   const raw = await request.text(); // raw body required for signature check
@@ -20,47 +20,31 @@ export async function onRequestPost({ request, env }) {
   let evt;
   try { evt = JSON.parse(raw); } catch { return new Response('bad json', { status: 400 }); }
 
-  const type = evt.event || '';
-  const payment = evt.payload?.payment?.entity || null;
-  const link = evt.payload?.payment_link?.entity || null;
-
-  // We only act on a captured/paid payment.
-  const isPaid =
-    type === 'payment.captured' ||
-    type === 'payment_link.paid' ||
-    (type === 'order.paid' && payment);
-  if (!isPaid) return new Response('ignored', { status: 200 });
-
-  const email = normalizeEmail(
-    payment?.email || link?.customer?.email || evt.payload?.payment_link?.entity?.customer?.email,
-  );
-  const paymentId = payment?.id || link?.id || `evt_${evt.id || now()}`;
-  const amount = payment?.amount ?? null;
-  const currency = payment?.currency ?? null;
+  if (evt?.event !== 'payment_link.paid') return new Response('ignored', { status: 200 });
+  let catalogue;
+  try { catalogue = JSON.parse(env.RAZORPAY_PAYMENT_CATALOGUE || 'null'); }
+  catch { return new Response('payment configuration unavailable', { status: 503 }); }
+  if (!Array.isArray(catalogue) || !catalogue.length) return new Response('payment configuration unavailable', { status: 503 });
+  const paid = validatePaidLink(evt, catalogue);
+  if (!paid) return new Response('payment requires review', { status: 422 });
+  const payment = evt.payload.payment.entity;
+  const link = evt.payload.payment_link.entity;
+  const email = normalizeEmail(link.customer?.email);
+  if (!email || (payment.email && normalizeEmail(payment.email) !== email)) return new Response('customer requires review', { status: 422 });
+  const {paymentId,linkId,amount,currency,tier} = paid;
   const plan = currency === 'USD' ? 'annual-usd' : 'annual-inr';
-
-  if (!email) {
-    // Nothing to key on; acknowledge so Razorpay stops retrying, but log it.
-    console.error('razorpay webhook: no email on', type, paymentId);
-    return new Response('no email', { status: 200 });
-  }
-
-  // Idempotency: if we already recorded this payment id, do nothing.
-  const dupe = await env.DB.prepare('SELECT email FROM users WHERE rp_payment_id=?')
-    .bind(paymentId).first();
-  if (dupe) return new Response('already processed', { status: 200 });
-
   const t = now();
   const existing = await env.DB.prepare('SELECT email, status, paid_at FROM users WHERE email=?').bind(email).first();
-  if (existing) {
-    await env.DB.prepare(
-      'UPDATE users SET status=?, plan=?, paid_at=?, rp_payment_id=?, amount_paid=?, currency=? WHERE email=?',
-    ).bind('active', plan, t, paymentId, amount, currency, email).run();
-  } else {
-    // Paid without a prior trial - activate directly.
-    await env.DB.prepare(
-      'INSERT INTO users (email, created_at, trial_ends_at, status, plan, paid_at, rp_payment_id, amount_paid, currency) VALUES (?,?,?,?,?,?,?,?,?)',
-    ).bind(email, t, t, 'active', plan, t, paymentId, amount, currency).run();
+  // D1 batch is transactional. A duplicate ledger primary key rolls back the entire batch.
+  try {
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO payment_ledger (payment_id,link_id,customer_email,tier,amount,currency,recorded_at,entitlement_until) SELECT ?,?,?,?,?,?,?, CAST(strftime(\'%s\', datetime(MAX(?,COALESCE(MAX(entitlement_until),0))/1000, \'unixepoch\', CASE WHEN strftime(\'%m-%d\',MAX(?,COALESCE(MAX(entitlement_until),0))/1000,\'unixepoch\')=\'02-29\' THEN \'+365 days\' ELSE \'+12 months\' END)) AS INTEGER)*1000 FROM payment_ledger WHERE customer_email=?').bind(paymentId,linkId,email,tier,amount,currency,t,t,t,email),
+      env.DB.prepare('INSERT INTO users (email,created_at,trial_ends_at,status,plan,paid_at,rp_payment_id,amount_paid,currency) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET status=excluded.status,plan=excluded.plan,paid_at=excluded.paid_at,rp_payment_id=excluded.rp_payment_id,amount_paid=excluded.amount_paid,currency=excluded.currency').bind(email,t,t,'active',plan,t,paymentId,amount,currency)
+    ]);
+  } catch (err) {
+    const prior = await env.DB.prepare('SELECT customer_email,link_id,amount,currency,tier FROM payment_ledger WHERE payment_id=?').bind(paymentId).first();
+    if (prior && prior.customer_email===email && prior.link_id===linkId && prior.amount===amount && prior.currency===currency && prior.tier===tier) return new Response('already processed', {status:200});
+    throw err;
   }
 
   if (existing && !existing.paid_at && existing.status !== 'active') {
@@ -72,18 +56,9 @@ export async function onRequestPost({ request, env }) {
     } catch (_) { console.warn('Conversion analytics unavailable'); }
   }
 
-  // Confirmation email, once.
-  const already = await env.DB.prepare('SELECT 1 FROM email_log WHERE email=? AND kind=?')
-    .bind(email, 'paid').first();
-  if (!already) {
-    const m = paidEmail();
-    const ok = await sendEmail(env, { to: email, subject: m.subject, html: m.html });
-    if (ok.ok) {
-      await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
-        .bind(email, 'paid', t).run();
-    }
-  }
+  // Migration 015 enqueues confirmation atomically with the payment ledger.
+  // The scheduled worker is the sole sender; never send directly here.
 
-  console.log('razorpay: activated', email, plan, amount, currency);
+  console.log('razorpay: payment recorded');
   return new Response('ok', { status: 200 });
 }

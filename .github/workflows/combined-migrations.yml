@@ -1,0 +1,22 @@
+name: Combined migration rehearsal
+on:
+  push:
+    branches: ['security/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rehearsal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 tests/combined-migrations.py
+      - run: npm run test:hardening
+
+      - name: Inventory session issuance source locations
+        run: |
+          grep -RInE 'INSERT (OR [A-Z]+ )?INTO sessions|sessionCookie\(' functions --include='*.js' || true

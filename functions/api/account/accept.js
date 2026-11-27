@@ -1,3 +1,4 @@
+import { sessionStorageId } from '../../_shared/session-token.js';
 import { recordUsage } from '../../_shared/usage.js';
 import { authAppUrl } from '../../_shared/auth-url.js';
 // GET /api/account/accept?token=...
@@ -46,6 +47,7 @@ export async function onRequestGet({ request, env }) {
   if (!owner) return redirect(`${appUrl}/?invite=invalid`);
 
   const sid = randomToken(32);
+  const storedSid = await sessionStorageId(sid);
   try {
     // D1.batch executes sequentially inside one transaction. The second
     // statement uses SQLite changes() to make a failed concurrent redemption
@@ -59,7 +61,7 @@ export async function onRequestGet({ request, env }) {
       env.DB.prepare(
         `INSERT INTO sessions (id, email, created_at, expires_at)
          VALUES (?,?,?,CASE WHEN changes()=1 THEN ? ELSE NULL END)`,
-      ).bind(sid, email, t, t + SESSION_DAYS * 86400000),
+      ).bind(storedSid, email, t, t + SESSION_DAYS * 86400000),
       env.DB.prepare(
         'INSERT OR IGNORE INTO users (email, created_at, trial_ends_at, status, plan) VALUES (?,?,?,?,?)',
       ).bind(email, t, owner.trial_ends_at, owner.status, owner.plan || null),
@@ -77,7 +79,7 @@ export async function onRequestGet({ request, env }) {
         `UPDATE sessions SET expires_at=CASE WHEN EXISTS (
            SELECT 1 FROM memberships WHERE email=? AND account_id=? AND status='active'
          ) THEN expires_at ELSE NULL END WHERE id=?`,
-      ).bind(email, inv.account_id, sid),
+      ).bind(email, inv.account_id, storedSid),
     ]);
     if (!results[0]?.results?.length) return redirect(`${appUrl}/?invite=expired`);
   } catch (_) {
@@ -89,6 +91,6 @@ export async function onRequestGet({ request, env }) {
   }
 
   await recordUsage(env, {accountId:inv.account_id,email,eventName:'invite_accepted',eventId:tokenHash});
-  await recordUsage(env, {accountId:inv.account_id,email,eventName:'login',eventId:sid});
+  await recordUsage(env, {accountId:inv.account_id,email,eventName:'login',eventId:randomToken(32)});
   return redirect(`${appUrl}/?invite=ok`, sessionCookie(sid));
 }

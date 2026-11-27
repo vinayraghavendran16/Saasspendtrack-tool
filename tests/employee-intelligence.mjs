@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {pseudonymousSubject,lifecycleState} from '../functions/_shared/employee-intelligence.js';
+import {projectEntraUser,normalizeDirectoryPage} from '../functions/_shared/identity-adapters.js';
+const key=new Uint8Array(32).fill(7);
+const a=await pseudonymousSubject(key,'a','s','person');
+assert.equal(a,await pseudonymousSubject(key,'a','s','person'));
+assert.notEqual(a,await pseudonymousSubject(key,'b','s','person'));
+assert.notEqual(a,await pseudonymousSubject(key,'a','t','person'));
+assert.deepEqual(projectEntraUser({id:'person',accountEnabled:true,displayName:'private',mail:'private@example.invalid'}),{providerSubject:'person',status:'active'});
+const rows=await normalizeDirectoryPage([{id:'person',accountEnabled:false,mail:'private@example.invalid'}],{key,accountId:'a',sourceId:'s',observedAt:100,pseudonymize:pseudonymousSubject});
+assert.deepEqual(rows,[{pseudonymous_ref:a,source_kind:'idp',status:'inactive',observed_at:100}]);
+assert.deepEqual(lifecycleState([{source_kind:'hrms',status:'inactive',observed_at:100},{source_kind:'idp',status:'active',observed_at:100}],110,20),{employment:'inactive',directory:'active',reviewRequired:true});
+assert.equal(lifecycleState(rows,200,20).directory,'unknown');
+console.log('7 employee intelligence assertions passed');

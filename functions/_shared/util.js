@@ -8,10 +8,12 @@ export const TOKEN_MINUTES = 15;
 export const now = () => Date.now();
 
 export function json(data, status = 200, headers = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'content-type': 'application/json; charset=utf-8', ...headers },
-  });
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set('Content-Type', 'application/json; charset=utf-8');
+  responseHeaders.set('Cache-Control', 'no-store');
+  responseHeaders.set('X-Content-Type-Options', 'nosniff');
+  responseHeaders.set('Referrer-Policy', 'no-referrer');
+  return new Response(JSON.stringify(data), { status, headers: responseHeaders });
 }
 
 export function badRequest(msg) { return json({ error: msg }, 400); }
@@ -89,6 +91,16 @@ export async function resolveEntitlement(env, user) {
     status = 'expired';
     await env.DB.prepare('UPDATE users SET status=? WHERE email=?').bind('expired', user.email).run();
   }
+  // Existing paid customers without a reconciled ledger retain legacy access.
+  // New ledger-backed payments expire at their recorded entitlement boundary.
+  let paidUntil = null;
+  if (status === 'active') {
+    const ledger = await env.DB.prepare(
+      'SELECT MAX(entitlement_until) AS paid_until FROM payment_ledger WHERE customer_email=?'
+    ).bind(user.email).first();
+    paidUntil = ledger?.paid_until ?? null;
+    if (paidUntil !== null && (!Number.isSafeInteger(paidUntil) || t >= paidUntil)) status = 'expired';
+  }
   const entitled = status === 'active' || (status === 'trial' && t < user.trial_ends_at);
   const daysLeft = Math.max(0, Math.ceil((user.trial_ends_at - t) / DAY));
   return {
@@ -96,6 +108,7 @@ export async function resolveEntitlement(env, user) {
     status,
     plan: user.plan || null,
     trialEndsAt: user.trial_ends_at,
+    paidUntil,
     daysLeft,
     entitled,
   };
@@ -220,10 +233,11 @@ export async function resolveWorkspaceEntitlement(env, user, ctx) {
 // Reads the session cookie and returns the user row, or null.
 export async function getUserFromSession(request, env) {
   const sid = parseCookies(request).sst_session;
-  if (!sid) return null;
+  if (typeof sid !== 'string' || !/^[a-f0-9]{64}$/.test(sid)) return null;
+  const storedId = 'sha256:' + await sha256Hex('sst-session-v1:' + sid);
   const session = await env.DB
     .prepare('SELECT * FROM sessions WHERE id=? AND expires_at > ?')
-    .bind(sid, now()).first();
+    .bind(storedId, now()).first();
   if (!session) return null;
   return env.DB.prepare('SELECT * FROM users WHERE email=?').bind(session.email).first();
 }

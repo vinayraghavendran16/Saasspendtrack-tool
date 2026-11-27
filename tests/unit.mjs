@@ -29,9 +29,14 @@ ok(U.isAdmin({ ADMIN_EMAILS: 'a@x.com' }, 'c@x.com') === false, 'isAdmin reject'
 
 // ---- entitlement ----
 section('entitlement');
-const noDb = { DB: { prepare: () => ({ bind: () => ({ run: async () => {} }) }) } };
+const noDb = { DB: { prepare: () => ({ bind: () => ({ run: async () => {}, first: async () => ({paid_until:null}) }) }) } };
 let e = await U.resolveEntitlement(noDb, { email: 'a', status: 'active', trial_ends_at: 0 });
 ok(e.entitled && e.status === 'active', 'active entitled');
+for (const [paid_until,expected] of [[Date.now()+U.DAY,true],[Date.now()-U.DAY,false],['invalid',false]]) {
+ const env={DB:{prepare:sql=>({bind:email=>({first:async()=>{if(!sql.includes('payment_ledger')||email!=='a')throw Error('unexpected query');return {paid_until};}})})}};
+ const result=await U.resolveEntitlement(env,{email:'a',status:'active',trial_ends_at:0});
+ ok(result.entitled===expected,'ledger expiry '+String(paid_until));
+}
 e = await U.resolveEntitlement(noDb, { email: 'a', status: 'trial', trial_ends_at: Date.now() + 3 * U.DAY });
 ok(e.entitled && e.daysLeft >= 1 && e.daysLeft <= 3, 'trial entitled, daysLeft');
 e = await U.resolveEntitlement(noDb, { email: 'a', status: 'trial', trial_ends_at: Date.now() - 1000 });
@@ -74,12 +79,12 @@ function dataEnv(store, user, membership) {
       : sql.includes('UPDATE app_data SET') ? (store.row?.version === a[3] ? (store.row = { data: a[0], version: a[3] + 1 }, store.saved = a[0], { version: store.row.version }) : null)
       : sql.includes('memberships') ? mem
       : sql.includes('accounts') ? (user ? { id: 'A', owner_email: user.email } : null)
-      : user,
+      : sql.includes('payment_ledger') ? {paid_until:null} : user,
     run: async () => { if (sql.includes('INSERT INTO app_data')) { store.row = { data: a[1] }; store.saved = a[1]; } },
   }) }; } } };
 }
 const active = { email: 'u@x.com', status: 'active', trial_ends_at: 0 };
-const req = { headers: { get: (k) => k.toLowerCase() === 'if-match' ? '0' : 'sst_session=s' } };
+const req = { headers: { get: (k) => k.toLowerCase() === 'if-match' ? '0' : 'sst_session=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } };
 let res = await DATA.onRequestGet({ request: req, env: dataEnv({ row: null }, active) });
 ok((await res.json()).empty === true, 'GET empty when no data');
 const store = {};
@@ -125,7 +130,7 @@ import * as MREMOVE from '../functions/api/account/member-remove.js';
 const ownerCaller = { sessionEmail: 'own@x.com', users: { 'own@x.com': { email: 'own@x.com', status: 'active' } }, members: { 'own@x.com': { email: 'own@x.com', account_id: 'A', role: 'owner', status: 'active' } }, accounts: { A: { id: 'A', owner_email: 'own@x.com' } } };
 const adminCaller = { sessionEmail: 'ad@x.com', users: { 'ad@x.com': { email: 'ad@x.com', status: 'active' } }, members: { 'ad@x.com': { email: 'ad@x.com', account_id: 'A', role: 'admin', status: 'active' } }, accounts: { A: { id: 'A', owner_email: 'own@x.com' } } };
 const withMembers = (base, extra) => Object.assign({}, base, { members: Object.assign({}, base.members, extra) });
-const jReq = (b) => ({ headers: { get: () => 'sst_session=s' }, json: async () => b });
+const jReq = (b) => ({ headers: { get: () => 'sst_session=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, json: async () => b });
 // member-role: non-admin caller blocked
 let r5 = await MROLE.onRequestPost({ request: jReq({ email: 'x@x.com', role: 'admin' }), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': {} }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } } }) });
 ok(r5.status === 403, 'member-role 403 for non-admin caller');
@@ -266,7 +271,7 @@ function roleEnv(sessionEmail, userRow, membershipRow) {
     run: async () => {},
   }) }; } } };
 }
-const rReq = { headers: { get: () => 'sst_session=s' } };
+const rReq = { headers: { get: () => 'sst_session=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } };
 let g = await U.requireRole({ headers: { get: () => '' } }, roleEnv(null), 'member');
 ok(g.response && g.response.status === 401, 'requireRole 401 without session');
 g = await U.requireRole(rReq, roleEnv('u@x.com', { email: 'u@x.com' }, { account_id: 'A', role: 'member', status: 'active' }), 'admin');
@@ -299,7 +304,7 @@ function presetEnv(user, key) {
     run: async () => {},
   }) }; } } };
 }
-const pReq = (body) => ({ headers: { get: () => 'sst_session=s' }, json: async () => body });
+const pReq = (body) => ({ headers: { get: () => 'sst_session=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, json: async () => body });
 let pr = await PRESET.onRequestGet({ env: { ANTHROPIC_API_KEY: 'x' } });
 ok((await pr.json()).configured === true, 'GET reports configured');
 pr = await PRESET.onRequestPost({ request: { headers: { get: () => '' }, json: async () => ({ url: 'acme.com' }) }, env: presetEnv(null, 'x') });
@@ -364,7 +369,7 @@ const admEnv = (over) => acct3Env(Object.assign({
   members: { 'adm@x.com': { email: 'adm@x.com', account_id: 'A', role: 'admin', status: 'active' } },
   accounts: { A: { id: 'A', owner_email: 'own@x.com' } }, memberCount: 2, pendingCount: 0,
 }, over || {}));
-const iReq = (bodyObj) => ({ url: 'https://app.saasspendtrack.com/api/account/invite', headers: { get: () => 'sst_session=s' }, json: async () => bodyObj });
+const iReq = (bodyObj) => ({ url: 'https://app.saasspendtrack.com/api/account/invite', headers: { get: () => 'sst_session=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, json: async () => bodyObj });
 // A plain member cannot invite.
 let ra3 = await INVITE.onRequestPost({ request: iReq({ email: 'new@x.com' }), env: acct3Env({ sessionEmail: 'm@x.com', users: { 'm@x.com': {} }, members: { 'm@x.com': { account_id: 'A', role: 'member', status: 'active' } } }) });
 ok(ra3.status === 403, 'invite 403 when caller is only a member');
@@ -464,7 +469,7 @@ const p2owner = { email: 'owner@x.com', status: 'active', trial_ends_at: Date.no
 const p2acct = { id: 'A', owner_email: 'owner@x.com', name: 'Acme' };
 const p2memMember = { email: 'member@x.com', account_id: 'A', role: 'member', status: 'active' };
 const p2memOwner = { email: 'owner@x.com', account_id: 'A', role: 'owner', status: 'active' };
-const p2req = { headers: { get: (k) => k.toLowerCase() === 'if-match' ? '0' : 'sst_session=s' }, text: async () => JSON.stringify({ hi: 1 }) };
+const p2req = { headers: { get: (k) => k.toLowerCase() === 'if-match' ? '0' : 'sst_session=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, text: async () => JSON.stringify({ hi: 1 }) };
 // Member reads the OWNER's app_data row (shared workspace).
 let p2store = { 'owner@x.com': JSON.stringify({ shared: true }) };
 let p2res = await DATA.onRequestGet({ request: p2req, env: acctEnv(p2member, p2memMember, p2acct, p2store) });

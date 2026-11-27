@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {fixedCosts} from '../functions/_shared/aop-fixed-costs.js';
+import {reconcileSavings} from '../functions/_shared/savings-reconcile.js';
+const f={id:'hosting',month:'2027-01',currency:'USD',amountMinor:100};
+assert.equal(fixedCosts([f],['2027-01'])[0].expenseMinor,'100');
+assert.throws(()=>fixedCosts([f,f],['2027-01']));
+const b={baselineMinor:1000,currency:'USD',scopeKey:'crm',periodKey:'2027-01'};
+const invoice={...b,id:'inv1',kind:'invoice',amountMinor:800};
+assert.equal(reconcileSavings({...b,facts:[invoice]}).varianceMinor,'200');
+assert.throws(()=>reconcileSavings({...b,facts:[invoice,invoice]}));
+assert.throws(()=>reconcileSavings({...b,facts:[]}));
+console.log('5 cost and evidence assertions passed');

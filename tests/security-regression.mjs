@@ -47,7 +47,7 @@ const consentDb = {
   }; } }; },
 };
 const consentResponse = await extract({
-  request: new Request('https://example.com/api/extract', { method: 'POST', headers: { Cookie: 'sst_session=s' }, body: JSON.stringify({ text: 'confidential document contents should never be sent' }) }),
+  request: new Request('https://example.com/api/extract', { method: 'POST', headers: { Cookie: 'sst_session='+'a'.repeat(64) }, body: JSON.stringify({ text: 'confidential document contents should never be sent' }) }),
   env: { DB: consentDb, ANTHROPIC_API_KEY: 'not-a-real-key' },
 });
 assert.equal(consentResponse.status, 403);
@@ -61,7 +61,7 @@ import { onRequestPost as preset } from '../functions/api/preset/generate.js';
 globalThis.fetch = async () => { externalCalls++; throw new Error('unexpected external call'); };
 try {
   for (const [handler, route, payload] of [[ask,'ask',{question:'spend?',snapshot:{private:true}}],[preset,'preset/generate',{url:'https://example.com'}]]) {
-    const response = await handler({request:new Request('https://example.com/api/'+route,{method:'POST',headers:{Cookie:'sst_session=s'},body:JSON.stringify(payload)}),env:{DB:consentDb,ANTHROPIC_API_KEY:'not-a-real-key'}});
+    const response = await handler({request:new Request('https://example.com/api/'+route,{method:'POST',headers:{Cookie:'sst_session='+'a'.repeat(64)},body:JSON.stringify(payload)}),env:{DB:consentDb,ANTHROPIC_API_KEY:'not-a-real-key'}});
     assert.equal(response.status,403);
     assert.equal((await response.json()).error,'ai_consent_required');
   }

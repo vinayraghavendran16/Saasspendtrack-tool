@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {routeGovernance} from '../functions/_shared/governance-routing.js';
+const members=[{email:'owner@example.test',role:'owner',status:'active'},{email:'finance@example.test',role:'member',status:'active'},{email:'former@example.test',role:'member',status:'suspended'}];
+const assignments=[{vendor_id:'v1',role:'business',member_email:'former@example.test',accepted_at:1},{vendor_id:'@workspace',role:'finance',member_email:'finance@example.test',accepted_at:1}];
+const input={members,assignments,vendorId:'v1',kind:'renewal'};
+assert.deepEqual(routeGovernance(input).recipients,['finance@example.test','owner@example.test']);
+assert.deepEqual(routeGovernance(input).missing,['business']);
+assert.deepEqual(routeGovernance({...input,level:1}).recipients,['owner@example.test']);
+assert.equal(routeGovernance({...input,members:[]}).unroutable,true);
+assert.deepEqual(routeGovernance({...input,assignments:[{vendor_id:'v1',role:'finance',member_email:'finance@example.test',accepted_at:null}]}).recipients,['owner@example.test']);
+console.log('5 governance routing assertions passed');

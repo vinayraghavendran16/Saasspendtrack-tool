@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {projectWorkforce} from '../functions/_shared/aop-workforce.js';
+import {compareAlternatives} from '../functions/_shared/commercial-alternatives.js';
+const r={department:'sales',hires:3,exits:1,transferIn:0,transferOut:0};
+assert.equal(projectWorkforce({sales:10},[[r],[]])[1].closing.sales,12);
+assert.throws(()=>projectWorkforce({sales:0},[[r,{...r}]]));
+assert.throws(()=>projectWorkforce({sales:10},[[{...r,transferIn:1}]]));
+assert.throws(()=>projectWorkforce({sales:0},[[{...r,hires:0}]]));
+const b={scopeKey:'sku',currency:'USD',periodKey:'2027',recurringMinor:1000,exitMinor:0,migrationMinor:0,overlapMinor:0};
+assert.equal(compareAlternatives(b,[{...b,id:'a',recurringMinor:700,migrationMinor:100}])[0].netSavingsMinor,'200');
+assert.throws(()=>compareAlternatives(b,[{...b,currency:'EUR'}]));
+console.log('6 AOP foundation assertions passed');

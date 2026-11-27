@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {rollup} from '../functions/_shared/commercial-rollup.js';
+const base={supplier_id:'s',reseller_id:'r',publisher_id:'p',product_id:'x',sku_id:'sku',currency:'USD',quantity_decimal:'2.5',unit_price_minor:100,billing_period:'monthly'};
+const rows=rollup([base,{...base,reseller_id:'r2',billing_period:'annual'},{...base,currency:'EUR'},{...base,billing_period:'usage'}]);
+const get=(d,id,c)=>rows.find(r=>r.dimension===d&&r.id===id&&r.currency===c)?.annualMinorScaled;
+assert.equal(get('total','all','USD'),'3250000000');
+assert.equal(get('reseller','r','USD'),'3000000000');
+assert.equal(get('reseller','r2','USD'),'250000000');
+assert.equal(get('total','all','EUR'),'3000000000');
+assert.throws(()=>rollup([{...base,quantity_decimal:'bad'}]));
+console.log('5 rollup assertions passed');

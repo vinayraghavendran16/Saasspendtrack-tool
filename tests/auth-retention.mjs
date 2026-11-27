@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {authRetention} from '../functions/_shared/auth-retention.js';
+const calls=[];
+const DB={prepare(sql){return {bind(...args){calls.push({sql,args});return {first:async()=>({n:3}),run:async()=>({meta:{changes:2}})};}};}};
+const now=10*86400000;
+assert.deepEqual(await authRetention({DB},{now}),{mode:'disabled'});
+assert.equal(calls.length,0);
+assert.deepEqual(await authRetention({DB,AUTH_RETENTION_MODE:'dry-run'},{now}),{mode:'dry-run',counts:{login_tokens:3,sessions:3,rate_limits:3}});
+assert.equal(calls.length,3);
+assert.ok(calls.every(c=>c.sql.startsWith('SELECT COUNT')&&c.sql.includes('LIMIT 500')));
+assert.deepEqual(calls.map(c=>c.args),[[now-86400000],[now-86400000],[now-172800000]]);
+calls.length=0;
+assert.deepEqual(await authRetention({DB,AUTH_RETENTION_MODE:'enabled'},{now}),{mode:'enabled',counts:{login_tokens:2,sessions:2,rate_limits:2}});
+assert.equal(calls.length,3);
+assert.ok(calls.every(c=>c.sql.startsWith('DELETE FROM')&&c.sql.includes('LIMIT 500')&&c.args.length===2&&c.args[0]===c.args[1]));
+await assert.rejects(authRetention({DB,AUTH_RETENTION_MODE:'enabled'},{now:NaN}));
+console.log('10 retention mock assertions passed');

@@ -3,6 +3,9 @@ import { readFileSync } from 'node:fs';
 import { isPlatformOwner } from '../functions/_shared/platform-owner.js';
 import { onRequestGet } from '../functions/api/platform/internal.js';
 
+import {sessionStorageId} from '../functions/_shared/session-token.js';
+const validToken='a'.repeat(64);
+const storedToken=await sessionStorageId(validToken);
 const owner = 'owner@example.com';
 const customer = 'customer@example.com';
 function env(email, configured = owner) {
@@ -10,7 +13,7 @@ function env(email, configured = owner) {
     PLATFORM_OWNER_EMAIL: configured,
     ADMIN_EMAILS: customer,
     DB: { prepare(sql) { return { bind(...args) { return { async first() {
-      if (sql.includes('FROM sessions')) return args[0] === 'valid' && email ? {email} : null;
+      if (sql.includes('FROM sessions')) return args[0] === storedToken && email ? {email} : null;
       if (sql.includes('FROM users')) return {email, role:'owner', status:'trial'};
       throw new Error('Unexpected query');
     } }; } }; } }
@@ -24,9 +27,9 @@ assert.equal(isPlatformOwner(env(owner, 'invalid'), {email:owner}), false);
 for (const [cookie, e, status] of [
   ['', env(owner), 401],
   ['sst_session=invalid', env(owner), 401],
-  ['sst_session=valid', env(customer), 403],
-  ['sst_session=valid', env(owner, ''), 403],
-  ['sst_session=valid', env(owner), 200]
+  ['sst_session='+validToken, env(customer), 403],
+  ['sst_session='+validToken, env(owner, ''), 403],
+  ['sst_session='+validToken, env(owner), 200]
 ]) {
   const response = await onRequestGet({request:req(cookie),env:e});
   assert.equal(response.status,status);

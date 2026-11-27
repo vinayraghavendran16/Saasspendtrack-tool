@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {projectScenario} from '../functions/_shared/aop-scenario.js';
+import {summarizeSavings} from '../functions/_shared/savings-accountability.js';
+const input={opening:{sales:10},months:[{month:'2027-01',movements:[{department:'sales',hires:0,exits:2,transferIn:0,transferOut:0}]}],pools:[{poolId:'crm',month:'2027-01',departments:['sales'],currency:'USD',committedSeats:10,unitMonthlyMinor:100,reductionAllowed:false}],budgets:[{period:'2027-01',currency:'USD',budgetMinor:1200,revenueMinor:10000}]};
+const r=projectScenario(input);
+assert.equal(r.workforce[0].closing.sales,8);
+assert.equal(r.commitments[0].billableSeats,10);
+assert.equal(r.variances[0].headroomMinor,'200');
+assert.equal(r.variances[0].spendRevenueBasisPoints,'1000');
+assert.equal(projectScenario({...input,pools:[{...input.pools[0],reductionAllowed:true}]}).totals[0].expenseMinor,'800');
+assert.throws(()=>projectScenario({...input,pools:[...input.pools,...input.pools]}));
+const s={exposureKey:'crm',currency:'USD',amountMinor:200,status:'realized'};
+assert.throws(()=>summarizeSavings([s]));
+assert.throws(()=>summarizeSavings([{...s,status:'approved'},{...s,status:'contracted'}]));
+console.log('8 AOP scenario assertions passed');
