@@ -110,3 +110,30 @@ db.execute("UPDATE memberships SET role='member' WHERE email='28@example.test'")
 rejects(lambda:db.execute("INSERT INTO checkout_intents(id,account_id,owner_email,tier,amount,currency,created_at,expires_at) VALUES ('member','28','28@example.test','standard',200000,'USD',1,2)"))
 assert db.execute("SELECT old_status,new_status FROM checkout_events WHERE checkout_id='c26' ORDER BY id").fetchall()==[(None,'reserved'),('reserved','cancelled')]
 print('PASS: final founding seat race, owner boundary and audit sequence')
+
+# Race two deliveries of the same payment ledger insertion.
+db.commit()
+with tempfile.TemporaryDirectory() as tmp:
+    target=str(Path(tmp)/'payment.sqlite')
+    with sqlite3.connect(target) as dest: db.backup(dest)
+    barrier=Barrier(2)
+    def delivery(i):
+        with sqlite3.connect(target,timeout=10) as conn:
+            conn.execute('PRAGMA foreign_keys=ON')
+            barrier.wait(timeout=10)
+            try:
+                conn.execute("INSERT INTO payment_ledger VALUES ('pay_race','plink_race','5@example.test','founding',149900,'USD',1,2)")
+                return True
+            except sqlite3.IntegrityError: return False
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(delivery,range(2)))==[False,True]
+    with sqlite3.connect(target) as conn:
+        assert conn.execute("SELECT count(*) FROM payment_ledger WHERE payment_id='pay_race'").fetchone()==(1,)
+# A claimed reservation can only release capacity after verified terminal evidence.
+db.execute("UPDATE checkout_intents SET status='created',link_id='plink_release' WHERE id='c2'")
+db.execute("UPDATE checkout_provider_claims SET provider_url='https://rzp.io/i/test',completed_at=2 WHERE checkout_id='c2'")
+rejects(lambda:db.execute("UPDATE checkout_intents SET status='expired',founding_slot=NULL WHERE id='c2'"))
+db.execute("INSERT INTO checkout_release_evidence(checkout_id,link_id,provider_status,amount_paid,verified_at) VALUES ('c2','plink_release','expired',0,3)")
+db.execute("UPDATE checkout_intents SET status='expired',founding_slot=NULL WHERE id='c2'")
+assert db.execute("SELECT founding_slot FROM checkout_intents WHERE id='c2'").fetchone()==(None,)
+print('PASS: duplicate ledger race and verified capacity release')
