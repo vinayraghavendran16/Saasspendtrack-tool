@@ -19,10 +19,10 @@ export async function onRequestPost({request,env}) {
     const id=randomToken(16), t=now();
     const row=await env.DB.prepare(`WITH RECURSIVE slots(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM slots WHERE n<25)
       INSERT INTO checkout_intents(id,account_id,owner_email,tier,amount,currency,founding_slot,created_at,expires_at)
-      SELECT ?,a.id,?,?,?,'USD',CASE WHEN ?='founding' THEN (SELECT MIN(n) FROM slots WHERE NOT EXISTS(SELECT 1 FROM checkout_intents WHERE founding_slot=n)) ELSE NULL END,?,?
+      SELECT ?,a.id,?,?,?,'USD',CASE WHEN ?='founding' THEN (SELECT MIN(n) FROM slots WHERE NOT EXISTS(SELECT 1 FROM checkout_intents WHERE founding_slot=n) AND NOT EXISTS(SELECT 1 FROM legacy_founding_allocations WHERE slot=n)) ELSE NULL END,?,?
       FROM accounts a WHERE a.id=? AND a.owner_email=?
       AND NOT EXISTS(SELECT 1 FROM checkout_intents WHERE account_id=a.id AND status IN ('reserved','created'))
-      AND (?!='founding' OR (EXISTS(SELECT 1 FROM slots WHERE NOT EXISTS(SELECT 1 FROM checkout_intents WHERE founding_slot=n)) AND NOT EXISTS(SELECT 1 FROM checkout_intents WHERE account_id=a.id AND tier='founding' AND status='paid')))
+      AND (?!='founding' OR (EXISTS(SELECT 1 FROM slots WHERE NOT EXISTS(SELECT 1 FROM checkout_intents WHERE founding_slot=n) AND NOT EXISTS(SELECT 1 FROM legacy_founding_allocations WHERE slot=n)) AND NOT EXISTS(SELECT 1 FROM legacy_founding_allocations WHERE account_id=a.id) AND NOT EXISTS(SELECT 1 FROM checkout_intents WHERE account_id=a.id AND tier='founding' AND status='paid')))
       RETURNING id,tier,amount,currency,status,expires_at`).bind(id,user.email,tier,amount,tier,t,t+1800000,m.account_id,user.email,tier).first();
     if (!row) return json({error:'checkout_unavailable'},409);
     return json({checkout:row},201);
