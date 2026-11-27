@@ -12,3 +12,12 @@ assert.equal((await inspectProviderLink(env,c,mock({status:'expired',payments:nu
 assert.equal((await inspectProviderLink(env,c,mock({status:'cancelled',amount_paid:1}))).terminalUnpaid,false);
 await assert.rejects(()=>inspectProviderLink(env,c,mock({customer:{email:'other@example.invalid'}})));
 console.log('PASS: synthetic provider response validation');
+
+let outbound=0;
+const forbidden=async()=>{outbound++;throw Error('unexpected network call');};
+for(const overrides of [{CHECKOUT_ISOLATED_SANDBOX:'false'},{RAZORPAY_KEY_ID:'rzp_live_fixture'},{CHECKOUT_PROVIDER_ENABLED:'false'}]){
+ await assert.rejects(()=>createProviderLink({...env,...overrides},c,forbidden));
+ await assert.rejects(()=>inspectProviderLink({...env,...overrides},c,forbidden));
+}
+assert.equal(outbound,0);
+console.log('PASS: disabled or live provider configuration cannot initiate network requests');
