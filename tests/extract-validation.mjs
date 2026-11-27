@@ -13,7 +13,7 @@ const originalFetch = globalThis.fetch;
 let calls = 0;
 const sample = {vendor_name:'Synthetic Vendor', confidence:95, total_contract_value:1200, currency:'EUR', line_items:[{service:'Software',quantity:10,total:1200}]};
 async function request() {
- return extract({env,request:new Request('https://example.invalid/api/extract',{method:'POST',headers:{Cookie:'sst_session=test'},body:JSON.stringify({text:'Synthetic contract for ten software seats at EUR 1200 annually.'})})});
+ return extract({env,request:new Request('https://example.invalid/api/extract',{method:'POST',headers:{Cookie:'sst_session='+'a'.repeat(64)},body:JSON.stringify({text:'Synthetic contract for ten software seats at EUR 1200 annually.'})})});
 }
 async function provider(body, status=200) {
  globalThis.fetch=async()=>{calls++;return Response.json(body,{status});};
