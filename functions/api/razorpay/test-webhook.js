@@ -21,8 +21,8 @@ export async function onRequestPost({request,env}) {
     const t=now();
     await env.DB.batch([
       env.DB.prepare(`INSERT INTO payment_ledger(payment_id,link_id,customer_email,tier,amount,currency,recorded_at,entitlement_until)
-      SELECT ?,c.link_id,c.owner_email,c.tier,c.amount,c.currency,?,CAST(strftime('%s',datetime(MAX(?,COALESCE((SELECT MAX(entitlement_until) FROM payment_ledger WHERE customer_email=c.owner_email),0))/1000,'unixepoch','+12 months')) AS INTEGER)*1000
-      FROM checkout_intents c JOIN accounts a ON a.id=c.account_id JOIN memberships m ON m.account_id=a.id AND m.email=c.owner_email JOIN users u ON u.email=c.owner_email WHERE c.id=? AND c.status='created' AND a.owner_email=c.owner_email AND m.role='owner' AND m.status='active'`).bind(p.id,t,t,c.id),
+      SELECT ?,c.link_id,c.owner_email,c.tier,c.amount,c.currency,?,(CASE WHEN strftime('%m-%d',base_ms/1000,'unixepoch')='02-29' THEN base_ms+31536000000 ELSE CAST(strftime('%s',datetime(base_ms/1000,'unixepoch','+12 months')) AS INTEGER)*1000+(base_ms%1000) END)
+      FROM (SELECT c.*,MAX(?,COALESCE((SELECT MAX(entitlement_until) FROM payment_ledger WHERE customer_email=c.owner_email),0)) AS base_ms FROM checkout_intents c) c JOIN accounts a ON a.id=c.account_id JOIN memberships m ON m.account_id=a.id AND m.email=c.owner_email JOIN users u ON u.email=c.owner_email WHERE c.id=? AND c.status='created' AND a.owner_email=c.owner_email AND m.role='owner' AND m.status='active'`).bind(p.id,t,t,c.id),
       env.DB.prepare("UPDATE checkout_intents SET status='paid',payment_id=? WHERE id=? AND status='created' AND EXISTS(SELECT 1 FROM payment_ledger WHERE payment_id=? AND recorded_at=?)").bind(p.id,c.id,p.id,t),
       env.DB.prepare("UPDATE users SET status='active',plan='annual-usd',paid_at=?,rp_payment_id=?,amount_paid=?,currency='USD' WHERE email=? AND EXISTS(SELECT 1 FROM checkout_intents WHERE id=? AND status='paid' AND payment_id=?)").bind(t,p.id,c.amount,c.owner_email,c.id,p.id)
     ]);
