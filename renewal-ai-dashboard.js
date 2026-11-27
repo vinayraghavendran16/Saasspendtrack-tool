@@ -1,12 +1,11 @@
 const el=id=>document.getElementById(id);
 const form=el('renewal-filter'),panel=el('renewal-panel'),results=el('renewal-results'),status=el('renewal-status');
-let sessionGeneration=0;
 const day=86400000, today=Math.floor(Date.now()/day)*day;
 const date=ms=>new Date(ms).toISOString().slice(0,10);
 form.elements.start.value=date(today-30*day);form.elements.end.value=date(today-day);
 form.elements.end.max=date(today-day);form.elements.start.max=date(today-day);
 let generation=0,controller;
-function clearPrivateView(message='Checking access…'){generation++;sessionGeneration++;controller?.abort();panel.hidden=true;results.hidden=true;el('renewal-kpis').replaceChildren();el('renewal-bars').replaceChildren();for(const id of ['renewal-metrics','renewal-decisions','renewal-challenges'])el(id).replaceChildren();el('renewal-cutoff').textContent='';status.textContent=message;}
+function clearPrivateView(message='Checking access…'){generation++;controller?.abort();panel.hidden=true;results.hidden=true;el('renewal-kpis').replaceChildren();el('renewal-bars').replaceChildren();for(const id of ['renewal-metrics','renewal-decisions','renewal-challenges'])el(id).replaceChildren();el('renewal-cutoff').textContent='';status.textContent=message;}
 function onLifecycle(){clearPrivateView();if(document.visibilityState==='visible')load();}
 window.addEventListener('pagehide',()=>clearPrivateView('Session verification required.'));
 window.addEventListener('pageshow',e=>{if(e.persisted)onLifecycle();});
@@ -23,7 +22,6 @@ function visuals(d){
 async function load(){
  const current=++generation;controller?.abort();controller=new AbortController();
  if(document.visibilityState==='hidden'){clearPrivateView('Session verification required.');return;}
- panel.hidden=true;
  results.hidden=true;status.textContent='Loading renewal analytics…';
  const start=Date.parse(form.elements.start.value+'T00:00:00Z'),end=Date.parse(form.elements.end.value+'T00:00:00Z')+day;
  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||end-start>366*day||end>Date.now()){status.textContent='Choose a valid period of up to 366 completed UTC days.';return;}
@@ -43,5 +41,5 @@ async function load(){
  }catch(e){if(current!==generation||e.name==='AbortError')return;status.textContent='Unable to load analytics. Try again.';}
 }
 form.addEventListener('submit',e=>{e.preventDefault();load();});
-form.addEventListener('input',()=>{clearPrivateView('Apply dates to refresh analytics.');});
+form.addEventListener('input',()=>{const wasVisible=!panel.hidden;clearPrivateView('Apply dates to refresh analytics.');if(wasVisible)panel.hidden=false;});
 load();
