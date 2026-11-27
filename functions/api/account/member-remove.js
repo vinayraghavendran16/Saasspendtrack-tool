@@ -26,8 +26,14 @@ export async function onRequestPost({ request, env }) {
   }
 
   try {
-    await env.DB.prepare('DELETE FROM memberships WHERE email=? AND account_id=?')
-      .bind(email, membership.account_id).run();
+    const changed = await env.DB.prepare(
+      `DELETE FROM memberships WHERE email=? AND account_id=? AND role IN ('member','admin')
+       AND EXISTS (SELECT 1 FROM memberships AS actor
+          WHERE actor.email=? AND actor.account_id=memberships.account_id AND actor.status='active'
+          AND (actor.role='owner' OR (actor.role='admin' AND memberships.role='member')))
+       RETURNING email`
+    ).bind(email, membership.account_id, normalizeEmail(user.email)).first();
+    if (!changed) return json({ error: 'membership_changed', message: 'Workspace membership or authorization changed. Reload and try again.' }, 409);
   } catch (err) {
     console.error('member-remove failed', err && err.message);
     return json({ error: 'server', message: 'Could not remove the teammate. Please try again.' }, 500);
