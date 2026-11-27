@@ -1,3 +1,4 @@
+import {formatMinor} from './financial-money-format.js';
 const $=id=>document.getElementById(id);
 const month=$('pupm-month'),status=$('pupm-status'),results=$('pupm-results'),observations=$('pupm-observations');
 const d=new Date();d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-1);month.value=month.max=d.toISOString().slice(0,7);
@@ -8,14 +9,13 @@ async function api(path,body){
  return r.json();
 }
 function node(tag,value){const el=document.createElement(tag);el.textContent=value;return el;}
-function ratio(n,d){const a=BigInt(n),b=BigInt(d),v=(a<0n?-a:a)*100n/b;return (a<0n?'-':'')+String(v/100n)+'.'+String(v%100n).padStart(2,'0');}
 async function load(){
  const seq=++generation,m=month.value;results.replaceChildren();observations.replaceChildren();status.textContent='Loading…';
  try{
  const q='?month='+encodeURIComponent(m),[p,o]=await Promise.all([api('pupm'+q),api('population'+q)]);
  if(seq!==generation||m!==month.value)return;
  status.textContent=p.population.status+' · '+(p.population.selectionStatus||'no source selection')+' · completeness not established';
- for(const r of p.metrics){const tr=node('tr','');for(const v of [r.currency,r.amountMinor,r.pupmMinor.denominator,ratio(r.pupmMinor.numerator,r.pupmMinor.denominator)])tr.append(node('td',v));results.append(tr);}
+ for(const r of p.metrics){const tr=node('tr','');for(const v of [r.currency,formatMinor(r.amountMinor,r.currency),r.pupmMinor.denominator,formatMinor(r.pupmMinor.numerator,r.currency,r.pupmMinor.denominator)])tr.append(node('td',v));results.append(tr);}
  for(const r of o.observations.filter(x=>x.denominator==='employees')){
  const div=node('div','');div.append(node('p',r.source_id+' · '+r.population+' employees'));
  const reason=node('input','');reason.placeholder='Selection rationale';reason.maxLength=1000;reason.setAttribute('aria-label','Selection rationale for '+r.source_id);
