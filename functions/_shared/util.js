@@ -222,10 +222,11 @@ export async function resolveWorkspaceEntitlement(env, user, ctx) {
 // Reads the session cookie and returns the user row, or null.
 export async function getUserFromSession(request, env) {
   const sid = parseCookies(request).sst_session;
-  if (!sid) return null;
+  if (typeof sid !== 'string' || !/^[a-f0-9]{64}$/.test(sid)) return null;
+  const storedId = 'sha256:' + await sha256Hex('sst-session-v1:' + sid);
   const session = await env.DB
     .prepare('SELECT * FROM sessions WHERE id=? AND expires_at > ?')
-    .bind(sid, now()).first();
+    .bind(storedId, now()).first();
   if (!session) return null;
   return env.DB.prepare('SELECT * FROM users WHERE email=?').bind(session.email).first();
 }
