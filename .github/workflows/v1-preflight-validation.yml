@@ -1,0 +1,26 @@
+name: V1 preflight validation
+on:
+  pull_request:
+    branches: [review/v1-combined-remediation-20261127]
+  push:
+    branches: [review/v1-release-preflight-20261127]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run test:release
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e:local
+      - run: npm run build:preview-us
