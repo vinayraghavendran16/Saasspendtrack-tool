@@ -17,7 +17,8 @@ export async function onRequestPost({request,env}){
  if(!ctx||ctx.membership.account_id!==account)return json({error:'no_account'},403);
  const row=await env.DB.prepare('SELECT data FROM app_data WHERE email=?').bind(ctx.ownerEmail).first();
  let subscriptions;try{subscriptions=JSON.parse(row?.data||'{}').subscriptions}catch{return json({error:'invalid_saved_data'},503)}
- if(!Array.isArray(subscriptions)||!subscriptions.some(s=>s&&s.fromPreset!==true&&String(s.id)===vendorId))return json({error:'vendor_not_found'},404);
+ if(vendorId==='@workspace'&&g.membership.role!=='owner')return json({error:'forbidden'},403);
+ if(vendorId!=='@workspace'&&(!Array.isArray(subscriptions)||!subscriptions.some(s=>s&&s.fromPreset!==true&&String(s.id)===vendorId)))return json({error:'vendor_not_found'},404);
  const member=await env.DB.prepare("SELECT email FROM memberships WHERE account_id=? AND email=? AND status='active'").bind(account,email).first();
  if(!member)return json({error:'invalid_member'},422);
  const t=Date.now();
