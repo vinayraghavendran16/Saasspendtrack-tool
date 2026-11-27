@@ -295,3 +295,20 @@ legacy.execute("UPDATE users SET status='trial',paid_at=NULL WHERE email=?", (em
 assert legacy.execute(expiry_sql,(email,20)).fetchone()==(email,)
 assert legacy.execute("SELECT status FROM users WHERE email=?", (email,)).fetchone()==("expired",)
 print("PASS: scheduled trial expiry cannot overwrite a committed payment")
+
+# Verify retry ceiling using the actual payment queue SQL.
+queue_source = (root / "functions/_shared/payment-notifications.js").read_text()
+retire_sql = queue_source.split('env.DB.prepare("UPDATE payment_notification_outbox SET status=\'dead\'',1)[1].split('").bind(now)',1)[0]
+retire_sql = "UPDATE payment_notification_outbox SET status='dead'" + retire_sql
+claim_sql = queue_source.split('env.DB.prepare("UPDATE payment_notification_outbox SET status=\'leased\'',1)[1].split('").bind(lease,id,claimAt,claimAt)',1)[0]
+claim_sql = "UPDATE payment_notification_outbox SET status='leased'" + claim_sql
+for payment_id, attempts, lease_until in (("pay_retry_ceiling",5,10),("pay_retry_allowed",4,10),("pay_live_lease",5,100)):
+    legacy.execute("INSERT INTO payment_ledger(payment_id,link_id,customer_email,tier,amount,currency,recorded_at,entitlement_until) VALUES (?,?,?,?,?,?,?,?)",(payment_id,"plink_fixture","retry@example.invalid","founding",149900,"USD",1,200))
+    legacy.execute("UPDATE payment_notification_outbox SET status='leased',attempts=?,lease_until=? WHERE payment_id=?", (attempts,lease_until,payment_id))
+legacy.execute(retire_sql,(20,))
+assert legacy.execute("SELECT status,attempts FROM payment_notification_outbox WHERE payment_id='pay_retry_ceiling'").fetchone()==("dead",5)
+assert legacy.execute(claim_sql,(140,"pay_retry_ceiling",20,20)).fetchone() is None
+assert legacy.execute(claim_sql,(140,"pay_retry_allowed",20,20)).fetchone()==(5,)
+assert legacy.execute(claim_sql,(140,"pay_live_lease",20,20)).fetchone() is None
+assert legacy.execute("SELECT status FROM payment_notification_outbox WHERE payment_id='pay_live_lease'").fetchone()==("leased",)
+print("PASS: exhausted payment notifications are retired without a sixth attempt; active leases preserved")
