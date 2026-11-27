@@ -41,6 +41,8 @@ e = await U.resolveEntitlement(noDb, { email: 'a', status: 'trial', trial_ends_a
 ok(e.entitled && e.daysLeft >= 1 && e.daysLeft <= 3, 'trial entitled, daysLeft');
 e = await U.resolveEntitlement(noDb, { email: 'a', status: 'trial', trial_ends_at: Date.now() - 1000 });
 ok(!e.entitled && e.status === 'expired', 'expired trial blocks');
+e = await U.resolveEntitlement({DB:{prepare(){throw Error('expiry must not mutate billing status');}}}, {email:'a',status:'trial',trial_ends_at:Date.now()-1000});
+ok(!e.entitled && e.status==='expired','lazy expiry is read-only');
 
 // ---- SSRF guard ----
 section('ssrf guard');
