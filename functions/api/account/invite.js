@@ -8,6 +8,7 @@ import {
   rateLimit, requireRole, getMembership, countAccountMembers, countPendingInvites, MAX_MEMBERS,
 } from '../../_shared/util.js';
 import { sendEmail, inviteEmail, memberCapEmail } from '../../_shared/email.js';
+import { canInviteRole } from '../../_shared/role-policy.js';
 
 export async function onRequestPost({ request, env }) {
   const gate = await requireRole(request, env, 'admin');
@@ -22,6 +23,7 @@ export async function onRequestPost({ request, env }) {
   // Only member or admin can be invited; a second owner is never provisioned here.
   let role = (body.role || 'member').toString();
   if (role !== 'member' && role !== 'admin') role = 'member';
+  if (!canInviteRole(membership.role, role)) return json({ ok: false, error: 'forbidden', message: 'Only the workspace owner can invite an admin.' }, 403);
   if (email === normalizeEmail(user.email)) {
     return json({ ok: false, error: 'self', message: 'That is your own email.' }, 400);
   }
