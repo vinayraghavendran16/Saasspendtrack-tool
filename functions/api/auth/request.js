@@ -25,12 +25,9 @@ export async function onRequestPost({ request, env }) {
 
   // Create the user (and start the trial) if new. INSERT OR IGNORE keeps the
   // original trial_ends_at on repeat sign-ins.
-  const existed = await env.DB.prepare('SELECT email FROM users WHERE email=?').bind(email).first();
-  if (!existed) {
-    await env.DB.prepare(
-      'INSERT INTO users (email, created_at, trial_ends_at, status) VALUES (?,?,?,?)',
-    ).bind(email, t, t + TRIAL_DAYS * DAY, 'trial').run();
-  }
+  await env.DB.prepare(
+    'INSERT INTO users (email, created_at, trial_ends_at, status) VALUES (?,?,?,?) ON CONFLICT(email) DO NOTHING',
+  ).bind(email, t, t + TRIAL_DAYS * DAY, 'trial').run();
 
   // Issue a single-use token (store only its hash).
   const token = randomToken(32);

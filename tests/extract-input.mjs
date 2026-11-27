@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readExtractionInput, MAX_BODY_BYTES, MAX_PDF_BYTES} from '../functions/_shared/extract-input.js';
+const read = body => readExtractionInput(new Request('https://example.invalid', {method:'POST',body:JSON.stringify(body)}));
+const pdf = Buffer.from('%PDF-1.7\nsynthetic fixture').toString('base64');
+assert.equal((await read({pdf_base64:pdf})).hasPdf,true);
+assert.equal((await read({pdf_base64:pdf,media_type:'image/png'})).error,'invalid_pdf');
+assert.equal((await read({pdf_base64:'!!!!'})).error,'invalid_pdf');
+assert.equal((await read({pdf_base64:'YWJjZA=='})).error,'invalid_pdf');
+assert.equal((await read({text:'short'})).error,'no_input');
+assert.equal((await read({text:123})).error,'invalid_json');
+assert.equal((await read({text:'synthetic contract '.repeat(4)})).hasPdf,false);
+assert.equal((await read({text:'x'.repeat(MAX_BODY_BYTES)})).status,413);
+const oversized = Buffer.alloc(MAX_PDF_BYTES+1,65);
+oversized.write('%PDF-');
+assert.equal((await read({pdf_base64:oversized.toString('base64')})).status,413);
+console.log('PASS: extraction input boundaries');

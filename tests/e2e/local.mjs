@@ -15,10 +15,10 @@ const p=await ctx.newPage();async function test(name,fn){try{await fn();results.
 await p.goto(origin+'/#subscriptions');await p.locator('#subscriptions').getByText('Synthetic Cedar Local',{exact:true}).filter({visible:true}).waitFor();
 await test('pointer save unobstructed by onboarding widget',async()=>{await p.getByRole('button',{name:/Add subscription/}).click();await p.locator('#f-name:focus').waitFor();await p.locator('#f-name').fill('Pointer Regression');await p.locator('#f-cost').fill('25');await Promise.all([p.waitForResponse(r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT'),p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click()]);await p.locator('#modal').waitFor({state:'hidden'});assert.ok(data.subscriptions.some(s=>s.name==='Pointer Regression'));await p.screenshot({path:out+'/pointer-save.png'});});
 await test('subscription search and empty results',async()=>{await p.goto(origin+'/#subscriptions');const search=p.locator('#search');await search.fill('Pointer Regression');await p.locator('#sub-tbody').getByText('Pointer Regression',{exact:true}).waitFor();assert.equal(await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).count(),0);await search.fill('no-such-synthetic-subscription');assert.equal(await p.locator('#sub-tbody').getByText('Pointer Regression',{exact:true}).count(),0);await search.fill('');await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor();});
-await test('negative subscription cost rejected without persistence',async()=>{await p.getByRole('button',{name:/Add subscription/}).click();await p.locator('#f-name:focus').waitFor();await p.locator('#f-name').fill('Invalid Negative Cost');await p.locator('#f-cost').fill('-1');const previous=version;assert.equal(await p.locator('#f-cost').evaluate(el=>el.validity.rangeUnderflow),true);await p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click();assert.equal(version,previous);assert.ok(!data.subscriptions.some(s=>s.name==='Invalid Negative Cost'));await p.reload();await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor();await p.locator('#modal').waitFor({state:'hidden'});});
+await test('negative subscription cost rejected without persistence',async()=>{await p.getByRole('button',{name:/Add subscription/}).click();await p.locator('#f-name:focus').waitFor();await p.locator('#f-name').fill('Invalid Negative Cost');await p.locator('#f-cost').fill('-1');const previous=version;assert.equal(await p.locator('#f-cost').evaluate(el=>el.validity.rangeUnderflow),true);await p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click();assert.equal(version,previous);assert.ok(!data.subscriptions.some(s=>s.name==='Invalid Negative Cost'));await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor();await p.locator('#modal').waitFor({state:'hidden'});});
 await test('billing cycle normalization and seat utilization',async()=>{const values=await p.evaluate(()=>({monthly:monthlyCost({cost:100,cycle:'monthly'}),yearly:monthlyCost({cost:1200,cycle:'yearly'}),quarterly:monthlyCost({cost:300,cycle:'quarterly'}),invalid:monthlyCost({cost:100,cycle:'invalid'}),seats:consumption({cost:1200,cycle:'yearly',licenses:10,assigned:8,utilized:6}),paused:consumption({cost:1200,cycle:'yearly',licenses:10,assigned:8,utilized:6,active:false})}));assert.equal(values.monthly,100);assert.equal(values.yearly,100);assert.equal(values.quarterly,100);assert.equal(values.invalid,0);assert.equal(values.seats.unused,4);assert.equal(values.seats.utilizationPct,60);assert.equal(values.seats.unusedCostMonthly,40);assert.equal(values.paused.unusedCostMonthly,0);});
 await test('renewal calendar edge cases',async()=>{const values=await p.evaluate(()=>{const add=(date,cycle,n)=>localDateISO(addCycles(parseDate(date),cycle,n));const today=new Date();today.setHours(0,0,0,0);const future=new Date(today);future.setDate(future.getDate()+10);const past=new Date(today);past.setDate(past.getDate()-8);const projected=nextRenewal({renewal:localDateISO(past),cycle:'weekly'});return {leap:add('2024-01-31','monthly',1),nonLeap:add('2025-01-31','monthly',1),anchor:add('2024-01-31','monthly',2),annual:add('2024-02-29','yearly',1),quarter:add('2025-01-31','quarterly',1),weekly:add('2025-12-29','weekly',1),missing:nextRenewalISO({}),future:nextRenewalISO({renewal:localDateISO(future),cycle:'monthly'}),expectedFuture:localDateISO(future),projectedValid:projected>=today&&projected<future};});assert.equal(values.leap,'2024-02-29');assert.equal(values.nonLeap,'2025-02-28');assert.equal(values.anchor,'2024-03-31');assert.equal(values.annual,'2025-02-28');assert.equal(values.quarter,'2025-04-30');assert.equal(values.weekly,'2026-01-05');assert.equal(values.missing,null);assert.equal(values.future,values.expectedFuture);assert.equal(values.projectedValid,true);});
-await test('subscription edit persists after reload',async()=>{await p.goto(origin+'/#subscriptions');const row=p.locator('#sub-tbody tr').filter({hasText:'Pointer Regression'});await row.getByRole('button',{name:'Edit',exact:true}).click();await p.locator('#f-name:focus').waitFor();await p.locator('#f-cost').fill('37.50');const previous=version;await Promise.all([p.waitForResponse(r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT'),p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click()]);await p.locator('#modal').waitFor({state:'hidden'});assert.equal(version,previous+1);assert.equal(data.subscriptions.find(s=>s.name==='Pointer Regression').cost,37.5);await p.reload();await p.locator('#sub-tbody tr').filter({hasText:'Pointer Regression'}).getByText('$37.50',{exact:true}).first().waitFor();});
+await test('subscription edit persists after reload',async()=>{await p.goto(origin+'/#subscriptions');const row=p.locator('#sub-tbody tr').filter({hasText:'Pointer Regression'});await row.getByRole('button',{name:'Edit',exact:true}).click();await p.locator('#f-name:focus').waitFor();await p.locator('#f-cost').fill('37.50');const previous=version;await Promise.all([p.waitForResponse(r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT'),p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click()]);await p.locator('#modal').waitFor({state:'hidden'});assert.equal(version,previous+1);assert.equal(data.subscriptions.find(s=>s.name==='Pointer Regression').cost,37.5);await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();await p.locator('#sub-tbody tr').filter({hasText:'Pointer Regression'}).getByText('$37.50',{exact:true}).first().waitFor();});
 await test('cancellation notice calendar',async()=>{const result=await p.evaluate(()=>{const today=new Date();today.setHours(0,0,0,0);const future=new Date(today);future.setDate(future.getDate()+60);const s={renewal:localDateISO(future),cycle:'yearly',contract:{noticeDays:30}};const w=computeNoticeWindow(s);return {left:w.daysLeft,toRenewal:w.daysToRenewal,missing:computeNoticeWindow({...s,contract:{}})};});assert.equal(result.left,30);assert.equal(result.toRenewal,60);assert.equal(result.missing,null);});
 await test('privacy evidence download',async()=>{await p.goto(origin+'/#integrations');await p.locator('#workspace-ai-state').filter({hasText:'AI disabled.'}).waitFor();const[d]=await Promise.all([p.waitForEvent('download'),p.getByRole('link',{name:'Download AI privacy evidence'}).click()]);assert.equal(d.suggestedFilename(),'sst-ai-privacy-evidence.json');await d.saveAs(out+'/privacy.json');assert.equal(JSON.parse(await fs.readFile(out+'/privacy.json')).policy.enabled,false);});
 await test('workspace JSON export',async()=>{await p.goto(origin+'/#subscriptions');const[d]=await Promise.all([p.waitForEvent('download'),p.locator('#export-btn').click()]);await d.saveAs(out+'/workspace.json');assert.ok(JSON.parse(await fs.readFile(out+'/workspace.json')).subscriptions.some(s=>s.name==='Pointer Regression'));});
@@ -57,7 +57,7 @@ await test('invoice creation, edit and payment persist after reload',async()=>{
 
   await Promise.all([p.waitForResponse(workspaceWrite),row.getByRole('button',{name:'Mark paid'}).click()]);
   assert.match(data.invoices.find(i=>i.id===created.id).paidDate,/^\d{4}-\d{2}-\d{2}$/);
-  await p.reload();
+  await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();
   await p.locator('#inv-filter-status').selectOption('paid');
   await row.getByText(/^Paid /).waitFor();
   await row.getByText('$175.50',{exact:true}).waitFor();
@@ -103,7 +103,7 @@ await test('subscription deletion confirms the invoice cascade and persists',asy
   assert.equal(version,previous+1);
   assert.deepEqual(data.subscriptions,preservedSubscriptions);
   assert.deepEqual(data.invoices,preservedInvoices);
-  await p.reload();
+  await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();
   await p.locator('#sub-tbody').getByText('Synthetic Cedar Local',{exact:true}).waitFor();
   await row.waitFor({state:'detached'});
   await p.goto(origin+'/#invoices');
@@ -112,7 +112,7 @@ await test('subscription deletion confirms the invoice cascade and persists',asy
 
 await test('team directory imports, filters and removes employees',async()=>{
   await p.goto(origin+'/#team');
-  await p.reload();
+  await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();
   await p.locator('#team-file').waitFor({state:'attached'});
   const csv=[
     'Employee ID,Email,Title,Department',
@@ -131,7 +131,7 @@ await test('team directory imports, filters and removes employees',async()=>{
   const table=p.locator('#team-tbody');
   const finance=table.getByRole('row').filter({hasText:'SST-001'});
   const it=table.getByRole('row').filter({hasText:'SST-002'});
-  await p.reload();
+  await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();
   await it.waitFor();
   await p.locator('#team-filter-dept').selectOption('Finance');
   await finance.waitFor();
@@ -141,7 +141,7 @@ await test('team directory imports, filters and removes employees',async()=>{
     finance.getByRole('button',{name:'Remove',exact:true}).click()
   ]);
   assert.deepEqual(data.employees.map(e=>e.employeeId),['SST-002']);
-  await p.reload();
+  await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();
   await it.waitFor();
   await finance.waitFor({state:'detached'});
   const rollup=p.locator('#team-rollup-tbody tr').filter({hasText:'IT'});
@@ -150,7 +150,7 @@ await test('team directory imports, filters and removes employees',async()=>{
 
 await test('seat allocation changes persist and update unused spend',async()=>{
   await p.goto(origin+'/#subscriptions');
-  await p.reload();
+  await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();
   const vendor=p.locator('#sub-tbody tr').filter({hasText:'Synthetic Cedar Local'});
   await vendor.waitFor();
   const modal=p.locator('#modal');
@@ -174,7 +174,7 @@ await test('seat allocation changes persist and update unused spend',async()=>{
   const {licenses,assigned,utilized}=data.subscriptions.find(s=>s.id==='local-cedar');
   assert.deepEqual({licenses,assigned,utilized},{licenses:10,assigned:7,utilized:5});
 
-  await p.reload();
+  await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();
   await usage.getByText('$60.00',{exact:true}).waitFor();
   assert.deepEqual((await usage.locator('td').allTextContents()).slice(2,9).map(text=>text.trim()),
     ['10','7','5','5','50%','$60.00','$720.00']);
@@ -199,7 +199,7 @@ await test('250-subscription workspace loads and filters accurately',async()=>{
 
   await p.goto(origin+'/#subscriptions');
   const loadStart=performance.now();
-  await p.reload();
+  await p.waitForFunction(() => !_serverSaveInFlight && !localStorage.getItem('saasspendtrack.workspace-draft.v2.local-test')); await p.reload();
   await waitForRows(subscriptionCount);
   const loadMs=Math.round(performance.now()-loadStart);
   assert.equal(await rows.first().locator('td').first().getByText('Bulk Vendor 001',{exact:true}).count(),1);
