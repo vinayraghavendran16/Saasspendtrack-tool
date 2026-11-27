@@ -4,7 +4,9 @@ import {invoicedPupm} from '../../_shared/invoiced-pupm.js';
 export async function onRequestGet({request,env}){
  if(env.PUPM_ENABLED!=='true')return new Response(null,{status:404});
  const g=await requireEntitledRole(request,env,'owner');if(g.response)return g.response;
- const a=g.membership.account_id,month=new URL(request.url).searchParams.get('month');
+ return monthlyPupm(env,g.membership.account_id,new URL(request.url).searchParams.get('month'));
+}
+export async function monthlyPupm(env,a,month){
  if(!month||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)||month>=new Date().toISOString().slice(0,7))return json({error:'closed_month_required'},400);
  const {results:pop=[]}=await env.DB.prepare("SELECT p.id,p.denominator,p.population,p.active_window_days FROM pupm_population_observations p WHERE p.account_id=? AND p.scope_type='organization' AND p.scope_id=? AND p.month=? AND p.denominator='employees' AND NOT EXISTS(SELECT 1 FROM pupm_population_observations n WHERE n.account_id=p.account_id AND n.supersedes_id=p.id) LIMIT 501").bind(a,a,month).all();
  if(pop.length>500)return json({error:'too_many_observations'},422);
