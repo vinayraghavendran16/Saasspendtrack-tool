@@ -17,6 +17,8 @@ try{
  try{
  for(const width of [390,1280]){
  const page=await browser.newPage({viewport:{width,height:900}});
+ await page.route('https://fonts.googleapis.com/**',route=>route.abort());
+ await page.route('https://fonts.gstatic.com/**',route=>route.abort());
  let enabled=false;
  const metric={currency:'USD',amountMinor:'4950000',pupmMinor:{numerator:'4950000',denominator:'210'}};
  await page.route('**/api/financial/**',async route=>{
