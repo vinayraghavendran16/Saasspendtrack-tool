@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import {onRequestGet as pupm} from '../functions/api/financial/pupm.js';
+import {onRequestGet as population,onRequestPost as ingest} from '../functions/api/financial/population.js';
+const email='owner@example.invalid';
+function fixture(role='owner',status='active',entitled=true){
+ const calls=[];
+ const DB={prepare(sql){return {bind(...args){return {
+ async run(){assert.match(sql,/^CREATE /);},
+ async first(){
+ if(sql.includes('FROM sessions'))return {email};
+ if(sql.includes('FROM users'))return {email,status:entitled?'active':'expired',trial_ends_at:0};
+ if(sql.includes('FROM memberships'))return {account_id:'a',role,status};
+ if(sql.includes('FROM accounts'))return {id:'a',owner_email:email};
+ if(sql.includes('FROM payment_ledger'))return {paid_until:null};
+ if(sql.startsWith('INSERT INTO pupm_population')){assert.equal(args[0],'a');assert.equal(args[2],'a');calls.push('insert');return {id:args[1]};}
+ throw Error(sql);
+ },
+ async all(){
+ assert.equal(args[0],'a');
+ if(sql.includes('pupm_population_observations')){assert.equal(args[1],'a');calls.push('population');return {results:[{id:'p',denominator:'employees',population:210}]};}
+ if(sql.includes('reporting_financial_facts')){calls.push('ledger');return {results:[{kind:'invoice',currency:'USD',amount_minor:'5000000'},{kind:'credit',currency:'USD',amount_minor:'50000'}]};}
+ throw Error(sql);
+ }
+ }}}}};
+ return {env:{DB,PUPM_ENABLED:'true'},calls};
+}
+const req=(body,cookie=true)=>new Request('https://example.invalid/api/financial/pupm?month=2020-01&accountId=b',{method:body===undefined?'GET':'POST',headers:cookie?{Cookie:'sst_session='+'a'.repeat(64)}:{},body:body===undefined?undefined:JSON.stringify(body)});
+for(const handler of [pupm,population,ingest]){
+ assert.equal((await handler({request:req(),env:{}})).status,404);
+ assert.equal((await handler({request:req(undefined,false),env:fixture().env})).status,401);
+ for(const f of [fixture('member'),fixture('owner','suspended'),fixture('owner','active',false)]){
+ assert.equal((await handler({request:req(),env:f.env})).status,403);
+ assert.deepEqual(f.calls,[]);
+ }
+}
+const f=fixture(),res=await pupm({request:req(),env:f.env});
+assert.equal(res.status,200);
+assert.equal((await res.json()).metrics[0].amountMinor,'4950000');
+assert.deepEqual(f.calls,['population','ledger']);
+const b={month:'2020-01',denominator:'employees',count:210,sourceId:'hr',sourceRecordId:'r'};
+assert.equal((await ingest({request:req({...b,accountId:'b'}),env:f.env})).status,400);
+assert.equal((await ingest({request:req({...b,sourceId:'x'.repeat(5000)}),env:f.env})).status,413);
+assert.equal((await ingest({request:req(b),env:f.env})).status,201);
+assert.equal((await population({request:req(),env:f.env})).status,200);
+console.log('PUPM API handler fixture passed');
