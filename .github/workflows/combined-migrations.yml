@@ -16,3 +16,7 @@ jobs:
           node-version: '22'
       - run: python3 tests/combined-migrations.py
       - run: npm run test:hardening
+
+      - name: Inventory session issuance source locations
+        run: |
+          grep -RInE 'INSERT (OR [A-Z]+ )?INTO sessions|sessionCookie\(' functions --include='*.js' || true
