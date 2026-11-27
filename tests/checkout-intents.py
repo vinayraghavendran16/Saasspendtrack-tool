@@ -152,3 +152,26 @@ health=db.execute(health_sql,(0,0)).fetchone()
 assert health[3]==db.execute('SELECT count(*) FROM checkout_intents WHERE founding_slot IS NOT NULL').fetchone()[0]+1
 assert 0<=health[3]<=25
 print('PASS: historical and current allocations included in health totals')
+
+# Historical import and a new reservation compete for the same free slot.
+owner(29)
+owner(30)
+db.commit()
+with tempfile.TemporaryDirectory() as tmp:
+    target=str(Path(tmp)/'historical-race.sqlite')
+    with sqlite3.connect(target) as dest: db.backup(dest)
+    barrier=Barrier(2)
+    def historical_race(i):
+        with sqlite3.connect(target,timeout=10) as conn:
+            conn.execute('PRAGMA foreign_keys=ON')
+            barrier.wait(timeout=10)
+            try:
+                if i==0:
+                    conn.execute("INSERT INTO legacy_founding_allocations VALUES (25,'29','race-evidence',1)")
+                else:
+                    conn.execute("INSERT INTO checkout_intents(id,account_id,owner_email,tier,amount,currency,founding_slot,created_at,expires_at) VALUES ('new-race','30','30@example.test','founding',149900,'USD',25,1,2)")
+                return True
+            except sqlite3.IntegrityError: return False
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(historical_race,range(2)))==[False,True]
+print('PASS: historical import and new checkout cannot share a seat')
