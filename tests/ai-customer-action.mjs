@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {recordCustomerResponse as record} from '../functions/_shared/ai-customer-action.js';
+const guard={membership:{role:'owner',status:'active',account_id:'a'},user:{email:'owner@example.invalid'}};
+const input={recommendationId:'rec',revision:1,action:'accept'};
+let batches=0,available=true,fail=false;
+const db={prepare(sql){return {bind(...args){if(sql.startsWith('SELECT')){assert.deepEqual(args,['a','rec',1]);return {first:async()=>available?{contract_id:'c'}:null};}return {sql,args};}};},async batch(s){batches++;assert.equal(s.length,2);assert.equal(s[0].args[0],'a');assert.equal(s[1].args[0],'a');assert.equal(s[0].args[1],s[1].args[8]);assert.equal(s[0].args[2],s[1].args[7]);assert.equal(s[1].args[4],'c');if(fail)throw Error('batch failed');}};
+const env={DB:db,AI_EXPLAINABILITY_ENABLED:'true',PLATFORM_AUDIT_ENABLED:'true'};
+for(const action of ['accept','reject','defer'])assert.equal((await record(env,guard,{...input,action})).action,action);
+for(const action of ['execute','approve','challenge','view_evidence'])await assert.rejects(record(env,guard,{...input,action}),/invalid response/);
+await assert.rejects(record(env,{...guard,membership:{...guard.membership,role:'member'}},input),/authorization/);
+await assert.rejects(record({...env,PLATFORM_AUDIT_ENABLED:'false'},guard,input),/disabled/);
+available=false;await assert.rejects(record(env,guard,input),/unavailable/);assert.equal(batches,3);
+available=true;fail=true;await assert.rejects(record(env,guard,input),/batch failed/);
+console.log('PASS customer response authorization and atomic batch linkage');
