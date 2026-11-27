@@ -312,3 +312,43 @@ assert legacy.execute(claim_sql,(140,"pay_retry_allowed",20,20)).fetchone()==(5,
 assert legacy.execute(claim_sql,(140,"pay_live_lease",20,20)).fetchone() is None
 assert legacy.execute("SELECT status FROM payment_notification_outbox WHERE payment_id='pay_live_lease'").fetchone()==("leased",)
 print("PASS: exhausted payment notifications are retired without a sixth attempt; active leases preserved")
+
+# Replay and rollback rehearsal using the actual webhook's two SQL statements.
+from datetime import datetime, timezone
+webhook = (root / "functions/api/razorpay/webhook.js").read_text()
+def webhook_sql(prefix):
+    return prefix + webhook.split("env.DB.prepare('" + prefix,1)[1].split("').bind(",1)[0].replace("\\'", "'")
+ledger_sql = webhook_sql("INSERT INTO payment_ledger ")
+user_sql = webhook_sql("INSERT INTO users ")
+def ms(year,month,day):
+    return int(datetime(year,month,day,tzinfo=timezone.utc).timestamp()*1000)
+email="payment-replay@example.invalid"
+def apply_payment(pid,t):
+    with legacy:
+        legacy.execute(ledger_sql,(pid,"plink_fixture",email,"founding",149900,"USD",t,t,t,email))
+        legacy.execute(user_sql,(email,t,t,"active","annual-usd",t,pid,149900,"USD"))
+legacy.commit()
+apply_payment("pay_replay_1",ms(2024,2,29))
+assert legacy.execute("SELECT entitlement_until FROM payment_ledger WHERE payment_id='pay_replay_1'").fetchone()==(ms(2025,2,28),)
+try:
+    apply_payment("pay_replay_1",ms(2024,3,1))
+except sqlite3.IntegrityError:
+    pass
+else:
+    raise AssertionError("Duplicate payment was accepted")
+assert legacy.execute("SELECT COUNT(*) FROM payment_notification_outbox WHERE payment_id='pay_replay_1'").fetchone()==(1,)
+apply_payment("pay_replay_2",ms(2024,3,1))
+assert legacy.execute("SELECT MAX(entitlement_until) FROM payment_ledger WHERE customer_email=?",(email,)).fetchone()==(ms(2026,2,28),)
+legacy.execute("CREATE TRIGGER fixture_payment_failure BEFORE UPDATE ON users WHEN NEW.email='payment-replay@example.invalid' BEGIN SELECT RAISE(ABORT,'fixture failure'); END")
+legacy.commit()
+try:
+    apply_payment("pay_rollback_fixture",ms(2024,3,2))
+except sqlite3.IntegrityError:
+    pass
+else:
+    raise AssertionError("Injected payment transaction failure was accepted")
+assert legacy.execute("SELECT COUNT(*) FROM payment_ledger WHERE payment_id='pay_rollback_fixture'").fetchone()==(0,)
+assert legacy.execute("SELECT COUNT(*) FROM payment_notification_outbox WHERE payment_id='pay_rollback_fixture'").fetchone()==(0,)
+assert legacy.execute("SELECT rp_payment_id FROM users WHERE email=?",(email,)).fetchone()==("pay_replay_2",)
+legacy.execute("DROP TRIGGER fixture_payment_failure")
+print("PASS: payment replay, leap-day renewal, early renewal extension, and atomic ledger/outbox rollback")
