@@ -14,7 +14,7 @@
     "test:e2e:live": "node tests/e2e/live.mjs",
     "test:e2e:authenticate": "node tests/e2e/authenticate.mjs",
     "test:hardening": "node tests/payment-policy.mjs && node tests/session-token.mjs && node tests/auth-retention.mjs && node tests/governance-routing.mjs && node tests/commercial-rollup.mjs && node tests/governance-deadlines.mjs && node tests/employee-intelligence.mjs && node tests/renewal-planner.mjs && node tests/reporting.mjs && node tests/aop-foundations.mjs && node tests/aop-scenario.mjs && node tests/aop-compare.mjs && node tests/release-feature-gates.mjs && node tests/payment-notifications.mjs && node tests/invite-role-policy.mjs && node tests/api-origin-middleware.mjs && node tests/decision-evaluation.mjs && node tests/decision-feedback.mjs && node tests/decision-integration.mjs && node tests/technology-dependencies.mjs && node tests/financial-evidence-review.mjs && node tests/financial-learning-eligibility.mjs && python3 tests/financial-attestation-sql.py && npm run test:semantic",
-    "test:semantic": "node tests/semantic-metrics.mjs && node tests/pricing-scenario.mjs && node tests/contract-pricing-projection.mjs && node tests/workspace-experience.mjs"
+    "test:semantic": "node tests/semantic-metrics.mjs && node tests/pricing-scenario.mjs && node tests/contract-pricing-projection.mjs && node tests/workspace-experience.mjs && node tests/historical-pupm.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.1",
