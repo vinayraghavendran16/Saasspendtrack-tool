@@ -23,6 +23,12 @@ try {
   assert.ok(result.functionFiles.includes('functions/api/data.js'));
   assert.ok(result.functionFiles.includes('functions/api/auth/request.js'));
   assert.ok(result.functionFiles.every((file) => file.startsWith('functions/')));
+  const checkoutAssets = ['checkout-sandbox.html','checkout-sandbox-entry.js','checkout-sandbox.js','checkout-controller.js'];
+  for (const asset of checkoutAssets) assert.ok(!files.includes(asset), 'default build leaked '+asset);
+  const optedIn = await buildPreviewAssets({output,includeCheckout:true});
+  assert.deepEqual(optedIn.staticAssets,[...files,...checkoutAssets].sort());
+  for (const asset of checkoutAssets) assert.ok((await readdir(output)).includes(asset));
+  console.log('PASS: checkout assets require explicit opt-in');
   console.log(`PASS: explicit static allowlist contains ${files.length} assets; ${result.functionFiles.length} Pages Function files remain discoverable from the repository root.`);
 } finally {
   await rm(output, { recursive: true, force: true });
