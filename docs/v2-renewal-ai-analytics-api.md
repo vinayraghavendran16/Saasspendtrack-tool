@@ -1,0 +1,5 @@
+# Renewal AI analytics API
+GET /api/renewals/ai-analytics?start=<epoch-ms>&end=<epoch-ms>&asOf=<epoch-ms>
+Owner entitlement required. All three flags AI_EXPLAINABILITY_ENABLED, PLATFORM_AUDIT_ENABLED and RENEWAL_AI_ANALYTICS_ENABLED must equal true. Default off.
+Start inclusive, end exclusive, asOf inclusive and no later than server time; maximum publication window 366 days. Cohort is contract-linked publications in module renewals, latest revision published within the window per recommendation. This is not a current-state report. All four reads use one D1 batch; live snapshot semantics and performance require verification. Each read capped at 10001 rows; reject overflow rather than silently truncate. No raw evidence, actor identifiers or challenge reasons returned.
+No financial attribution, execution verification or approval-to-execution conversion claim. Counts of recorded execution are not proof of vendor action. No client-supplied account identifier. API tests and browser integration pending.
