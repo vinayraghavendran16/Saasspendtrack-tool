@@ -83,3 +83,30 @@ t=millis('2028-02-29T12:00:00.123')
 db.execute(sql,('pay_leap',t,t,'c4'))
 assert db.execute("SELECT entitlement_until FROM payment_ledger WHERE payment_id='pay_leap'").fetchone()==(millis('2029-02-28T12:00:00.123'),)
 print('PASS: actual webhook SQL leap-day entitlement')
+
+# Competing owners attempt to reserve the final available founding seat.
+db.execute("UPDATE checkout_intents SET status='cancelled',founding_slot=NULL WHERE id='c26'")
+owner(28)
+db.commit()
+with tempfile.TemporaryDirectory() as tmp:
+    target=str(Path(tmp)/'seat.sqlite')
+    with sqlite3.connect(target) as dest: db.backup(dest)
+    barrier=Barrier(2)
+    def last_seat(i):
+        with sqlite3.connect(target,timeout=10) as conn:
+            conn.execute('PRAGMA foreign_keys=ON')
+            barrier.wait(timeout=10)
+            try:
+                conn.execute("INSERT INTO checkout_intents(id,account_id,owner_email,tier,amount,currency,founding_slot,created_at,expires_at) VALUES (?,?,?,'founding',149900,'USD',25,1,2)",(f'race{i}',str(i),f'{i}@example.test'))
+                return True
+            except sqlite3.IntegrityError: return False
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(last_seat,[27,28]))==[False,True]
+    with sqlite3.connect(target) as conn:
+        assert conn.execute('SELECT count(*) FROM checkout_intents WHERE founding_slot IS NOT NULL').fetchone()==(25,)
+# Workspace ownership cannot be spoofed at the database boundary.
+rejects(lambda:db.execute("INSERT INTO checkout_intents(id,account_id,owner_email,tier,amount,currency,created_at,expires_at) VALUES ('spoof','27','28@example.test','standard',200000,'USD',1,2)"))
+db.execute("UPDATE memberships SET role='member' WHERE email='28@example.test'")
+rejects(lambda:db.execute("INSERT INTO checkout_intents(id,account_id,owner_email,tier,amount,currency,created_at,expires_at) VALUES ('member','28','28@example.test','standard',200000,'USD',1,2)"))
+assert db.execute("SELECT old_status,new_status FROM checkout_events WHERE checkout_id='c26' ORDER BY id").fetchall()==[(None,'reserved'),('reserved','cancelled')]
+print('PASS: final founding seat race, owner boundary and audit sequence')
