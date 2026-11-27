@@ -49,3 +49,23 @@ rejects(lambda:db.execute("UPDATE checkout_intents SET status='cancelled',foundi
 rejects(lambda:db.execute("DELETE FROM checkout_provider_claims WHERE checkout_id='c2'"))
 rejects(lambda:db.execute("INSERT INTO checkout_provider_claims(checkout_id,claimed_at) VALUES ('c3',2)"))
 print('PASS: provider claim uniqueness and release guards')
+
+# Independent connections race for the same provider claim.
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+with tempfile.TemporaryDirectory() as tmp:
+    target=str(Path(tmp)/'race.sqlite')
+    db.commit()
+    with sqlite3.connect(target) as dest: db.backup(dest)
+    barrier=Barrier(8)
+    def claim(_):
+        with sqlite3.connect(target,timeout=10) as conn:
+            conn.execute('PRAGMA foreign_keys=ON')
+            barrier.wait(timeout=10)
+            return conn.execute("INSERT INTO checkout_provider_claims(checkout_id,claimed_at) VALUES ('c3',1) ON CONFLICT(checkout_id) DO NOTHING RETURNING checkout_id").fetchone()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results=list(pool.map(claim,range(8)))
+    assert results.count(('c3',))==1, results
+    assert results.count(None)==7, results
+print('PASS: eight concurrent connections produce one provider claim')
