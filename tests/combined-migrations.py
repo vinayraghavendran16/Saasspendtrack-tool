@@ -7,6 +7,8 @@ db.execute("INSERT INTO users(email,created_at,trial_ends_at) VALUES('fixture@ex
 db.execute("INSERT INTO app_data(email,data,updated_at) VALUES('fixture@example.invalid','{}',1)")
 db.commit()
 files=sorted(Path('migrations').glob('*.sql'))
+required = {'028_checkout_intents.sql','029_checkout_provider_claims.sql','030_checkout_expiry_guard.sql','031_checkout_release_evidence.sql'}
+assert required <= {f.name for f in files}, 'Missing checkout migrations'
 for f in files:
     db.executescript(f.read_text())
     assert db.execute('PRAGMA quick_check').fetchall()==[('ok',)], f
@@ -15,4 +17,6 @@ for f in files:
 assert db.execute("SELECT data FROM app_data WHERE email='fixture@example.invalid'").fetchone()==('{}',)
 assert db.execute("SELECT count(*) FROM users WHERE email='fixture@example.invalid'").fetchone()==(1,)
 assert any(f.name.startswith('016') for f in files)
-print('Synthetic migration rehearsal passed')
+for table in ('checkout_intents','checkout_events','checkout_provider_claims','checkout_release_evidence'):
+    assert db.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()==(1,), table
+print(f'Synthetic migration rehearsal passed: {len(files)} migrations')
