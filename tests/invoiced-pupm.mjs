@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {invoicedPupm as p} from '../functions/_shared/invoiced-pupm.js';
+const row=(kind,amount_minor,currency='USD')=>({kind,amount_minor,currency});
+assert.equal(p([row('invoice','5000000'),row('credit','50000')],210)[0].amountMinor,'4950000');
+assert.equal(p([row('invoice','9007199254740993')],2)[0].pupmMinor.numerator,'9007199254740993');
+assert.equal(p([row('invoice','10'),row('invoice','20','EUR')],1).length,2);
+assert.equal(p([row('credit','10')],1)[0].amountMinor,'-10');
+assert.deepEqual(p([],1),[]);
+assert.throws(()=>p([row('credit','-10')],1));
+assert.throws(()=>p([row('budget','10')],1));
+assert.throws(()=>p([],0));
+console.log('8 invoiced PUPM assertions passed');

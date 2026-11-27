@@ -1,0 +1,20 @@
+name: V2 financial browser
+on:
+  push:
+    branches: ['development/post-v1-decision-intelligence-20261127']
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: node tests/e2e/financial.mjs
+
+      - run: node tests/e2e/renewal-ai.mjs

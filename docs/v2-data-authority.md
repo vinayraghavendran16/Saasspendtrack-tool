@@ -1,0 +1,5 @@
+# Data authority audit (initial)
+Verified base schema.sql: users, accounts, memberships, invites, sessions, login_tokens, app_data, email_log, rate_limits, rb2b_visitors. app_data stores legacy JSON by email; membership is keyed by email with account_id and owner/admin/member roles. Do not assume multi-workspace membership is supported.
+Verified V2 migrations include normalized reporting financial facts (021), decision versions/approvals (028–029), dependency graph (030), action queue/reviews (031–032), financial reviews and attestations (033–034). These are repository definitions, not evidence of live deployment.
+Authority policy: existing legacy read/write path remains unchanged until reconciliation establishes normalized record completeness. Financial evidence reads normalized reporting facts only; never silently fall back to legacy invoice data or sum both. Decision history is versioned; financial reviews are immutable. Role preferences must not expand membership access.
+Pending: enumerate every migration, trace API writes and imports, compare frozen V1, verify live D1 schema and row counts with owner-approved read-only access.

@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {ownerArtifactResolver} from '../functions/_shared/ai-artifact-resolver.js';
+import {verifyDocumentEvidence} from '../functions/_shared/ai-evidence-verification.js';
+const pages=['Renewal requires notice.'];
+const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(pages)))),b=>b.toString(16).padStart(2,'0')).join('');
+let active=true,calls=0;
+const db={prepare(sql){assert.match(sql,/a.status='active'/);assert.match(sql,/v.account_id=\? AND v.artifact_id=\? AND v.digest=\?/);return {bind(...args){calls++;assert.deepEqual(args,['a','doc',digest]);return {async first(){return active?{pages_json:JSON.stringify(pages),digest}:null;}};}};}};
+const guard={membership:{role:'owner',status:'active',account_id:'a'},user:{email:'owner@example.invalid'}};
+for(const g of [null,{...guard,response:new Response(null,{status:403})},{...guard,membership:{...guard.membership,role:'admin'}},{...guard,membership:{...guard.membership,status:'suspended'}}])assert.throws(()=>ownerArtifactResolver(db,g));
+const resolve=ownerArtifactResolver(db,guard);
+assert.equal(await resolve('b','doc',digest),null);
+assert.equal(await resolve('a','doc','bad'),null);
+assert.equal(calls,0);
+const ref={artifactId:'doc',artifactDigest:digest,locator:{page:1,start:0,end:7,quote:'Renewal'}};
+assert.equal((await verifyDocumentEvidence('a',ref,resolve)).status,'verified_text_span');
+active=false;
+assert.equal((await verifyDocumentEvidence('a',ref,resolve)).status,'unavailable');
+console.log('artifact resolver authorization checks passed');

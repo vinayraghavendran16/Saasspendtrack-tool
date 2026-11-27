@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {auditStatement} from '../functions/_shared/platform-audit.js';
+const db={prepare(sql){return {bind(...args){return {sql,args}}}}};
+const ctx={accountId:'a',actorId:'owner',actorType:'user',mode:'manual_ui',correlationId:'req-1'};
+const event={action:'update',entityType:'contract',entityId:'c1',outcome:'committed',changedFields:['noticeDays','noticeDays'],secret:'DO_NOT_LOG'};
+const result=auditStatement(db,ctx,event,['noticeDays']);
+assert.equal(result.args[0],'a');
+assert.match(result.args[1],/^[a-f0-9-]{36}$/);
+assert.ok(Math.abs(Date.now()-result.args[2])<10000);
+assert.equal(result.args[13],'["noticeDays"]');
+assert.ok(!JSON.stringify(result).includes('DO_NOT_LOG'));
+for(const patch of [{mode:'unknown'},{actorType:'unknown'},{accountId:''},{correlationId:'bad value'},{batchId:'bad value'}])assert.throws(()=>auditStatement(db,{...ctx,...patch},event,['noticeDays']));
+for(const patch of [{outcome:'success'},{changedFields:['password']},{changedFields:[{secret:'x'}]},{entityId:'x'.repeat(257)}])assert.throws(()=>auditStatement(db,ctx,{...event,...patch},['noticeDays']));
+assert.notEqual(auditStatement(db,ctx,event,['noticeDays']).args[1],result.args[1]);
+console.log('platform audit metadata checks passed');

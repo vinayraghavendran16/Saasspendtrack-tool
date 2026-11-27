@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {compareContractPricing} from '../functions/_shared/contract-pricing-scenario.js';
+import {projectCommercialOptions} from '../functions/_shared/aop-pricing-projection.js';
+const contract={id:'c1',account_id:'a1'};
+const offers=[{id:'offer',account_id:'a1',contract_id:'c1',currency:'USD',components:[{model:'seat',unitMinor:100}]}];
+assert.equal(compareContractPricing({contract,offers,quantities:[10]}).scenarios[0].options[0].monthlyMinor,'1000');
+assert.throws(()=>compareContractPricing({contract,offers:[{...offers[0],account_id:'a2'}],quantities:[10]}));
+assert.throws(()=>compareContractPricing({contract,offers:[{...offers[0],contract_id:'c2'}],quantities:[10]}));
+const scenario={opening:{sales:10},months:[{month:'2027-01',movements:[{department:'sales',hires:2,exits:0,transferIn:0,transferOut:0}]}],pools:[],budgets:[]};
+assert.equal(projectCommercialOptions({scenario,contract,offers,departments:['sales']}).months[0].options[0].monthlyMinor,'1200');
+assert.throws(()=>projectCommercialOptions({scenario,contract,offers,departments:['unknown']}));
+assert.throws(()=>compareContractPricing({contract,offers:[offers[0],{...offers[0],id:'eur',currency:'EUR'}],quantities:[10]}));
+console.log('contract pricing projection fixtures passed');

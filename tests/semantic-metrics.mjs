@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {recurringCost,pupm,licenceCounts} from '../functions/_shared/semantic-metrics.js';
+for(const [cycle,amount] of [['weekly',1200/52],['monthly',100],['quarterly',300],['yearly',1200]])assert.ok(Math.abs(recurringCost({cycle,amount,currency:'USD'}).annual-1200)<1e-9);
+for(const amount of [null,undefined,'300',-1,Infinity])assert.equal(recurringCost({cycle:'quarterly',amount,currency:'USD'}),null);
+assert.equal(recurringCost({cycle:'unknown',amount:300,currency:'USD'}),null);
+assert.equal(recurringCost({cycle:'monthly',amount:0,currency:'EUR'}).monthly,0);
+for(const [denominator,count,amount] of [['purchased_seats',100,10],['assigned_users',80,12.5],['active_users',50,20],['employees',200,5]])assert.equal(pupm({monthly:1000,currency:'USD',denominator,count}).amount,amount);
+for(const count of [0,null,-1,1.5])assert.equal(pupm({monthly:1000,currency:'USD',denominator:'active_users',count}),null);
+assert.equal(pupm({monthly:1000,currency:'USD',denominator:'unknown',count:5}),null);
+assert.deepEqual(licenceCounts({purchased:100,assigned:0}),{purchased:100,unassigned:100,unused:null});
+assert.deepEqual(licenceCounts({purchased:100,assigned:80,utilized:50}),{purchased:100,unassigned:20,unused:50});
+console.log('semantic metric fixtures passed');

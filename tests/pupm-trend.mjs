@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {trendMonths as m,changeBasisPoints as c} from '../functions/_shared/pupm-trend.js';
+assert.deepEqual(m('2026-02',3),['2025-12','2026-01','2026-02']);
+assert.throws(()=>m('2026-13',3));
+assert.throws(()=>m('2026-01',13));
+const r=(n,d,currency='USD')=>({currency,pupmMinor:{numerator:String(n),denominator:String(d)}});
+assert.equal(c(r(100,2),r(120,3)),'-2000');
+assert.equal(c(r(100,2),r(120,3,'EUR')),null);
+assert.equal(c(null,r(120,3)),null);
+assert.equal(c(r(0,2),r(120,3)),null);
+console.log('PUPM trend tests passed');
