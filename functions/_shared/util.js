@@ -88,8 +88,8 @@ export async function resolveEntitlement(env, user) {
   const t = now();
   let status = user.status;
   if (status === 'trial' && t >= user.trial_ends_at) {
+    // Expiry is a derived read-time state. Never overwrite a concurrent payment.
     status = 'expired';
-    await env.DB.prepare('UPDATE users SET status=? WHERE email=?').bind('expired', user.email).run();
   }
   // Existing paid customers without a reconciled ledger retain legacy access.
   // New ledger-backed payments expire at their recorded entitlement boundary.

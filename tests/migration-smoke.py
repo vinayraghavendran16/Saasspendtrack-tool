@@ -200,7 +200,7 @@ def snapshot(db, columns):
 columns = {t:[r[1] for r in legacy.execute("PRAGMA table_info("+t+")")] for t in tables}
 before = snapshot(legacy,columns)
 files = sorted((root / "migrations").glob("*.sql"))
-assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,27)]
+assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,28)]
 for migration in files:
     legacy.executescript(migration.read_text())
     assert snapshot(legacy,columns)==before, migration.name+" changed legacy data"
@@ -208,7 +208,14 @@ for migration in files:
     assert not legacy.execute("PRAGMA foreign_key_check").fetchall()
 assert legacy.execute("SELECT DISTINCT version FROM app_data").fetchall()==[(1,)]
 assert legacy.execute("SELECT COUNT(*) FROM workspace_ai_settings").fetchone()==(0,)
-print("PASS: full 001–026 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
+# Case status audit must not violate vendor_case_events.actor_email NOT NULL.
+legacy.execute("INSERT INTO vendor_cases(account_id,id,vendor_id,direction,severity,status,title,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)", ("migration-account-0","case-audit-1","vendor-1","outbound","medium","open","Synthetic audit case","migration-0@example.invalid",1,1))
+legacy.execute("UPDATE vendor_cases SET status='awaiting_vendor',updated_at=2 WHERE account_id=? AND id=?", ("migration-account-0","case-audit-1"))
+audit = legacy.execute("SELECT actor_email,kind,detail FROM vendor_case_events WHERE account_id=? AND case_id=?", ("migration-account-0","case-audit-1")).fetchone()
+assert audit == ("system@saasspendtrack.internal","status_changed",'{"from":"open","to":"awaiting_vendor"}'), audit
+print("PASS: case status audit trigger respects NOT NULL actor and records explicit system principal")
+
+print("PASS: full 001–027 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
 
 
 # Offline recovery drill: actual SQLite backup API, isolated temporary files.
@@ -274,3 +281,74 @@ assert legacy.execute(
     "UPDATE app_data SET version=version+1 WHERE email=? AND version=2", (email,)
 ).rowcount == 1
 print("PASS: recovery freeze rejects legacy and revision-checked writes, and guarded saves resume after unfreeze")
+
+# Exercise the actual scheduled expiry SQL against a payment committed after selection.
+cron_source = (root / "functions/api/cron/tick.js").read_text()
+expiry_sql = cron_source.split('env.DB.prepare("UPDATE users SET status=', 1)[1].split('").bind(u.email,t)', 1)[0]
+expiry_sql = "UPDATE users SET status=" + expiry_sql
+email = "expiry-race@example.invalid"
+legacy.execute("INSERT INTO users(email,created_at,trial_ends_at,status) VALUES (?,?,?,?)", (email,1,10,"trial"))
+legacy.execute("UPDATE users SET status='active',paid_at=20 WHERE email=?", (email,))
+assert legacy.execute(expiry_sql,(email,20)).fetchone() is None
+assert legacy.execute("SELECT status,paid_at FROM users WHERE email=?", (email,)).fetchone()==("active",20)
+legacy.execute("UPDATE users SET status='trial',paid_at=NULL WHERE email=?", (email,))
+assert legacy.execute(expiry_sql,(email,20)).fetchone()==(email,)
+assert legacy.execute("SELECT status FROM users WHERE email=?", (email,)).fetchone()==("expired",)
+print("PASS: scheduled trial expiry cannot overwrite a committed payment")
+
+# Verify retry ceiling using the actual payment queue SQL.
+queue_source = (root / "functions/_shared/payment-notifications.js").read_text()
+retire_sql = queue_source.split('env.DB.prepare("UPDATE payment_notification_outbox SET status=\'dead\'',1)[1].split('").bind(now)',1)[0]
+retire_sql = "UPDATE payment_notification_outbox SET status='dead'" + retire_sql
+claim_sql = queue_source.split('env.DB.prepare("UPDATE payment_notification_outbox SET status=\'leased\'',1)[1].split('").bind(lease,id,claimAt,claimAt)',1)[0]
+claim_sql = "UPDATE payment_notification_outbox SET status='leased'" + claim_sql
+for payment_id, attempts, lease_until in (("pay_retry_ceiling",5,10),("pay_retry_allowed",4,10),("pay_live_lease",5,100)):
+    legacy.execute("INSERT INTO payment_ledger(payment_id,link_id,customer_email,tier,amount,currency,recorded_at,entitlement_until) VALUES (?,?,?,?,?,?,?,?)",(payment_id,"plink_fixture","retry@example.invalid","founding",149900,"USD",1,200))
+    legacy.execute("UPDATE payment_notification_outbox SET status='leased',attempts=?,lease_until=? WHERE payment_id=?", (attempts,lease_until,payment_id))
+legacy.execute(retire_sql,(20,))
+assert legacy.execute("SELECT status,attempts FROM payment_notification_outbox WHERE payment_id='pay_retry_ceiling'").fetchone()==("dead",5)
+assert legacy.execute(claim_sql,(140,"pay_retry_ceiling",20,20)).fetchone() is None
+assert legacy.execute(claim_sql,(140,"pay_retry_allowed",20,20)).fetchone()==(5,)
+assert legacy.execute(claim_sql,(140,"pay_live_lease",20,20)).fetchone() is None
+assert legacy.execute("SELECT status FROM payment_notification_outbox WHERE payment_id='pay_live_lease'").fetchone()==("leased",)
+print("PASS: exhausted payment notifications are retired without a sixth attempt; active leases preserved")
+
+# Replay and rollback rehearsal using the actual webhook's two SQL statements.
+from datetime import datetime, timezone
+webhook = (root / "functions/api/razorpay/webhook.js").read_text()
+def webhook_sql(prefix):
+    return prefix + webhook.split("env.DB.prepare('" + prefix,1)[1].split("').bind(",1)[0].replace("\\'", "'")
+ledger_sql = webhook_sql("INSERT INTO payment_ledger ")
+user_sql = webhook_sql("INSERT INTO users ")
+def ms(year,month,day):
+    return int(datetime(year,month,day,tzinfo=timezone.utc).timestamp()*1000)
+email="payment-replay@example.invalid"
+def apply_payment(pid,t):
+    with legacy:
+        legacy.execute(ledger_sql,(pid,"plink_fixture",email,"founding",149900,"USD",t,t,t,email))
+        legacy.execute(user_sql,(email,t,t,"active","annual-usd",t,pid,149900,"USD"))
+legacy.commit()
+apply_payment("pay_replay_1",ms(2024,2,29))
+assert legacy.execute("SELECT entitlement_until FROM payment_ledger WHERE payment_id='pay_replay_1'").fetchone()==(ms(2025,2,28),)
+try:
+    apply_payment("pay_replay_1",ms(2024,3,1))
+except sqlite3.IntegrityError:
+    pass
+else:
+    raise AssertionError("Duplicate payment was accepted")
+assert legacy.execute("SELECT COUNT(*) FROM payment_notification_outbox WHERE payment_id='pay_replay_1'").fetchone()==(1,)
+apply_payment("pay_replay_2",ms(2024,3,1))
+assert legacy.execute("SELECT MAX(entitlement_until) FROM payment_ledger WHERE customer_email=?",(email,)).fetchone()==(ms(2026,2,28),)
+legacy.execute("CREATE TRIGGER fixture_payment_failure BEFORE UPDATE ON users WHEN NEW.email='payment-replay@example.invalid' BEGIN SELECT RAISE(ABORT,'fixture failure'); END")
+legacy.commit()
+try:
+    apply_payment("pay_rollback_fixture",ms(2024,3,2))
+except sqlite3.IntegrityError:
+    pass
+else:
+    raise AssertionError("Injected payment transaction failure was accepted")
+assert legacy.execute("SELECT COUNT(*) FROM payment_ledger WHERE payment_id='pay_rollback_fixture'").fetchone()==(0,)
+assert legacy.execute("SELECT COUNT(*) FROM payment_notification_outbox WHERE payment_id='pay_rollback_fixture'").fetchone()==(0,)
+assert legacy.execute("SELECT rp_payment_id FROM users WHERE email=?",(email,)).fetchone()==("pay_replay_2",)
+legacy.execute("DROP TRIGGER fixture_payment_failure")
+print("PASS: payment replay, leap-day renewal, early renewal extension, and atomic ledger/outbox rollback")
