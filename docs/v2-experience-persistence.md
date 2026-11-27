@@ -1,0 +1,2 @@
+# Experience preference persistence
+Proposed key: account_id + authenticated user identity. Store persona, pinned page IDs, layout version and updated timestamp. Reuse existing preference storage if present; audit migrations before allocating a new migration number. Active membership required for reads and writes. Validate page IDs against server-authorized registry, cap pins at 30, reject unknown persona. Preferences never grant permissions. Revoked membership prevents access even if preferences persist. No production or V1 changes.
