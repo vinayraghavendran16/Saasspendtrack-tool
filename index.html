@@ -4374,7 +4374,7 @@ function openClmGallery() {
   m.innerHTML = `
     <div class="modal" style="max-width:720px">
       <h2>🔗 Connect a contract tool</h2>
-      <p class="page-sub" style="margin:4px 0 12px">Pick your CLM. Every one supports a one-click CSV export import today; direct API sync is available for tools that expose a contracts API.</p>
+      <p class="page-sub" style="margin:4px 0 12px">Pick your CLM. Every one supports a one-click CSV export import today; direct API sync is not available in V1.</p>
       <div class="clm-grid">${CLM_CONNECTORS.map(c => `
         <button class="clm-tile" data-clm="${c.id}">
           <span class="clm-badge" style="background:${c.color}">${escapeHtml(c.name[0])}</span>
@@ -4399,16 +4399,7 @@ function openClmConnect(c) {
         <p class="dim" style="font-size:12.5px;margin:0 0 8px">Export your contracts from ${escapeHtml(c.name)} as CSV (vendor, value, start/end dates, renewal). Import maps the columns, de-dupes, and lets you review every row before saving.</p>
         <button class="btn-primary" id="clm-csv">Import a CSV export</button>
       </div>
-      <details class="clm-opt" style="margin-top:14px">
-        <summary style="cursor:pointer;font-weight:600;font-size:14px">Direct API sync (advanced)</summary>
-        <p class="dim" style="font-size:12px;margin:8px 0">Paste a ${escapeHtml(c.name)} API token to pull contracts directly. The base URL and endpoint below are starting points - confirm them against <a href="${escapeHtml(c.docs)}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.name)}'s API docs</a>. Your token is sent once to fetch records and is never stored.</p>
-        <label class="clm-f">API base URL<input id="clm-base" value="${escapeHtml(c.base)}" /></label>
-        <label class="clm-f">Contracts endpoint<input id="clm-path" value="${escapeHtml(c.path)}" /></label>
-        <label class="clm-f">API token<input id="clm-token" type="password" placeholder="Bearer token" autocomplete="off" /></label>
-        <label class="clm-f">Records path (optional)<input id="clm-records" placeholder="e.g. data.records - leave blank to auto-detect" /></label>
-        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn-primary" id="clm-sync">Pull contracts</button></div>
-        <div id="clm-sync-msg" class="dim" style="font-size:12.5px;margin-top:8px"></div>
-      </details>
+      <p class="dim">Direct API synchronization is not available in V1. Import a CSV export instead.</p>
       <div style="display:flex;margin-top:14px"><button class="icon-btn" id="clm-c-back">← All tools</button><button class="icon-btn" id="clm-c-close" style="margin-left:auto">Close</button></div>
     </div>`;
   document.body.appendChild(m);
@@ -4416,26 +4407,7 @@ function openClmConnect(c) {
   m.querySelector('#clm-c-close').onclick = () => m.remove();
   m.querySelector('#clm-c-back').onclick = () => { m.remove(); openClmGallery(); };
   m.querySelector('#clm-csv').onclick = () => { m.remove(); if (window.BulkImport && window.BulkImport.open) window.BulkImport.open(); };
-  m.querySelector('#clm-sync').onclick = async () => {
-    const msg = m.querySelector('#clm-sync-msg');
-    const payload = {
-      baseUrl: m.querySelector('#clm-base').value.trim(),
-      path: m.querySelector('#clm-path').value.trim(),
-      token: m.querySelector('#clm-token').value.trim(),
-      recordsPath: m.querySelector('#clm-records').value.trim(),
-      scheme: c.scheme || 'bearer',
-    };
-    if (!payload.token) { msg.textContent = 'Enter your API token.'; return; }
-    msg.textContent = `Pulling contracts from ${c.name}…`;
-    try {
-      const r = await fetch('/api/clm-sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
-      const j = await r.json();
-      if (!j || !j.ok) { msg.textContent = (j && j.message) || 'Could not pull contracts.'; return; }
-      m.remove();
-      biSeedCsv(clmRowsToCsv(j.rows));
-      toast(`Pulled ${j.count} record${j.count === 1 ? '' : 's'} from ${c.name}. Map the columns and review before importing.`, 'success');
-    } catch (e) { msg.textContent = 'Network error pulling contracts.'; }
-  };
+
 }
 // Google Sheet import: fetch the sheet CSV via our backend (no CORS), then feed
 // the reviewed wizard. Falls back to a paste flow if the sheet isn't shared.
@@ -4851,36 +4823,14 @@ function openGenericConnect(c, opts) {
         <p class="dim" style="font-size:12.5px;margin:0 0 8px">${escapeHtml(opts.csvLabel)}. You'll map columns and review before saving.</p>
         <button class="btn-primary" id="gc-csv">Import a CSV</button>
       </div>
-      ${c.base ? `<details class="clm-opt" style="margin-top:14px">
-        <summary style="cursor:pointer;font-weight:600;font-size:14px">Direct API sync (advanced)</summary>
-        <p class="dim" style="font-size:12px;margin:8px 0">Paste an API token to pull records directly. The base URL and endpoint are starting points - confirm against <a href="${escapeHtml(c.docs)}" target="_blank" rel="noopener noreferrer">${escapeHtml(c.name)}'s API docs</a>. Your token is used once and never stored.</p>
-        <label class="clm-f">API base URL<input id="gc-base" value="${escapeHtml(c.base)}" /></label>
-        <label class="clm-f">Endpoint<input id="gc-path" value="${escapeHtml(c.path)}" /></label>
-        <label class="clm-f">API token<input id="gc-token" type="password" autocomplete="off" /></label>
-        <label class="clm-f">Records path (optional)<input id="gc-records" placeholder="leave blank to auto-detect" /></label>
-        <div style="margin-top:8px"><button class="btn-primary" id="gc-sync">Pull records</button></div>
-        <div id="gc-msg" class="dim" style="font-size:12.5px;margin-top:8px"></div>
-      </details>` : `<p class="dim" style="font-size:12px;margin-top:12px">${escapeHtml(c.name)} doesn't expose a public contracts/spend API - use the CSV export above.</p>`}
+      <p class="dim">Direct API synchronization is not available in V1. Import a CSV export instead.</p>
       <div style="display:flex;margin-top:14px"><button class="icon-btn" id="gc-c-close" style="margin-left:auto">Close</button></div>
     </div>`;
   document.body.appendChild(m);
   m.addEventListener('click', e => { if (e.target === m) m.remove(); });
   m.querySelector('#gc-c-close').onclick = () => m.remove();
   m.querySelector('#gc-csv').onclick = () => { m.remove(); opts.onCsv(); };
-  const syncBtn = m.querySelector('#gc-sync');
-  if (syncBtn) syncBtn.onclick = async () => {
-    const msg = m.querySelector('#gc-msg');
-    const payload = { baseUrl: m.querySelector('#gc-base').value.trim(), path: m.querySelector('#gc-path').value.trim(), token: m.querySelector('#gc-token').value.trim(), recordsPath: m.querySelector('#gc-records').value.trim(), scheme: c.scheme || 'bearer', headerName: c.headerName || 'Authorization' };
-    if (!payload.token) { msg.textContent = 'Enter your API token.'; return; }
-    msg.textContent = `Pulling from ${c.name}…`;
-    try {
-      const r = await fetch('/api/clm-sync', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
-      const j = await r.json();
-      if (!j || !j.ok) { msg.textContent = (j && j.message) || 'Could not pull records.'; return; }
-      m.remove(); opts.onRows(j.rows);
-      toast(`Pulled ${j.count} record${j.count === 1 ? '' : 's'} from ${c.name}. Review before importing.`, 'success');
-    } catch (e) { msg.textContent = 'Network error.'; }
-  };
+
 }
 window.openWorkspaceSetup = openWorkspaceSetup; window.openInvoiceImport = openInvoiceImport; window.openAcctGallery = openAcctGallery; window.openSsoGallery = openSsoGallery;
 
@@ -4893,7 +4843,7 @@ function ccSteps() {
     { id: 'individual', icon: '📄', title: 'Load individual contracts', desc: 'Upload a PDF or text file. We read the vendor, value, dates, renewal and clauses - AI-native when AI extraction is on.', cta: 'Upload a contract', done: subs.some(s => s.contract), act: () => goContracts('single') },
     { id: 'bulk', icon: '📚', title: 'Add contracts in bulk', desc: 'Drop a whole set of PDFs or scans at once. Each becomes a draft with its terms already extracted.', cta: 'Bulk upload', done: false, act: () => goContracts('bulk') },
     { id: 'paste', icon: '📋', title: 'Copy-paste contract details', desc: 'Paste contract text straight in for a quick read - handy for a single clause or an email.', cta: 'Paste text', done: false, act: () => goContracts('paste') },
-    { id: 'clm', icon: '🔗', title: 'Connect a CLM (SpotDraft, Ironclad…)', desc: 'Pull contracts from SpotDraft, Ironclad, Juro, LinkSquares and 8 more - one-click CSV import, or direct API sync where available.', cta: 'Connect a CLM', done: false, act: () => openClmGallery() },
+    { id: 'clm', icon: '🔗', title: 'Connect a CLM (SpotDraft, Ironclad…)', desc: 'Pull contracts from SpotDraft, Ironclad, Juro, LinkSquares and 8 more - one-click CSV import with review before saving.', cta: 'Connect a CLM', done: false, act: () => openClmGallery() },
     { id: 'sheet', icon: '📊', title: 'Import a Google Sheet', desc: "Already track SaaS in a sheet? Paste the link and we'll pull the rows straight in for you to map and review.", cta: (state.settings && state.settings.ccSheetImported) ? 'Imported ✓ · import again' : 'Import a sheet', done: !!(state.settings && state.settings.ccSheetImported), act: () => ccSheet() },
     { id: 'drive', icon: '🗂️', title: 'Import a folder of contracts', desc: 'Pick a whole folder of contract PDFs or scans and run them through the bulk extractor in one go.', cta: 'Select a folder', done: false, act: () => openDriveFolder() },
     { id: 'shadow', icon: '🕵️', title: 'Discover shadow tools', desc: "Upload an expense or card-statement CSV and we'll flag recurring SaaS charges you aren't already tracking - scanned locally, nothing uploaded.", cta: 'Scan an expense CSV', done: false, act: () => openShadowDiscovery() },
@@ -4901,7 +4851,7 @@ function ccSteps() {
     { id: 'invite-users', icon: '✉️', title: 'Invite your team', desc: 'Give owners, admins and members access to this workspace. Each gets a secure sign-in link - no password to share.', cta: 'Add users', done: false, act: () => switchView('team-access') },
     { id: 'workspace', icon: '⚙️', title: 'Set up your workspace', desc: 'Company, fiscal year and a default renewal-notice window so spend, renewals and alerts roll up correctly.', cta: w.setupDone ? 'Review setup' : 'Set up', done: !!w.setupDone, act: () => openWorkspaceSetup() },
     { id: 'invoices', icon: '🧾', title: 'Import invoices', desc: 'Bring in invoices or payments and reconcile real spend against contracts. Vendors are matched or created automatically.', cta: (state.settings && state.settings.invoicesImported) ? 'Imported ✓ · import more' : 'Import invoices', done: !!(state.settings && state.settings.invoicesImported), act: () => openInvoiceImport() },
-    { id: 'accounting', icon: '💳', title: 'Connect accounting', desc: 'Pull spend from QuickBooks, Xero, NetSuite, Zoho Books and more - CSV export, or direct API sync where available.', cta: 'Connect accounting', done: false, act: () => openAcctGallery() },
+    { id: 'accounting', icon: '💳', title: 'Connect accounting', desc: 'Pull spend from QuickBooks, Xero, NetSuite, Zoho Books and more - CSV export with review before saving.', cta: 'Connect accounting', done: false, act: () => openAcctGallery() },
     { id: 'sso', icon: '🔐', title: 'Discover apps via SSO', desc: "Connect Okta, Google Workspace or Entra ID and flag apps from login activity that you aren't tracking yet.", cta: 'Connect SSO', done: false, act: () => openSsoGallery() },
     { id: 'infosec', icon: '🛡️', title: 'Set up vendor security reviews', desc: 'Track InfoSec onboarding requirements and annual reviews per vendor, and connect your GRC / vendor-risk tool.', cta: 'Open InfoSec', done: infosecReviewedSubs().length > 0, act: () => switchView('infosec') },
   ];
