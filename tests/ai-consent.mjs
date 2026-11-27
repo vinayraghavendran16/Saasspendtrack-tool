@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import {sessionStorageId} from '../functions/_shared/session-token.js';
+const tokens=new Map(), sessions=new Map();
+for(const [i,email] of ['a@example.com','b@example.com','removed@example.com','member@example.com','owner@example.com','admin@example.com'].entries()){const token=(i+1).toString(16).padStart(64,'0');tokens.set(email,token);sessions.set(await sessionStorageId(token),email);}
 import { onRequestGet, onRequestPost } from '../functions/api/ai/consent.js';
 
 // Consent changes must be explicit, role-gated, and recorded in the audit log.
@@ -18,7 +21,7 @@ const env = { DB: {
     let args = [];
     const bound = {
       async first() {
-        if (/FROM sessions/i.test(sql)) return { email: args[0] };
+        if (/FROM sessions/i.test(sql)) return { email: sessions.get(args[0]) };
         if (/FROM users WHERE email/i.test(sql)) return users.get(args[0]) || null;
         if (/FROM memberships WHERE email/i.test(sql)) return members.get(args[0]) || null;
         if (/LEFT JOIN workspace_ai_locks/i.test(sql)) { const row=settings.get(args[0]); return row ? {...row,locked:locks.get(args[0])?.locked ?? 0} : null; }
@@ -39,7 +42,7 @@ const env = { DB: {
 function req(email, method, body) {
   return new Request('https://example.com/api/ai/consent', {
     method,
-    headers: { Cookie: 'sst_session=' + email, 'Content-Type': 'application/json', Origin:'https://example.com' },
+    headers: { Cookie: 'sst_session=' + tokens.get(email), 'Content-Type': 'application/json', Origin:'https://example.com' },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 }
@@ -74,6 +77,6 @@ assert.equal((await (await get('owner@example.com')).json()).canEnable,false);
 locks.set('one',{locked:0});
 assert.equal((await post('owner@example.com',{enabled:true,consentVersion:version})).status,200);
 assert.equal((await post('admin@example.com',{enabled:false,consentVersion:version})).status,200);
-const foreign=new Request('https://example.com/api/ai/consent',{method:'POST',headers:{Origin:'https://other.example',Cookie:'sst_session=owner@example.com'},body:JSON.stringify({enabled:true,consentVersion:version})});
+const foreign=new Request('https://example.com/api/ai/consent',{method:'POST',headers:{Origin:'https://other.example',Cookie:'sst_session='+tokens.get('owner@example.com')},body:JSON.stringify({enabled:true,consentVersion:version})});
 assert.equal((await onRequestPost({request:foreign,env})).status,403);
 console.log('PASS: owner-only enablement, admin revocation, locked policy and origin rejection');
