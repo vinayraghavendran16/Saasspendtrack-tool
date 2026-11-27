@@ -7,6 +7,13 @@ form.elements.end.max=date(today-day);form.elements.start.max=date(today-day);
 let generation=0,controller;
 const pct=v=>v===null?'Not available':new Intl.NumberFormat(undefined,{style:'percent',maximumFractionDigits:1}).format(v);
 function table(id,rows){const body=el(id);body.replaceChildren();for(const [label,value] of rows){const tr=document.createElement('tr'),th=document.createElement('th'),td=document.createElement('td');th.scope='row';th.textContent=label;td.textContent=String(value);tr.append(th,td);body.append(tr);}}
+function visuals(d){
+ const k=el('renewal-kpis'),bars=el('renewal-bars');k.replaceChildren();bars.replaceChildren();
+ for(const [label,value] of [['Recommendations',d.recommendations],['Response rate',pct(d.responseRate)],['Acceptance among respondents',pct(d.acceptanceRateAmongResponded)],['Challenge resolution',pct(d.resolutionRate)]]){
+ const card=document.createElement('div'),name=document.createElement('span'),number=document.createElement('strong');card.className='renewal-kpi';name.textContent=label;number.textContent=String(value);card.append(name,number);k.append(card);}
+ for(const [label,value] of [['Accepted',d.accepted],['Rejected',d.rejected],['Deferred',d.deferred],['Ambiguous',d.ambiguousResponses],['Awaiting response',d.recommendations-d.responded]]){
+ const row=document.createElement('div'),heading=document.createElement('div'),name=document.createElement('span'),count=document.createElement('span'),bar=document.createElement('progress');heading.className='renewal-bar-label';name.textContent=label;count.textContent=String(value);heading.append(name,count);bar.max=Math.max(1,d.recommendations);bar.value=value;bar.dataset.kind=label;row.append(heading,bar);bars.append(row);}
+}
 async function load(){
  const current=++generation;controller?.abort();controller=new AbortController();
  results.hidden=true;status.textContent='Loading renewal analytics…';
@@ -24,7 +31,7 @@ async function load(){
  table('renewal-decisions',[['Accepted',d.accepted],['Rejected',d.rejected],['Deferred',d.deferred],['Ambiguous response',d.ambiguousResponses],['Awaiting response',d.recommendations-d.responded]]);
  table('renewal-challenges',[['Recommendations challenged',d.challenged],['Challenge rate',pct(d.challengeRate)],['Total challenges',d.challengeCount],['Resolved challenges',d.resolvedChallenges],['Resolution rate',pct(d.resolutionRate)],['Blocking challenges',d.blockingChallenges],['Ever approved',d.everApproved],['Execution recorded',d.everExecutionRecorded]]);
  el('renewal-cutoff').textContent='Observed through '+new Date(d.asOf).toISOString();
- results.hidden=false;status.textContent=d.recommendations?'Analytics loaded.':'No recommendations published in this period.';
+ visuals(d);results.hidden=false;status.textContent=d.recommendations?'Analytics loaded.':'No recommendations published in this period.';
  }catch(e){if(current!==generation||e.name==='AbortError')return;status.textContent='Unable to load analytics. Try again.';}
 }
 form.addEventListener('submit',e=>{e.preventDefault();load();});
