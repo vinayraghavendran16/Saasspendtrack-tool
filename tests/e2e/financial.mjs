@@ -43,6 +43,9 @@ try{
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
  assert.deepEqual(audit.violations.map(v=>({id:v.id,impact:v.impact})),[]);
+ await page.locator('#trend-form [name="currency"]').fill('EUR');
+ assert.equal(await page.locator('#trend-chart svg').count(),0);
+ assert.equal(await page.locator('#trend-results tr').count(),0);
  await page.close();
  }
  }finally{await browser.close();}
