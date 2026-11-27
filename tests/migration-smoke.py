@@ -200,7 +200,7 @@ def snapshot(db, columns):
 columns = {t:[r[1] for r in legacy.execute("PRAGMA table_info("+t+")")] for t in tables}
 before = snapshot(legacy,columns)
 files = sorted((root / "migrations").glob("*.sql"))
-assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,27)]
+assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,28)]
 for migration in files:
     legacy.executescript(migration.read_text())
     assert snapshot(legacy,columns)==before, migration.name+" changed legacy data"
@@ -208,7 +208,7 @@ for migration in files:
     assert not legacy.execute("PRAGMA foreign_key_check").fetchall()
 assert legacy.execute("SELECT DISTINCT version FROM app_data").fetchall()==[(1,)]
 assert legacy.execute("SELECT COUNT(*) FROM workspace_ai_settings").fetchone()==(0,)
-print("PASS: full 001–026 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
+print("PASS: full 001–027 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
 
 
 # Offline recovery drill: actual SQLite backup API, isolated temporary files.
