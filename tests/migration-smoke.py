@@ -200,7 +200,7 @@ def snapshot(db, columns):
 columns = {t:[r[1] for r in legacy.execute("PRAGMA table_info("+t+")")] for t in tables}
 before = snapshot(legacy,columns)
 files = sorted((root / "migrations").glob("*.sql"))
-assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,27)]
+assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,28)]
 for migration in files:
     legacy.executescript(migration.read_text())
     assert snapshot(legacy,columns)==before, migration.name+" changed legacy data"
@@ -208,7 +208,14 @@ for migration in files:
     assert not legacy.execute("PRAGMA foreign_key_check").fetchall()
 assert legacy.execute("SELECT DISTINCT version FROM app_data").fetchall()==[(1,)]
 assert legacy.execute("SELECT COUNT(*) FROM workspace_ai_settings").fetchone()==(0,)
-print("PASS: full 001–026 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
+# Case status audit must not violate vendor_case_events.actor_email NOT NULL.
+legacy.execute("INSERT INTO vendor_cases(account_id,id,vendor_id,direction,severity,status,title,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)", ("migration-account-0","case-audit-1","vendor-1","outbound","medium","open","Synthetic audit case","migration-0@example.invalid",1,1))
+legacy.execute("UPDATE vendor_cases SET status='awaiting_vendor',updated_at=2 WHERE account_id=? AND id=?", ("migration-account-0","case-audit-1"))
+audit = legacy.execute("SELECT actor_email,kind,detail FROM vendor_case_events WHERE account_id=? AND case_id=?", ("migration-account-0","case-audit-1")).fetchone()
+assert audit == ("system@saasspendtrack.internal","status_changed",'{"from":"open","to":"awaiting_vendor"}'), audit
+print("PASS: case status audit trigger respects NOT NULL actor and records explicit system principal")
+
+print("PASS: full 001–027 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
 
 
 # Offline recovery drill: actual SQLite backup API, isolated temporary files.
