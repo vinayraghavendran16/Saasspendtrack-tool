@@ -33,3 +33,14 @@ CREATE TRIGGER IF NOT EXISTS financial_allocation_no_update BEFORE UPDATE ON dec
 BEGIN SELECT RAISE(ABORT,'financial_allocation_immutable'); END;
 CREATE TRIGGER IF NOT EXISTS financial_allocation_no_delete BEFORE DELETE ON decision_financial_fact_allocations
 BEGIN SELECT RAISE(ABORT,'financial_allocation_immutable'); END;
+
+-- Reject snapshots that omit newly recorded in-period ledger facts.
+CREATE TRIGGER IF NOT EXISTS financial_attestation_complete_snapshot BEFORE INSERT ON decision_financial_attestations
+WHEN EXISTS (
+ SELECT 1 FROM decision_financial_reviews r JOIN reporting_financial_facts f
+ ON f.account_id=r.account_id AND f.contract_id=r.contract_id
+ AND f.effective_date BETWEEN r.period_start AND r.period_end AND f.kind IN ('invoice','credit')
+ WHERE r.account_id=NEW.account_id AND r.decision_id=NEW.decision_id AND r.revision=NEW.revision
+ AND NOT EXISTS (SELECT 1 FROM json_each(r.evidence_json) e WHERE json_extract(e.value,'$.id')=f.id)
+)
+BEGIN SELECT RAISE(ABORT,'financial_snapshot_incomplete'); END;
