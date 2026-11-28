@@ -9,6 +9,7 @@ const staleEnv = { APP_URL: 'https://old.saasspendtrack.pages.dev' };
 assert.equal(authAppUrl(new Request('https://new.saasspendtrack.pages.dev/api/auth/request'), staleEnv), 'https://new.saasspendtrack.pages.dev');
 assert.equal(authAppUrl(new Request('https://b344120a.saasspendtrack-preview-us.pages.dev/api/auth/request'), staleEnv), 'https://b344120a.saasspendtrack-preview-us.pages.dev');
 assert.equal(authAppUrl(new Request('https://release-production-integrati.saasspendtrack-preview-us.pages.dev/api/auth/request'), staleEnv), 'https://release-production-integrati.saasspendtrack-preview-us.pages.dev');
+assert.equal(authAppUrl(new Request('https://e8197d16.saasspendtrack-checkout-sandbox.pages.dev/api/auth/request'), staleEnv), 'https://e8197d16.saasspendtrack-checkout-sandbox.pages.dev');
 assert.equal(authAppUrl(new Request('https://app.saasspendtrack.com/api/auth/request'), {}), 'https://app.saasspendtrack.com');
 assert.equal(authAppUrl(new Request('https://app.saasspendtrack.com/api/auth/request'), { APP_URL: 'https://configured-production.example/' }), 'https://configured-production.example');
 assert.equal(authAppUrl(new Request('https://evilsaasspendtrack.pages.dev/api/auth/request'), { APP_URL: 'https://configured.example/' }), 'https://configured.example');
@@ -106,7 +107,7 @@ try {
     run: async () => ({}),
   }; } }; } };
   const expectedRoot = (origin, appUrl) => (
-    origin.includes('.saasspendtrack-preview-us.pages.dev') || origin.includes('.saasspendtrack.pages.dev')
+    origin.includes('.saasspendtrack-preview-us.pages.dev') || origin.includes('.saasspendtrack.pages.dev') || origin.includes('.saasspendtrack-checkout-sandbox.pages.dev')
       ? origin + '/?auth=ok'
       : appUrl + '/?auth=ok'
   );

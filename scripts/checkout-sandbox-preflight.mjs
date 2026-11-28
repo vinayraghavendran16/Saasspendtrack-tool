@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {buildPreviewAssets} from './build-preview-us.mjs';
+const [project,uuid,expectedSha]=process.argv.slice(2);
+assert.match(project||'',/^saasspendtrack-checkout-sandbox(?:-[a-z0-9]+)?$/);
+assert.match(uuid||'',/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/);
+assert.notEqual(uuid,'33e16d8e-579e-4454-959b-dbbbb368081a');
+assert.notEqual(uuid,'1f35200e-11ae-498d-a7a7-a0909259084c');
+assert.notEqual(uuid,'ccdbb7a7-9cb5-45d7-8bac-8b8024626fc8');
+assert.match(expectedSha||'',/^[a-f0-9]{40}$/);
+assert.equal(execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),expectedSha);
+assert.equal(execFileSync('git',['status','--porcelain'],{encoding:'utf8'}).trim(),'');
+const assets=await buildPreviewAssets({includeCheckout:true});
+console.log(JSON.stringify({project,uuid,expectedSha,...assets,warning:'Local preflight only. Independently verify remote binding and project before deployment.'},null,2));
