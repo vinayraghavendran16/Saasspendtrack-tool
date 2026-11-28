@@ -18,6 +18,17 @@ assert.equal(authAppUrl(new Request('https://bad..saasspendtrack-preview-us.page
 assert.equal(authAppUrl(new Request('http://b344120a.saasspendtrack-preview-us.pages.dev/api/auth/request'), { APP_URL: 'https://configured.example/' }), 'https://configured.example');
 assert.equal(authAppUrl(new Request('https://saasspendtrack.pages.dev/api/auth/request'), {}), 'https://app.saasspendtrack.com');
 
+const { recordEmailHealth } = await import('../functions/_shared/email-health.js');
+const points = [];
+const healthEnv = { EMAIL_HEALTH: { writeDataPoint: point => points.push(point) } };
+assert.equal(recordEmailHealth(healthEnv,'resend','accepted'),true);
+assert.deepEqual(points,[{indexes:['resend'],blobs:['resend','accepted'],doubles:[1]}]);
+assert.equal(recordEmailHealth(healthEnv,'recipient@example.com','accepted'),false);
+assert.equal(recordEmailHealth(healthEnv,'resend','private-link-token'),false);
+assert.equal(recordEmailHealth({},'resend','accepted'),false);
+assert.equal(recordEmailHealth({EMAIL_HEALTH:{writeDataPoint(){throw new Error('private-link-token');}}},'resend','accepted'),false);
+assert.equal(points.length,1);
+
 const originalFetch = globalThis.fetch;
 const originalError = console.error;
 const originalInfo = console.info;
