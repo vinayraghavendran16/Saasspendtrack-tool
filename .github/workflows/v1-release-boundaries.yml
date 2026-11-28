@@ -18,3 +18,5 @@ jobs:
       - run: python3 tests/member-mutation-race.py
       - run: node tests/release-financial-boundaries.mjs
       - run: node tests/release-ai-egress.mjs
+
+      - run: node tests/release-calendar.mjs
