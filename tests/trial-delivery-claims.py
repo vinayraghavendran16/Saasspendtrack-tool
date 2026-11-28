@@ -34,5 +34,9 @@ with tempfile.TemporaryDirectory() as d:
     assert db.execute(health,(100,)).fetchone()==(1,1,0)
     assert db.execute(finish,('accepted',102,'expired','expired','expiry')).fetchone()==('expiry',)
     assert db.execute(health,(100,)).fetchone()==(1,0,1)
+    repair=re.search(r'prepare\("([^"]+)"\)',(root/'functions/_shared/trial-delivery-reconcile.js').read_text()).group(1)
+    assert db.execute(repair).rowcount==1
+    assert db.execute(repair).rowcount==0
+    assert db.execute(health,(100,)).fetchone()==(1,0,0)
     db.close()
 print('PASS: concurrent trial claims and ambiguous delivery fencing')
