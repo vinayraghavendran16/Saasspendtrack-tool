@@ -1,6 +1,6 @@
 // GET /api/cron/tick?token=CRON_SECRET
 // Idempotent cadence runner. Call it hourly (Cloudflare cron worker or any
-// scheduler). Each email kind is sent at most once per user via email_log.
+// scheduler). Durable claims suppress repeat provider attempts; acceptance is not inbox delivery.
 import { json, unauthorized, now, DAY, safeEqual } from '../../_shared/util.js';
 import { claimTrialDelivery, finishTrialDelivery } from '../../_shared/trial-delivery-claims.js';
 import { sendEmail, nudgeEmail, expiredEmail } from '../../_shared/email.js';
@@ -28,7 +28,7 @@ export async function onRequestGet({ request, env }) {
 
   // Users still on a trial track (cap the batch so a run stays quick).
   const { results = [] } = await env.DB.prepare(
-    "SELECT * FROM users WHERE status IN ('trial','expired') AND (paid_at IS NULL) LIMIT 500",
+    "SELECT * FROM users WHERE status IN ('trial','expired') AND (paid_at IS NULL) ORDER BY CASE WHEN status='trial' THEN 0 ELSE 1 END, trial_ends_at, email LIMIT 500",
   ).all();
 
   for (const u of results) {
