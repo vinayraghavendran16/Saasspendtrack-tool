@@ -84,7 +84,7 @@ export async function onRequestPut({ request, env }) {
   if (rawVersion === null) return json({ error: 'version_required' }, 428);
   if (!/^(0|[1-9][0-9]*)$/.test(rawVersion)) return json({ error: 'invalid_version' }, 400);
   const expectedVersion = Number(rawVersion);
-  if (!Number.isSafeInteger(expectedVersion)) return json({ error: 'invalid_version' }, 400);
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion === Number.MAX_SAFE_INTEGER) return json({ error: 'invalid_version' }, 400);
 
   let body = await request.text();
   if (new TextEncoder().encode(body).byteLength > MAX_BYTES) return json({ error: 'too_large' }, 413);

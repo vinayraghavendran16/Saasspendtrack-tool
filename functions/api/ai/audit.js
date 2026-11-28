@@ -13,6 +13,7 @@ export async function onRequestGet({request,env}){
  const match=/^(\d{1,16}):([a-f0-9-]{36})$/.exec(cursor);
  if(!match)return json({error:'invalid_cursor'},400,headers);
  before=Number(match[1]);beforeId=match[2];
+ if(!Number.isSafeInteger(before)||before<0||! /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(beforeId))return json({error:'invalid_cursor'},400,headers);
  }
  try{
  const result=await env.DB.prepare('SELECT id,request_id,operation,outcome,occurred_at FROM ai_egress_audit WHERE account_id=? AND occurred_at>=? AND (occurred_at<? OR (occurred_at=? AND id<?)) ORDER BY occurred_at DESC,id DESC LIMIT 501').bind(gate.membership.account_id,since,before,before,beforeId).all();

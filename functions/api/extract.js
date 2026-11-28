@@ -192,9 +192,16 @@ export async function onRequestPost({ request, env }) {
       );
     }
     const body = await request.json().catch(() => ({}));
-    const text = (body.text || "").toString();
-    const pdfBase64 = (body.pdf_base64 || "").toString();
-    const mediaType = (body.media_type || "application/pdf").toString();
+    if (!body || typeof body !== 'object' || Array.isArray(body) ||
+        ['text','pdf_base64','media_type'].some(k => body[k] !== undefined && typeof body[k] !== 'string')) {
+      return new Response(JSON.stringify({ok:false,error:'invalid_input'}),{status:400,headers});
+    }
+    const text = body.text || "";
+    const pdfBase64 = body.pdf_base64 || "";
+    const mediaType = body.media_type || "application/pdf";
+    if (pdfBase64 && (mediaType !== 'application/pdf' || !pdfBase64.startsWith('JVBERi0') || !/^[A-Za-z0-9+/]+={0,2}$/.test(pdfBase64) || pdfBase64.length % 4 !== 0)) {
+      return new Response(JSON.stringify({ok:false,error:'invalid_pdf'}),{status:400,headers});
+    }
     const hasPdf = pdfBase64.length > 100;
     if (!hasPdf && (!text.trim() || text.length < 40)) {
       return new Response(JSON.stringify({ ok: false, error: "no_input" }), { status: 400, headers });

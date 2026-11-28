@@ -30,8 +30,9 @@ export async function onRequestPost({ request, env }) {
   if (target.role === role) return json({ ok: true, email, role, unchanged: true });
 
   try {
-    await env.DB.prepare('UPDATE memberships SET role=? WHERE email=? AND account_id=?')
-      .bind(role, email, membership.account_id).run();
+    const result = await env.DB.prepare("UPDATE memberships SET role=? WHERE email=? AND account_id=? AND role=? AND status='active' AND EXISTS (SELECT 1 FROM memberships actor WHERE actor.email=? AND actor.account_id=? AND actor.status='active' AND (actor.role='owner' OR (actor.role='admin' AND memberships.role='member' AND ?='member')))")
+      .bind(role, email, membership.account_id, target.role, normalizeEmail(user.email), membership.account_id, role).run();
+    if (result.meta?.changes !== 1) return json({error:'membership_changed'},409);
   } catch (err) {
     console.error('member-role update failed', err && err.message);
     return json({ error: 'server', message: 'Could not update the role. Please try again.' }, 500);

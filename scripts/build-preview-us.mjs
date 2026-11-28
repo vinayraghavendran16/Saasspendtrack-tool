@@ -27,7 +27,7 @@ async function requireRegularFile(file) {
   if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Expected a regular, non-symlink asset: ${file}`);
 }
 
-export async function buildPreviewAssets({ root = ROOT, output } = {}) {
+export async function buildPreviewAssets({ root = ROOT, output, includeCheckout = false } = {}) {
   const sourceRoot = path.resolve(root);
   const outputDir = path.resolve(output ?? await mkdtemp(path.join(os.tmpdir(), 'sst-preview-us-assets-')));
   if (![os.tmpdir(), '/private/tmp'].some((parent) => isWithin(parent, outputDir))) {
@@ -41,7 +41,8 @@ export async function buildPreviewAssets({ root = ROOT, output } = {}) {
   if (slugs.some((slug) => typeof slug !== 'string' || !/^[a-z0-9-]+$/.test(slug))) {
     throw new Error('Guide index contains an unsafe slug.');
   }
-  const allowlist = [...ROOT_ASSETS, 'guides/index.json', ...slugs.map((slug) => `guides/${slug}.json`)];
+  const checkoutAssets = includeCheckout === true ? ['checkout-sandbox.html','checkout-sandbox-entry.js','checkout-sandbox.js','checkout-controller.js'] : [];
+  const allowlist = [...ROOT_ASSETS, ...checkoutAssets, 'guides/index.json', ...slugs.map((slug) => `guides/${slug}.json`)];
   await rm(outputDir, { recursive: true, force: true });
   await mkdir(outputDir, { recursive: true });
 
@@ -79,6 +80,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const outIndex = process.argv.indexOf('--out');
   const output = outIndex >= 0 ? process.argv[outIndex + 1] : undefined;
   if (outIndex >= 0 && (!output || output.startsWith('--'))) throw new Error('Usage: node scripts/build-preview-us.mjs [--out /tmp/path]');
-  const result = await buildPreviewAssets({ output });
+  const result = await buildPreviewAssets({ output, includeCheckout: process.argv.includes('--include-checkout') });
   console.log(JSON.stringify(result, null, 2));
 }

@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import {checkoutController} from '../checkout-controller.js';
+let calls=[];
+const api=checkoutController(async(path,options)=>{calls.push({path,options});return Response.json({url:'https://rzp.io/i/test',checkout:null});});
+await api.status();
+await api.reserve('founding');
+await api.create('fixture');
+await api.recover('fixture');
+await api.cancel('fixture');
+await api.release('fixture');
+assert.deepEqual(calls.map(x=>x.path),['checkout-status','reserve','create-link','recover-link','cancel-reservation','release-expired'].map(x=>'/api/razorpay/'+x));
+assert.equal(calls[0].options.method,'GET');
+for(const c of calls.slice(1)){assert.equal(c.options.method,'POST');assert.equal(c.options.credentials,'same-origin');assert.equal(c.options.redirect,'error');}
+assert.deepEqual(JSON.parse(calls[1].options.body),{tier:'founding'});
+for(const c of calls.slice(2))assert.deepEqual(JSON.parse(c.options.body),{checkoutId:'fixture'});
+const unsafe=checkoutController(async()=>Response.json({url:'https://rzp.io.evil.invalid/'}));
+await assert.rejects(()=>unsafe.create('fixture'));
+let release;
+const pending=checkoutController(()=>new Promise(resolve=>{release=resolve;}));
+const first=pending.reserve('founding');
+await assert.rejects(()=>pending.reserve('standard'),/checkout_busy/);
+release(Response.json({checkout:null}));await first;
+console.log('PASS: browser checkout API contract and concurrency guard');
