@@ -7,7 +7,7 @@
 <meta name="description" content="Track your SaaS subscriptions, monitor monthly and annual spend, and never miss a renewal." />
 
 <!-- PWA: Add to Home Screen / install as an app on iOS, Android, desktop -->
-<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
 <meta name="theme-color" content="#0f1829" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -256,6 +256,19 @@ input[type="search"], input[type="url"], input[type="password"], input[type="tel
   width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
   background: var(--ink); color: var(--panel); font-size: 11px; font-weight: 700;
 }
+
+.account-menu { position: relative; flex: none; }
+.account-menu summary { cursor: pointer; width: 44px; height: 44px; list-style: none; }
+.account-menu summary::-webkit-details-marker { display: none; }
+.account-menu-panel {
+  position: absolute; inset-inline-end: 0; top: calc(100% + 8px); z-index: 50;
+  width: min(18rem, calc(100vw - 32px)); padding: 14px;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: 0 6px 20px #0003; overflow-wrap: anywhere;
+}
+.account-menu-panel > *:not([hidden]) { display: block; }
+.account-menu-panel button { width: 100%; margin-top: 10px; }
+.account-menu-error:not(:empty) { margin-top: 8px; }
 
 main { padding: 24px 28px 48px; width: 100%; max-width: 1760px; margin-inline: auto; }
 /* Use more of the width on large and ultra-wide monitors, but keep the
@@ -2804,7 +2817,15 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
         <button type="button" class="icon-only" id="theme-toggle" title="Toggle light / dark">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         </button>
-        <span class="avatar-chip" title="Signed in">AC</span>
+        <details class="account-menu" id="sst-account-menu" hidden>
+          <summary class="avatar-chip" aria-label="Account menu"></summary>
+          <div class="account-menu-panel">
+            <span id="sst-account-email"></span>
+            <span id="sst-account-entitlement" hidden>Platform Owner — Lifetime Access</span>
+            <button type="button" class="sst-btn" id="sst-account-signout">Sign out</button>
+            <span class="account-menu-error" role="alert"></span>
+          </div>
+        </details>
       </div>
     </header>
     <nav class="mobile-nav" aria-label="Sections">
@@ -21499,15 +21520,18 @@ function canRegisterSW() {
 }
 
 if (canRegisterSW()) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-      // Soft update check once a day
-      setInterval(() => reg.update().catch(() => {}), 24 * 60 * 60 * 1000);
-      console.log('[PWA] service worker registered');
-    }).catch(err => {
-      console.warn('[PWA] service worker registration failed', err);
-    });
-  });
+  document.addEventListener('sst:authenticated', async () => {
+    try {
+      const script = await fetch('/sw.js', {
+        credentials: 'same-origin', redirect: 'error', cache: 'no-store',
+      });
+      if (!script.ok || !/^(application|text)\/(javascript|ecmascript)(?:;|$)/i.test(script.headers.get('content-type') || '')) return;
+      await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+    } catch (_) {
+      // Access may intercept the script request. Installation is optional.
+      console.warn('[PWA] Installation unavailable in this session.');
+    }
+  }, { once: true });
 }
 
 /* ---------------- Capture the install prompt (Chrome / Edge) ---------------- */
@@ -21788,6 +21812,53 @@ window.PWA = {
     });
   }
 
+  function bindSignOut(button, error) {
+    button.addEventListener('click', async function (event) {
+      event.preventDefault();
+      if (button.getAttribute('aria-disabled') === 'true') return;
+      button.setAttribute('aria-disabled', 'true');
+      error.textContent = '';
+      try {
+        var response = await fetch('/api/auth/logout', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error',
+        });
+        if (!response.ok || (await response.json()).ok !== true) throw new Error('logout_failed');
+      } catch (_) {
+        error.textContent = 'Could not sign out. Try again.';
+        button.removeAttribute('aria-disabled');
+        return;
+      }
+
+      try {
+        var theme = localStorage.getItem('saasspendtrack.theme');
+        localStorage.clear();
+        if (theme === 'light' || theme === 'dark') localStorage.setItem('saasspendtrack.theme', theme);
+      } catch (_) {}
+      try { sessionStorage.clear(); } catch (_) {}
+      location.replace('/?mode=login');
+    });
+  }
+
+  function showAccountMenu(me) {
+    var menu = document.getElementById('sst-account-menu');
+    if (!menu) return;
+    var trigger = menu.querySelector('summary');
+    trigger.textContent = (me.email || '?').slice(0, 2).toUpperCase();
+    menu.querySelector('#sst-account-email').textContent = me.email || '';
+    menu.querySelector('#sst-account-entitlement').hidden = me.platformOwner !== true;
+    bindSignOut(menu.querySelector('#sst-account-signout'), menu.querySelector('[role="alert"]'));
+    document.addEventListener('click', function (event) {
+      if (!menu.contains(event.target)) menu.open = false;
+    });
+    menu.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && menu.open) {
+        menu.open = false;
+        trigger.focus();
+      }
+    });
+    menu.hidden = false;
+  }
+
   // ---- expiry / paywall ----
   function showPaywall() {
     removeGate();
@@ -21797,15 +21868,12 @@ window.PWA = {
       '<p>Your access is paused but your data is safe. Paid checkout is temporarily unavailable. Contact us for plan availability.</p>' +
       '<a class="sst-btn" href="' + ANNUAL_PLANS_URL + '" target="_blank" rel="noopener">Contact us about annual plans</a>' +
       '<button class="sst-btn sst-btn--ghost" id="sst-paid">Refresh my access</button>' +
-      '<div class="sst-gate__foot"><a href="#" id="sst-logout">Sign out</a></div>' +
+      '<div class="sst-gate__foot"><button type="button" class="sst-btn sst-btn--ghost" id="sst-logout">Sign out</button><span role="alert"></span></div>' +
       '</div></div>');
     document.body.appendChild(gate);
     setTimeout(function () { try { gate.querySelector('.sst-btn').focus(); } catch (_) {} }, 0);
     gate.querySelector('#sst-paid').addEventListener('click', function () { location.reload(); });
-    gate.querySelector('#sst-logout').addEventListener('click', function (e) {
-      e.preventDefault();
-      fetch('/api/auth/logout', { method: 'POST' }).then(function () { location.reload(); });
-    });
+    bindSignOut(gate.querySelector('#sst-logout'), gate.querySelector('[role="alert"]'));
   }
 
   // ---- trial banner (non-blocking) ----
@@ -21850,7 +21918,9 @@ window.PWA = {
             : authParam === 'oauth_error' ? 'Social sign-in failed. Try again or use email.' : null);
           return;
         }
+        showAccountMenu(me);
         if (!me.entitled) { showPaywall(); return; }
+        document.dispatchEvent(new Event('sst:authenticated'));
         if (me.platformOwner === true && me.plan === 'platform_owner') {
           window.sstPlatformOwnerEmail = me.email;
           document.body.classList.add('sst-platform-owner');

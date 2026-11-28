@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { onRequestGet as verify } from '../functions/api/auth/verify.js';
+import { onRequestPost as logout } from '../functions/api/auth/logout.js';
+import { onRequestGet as me } from '../functions/api/me.js';
+import { onRequestGet as readWorkspace } from '../functions/api/data.js';
+import { getUserFromSession, sha256Hex } from '../functions/_shared/util.js';
 
 const token = 'test-token';
-const { sha256Hex } = await import('../functions/_shared/util.js');
 const hash = await sha256Hex(token);
 let used = false;
-let sessions = 0;
+const sessions = new Map();
 const db = { prepare(sql) { return { bind(...args) { return {
   async first() {
     if (sql.startsWith('UPDATE login_tokens')) {
@@ -13,19 +16,38 @@ const db = { prepare(sql) { return { bind(...args) { return {
       used = true;
       return { email: 'tester@example.com' };
     }
+    if (sql.includes('FROM sessions')) return sessions.get(args[0]) || null;
+    if (sql.includes('FROM users')) return { email: args[0] };
     if (sql.includes('email_log')) return { kind: 'welcome' };
     return null;
   },
   async run() {
-    if (sql.startsWith('INSERT INTO sessions')) sessions++;
+    if (sql.startsWith('INSERT INTO sessions')) sessions.set(args[0], { email: args[1] });
+    if (sql.startsWith('DELETE FROM sessions')) args.forEach(id => sessions.delete(id));
     return {};
   },
 }; } }; } };
 const ctx = { request: new Request('https://example.com/api/auth/verify?token=' + token), env: { DB: db } };
 const results = await Promise.all([verify(ctx), verify(ctx)]);
-assert.equal(sessions, 1);
+assert.equal(sessions.size, 1);
 assert.equal(results.filter(r => r.headers.has('set-cookie')).length, 1);
-console.log('PASS: single-use login token');
+const redeemed = results.find(r => r.headers.has('set-cookie'));
+const cookie = redeemed.headers.get('set-cookie').split(';')[0];
+const request = new Request('https://example.com/api/auth/logout', {
+  method: 'POST', headers: { Cookie: cookie },
+});
+assert.equal((await getUserFromSession(request, ctx.env)).email, 'tester@example.com');
+const signedOut = await logout({ request, env: ctx.env });
+assert.equal(signedOut.status, 200);
+assert.match(signedOut.headers.get('set-cookie'), /Max-Age=0/i);
+const replayRequest = new Request('https://example.com/api/me', { headers: { Cookie: cookie } });
+assert.deepEqual(await (await me({ request: replayRequest, env: ctx.env })).json(), { authenticated: false });
+assert.equal((await readWorkspace({ request: replayRequest, env: ctx.env })).status, 401);
+const replay = await verify(ctx);
+assert.match(replay.headers.get('location'), /auth=expired$/);
+assert.equal(replay.headers.get('set-cookie'), null);
+assert.equal(sessions.size, 0);
+console.log('PASS: single-use login token and server-side logout reject replay');
 
 import { onRequestPost as extract } from '../functions/api/extract.js';
 import { onRequestGet as accept } from '../functions/api/account/accept.js';

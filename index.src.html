@@ -7,7 +7,7 @@
 <meta name="description" content="Track your SaaS subscriptions, monitor monthly and annual spend, and never miss a renewal." />
 
 <!-- PWA: Add to Home Screen / install as an app on iOS, Android, desktop -->
-<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
 <meta name="theme-color" content="#0f1829" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -83,7 +83,15 @@
         <button type="button" class="icon-only" id="theme-toggle" title="Toggle light / dark">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         </button>
-        <span class="avatar-chip" title="Signed in">AC</span>
+        <details class="account-menu" id="sst-account-menu" hidden>
+          <summary class="avatar-chip" aria-label="Account menu"></summary>
+          <div class="account-menu-panel">
+            <span id="sst-account-email"></span>
+            <span id="sst-account-entitlement" hidden>Platform Owner — Lifetime Access</span>
+            <button type="button" class="sst-btn" id="sst-account-signout">Sign out</button>
+            <span class="account-menu-error" role="alert"></span>
+          </div>
+        </details>
       </div>
     </header>
     <nav class="mobile-nav" aria-label="Sections">

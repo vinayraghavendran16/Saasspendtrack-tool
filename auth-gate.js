@@ -63,6 +63,53 @@
     });
   }
 
+  function bindSignOut(button, error) {
+    button.addEventListener('click', async function (event) {
+      event.preventDefault();
+      if (button.getAttribute('aria-disabled') === 'true') return;
+      button.setAttribute('aria-disabled', 'true');
+      error.textContent = '';
+      try {
+        var response = await fetch('/api/auth/logout', {
+          method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error',
+        });
+        if (!response.ok || (await response.json()).ok !== true) throw new Error('logout_failed');
+      } catch (_) {
+        error.textContent = 'Could not sign out. Try again.';
+        button.removeAttribute('aria-disabled');
+        return;
+      }
+
+      try {
+        var theme = localStorage.getItem('saasspendtrack.theme');
+        localStorage.clear();
+        if (theme === 'light' || theme === 'dark') localStorage.setItem('saasspendtrack.theme', theme);
+      } catch (_) {}
+      try { sessionStorage.clear(); } catch (_) {}
+      location.replace('/?mode=login');
+    });
+  }
+
+  function showAccountMenu(me) {
+    var menu = document.getElementById('sst-account-menu');
+    if (!menu) return;
+    var trigger = menu.querySelector('summary');
+    trigger.textContent = (me.email || '?').slice(0, 2).toUpperCase();
+    menu.querySelector('#sst-account-email').textContent = me.email || '';
+    menu.querySelector('#sst-account-entitlement').hidden = me.platformOwner !== true;
+    bindSignOut(menu.querySelector('#sst-account-signout'), menu.querySelector('[role="alert"]'));
+    document.addEventListener('click', function (event) {
+      if (!menu.contains(event.target)) menu.open = false;
+    });
+    menu.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && menu.open) {
+        menu.open = false;
+        trigger.focus();
+      }
+    });
+    menu.hidden = false;
+  }
+
   // ---- expiry / paywall ----
   function showPaywall() {
     removeGate();
@@ -72,15 +119,12 @@
       '<p>Your access is paused but your data is safe. Paid checkout is temporarily unavailable. Contact us for plan availability.</p>' +
       '<a class="sst-btn" href="' + SUPPORT_URL + '" target="_blank" rel="noopener">Contact us about annual plans</a>' +
       '<button class="sst-btn sst-btn--ghost" id="sst-paid">Refresh my access</button>' +
-      '<div class="sst-gate__foot"><a href="#" id="sst-logout">Sign out</a></div>' +
+      '<div class="sst-gate__foot"><button type="button" class="sst-btn sst-btn--ghost" id="sst-logout">Sign out</button><span role="alert"></span></div>' +
       '</div></div>');
     document.body.appendChild(gate);
     setTimeout(function () { try { gate.querySelector('.sst-btn').focus(); } catch (_) {} }, 0);
     gate.querySelector('#sst-paid').addEventListener('click', function () { location.reload(); });
-    gate.querySelector('#sst-logout').addEventListener('click', function (e) {
-      e.preventDefault();
-      fetch('/api/auth/logout', { method: 'POST' }).then(function () { location.reload(); });
-    });
+    bindSignOut(gate.querySelector('#sst-logout'), gate.querySelector('[role="alert"]'));
   }
 
   // ---- trial banner (non-blocking) ----
@@ -123,7 +167,9 @@
             : authParam === 'invalid' ? 'That link was invalid. Enter your email to try again.' : null, new URLSearchParams(location.search).get('mode') === 'login' ? 'login' : 'trial');
           return;
         }
+        showAccountMenu(me);
         if (!me.entitled) { showPaywall(); return; }
+        document.dispatchEvent(new Event('sst:authenticated'));
         if (me.status === 'trial') showBanner(me.daysLeft);
         // active or in-trial: app runs normally underneath.
       })

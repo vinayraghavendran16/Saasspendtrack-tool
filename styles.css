@@ -216,6 +216,19 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: var(-
   background: var(--ink); color: var(--panel); font-size: 11px; font-weight: 700;
 }
 
+.account-menu { position: relative; flex: none; }
+.account-menu summary { cursor: pointer; width: 44px; height: 44px; list-style: none; }
+.account-menu summary::-webkit-details-marker { display: none; }
+.account-menu-panel {
+  position: absolute; inset-inline-end: 0; top: calc(100% + 8px); z-index: 50;
+  width: min(18rem, calc(100vw - 32px)); padding: 14px;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: 0 6px 20px #0003; overflow-wrap: anywhere;
+}
+.account-menu-panel > *:not([hidden]) { display: block; }
+.account-menu-panel button { width: 100%; margin-top: 10px; }
+.account-menu-error:not(:empty) { margin-top: 8px; }
+
 main { padding: 24px 28px 48px; max-width: 1440px; width: 100%; }
 .view { display: none; animation: fade 0.18s ease; }
 .view.active { display: block; }

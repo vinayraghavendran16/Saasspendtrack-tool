@@ -37,15 +37,18 @@ function canRegisterSW() {
 }
 
 if (canRegisterSW()) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-      // Soft update check once a day
-      setInterval(() => reg.update().catch(() => {}), 24 * 60 * 60 * 1000);
-      console.log('[PWA] service worker registered');
-    }).catch(err => {
-      console.warn('[PWA] service worker registration failed', err);
-    });
-  });
+  document.addEventListener('sst:authenticated', async () => {
+    try {
+      const script = await fetch('/sw.js', {
+        credentials: 'same-origin', redirect: 'error', cache: 'no-store',
+      });
+      if (!script.ok || !/^(application|text)\/(javascript|ecmascript)(?:;|$)/i.test(script.headers.get('content-type') || '')) return;
+      await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+    } catch (_) {
+      // Access may intercept the script request. Installation is optional.
+      console.warn('[PWA] Installation unavailable in this session.');
+    }
+  }, { once: true });
 }
 
 /* ---------------- Capture the install prompt (Chrome / Edge) ---------------- */
