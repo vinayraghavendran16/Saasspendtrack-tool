@@ -253,7 +253,7 @@ export const MAX_MEMBERS = 50;
 
 // True if `role` meets or exceeds `min` in the hierarchy.
 export function roleAtLeast(role, min) {
-  return (ROLE_RANK[role] || 0) >= (ROLE_RANK[min] || 99);
+  return Object.hasOwn(ROLE_RANK, role) && Object.hasOwn(ROLE_RANK, min) && ROLE_RANK[role] >= ROLE_RANK[min];
 }
 
 // Membership row for an email, or null.
