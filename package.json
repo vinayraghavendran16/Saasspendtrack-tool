@@ -8,7 +8,7 @@
     "test": "node tests/unit.mjs && node tests/email-auth.mjs && node tests/extract-validation.mjs && node tests/service-worker-auth.mjs && node tests/command-centre.mjs && node tests/platform-owner.mjs && node tests/usage.mjs && node tests/usage-api.mjs && node tests/ai-gateway.mjs",
     "check": "for f in $(find functions -name '*.js'); do node --check \"$f\" || exit 1; done && node --check app.js && node --check scripts/preview-api-smoke.mjs && node --check sw.js && node --check auth-gate.js && echo 'syntax ok'",
     "test:preview": "node scripts/preview-api-smoke.mjs",
-    "test:release": "npm run check && npm test && node tests/security-regression.mjs && node tests/workspace-isolation.mjs && python3 tests/migration-smoke.py && node tests/ai-consent.mjs && node tests/welcome-email.mjs && node tests/browser-cache-safety.mjs && node tests/preview-asset-allowlist.mjs && node tests/preview-api-target.mjs && npm run test:hardening && python3 tests/case-status-audit.py && python3 tests/member-mutation-race.py",
+    "test:release": "npm run check && npm test && node tests/security-regression.mjs && node tests/workspace-isolation.mjs && python3 tests/migration-smoke.py && node tests/ai-consent.mjs && node tests/welcome-email.mjs && node tests/browser-cache-safety.mjs && node tests/preview-asset-allowlist.mjs && node tests/preview-api-target.mjs && npm run test:hardening && python3 tests/case-status-audit.py && python3 tests/member-mutation-race.py && node tests/release-financial-boundaries.mjs && node tests/release-ai-egress.mjs",
     "build:preview-us": "node scripts/build-preview-us.mjs",
     "test:e2e:local": "node tests/e2e/local.mjs",
     "test:e2e:live": "node tests/e2e/live.mjs",
