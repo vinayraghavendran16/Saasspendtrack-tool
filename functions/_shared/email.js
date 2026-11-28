@@ -12,7 +12,35 @@ function mailFailure(error, status, diagnostic = {}) {
   return result;
 }
 
+async function sendResend(env, { to, subject, html }) {
+  const fail = (error, status) => {
+    const result = { ok: false, error, ...(status ? { status } : {}) };
+    console.error('Resend send failed', result);
+    return result;
+  };
+  const token = typeof env.RESEND_API_KEY === 'string' ? env.RESEND_API_KEY.trim() : '';
+  if (!token || /\s/.test(token)) return fail('invalid_token_format');
+  const from = (env.FROM_EMAIL || 'hello@saasspendtrack.com').trim();
+  const replyTo = (env.REPLY_TO || from).trim();
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(10000),
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ from, to: [to], reply_to: replyTo, subject, html }),
+    });
+    if (res.body) await res.body.cancel().catch(() => {});
+    if (res.status >= 300 && res.status < 400) return fail('provider_redirect', res.status);
+    if (!res.ok) return fail('provider_rejected', res.status);
+    return { ok: true };
+  } catch (error) {
+    return fail(error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'timeout' : 'transport_error');
+  }
+}
+
 export async function sendEmail(env, { to, subject, html }) {
+  const provider = env.EMAIL_PROVIDER || 'zeptomail';
+  if (provider === 'resend') return sendResend(env, { to, subject, html });
+  if (provider !== 'zeptomail') return { ok: false, error: 'invalid_email_provider' };
   const rawToken = typeof env.ZEPTOMAIL_TOKEN === 'string' ? env.ZEPTOMAIL_TOKEN.trim() : '';
   if (!rawToken) return mailFailure('no_token');
   const token = rawToken.replace(/^Zoho-enczapikey\s+/i, '');
