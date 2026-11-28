@@ -26,6 +26,7 @@ for (const [token, email] of [[adminToken, adminEmail], [memberToken, paidEmail]
 
 let writeFailure;
 let concurrentGate;
+let beforeBatch;
 const D1 = {
   prepare(sql) {
     return {bind(...params) {
@@ -44,6 +45,7 @@ const D1 = {
     }};
   },
   async batch(statements) {
+    if (beforeBatch) await beforeBatch();
     db.exec('BEGIN');
     try {
       for (const statement of statements) statement.execute();
@@ -85,15 +87,22 @@ function view(token, query = '') {
   return admin({request, env});
 }
 
-const queue = () => db.prepare('SELECT * FROM legacy_payment_reconciliation ORDER BY payment_id').all();
+const queue = () => db.prepare('SELECT * FROM legacy_payment_reconciliation WHERE payment_id IS NOT NULL ORDER BY payment_id').all();
+const reviewRow = id => db.prepare('SELECT * FROM legacy_payment_reconciliation WHERE review_key=?').get(id);
 const existing = () => db.prepare('SELECT * FROM users WHERE email=?').get(paidEmail);
 const original = existing();
 assert.equal((await deliver(captured, {signature: 'wrong'})).status, 401);
 assert.equal((await deliver('{bad json')).status, 400);
-assert.equal((await deliver({event: 'payment.captured'})).status, 422);
+const malformed = {event: 'payment.captured', notes: 'must never be persisted'};
+assert.equal((await deliver(malformed)).status, 422);
+assert.equal((await deliver(malformed, {eventId: 'retry-header'})).status, 422);
 assert.equal((await deliver({...captured, payload: {payment: {entity: {...payment, amount: '200000'}}}})).status, 422);
 assert.equal((await deliver({...orderPaid, payload: {...orderPaid.payload, order: {entity: {id: 'order_Other', status: 'paid'}}}})).status, 422);
 assert.deepEqual(queue(), []);
+const malformedRows = db.prepare('SELECT * FROM legacy_payment_reconciliation').all();
+assert.equal(malformedRows.length, 3);
+assert.ok(malformedRows.every(row => row.reason === 'malformed_success' && /^sha256:[a-f0-9]{64}$/.test(row.review_key)));
+assert.ok(!JSON.stringify(malformedRows).includes('must never be persisted'));
 
 for (const mode of ['throw', 'result']) {
   writeFailure = mode;
@@ -115,7 +124,8 @@ concurrentGate = undefined;
 assert.deepEqual(concurrent.map(response => response.status), [200, 200]);
 assert.equal((await deliver(captured, {eventId: 'different-header'})).status, 200);
 assert.equal(queue().length, 1);
-assert.deepEqual(Object.keys(queue()[0]), ['payment_id', 'event_type', 'amount', 'currency', 'received_at', 'resolved_at']);
+assert.equal(queue()[0].review_key, payment.id);
+assert.equal(queue()[0].reason, 'legacy_success');
 assert.ok(!JSON.stringify(queue()).includes(paidEmail));
 assert.deepEqual(existing(), original);
 assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payment_ledger').get().n, 0);
@@ -127,26 +137,90 @@ assert.equal((await view(adminToken, '?after=invalid')).status, 400);
 const visible = await view(adminToken);
 assert.equal(visible.status, 200);
 assert.equal(visible.headers.get('Cache-Control'), 'no-store');
-assert.deepEqual((await visible.json()).events.map(row => row.payment_id), [payment.id]);
-assert.deepEqual((await (await view(adminToken, '?after=' + payment.id)).json()).events, []);
+assert.deepEqual((await visible.json()).events.filter(row => row.payment_id).map(row => row.payment_id), [payment.id]);
+assert.equal((await (await view(adminToken, '?after=' + payment.id)).json()).events.length, 3);
+assert.equal((await (await view(adminToken, '?after=' + malformedRows.map(row => row.review_key).sort().at(-1))).json()).events.length, 0);
 
-for (const alter of [
+for (const [index, alter] of [
   event => {event.payload.payment.entity.amount = 199999;},
   event => {event.payload.payment.entity.currency = 'INR';},
   event => {event.payload.payment.entity.email = 'other@example.invalid';},
   event => {event.payload.payment_link.entity.id = 'plink_Unknown';}
-]) {
+].entries()) {
   const event = structuredClone(linkPaid);
+  event.payload.payment.entity.id = 'pay_InvalidLink' + index;
   alter(event);
   assert.equal((await deliver(event)).status, 422);
+  assert.equal(reviewRow(event.payload.payment.entity.id).reason, 'link_validation_failed');
 }
-assert.equal(queue().length, 1);
 assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payment_ledger').get().n, 0);
 assert.equal((await deliver({event: 'payment.captured', payload: {payment: linkPaid.payload.payment}})).status, 200);
 assert.equal((await deliver(linkPaid)).status, 200);
 assert.equal(await (await deliver(linkPaid)).text(), 'already processed');
 assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payment_ledger').get().n, 1);
 assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payment_notification_outbox').get().n, 1);
-assert.deepEqual((await (await view(adminToken)).json()).events.map(row => row.payment_id), [payment.id]);
+assert.ok(!(await (await view(adminToken)).json()).events.some(row => row.payment_id === 'pay_LinkFixture'));
 assert.deepEqual(existing(), original);
-console.log('PASS: durable signed legacy reconciliation, atomic deduplication, retryable failures, admin access and entitlement preservation');
+
+const legacyWith = (id, amount, currency, event = 'payment.captured') =>
+  ({event, payload: {payment: {entity: {...payment, id, amount, currency}}}});
+assert.equal((await deliver(legacyWith(payment.id, 199999, 'USD'))).status, 200);
+const firstConflict = reviewRow(payment.id);
+assert.equal(firstConflict.amount, 200000);
+assert.equal(firstConflict.conflict_amount, 199999);
+assert.ok(firstConflict.conflict_at);
+assert.equal((await deliver(legacyWith(payment.id, 199999, 'USD'))).status, 200);
+assert.deepEqual(reviewRow(payment.id), firstConflict);
+db.prepare('UPDATE legacy_payment_reconciliation SET resolved_at=?, resolution_ref=? WHERE review_key=?')
+  .run(Date.now(), 'synthetic-approved-case', payment.id);
+assert.equal((await deliver(legacyWith(payment.id, 199999, 'USD'))).status, 200);
+assert.equal(reviewRow(payment.id).resolution_ref, 'synthetic-approved-case');
+assert.equal((await deliver(legacyWith(payment.id, 200000, 'INR'))).status, 200);
+const reopened = reviewRow(payment.id);
+assert.equal(reopened.conflict_currency, 'INR');
+assert.equal(reopened.resolved_at, null);
+assert.equal(reopened.resolution_ref, null);
+assert.equal(reopened.review_version, firstConflict.review_version + 1);
+
+arrived = 0;
+const conflictingReady = new Promise(resolve => {release = resolve;});
+concurrentGate = async () => {
+  if (++arrived === 2) release();
+  await conflictingReady;
+};
+const conflictingDeliveries = await Promise.all([
+  deliver(legacyWith('pay_ConcurrentConflict', 200000, 'USD')),
+  deliver(legacyWith('pay_ConcurrentConflict', 200000, 'INR'))
+]);
+concurrentGate = undefined;
+assert.deepEqual(conflictingDeliveries.map(response => response.status), [200, 200]);
+const concurrentConflict = reviewRow('pay_ConcurrentConflict');
+assert.deepEqual([concurrentConflict.currency, concurrentConflict.conflict_currency].sort(), ['INR', 'USD']);
+
+assert.equal((await deliver(legacyWith('pay_LinkFixture', 200000, 'INR'))).status, 200);
+assert.ok((await (await view(adminToken)).json()).events.some(row => row.payment_id === 'pay_LinkFixture' && row.conflict_currency === 'INR'));
+assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payment_ledger').get().n, 1);
+assert.equal((await deliver(legacyWith('pay_FutureEvent', 200000, 'USD', 'payment.capture_succeeded'))).status, 200);
+assert.equal(reviewRow('pay_FutureEvent').reason, 'unexpected_success');
+
+const late = structuredClone(linkPaid);
+late.payload.payment.entity.id = 'pay_LateLink';
+const configuredCatalogue = env.RAZORPAY_PAYMENT_CATALOGUE;
+delete env.RAZORPAY_PAYMENT_CATALOGUE;
+assert.equal((await deliver(late)).status, 200);
+assert.equal(reviewRow('pay_LateLink').reason, 'missing_link_catalogue');
+env.RAZORPAY_PAYMENT_CATALOGUE = configuredCatalogue;
+assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payment_ledger').get().n, 1);
+
+// Inject conflicting signed evidence between the application check and the ledger batch.
+const racingLink = structuredClone(linkPaid);
+racingLink.payload.payment.entity.id = 'pay_RacingLink';
+beforeBatch = async () => {
+  assert.equal((await deliver(legacyWith('pay_RacingLink', 199999, 'USD'))).status, 200);
+};
+assert.equal(await (await deliver(racingLink)).text(), 'accepted for reconciliation');
+assert.equal(reviewRow('pay_RacingLink').conflict_amount, 199999);
+assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payment_ledger').get().n, 1);
+assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payment_notification_outbox').get().n, 1);
+assert.deepEqual(existing(), original);
+console.log('PASS: signed reconciliation, malformed event evidence, conflicts, catalogue hold, replay and entitlement preservation');

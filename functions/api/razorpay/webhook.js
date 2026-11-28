@@ -1,7 +1,7 @@
 import { validatePaidLink } from '../../_shared/payment-policy.js';
 import { recordUsage } from '../../_shared/usage.js';
 import { getMembership } from '../../_shared/util.js';
-import { enqueueLegacyPayment, legacyPaymentForReview } from '../../_shared/legacy-payment-reconciliation.js';
+import { enqueuePaymentReview, hasPaymentReviewConflict, isPaymentSuccess } from '../../_shared/legacy-payment-reconciliation.js';
 // POST /api/razorpay/webhook
 // Razorpay calls this on payment events. We verify the signature, then flip the
 // paying user to 'active'. Configure the same secret in the Razorpay dashboard.
@@ -21,30 +21,39 @@ export async function onRequestPost({ request, env }) {
   let evt;
   try { evt = JSON.parse(raw); } catch { return new Response('bad json', { status: 400 }); }
 
-  if (evt?.event === 'payment.captured' || evt?.event === 'order.paid') {
-    const payment = legacyPaymentForReview(evt);
-    if (!payment) return new Response('invalid legacy payment event', { status: 422 });
-    try {
-      await enqueueLegacyPayment(env.DB, evt.event, payment, now());
-    } catch {
-      console.error('razorpay: legacy payment reconciliation unavailable');
-      return new Response('reconciliation unavailable', { status: 503 });
-    }
+  if (!isPaymentSuccess(evt?.event)) return new Response('ignored', { status: 200 });
+  const linkEvent = evt.event === 'payment_link.paid';
+  let catalogue;
+  if (linkEvent) {
+    try { catalogue = JSON.parse(env.RAZORPAY_PAYMENT_CATALOGUE || 'null'); }
+    catch { catalogue = null; }
+  }
+  const hasCatalogue = Array.isArray(catalogue) && catalogue.length > 0;
+  const paid = hasCatalogue ? validatePaidLink(evt, catalogue) : null;
+  const email = paid ? normalizeEmail(evt.payload.payment_link.entity.customer?.email) : '';
+  const paymentEmail = paid ? evt.payload.payment.entity.email : null;
+  const customerMatches = email && (!paymentEmail || normalizeEmail(paymentEmail) === email);
+  let reason = 'unexpected_success';
+  if (evt.event === 'payment.captured' || evt.event === 'order.paid') reason = 'legacy_success';
+  if (linkEvent) {
+    if (!hasCatalogue) reason = 'missing_link_catalogue';
+    else reason = paid && customerMatches ? 'verified_link' : 'link_validation_failed';
+  }
+  let hasPayment;
+  try {
+    hasPayment = await enqueuePaymentReview(env.DB, evt, raw, reason, now());
+  } catch {
+    console.error('razorpay: payment reconciliation unavailable');
+    return new Response('reconciliation unavailable', { status: 503 });
+  }
+  if (!hasPayment) return new Response('malformed payment success recorded for review', { status: 422 });
+  if (!linkEvent || !hasCatalogue) return new Response('accepted for reconciliation', { status: 200 });
+  if (!paid) return new Response('payment requires review', { status: 422 });
+  if (!customerMatches) return new Response('customer requires review', { status: 422 });
+  const {paymentId,linkId,amount,currency,tier} = paid;
+  if (await hasPaymentReviewConflict(env.DB, paymentId)) {
     return new Response('accepted for reconciliation', { status: 200 });
   }
-
-  if (evt?.event !== 'payment_link.paid') return new Response('ignored', { status: 200 });
-  let catalogue;
-  try { catalogue = JSON.parse(env.RAZORPAY_PAYMENT_CATALOGUE || 'null'); }
-  catch { return new Response('payment configuration unavailable', { status: 503 }); }
-  if (!Array.isArray(catalogue) || !catalogue.length) return new Response('payment configuration unavailable', { status: 503 });
-  const paid = validatePaidLink(evt, catalogue);
-  if (!paid) return new Response('payment requires review', { status: 422 });
-  const payment = evt.payload.payment.entity;
-  const link = evt.payload.payment_link.entity;
-  const email = normalizeEmail(link.customer?.email);
-  if (!email || (payment.email && normalizeEmail(payment.email) !== email)) return new Response('customer requires review', { status: 422 });
-  const {paymentId,linkId,amount,currency,tier} = paid;
   const plan = currency === 'USD' ? 'annual-usd' : 'annual-inr';
   const t = now();
   const existing = await env.DB.prepare('SELECT email, status, paid_at FROM users WHERE email=?').bind(email).first();
@@ -55,6 +64,9 @@ export async function onRequestPost({ request, env }) {
       env.DB.prepare('INSERT INTO users (email,created_at,trial_ends_at,status,plan,paid_at,rp_payment_id,amount_paid,currency) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET status=excluded.status,plan=excluded.plan,paid_at=excluded.paid_at,rp_payment_id=excluded.rp_payment_id,amount_paid=excluded.amount_paid,currency=excluded.currency').bind(email,t,t,'active',plan,t,paymentId,amount,currency)
     ]);
   } catch (err) {
+    if (await hasPaymentReviewConflict(env.DB, paymentId)) {
+      return new Response('accepted for reconciliation', { status: 200 });
+    }
     const prior = await env.DB.prepare('SELECT customer_email,link_id,amount,currency,tier FROM payment_ledger WHERE payment_id=?').bind(paymentId).first();
     if (prior && prior.customer_email===email && prior.link_id===linkId && prior.amount===amount && prior.currency===currency && prior.tier===tier) return new Response('already processed', {status:200});
     throw err;
