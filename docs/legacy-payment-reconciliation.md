@@ -16,6 +16,15 @@ When the catalogue is absent, empty or unreadable, a signed `payment_link.paid` 
 
 Do not synthesize catalogue entries for Payment Pages or use a signed amount as the sole price authority. Reconcile late captures through the procedure above. Check the queue regularly and alert on persistence faults or provider delivery failures. Razorpay's retry window is limited. [Razorpay webhook retries](https://razorpay.com/docs/webhooks/best-practices)
 
-## Release gates
+## Initial trial-only launch
 
-Keep public maintenance protection on. Before release, verify in the Razorpay dashboard that the six active legacy SaaS Spend Track Payment Pages identified during reconciliation have actually been retired, and reconcile the provider backlog. An approval to retire is not evidence of retirement. Verify operator and approver access, apply the separately approved additive migration 033 before deploying code that uses it, and smoke-test through the authorized private route. Leave migrations 028–032 and all deferred features outside this release.
+Email magic links are the launch sign-in method. Keep `OAUTH_ENABLED=false` and dynamic paid checkout disabled. Google and Microsoft registration, live SSO testing, and Razorpay checkout remediation are separate workstreams. Keep AI processing, trial email cadence, trial delivery health, payment queue automation, and usage retention disabled.
+
+The authenticated legacy webhook remains in scope for payment reconciliation. Keep its signing credentials and subscriptions in place. Leave the catalogue unset unless separately approved with provider evidence. The review queue handles late signed payment events without granting access.
+
+## Production approval gates
+
+1. Keep public maintenance active. Record the verified retirement of all eight legacy SaaS Spend Track Payment Pages. They showed zero sales and units in Live Mode. Check the provider backlog and undelivered events independently, including Razorpay support ticket `22112509`.
+2. Confirm the named reconciliation operator and separate approver. Verify the operator's `ADMIN_EMAILS` authorization after email sign-in over the authorized private test route. Cloudflare Access success and the app login screen verify only the outer access layer.
+3. Review the exact artifact SHA, its CI, the fresh protected backup and rehearsal, and the production D1 ledger. At preflight, confirm 001–027 are recorded and 033 is absent. Hold all production writes until the owner approves the reviewed candidate. Migration 033 must be separately approved for the pinned database and applied before deploying the code that uses it. Leave 028–032 outside this release.
+4. Keep maintenance on during deployment and private smoke testing. Verify email magic-link sign-in, owner lifetime access, tenant boundaries and reconciliation access with the approved test accounts. Public reopening requires a separate approval.

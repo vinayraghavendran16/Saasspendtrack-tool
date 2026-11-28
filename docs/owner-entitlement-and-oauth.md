@@ -4,7 +4,9 @@
 
 Set `PLATFORM_OWNER_EMAIL` to the designated account email in the relevant Pages environment. The authenticated owner has non-expiring access in their owned workspace, with no commercial seat cap. Other workspaces retain their existing entitlement, membership rules and 50-member cap. This branch does not enforce a contract-count cap. The exemption does not grant a role, write payment records, or override global feature gates or security rate limits.
 
-## Registration
+## Deferred registration
+
+The initial trial-only launch uses email magic links. Keep production `OAUTH_ENABLED=false`. The registration instructions below are for later, separately approved SSO work. Live provider registration and tests are not initial launch gates.
 
 Use confidential web applications with server-side code redemption. Register the exact HTTPS Web redirect URI for each client.
 
@@ -52,4 +54,4 @@ Both flows use authorization code, S256 PKCE, a nonce, and a one-use ten-minute 
 
 ID token verification uses RS256, fixed Google or tenant-specific Microsoft JWKS endpoints, issuer, audience and authorized-party checks, nonce and token-time validation, and Microsoft v2 tenant binding. Redirects from token or key endpoints fail closed. Provider tokens are not persisted.
 
-Before enablement, smoke-test both live providers using approved isolated accounts, including first-time linking, repeat login, wrong account, suspended membership, and email fallback. The owner and OAuth changes require no migration beyond existing 003. Migration 033 remains a separate release gate.
+Before a later SSO enablement, smoke-test both live providers using approved isolated accounts, including first-time linking, repeat login, wrong account, suspended membership, and email fallback. The owner and OAuth changes require no migration beyond existing 003. Migration 033 remains a separate release gate for legacy payment reconciliation.
