@@ -3294,10 +3294,10 @@ body:has(.ob-checklist) .ob-help { bottom: calc(20px + 68px); }
       <p>If you avoid a $10,000 auto-renewal, that’s five times the annual Growth price. See what’s renewing and when you need to act so you have time to cancel, reduce seats, or renegotiate.</p>
       <h3>Founding · $1,499/year</h3>
       <p>Everything in Growth at a price locked for life. Open worldwide while founding places are available.</p>
-      <p><a href="https://saasspendtrack.com/pricing/#founding" target="_blank" rel="noopener">View founding availability and checkout</a></p>
+      <p><a href="mailto:hello@saasspendtrack.com?subject=Annual%20plan%20availability" target="_blank" rel="noopener">Ask about founding availability</a></p>
       <h3>Growth · $2,000/year</h3>
       <p>The price you join at is the price you keep, forever. Unlimited users and up to 250 active contracts. Add 50 more active contracts for $100/year per block.</p>
-      <p><a href="https://saasspendtrack.com/pricing/#growth" target="_blank" rel="noopener">View Growth checkout</a></p>
+      <p><a href="mailto:hello@saasspendtrack.com?subject=Annual%20plan%20availability" target="_blank" rel="noopener">Ask about Growth availability</a></p>
       <h3>Enterprise / On-Prem · Custom quote</h3>
       <p>Deploy on your own infrastructure when contract data must stay inside your organization.</p>
       <p><a href="mailto:hello@saasspendtrack.com?subject=Enterprise%20and%20On-Prem">Talk to us</a></p>
@@ -6009,8 +6009,8 @@ function handleSubmit(e) {
   if (isNew) {
     const limit = PLANS[currentPlan()].subLimit;
     if (state.subscriptions.length >= limit) {
-      if (confirm(`Free plan is capped at ${limit} subscriptions. Open the pricing page to compare annual plans?`)) {
-        window.open('https://saasspendtrack.com/#pricing', '_blank', 'noopener');
+      if (confirm(`Free plan is capped at ${limit} subscriptions. Contact us about annual plans?`)) {
+        window.open('mailto:hello@saasspendtrack.com?subject=Annual%20plan%20availability', '_blank', 'noopener');
       }
       return;
     }
@@ -15838,7 +15838,7 @@ setTimeout(_maybeShowDownloadsHint, 800);
       trial" control, so the distributor can re-demo cleanly.
    ========================================================================== */
 
-const ANNUAL_PLANS_URL = 'https://saasspendtrack.com/pricing/';
+const ANNUAL_PLANS_URL = 'mailto:hello@saasspendtrack.com?subject=Annual%20plan%20availability';
 
 /* ---------- Helpers ---------- */
 function trialState() {
@@ -15888,7 +15888,7 @@ function ensureExpiryGate() {
         </div>
 
         <div class="eg-actions">
-          <a href="${ANNUAL_PLANS_URL}" target="_blank" rel="noopener" class="btn-primary btn-lg">View upgrade plans</a>
+          <a href="${ANNUAL_PLANS_URL}" target="_blank" rel="noopener" class="btn-primary btn-lg">Contact us about annual plans</a>
           <button class="btn-link" id="eg-paid">I've already paid - mark as active</button>
         </div>
 
@@ -15951,9 +15951,9 @@ function ensureTrialBanner() {
     <span>
       ${t.inGrace ? '⚠️' : '✨'}
       <b>${t.daysLeft} day${t.daysLeft === 1 ? '' : 's'}</b> left in your trial
-      ${t.inGrace ? ' - upgrade now to keep access' : ''}
+      ${t.inGrace ? ' - contact us about plan availability' : ''}
     </span>
-    <a href="${ANNUAL_PLANS_URL}" target="_blank" rel="noopener" class="trial-banner-cta">View upgrade plans</a>
+    <a href="${ANNUAL_PLANS_URL}" target="_blank" rel="noopener" class="trial-banner-cta">Contact us about annual plans</a>
   `;
 }
 
@@ -21697,7 +21697,7 @@ window.PWA = {
 (function () {
   'use strict';
 
-  var ANNUAL_PLANS_URL = 'https://saasspendtrack.com/pricing/';
+  var ANNUAL_PLANS_URL = 'mailto:hello@saasspendtrack.com?subject=Annual%20plan%20availability';
 
   function el(html) {
     var d = document.createElement('div');
@@ -21759,9 +21759,9 @@ window.PWA = {
     var gate = el('<div class="sst-gate" id="sst-gate" role="dialog" aria-modal="true" aria-labelledby="sst-paywall-title"><div class="sst-gate__card">' +
       '<div class="sst-gate__logo">SaaS Spend Track</div>' +
       '<h2 id="sst-paywall-title">Your trial has ended</h2>' +
-      '<p>Your access is paused but your data is safe. Upgrade to unlock your dashboard again.</p>' +
-      '<a class="sst-btn" href="' + ANNUAL_PLANS_URL + '" target="_blank" rel="noopener">View upgrade plans</a>' +
-      '<button class="sst-btn sst-btn--ghost" id="sst-paid">I’ve paid - refresh my access</button>' +
+      '<p>Your access is paused but your data is safe. Paid checkout is temporarily unavailable. Contact us for plan availability.</p>' +
+      '<a class="sst-btn" href="' + ANNUAL_PLANS_URL + '" target="_blank" rel="noopener">Contact us about annual plans</a>' +
+      '<button class="sst-btn sst-btn--ghost" id="sst-paid">Refresh my access</button>' +
       '<div class="sst-gate__foot"><a href="#" id="sst-logout">Sign out</a></div>' +
       '</div></div>');
     document.body.appendChild(gate);
@@ -21782,7 +21782,7 @@ window.PWA = {
       : '<strong>' + daysLeft + ' days</strong> left in your trial';
     var banner = el('<div class="sst-banner' + (warn ? ' sst-banner--warn' : '') + '" id="sst-banner" role="status">' +
       '<span>' + label + '</span>' +
-      '<a href="#pricing" id="sst-upgrade">Upgrade now</a>' +
+      '<a href="mailto:hello@saasspendtrack.com?subject=Annual%20plan%20availability" id="sst-upgrade">Ask about annual plans</a>' +
       '<button class="sst-banner__x" id="sst-banner-x" title="Dismiss" aria-label="Dismiss trial banner">×</button>' +
       '</div>');
     document.body.insertBefore(banner, document.body.firstChild);
