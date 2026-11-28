@@ -7,6 +7,7 @@ import { getMembership } from '../../_shared/util.js';
 import { hmacSha256Hex, safeEqual, now, normalizeEmail } from '../../_shared/util.js';
 
 export async function onRequestPost({ request, env }) {
+  if (env.PAID_CHECKOUT_ENABLED !== 'true') return new Response('payment processing temporarily unavailable', { status: 503 });
   const raw = await request.text(); // raw body required for signature check
   const signature = request.headers.get('X-Razorpay-Signature') || '';
   const secret = env.RAZORPAY_WEBHOOK_SECRET;
