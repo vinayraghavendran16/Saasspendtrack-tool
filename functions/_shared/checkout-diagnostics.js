@@ -22,6 +22,7 @@ export function checkoutFailure(operation, stage, correlationId, error) {
   const code = error instanceof ProviderError ? error.message
     : stage === 'database_persist' ? 'database_persistence_failure'
     : 'checkout_storage_unavailable';
-  console.error(JSON.stringify({event: 'checkout_failure', operation, stage, correlationId, code}));
+  const providerDetails = error instanceof ProviderError ? error.details : undefined;
+  console.error(JSON.stringify({event: 'checkout_failure', operation, stage, correlationId, code, providerDetails}));
   return json({error: code, correlationId}, statuses.get(code) ?? 503);
 }

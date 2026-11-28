@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {createProviderLink} from '../functions/_shared/razorpay-checkout.js';
 import {inspectProviderLink} from '../functions/_shared/razorpay-recovery.js';
 import {discoverLostLink} from '../functions/_shared/razorpay-lost-link.js';
+import {requestPaymentLinks} from '../functions/_shared/razorpay-provider.js';
+import {checkoutFailure} from '../functions/_shared/checkout-diagnostics.js';
 const env={CHECKOUT_PROVIDER_ENABLED:'true',CHECKOUT_ISOLATED_SANDBOX:'true',RAZORPAY_KEY_ID:'rzp_test_fixture',RAZORPAY_KEY_SECRET:'fixture'};
 const c={id:'a'.repeat(32),tier:'founding',amount:149900,currency:'USD',status:'reserved',owner_email:'owner@example.invalid',expires_at:Date.now()+1800000,link_id:'plink_fixture'};
 const link={id:c.link_id,reference_id:c.id,amount:c.amount,currency:c.currency,status:'created',short_url:'https://rzp.io/i/fixture',customer:{email:c.owner_email},amount_paid:0,payments:[]};
@@ -52,7 +54,6 @@ for (const [transport, code] of [
   [listMock({payment_links:[null]}), 'provider_response_invalid']
 ]) {
   if (code === 'provider_timeout') {
-    const {requestPaymentLinks} = await import('../functions/_shared/razorpay-provider.js');
     const signal = AbortSignal.timeout(5);
     const keepAlive = setTimeout(() => {}, 100);
     try {
@@ -67,3 +68,44 @@ for (const [transport, code] of [
 await assert.rejects(discoverLostLink({...env,RAZORPAY_KEY_SECRET:''},lostCheckout,forbidden), {message:'provider_configuration_missing'});
 assert.equal(outbound,0);
 console.log('PASS: sanitized provider diagnostics for transport, authentication, validation and identity failures');
+
+for (const body of [undefined, {amount: c.amount}]) {
+  await assert.rejects(requestPaymentLinks(env, async (url, options) => {
+    assert.equal(new URL(url).origin, 'https://api.razorpay.com');
+    assert.equal(options.redirect, 'manual');
+    assert.equal(options.method, body ? 'POST' : 'GET');
+    assert.equal(atob(options.headers.Authorization.slice(6)), 'rzp_test_fixture:fixture');
+    assert.ok(options.signal instanceof AbortSignal);
+    return Response.redirect('https://redirect.example.invalid', 307);
+  }, {body}), {
+    message: 'provider_network_failure',
+    details: {phase: 'redirect_blocked', exception: null}
+  });
+}
+
+await assert.rejects(requestPaymentLinks({...env, RAZORPAY_KEY_SECRET: '🔒'}, forbidden), {
+  message: 'invalid_test_credentials',
+  details: {phase: 'basic_auth_encoding', exception: 'InvalidCharacterError'}
+});
+assert.equal(outbound, 0);
+
+const originalConsoleError = console.error;
+try {
+  const logs = [];
+  console.error = message => logs.push(JSON.parse(message));
+  await assert.rejects(requestPaymentLinks(env, async () => {
+    throw new TypeError('sensitive fixture that must never be logged');
+  }), error => {
+    const response = checkoutFailure('recover', 'provider_discovery', 'correlation-fixture', error);
+    assert.equal(response.status, 503);
+    return true;
+  });
+  assert.deepEqual(logs, [{
+    event: 'checkout_failure', operation: 'recover', stage: 'provider_discovery',
+    correlationId: 'correlation-fixture', code: 'provider_network_failure',
+    providerDetails: {phase: 'fetch', exception: 'TypeError'}
+  }]);
+} finally {
+  console.error = originalConsoleError;
+}
+console.log('PASS: manual redirects, basic authentication, and allowlisted runtime diagnostics');

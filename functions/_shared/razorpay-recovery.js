@@ -3,7 +3,7 @@ export async function inspectProviderLink(env, checkout, transport=fetch) {
   if (env.CHECKOUT_ISOLATED_SANDBOX!=='true'||env.CHECKOUT_PROVIDER_ENABLED!=='true'||!env.RAZORPAY_KEY_ID?.startsWith('rzp_test_')||!env.RAZORPAY_KEY_SECRET) throw new Error('test_provider_disabled');
   if(!/^[a-f0-9]{32}$/.test(checkout.id||'')||!/^plink_[A-Za-z0-9]+$/.test(checkout.link_id||'')) throw new Error('known_link_required');
   const response=await transport('https://api.razorpay.com/v1/payment_links/'+encodeURIComponent(checkout.link_id),{
-    method:'GET',redirect:'error',headers:{Authorization:'Basic '+btoa(env.RAZORPAY_KEY_ID+':'+env.RAZORPAY_KEY_SECRET)}
+    method:'GET',redirect:'manual',headers:{Authorization:'Basic '+btoa(env.RAZORPAY_KEY_ID+':'+env.RAZORPAY_KEY_SECRET)}
   });
   if(!response.ok) throw new Error('provider_status_unavailable');
   const link=await response.json();

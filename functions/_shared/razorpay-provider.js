@@ -9,30 +9,63 @@ export function providerConfigurationError(env) {
 
 export class ProviderError extends Error {}
 
-export async function requestPaymentLinks(env, transport, {body, referenceId, signal = AbortSignal.timeout(10000)} = {}) {
+function providerRequestError(code, phase, exception) {
+  const error = new ProviderError(code);
+  error.details = {phase, exception};
+  return error;
+}
+
+function exceptionKind(error) {
+  if (error instanceof TypeError) return 'TypeError';
+  if (error instanceof SyntaxError) return 'SyntaxError';
+  if (error instanceof DOMException) {
+    if (['AbortError', 'TimeoutError', 'InvalidCharacterError'].includes(error.name)) return error.name;
+    return 'DOMException';
+  }
+  return 'other';
+}
+
+export async function requestPaymentLinks(env, transport, {body, referenceId, signal} = {}) {
   const configurationError = providerConfigurationError(env);
   if (configurationError) throw new ProviderError(configurationError);
   const url = new URL(endpoint);
   if (referenceId) url.searchParams.set('reference_id', referenceId);
+  let authorization;
+  try {
+    authorization = 'Basic ' + btoa(env.RAZORPAY_KEY_ID + ':' + env.RAZORPAY_KEY_SECRET);
+  } catch (error) {
+    throw providerRequestError('invalid_test_credentials', 'basic_auth_encoding', exceptionKind(error));
+  }
+  if (!signal) {
+    try {
+      signal = AbortSignal.timeout(10000);
+    } catch (error) {
+      throw providerRequestError('provider_network_failure', 'timeout_setup', exceptionKind(error));
+    }
+  }
   let response;
   try {
     response = await transport(url.href, {
-      method: body ? 'POST' : 'GET', redirect: 'error', signal,
+      // Workers supports manual redirects. Never forward Razorpay credentials to a redirect target.
+      method: body ? 'POST' : 'GET', redirect: 'manual', signal,
       headers: {
-        Authorization: 'Basic ' + btoa(env.RAZORPAY_KEY_ID + ':' + env.RAZORPAY_KEY_SECRET),
+        Authorization: authorization,
         'Content-Type': 'application/json'
       },
       body: body ? JSON.stringify(body) : undefined
     });
-  } catch {
-    throw new ProviderError(signal.aborted ? 'provider_timeout' : 'provider_network_failure');
+  } catch (error) {
+    throw providerRequestError(signal.aborted ? 'provider_timeout' : 'provider_network_failure', 'fetch', exceptionKind(error));
+  }
+  if (response.status >= 300 && response.status < 400) {
+    throw providerRequestError('provider_network_failure', 'redirect_blocked', null);
   }
   let data;
   try {
     data = await response.json();
   } catch (error) {
-    if (signal.aborted) throw new ProviderError('provider_timeout');
-    if (response.ok) throw new ProviderError(error instanceof SyntaxError ? 'provider_invalid_json' : 'provider_network_failure');
+    if (signal.aborted) throw providerRequestError('provider_timeout', 'response_body', exceptionKind(error));
+    if (response.ok) throw providerRequestError(error instanceof SyntaxError ? 'provider_invalid_json' : 'provider_network_failure', 'response_body', exceptionKind(error));
   }
   if (response.ok) return data;
   const description = typeof data?.error?.description === 'string' ? data.error.description.trim().toLowerCase() : '';
