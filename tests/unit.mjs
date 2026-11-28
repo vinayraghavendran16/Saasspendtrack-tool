@@ -144,6 +144,8 @@ r5 = await MROLE.onRequestPost({ request: jReq({ email: 't@x.com', role: 'admin'
 ok(r5.status === 200 && (await r5.json()).role === 'admin', 'member-role owner promotes member to admin');
 r5 = await MROLE.onRequestPost({ request: jReq({ email: 't@x.com', role: 'member' }), env: acct3Env(withMembers(adminCaller, { 't@x.com': { account_id: 'A', role: 'admin', status: 'active' } })) });
 ok(r5.status === 403, 'member-role admin cannot change an admin');
+r5 = await MROLE.onRequestPost({ request: jReq({ email: 't@x.com', role: 'admin' }), env: acct3Env({...withMembers(ownerCaller, { 't@x.com': { account_id: 'A', role: 'member', status: 'active' } }), staleMutation:true}) });
+ok(r5.status === 409, 'member-role stale mutation returns conflict');
 // member-remove
 let r6 = await MREMOVE.onRequestPost({ request: jReq({ email: 'own2@x.com' }), env: acct3Env(withMembers(ownerCaller, { 'own2@x.com': { account_id: 'A', role: 'owner', status: 'active' } })) });
 ok(r6.status === 403, 'member-remove 403 removing an owner');
@@ -346,7 +348,10 @@ function acct3Env(o) {
         if (/FROM invites WHERE account_id/i.test(sql)) return { results: o.pendingList || [] };
         return { results: [] };
       },
-      run: async () => { if (/INSERT INTO memberships/i.test(sql)) { o.members ||= {}; o.members[b[0]] = { email: b[0], account_id: b[1], role: b[2], status: 'active' }; } },
+      run: async () => {
+        if (/^(UPDATE|DELETE) memberships/i.test(sql)) return {meta:{changes:o.staleMutation?0:1}};
+        if (/INSERT INTO memberships/i.test(sql)) { o.members ||= {}; o.members[b[0]] = { email: b[0], account_id: b[1], role: b[2], status: 'active' }; }
+      },
     }; }, };
   }, async batch(stmts) {
     const claim = stmts[0].args;
