@@ -7,7 +7,7 @@ db.execute('CREATE TABLE memberships(email TEXT PRIMARY KEY, account_id TEXT, ro
 db.executemany('INSERT INTO memberships VALUES(?,?,?,?)', [('a','x','admin','active'),('b','x','member','active'),('o','x','owner','active'),('z','y','owner','active')])
 def sql(name):
     source = (root / ('functions/api/account/member-'+name+'.js')).read_text()
-    return re.search(r'prepare\("((?:UPDATE|DELETE) memberships .*?)"\)',source).group(1)
+    return re.search(r'prepare\("((?:UPDATE|DELETE FROM) memberships .*?)"\)',source).group(1)
 update, delete = sql('role'), sql('remove')
 assert db.execute(update, ('admin','b','x','member','a','x','admin')).rowcount == 0
 assert db.execute(update, ('admin','b','x','member','o','x','admin')).rowcount == 1
