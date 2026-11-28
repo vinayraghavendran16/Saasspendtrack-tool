@@ -1,7 +1,7 @@
 // GET /api/cron/tick?token=CRON_SECRET
 // Idempotent cadence runner. Call it hourly (Cloudflare cron worker or any
 // scheduler). Durable claims suppress repeat provider attempts; acceptance is not inbox delivery.
-import { json, unauthorized, now, DAY, safeEqual } from '../../_shared/util.js';
+import { json, unauthorized, now, DAY, safeEqual, normalizeEmail } from '../../_shared/util.js';
 import { claimTrialDelivery, finishTrialDelivery } from '../../_shared/trial-delivery-claims.js';
 import { sendEmail, nudgeEmail, expiredEmail } from '../../_shared/email.js';
 
@@ -14,6 +14,7 @@ export async function onRequestGet({ request, env }) {
   const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
   const payUrl = `${appUrl}/#pricing`;
   const t = now();
+  const ownerEmail = normalizeEmail(env.PLATFORM_OWNER_EMAIL) ?? '';
   const sent = { day2: 0, day4: 0, day6: 0, expired: 0 };
   async function deliver(email,kind,m){
     const id=await claimTrialDelivery(env.DB,email,kind,now());
@@ -29,11 +30,12 @@ export async function onRequestGet({ request, env }) {
   // Users still on a trial track (cap the batch so a run stays quick).
   const { results = [] } = await env.DB.prepare(
     cadenceEnabled
-      ? "SELECT * FROM users WHERE paid_at IS NULL AND (status='trial' OR (status='expired' AND NOT EXISTS(SELECT 1 FROM email_log l WHERE l.email=users.email AND l.kind='expired') AND NOT EXISTS(SELECT 1 FROM trial_delivery_claims c WHERE c.email=users.email AND c.kind='expired'))) ORDER BY CASE WHEN status='trial' THEN 0 ELSE 1 END, trial_ends_at, email LIMIT 500"
-      : "SELECT * FROM users WHERE status='trial' AND paid_at IS NULL AND trial_ends_at<=? ORDER BY trial_ends_at,email LIMIT 500",
-  ).bind(...(cadenceEnabled?[]:[t])).all();
+      ? "SELECT * FROM users WHERE lower(trim(email))<>? AND paid_at IS NULL AND (status='trial' OR (status='expired' AND NOT EXISTS(SELECT 1 FROM email_log l WHERE l.email=users.email AND l.kind='expired') AND NOT EXISTS(SELECT 1 FROM trial_delivery_claims c WHERE c.email=users.email AND c.kind='expired'))) ORDER BY CASE WHEN status='trial' THEN 0 ELSE 1 END, trial_ends_at, email LIMIT 500"
+      : "SELECT * FROM users WHERE lower(trim(email))<>? AND status='trial' AND paid_at IS NULL AND trial_ends_at<=? ORDER BY trial_ends_at,email LIMIT 500",
+  ).bind(ownerEmail, ...(cadenceEnabled ? [] : [t])).all();
 
   for (const u of results) {
+    if (normalizeEmail(u.email) === ownerEmail) continue;
     const logged = new Set(
       ((await env.DB.prepare('SELECT kind FROM email_log WHERE email=?').bind(u.email).all())
         .results || []).map((r) => r.kind),

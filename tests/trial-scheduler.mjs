@@ -22,5 +22,12 @@ try{
  globalThis.fetch=async()=>{sends++;throw Error('network failure')};
  assert.equal((await tick()).status,200);assert.equal(review,true);
  assert.equal((await tick()).status,200);assert.equal(sends,2);
+ env.PLATFORM_OWNER_EMAIL=' TEST@EXAMPLE.TEST ';
+ claimed=false;
+ user.trial_ends_at=t-day;
+ assert.equal((await tick()).status,200);
+ assert.equal(sends,2);
+ assert.equal(claimed,false);
+ assert.equal(user.status,'trial');
 }finally{globalThis.fetch=original}
 console.log('PASS: scheduler disabled, accepted and ambiguous delivery paths');

@@ -5,7 +5,7 @@ import { authAppUrl } from '../../_shared/auth-url.js';
 // Sends a single-use magic-link invite. On hitting the cap, alerts the operator.
 import {
   json, badRequest, normalizeEmail, randomToken, sha256Hex, now, DAY,
-  rateLimit, requireRole, getMembership, countAccountMembers, countPendingInvites, MAX_MEMBERS,
+  rateLimit, requireRole, getMembership, countAccountMembers, countPendingInvites, workspaceMemberCap,
 } from '../../_shared/util.js';
 import { sendEmail, inviteEmail, memberCapEmail } from '../../_shared/email.js';
 
@@ -37,12 +37,14 @@ export async function onRequestPost({ request, env }) {
   }
 
   // 50-member cap: active members + pending invites.
-  const used = (await countAccountMembers(env, accountId)) + (await countPendingInvites(env, accountId));
-  if (used >= MAX_MEMBERS) {
+  const memberLimit = await workspaceMemberCap(env, accountId);
+  const used = memberLimit === null ? 0 :
+    await countAccountMembers(env, accountId) + await countPendingInvites(env, accountId);
+  if (memberLimit !== null && used >= memberLimit) {
     const notify = (env.ADMIN_EMAILS || '').split(',').map((s) => s.trim()).filter(Boolean)[0];
     const cap = memberCapEmail(accountId, user.email);
     try { if (notify) await sendEmail(env, { to: notify, subject: cap.subject, html: cap.html }); } catch (_) {}
-    return json({ ok: false, error: 'member_cap', message: `This workspace is at the ${MAX_MEMBERS}-member limit. Contact us to raise it.` }, 403);
+    return json({ ok: false, error: 'member_cap', message: `This workspace is at the ${memberLimit}-member limit. Contact us to raise it.` }, 403);
   }
 
   const token = randomToken(32);
@@ -58,9 +60,9 @@ export async function onRequestPost({ request, env }) {
          + (SELECT COUNT(*) FROM invites WHERE account_id=? AND used=0 AND expires_at>?) < ?
      RETURNING token_hash`,
   ).bind(tokenHash, accountId, email, role, user.email, t + 7 * DAY, t,
-    accountId, accountId, t, MAX_MEMBERS).first();
+    accountId, accountId, t, memberLimit ?? Number.MAX_SAFE_INTEGER).first();
   if (!inserted) {
-    return json({ ok: false, error: 'member_cap', message: `This workspace is at the ${MAX_MEMBERS}-member limit. Contact us to raise it.` }, 403);
+    return json({ ok: false, error: 'member_cap', message: 'This workspace has no available seats. Contact us to raise the limit.' }, 403);
   }
 
   const appUrl = authAppUrl(request, env);

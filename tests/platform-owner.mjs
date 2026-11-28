@@ -46,3 +46,26 @@ assert.match(html, /me\.platformOwner !== true/);
 const ignore = readFileSync(new URL('../.assetsignore',import.meta.url),'utf8');
 for (const entry of ['extensions*.js','index.src.html','functions/','tests/','docs/']) assert.ok(ignore.split(/\r?\n/).includes(entry));
 console.log('Platform owner authorization and static source regression checks passed');
+
+ 
+// Owner entitlement is independent of payment records and trial expiry.
+const { resolveEntitlement, resolveWorkspaceEntitlement } = await import('../functions/_shared/util.js');
+const expiredOwner = {email:owner,status:'expired',trial_ends_at:1};
+const noDb = {PLATFORM_OWNER_EMAIL:owner,DB:{prepare(){throw new Error('Owner entitlement must not query or mutate billing');}}};
+for (const status of ['trial','expired','active']) {
+  const ent = await resolveEntitlement(noDb,{...expiredOwner,status});
+  assert.equal(ent.entitled,true);
+  assert.equal(ent.plan,'platform_owner');
+  assert.equal(ent.trialEndsAt,null);
+  assert.equal(ent.paidUntil,null);
+}
+for (const configured of ['', 'invalid', customer]) {
+  const ent = await resolveEntitlement({...noDb,PLATFORM_OWNER_EMAIL:configured},expiredOwner);
+  assert.equal(ent.entitled,false);
+}
+assert.equal(await resolveEntitlement(noDb,null),null);
+assert.equal((await resolveEntitlement(noDb,{...expiredOwner,email:customer})).entitled,false);
+const ctx = {ownerEmail:owner,membership:{status:'active',role:'owner'}};
+assert.equal((await resolveWorkspaceEntitlement(noDb,expiredOwner,ctx)).entitled,true);
+assert.equal(await resolveWorkspaceEntitlement(noDb,expiredOwner,{...ctx,membership:{status:'removed'}}),null);
+console.log('Platform owner lifetime entitlement regression checks passed');

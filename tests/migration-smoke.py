@@ -68,13 +68,13 @@ def add_invite(token_hash, email, account_id="account-1"):
                  (token_hash, account_id, email, "member", "owner@example.com", 100000, ts))
     conn.commit()
 
-def claim_invite(token_hash, email, sid, account_id="account-1"):
+def claim_invite(token_hash, email, sid, account_id="account-1", member_cap=50):
     args = [
         (token_hash, ts),
         (sid, email, ts, 100000),
         (email, ts, 100000, "active", None),
         (email, account_id, "member", "owner@example.com", ts,
-         account_id, 50, email, account_id),
+         account_id, member_cap, email, account_id),
         (email, account_id, sid),
     ]
     with conn:
@@ -138,7 +138,9 @@ else:
 assert conn.execute("SELECT used FROM invites WHERE token_hash='invite-cap'").fetchone() == (0,)
 assert conn.execute("SELECT COUNT(*) FROM memberships WHERE account_id='account-1' AND status='active'").fetchone() == (50,)
 assert conn.execute("SELECT COUNT(*) FROM sessions WHERE id='overcap-session'").fetchone() == (0,)
-print("PASS: invitation SQL transaction, replay prevention, workspace isolation and seat cap")
+assert claim_invite("invite-cap", "overcap@example.com", "owner-exempt-session", member_cap=2**53-1)[0] == [("invite-cap",)]
+assert conn.execute("SELECT COUNT(*) FROM memberships WHERE account_id='account-1' AND status='active'").fetchone() == (51,)
+print("PASS: invitation SQL transaction, replay prevention, workspace isolation and owner-scoped seat cap")
 
 # Analytics schema: isolated real SQLite, repeatable migration, constraints.
 usage_db = sqlite3.connect(":memory:")
@@ -200,7 +202,7 @@ def snapshot(db, columns):
 columns = {t:[r[1] for r in legacy.execute("PRAGMA table_info("+t+")")] for t in tables}
 before = snapshot(legacy,columns)
 files = sorted((root / "migrations").glob("*.sql"))
-assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,28)]
+assert [p.name[:3] for p in files] == [f"{i:03d}" for i in range(1,28)] + ["033"]
 for migration in files:
     legacy.executescript(migration.read_text())
     assert snapshot(legacy,columns)==before, migration.name+" changed legacy data"
@@ -208,7 +210,7 @@ for migration in files:
     assert not legacy.execute("PRAGMA foreign_key_check").fetchall()
 assert legacy.execute("SELECT DISTINCT version FROM app_data").fetchall()==[(1,)]
 assert legacy.execute("SELECT COUNT(*) FROM workspace_ai_settings").fetchone()==(0,)
-print("PASS: full 001–027 synthetic migration chain, exact legacy columns and rows, native currencies, integrity and default-deny AI")
+print("PASS: trial-only migrations 001–027 and 033, exact legacy columns and rows, native currencies, integrity and default-deny AI")
 
 
 # Offline recovery drill: actual SQLite backup API, isolated temporary files.

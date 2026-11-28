@@ -6,7 +6,7 @@ import { authAppUrl } from '../../_shared/auth-url.js';
 // issued unless both the membership and token redemption were committed.
 import {
   sha256Hex, randomToken, now, SESSION_DAYS, sessionCookie,
-  normalizeEmail, countAccountMembers, MAX_MEMBERS,
+  normalizeEmail, countAccountMembers, workspaceMemberCap,
 } from '../../_shared/util.js';
 
 function redirect(location, cookie) {
@@ -33,9 +33,10 @@ export async function onRequestGet({ request, env }) {
   if (existing && existing.account_id !== inv.account_id) return redirect(`${appUrl}/?invite=other_account`);
   if (existing && existing.role === 'owner') return redirect(`${appUrl}/?invite=invalid`);
   // Suspended members being reactivated consume a seat, unlike active members.
-  if (!existing || existing.status !== 'active') {
+  const memberLimit = await workspaceMemberCap(env, inv.account_id);
+  if (memberLimit !== null && (!existing || existing.status !== 'active')) {
     const count = await countAccountMembers(env, inv.account_id);
-    if (count >= MAX_MEMBERS) return redirect(`${appUrl}/?invite=full`);
+    if (count >= memberLimit) return redirect(`${appUrl}/?invite=full`);
   }
 
   // Never fabricate a fresh trial if an invited account has no valid owner.
@@ -74,7 +75,7 @@ export async function onRequestGet({ request, env }) {
            role=excluded.role, status='active'
          WHERE memberships.account_id=excluded.account_id AND memberships.role!='owner'`,
       ).bind(email, inv.account_id, inv.role, inv.invited_by, t,
-        inv.account_id, MAX_MEMBERS, email, inv.account_id),
+        inv.account_id, memberLimit ?? Number.MAX_SAFE_INTEGER, email, inv.account_id),
       env.DB.prepare(
         `UPDATE sessions SET expires_at=CASE WHEN EXISTS (
            SELECT 1 FROM memberships WHERE email=? AND account_id=? AND status='active'
