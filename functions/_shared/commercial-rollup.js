@@ -2,7 +2,7 @@ export function rollup(lines){
  const groups=new Map();
  for(const l of lines){
   if(!['monthly','annual'].includes(l.billing_period))continue;
-  if(!/^\d{1,9}(\.\d{1,6})?$/.test(l.quantity_decimal)||!Number.isSafeInteger(l.unit_price_minor)||l.unit_price_minor<0)throw Error('invalid line');
+  if(typeof l.quantity_decimal!=='string'||typeof l.currency!=='string'||! /^[A-Z]{3}$/.test(l.currency)||!/^\d{1,9}(\.\d{1,6})?$/.test(l.quantity_decimal)||!Number.isSafeInteger(l.unit_price_minor)||l.unit_price_minor<0)throw Error('invalid line');
   const [whole,fraction='']=l.quantity_decimal.split('.');
   const scaled=BigInt(whole)*1000000n+BigInt(fraction.padEnd(6,'0'));
   const annual=scaled*BigInt(l.unit_price_minor)*(l.billing_period==='monthly'?12n:1n);

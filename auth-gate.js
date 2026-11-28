@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  var ANNUAL_PLANS_URL = 'https://saasspendtrack.com/pricing/';
+  var SUPPORT_URL = 'mailto:hello@saasspendtrack.com?subject=Annual%20plan%20availability';
 
   function el(html) {
     var d = document.createElement('div');
@@ -69,9 +69,9 @@
     var gate = el('<div class="sst-gate" id="sst-gate" role="dialog" aria-modal="true" aria-labelledby="sst-paywall-title"><div class="sst-gate__card">' +
       '<div class="sst-gate__logo">SaaS Spend Track</div>' +
       '<h2 id="sst-paywall-title">Your trial has ended</h2>' +
-      '<p>Your access is paused but your data is safe. Upgrade to unlock your dashboard again.</p>' +
-      '<a class="sst-btn" href="' + ANNUAL_PLANS_URL + '" target="_blank" rel="noopener">View upgrade plans</a>' +
-      '<button class="sst-btn sst-btn--ghost" id="sst-paid">I’ve paid - refresh my access</button>' +
+      '<p>Your access is paused but your data is safe. Paid checkout is temporarily unavailable. Contact us for plan availability.</p>' +
+      '<a class="sst-btn" href="' + SUPPORT_URL + '" target="_blank" rel="noopener">Contact us about annual plans</a>' +
+      '<button class="sst-btn sst-btn--ghost" id="sst-paid">Refresh my access</button>' +
       '<div class="sst-gate__foot"><a href="#" id="sst-logout">Sign out</a></div>' +
       '</div></div>');
     document.body.appendChild(gate);
@@ -92,7 +92,7 @@
       : '<strong>' + daysLeft + ' days</strong> left in your trial';
     var banner = el('<div class="sst-banner' + (warn ? ' sst-banner--warn' : '') + '" id="sst-banner" role="status">' +
       '<span>' + label + '</span>' +
-      '<a href="#pricing" id="sst-upgrade">Upgrade now</a>' +
+      '<a href="' + SUPPORT_URL + '" id="sst-upgrade">Ask about annual plans</a>' +
       '<button class="sst-banner__x" id="sst-banner-x" title="Dismiss" aria-label="Dismiss trial banner">×</button>' +
       '</div>');
     document.body.insertBefore(banner, document.body.firstChild);

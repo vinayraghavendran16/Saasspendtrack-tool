@@ -89,7 +89,7 @@ export async function resolveEntitlement(env, user) {
   let status = user.status;
   if (status === 'trial' && t >= user.trial_ends_at) {
     status = 'expired';
-    await env.DB.prepare('UPDATE users SET status=? WHERE email=?').bind('expired', user.email).run();
+    await env.DB.prepare("UPDATE users SET status=? WHERE email=? AND status='trial' AND paid_at IS NULL AND trial_ends_at<=?").bind('expired', user.email,t).run();
   }
   // Existing paid customers without a reconciled ledger retain legacy access.
   // New ledger-backed payments expire at their recorded entitlement boundary.
@@ -128,6 +128,7 @@ export function isAdmin(env, email) {
 export async function rateLimit(env, key, limit, windowMs, { failClosed = false } = {}) {
   const t = now();
   const threshold = t - windowMs;
+  if (typeof key !== 'string' || !key || !Number.isSafeInteger(limit) || limit < 1 || !Number.isSafeInteger(windowMs) || windowMs < 1) return {ok:false,count:0,limit,unavailable:true};
   try {
     const row = await env.DB.prepare(
       `INSERT INTO rate_limits (rl_key, count, window_start) VALUES (?1, 1, ?2)
@@ -252,7 +253,7 @@ export const MAX_MEMBERS = 50;
 
 // True if `role` meets or exceeds `min` in the hierarchy.
 export function roleAtLeast(role, min) {
-  return (ROLE_RANK[role] || 0) >= (ROLE_RANK[min] || 99);
+  return Object.hasOwn(ROLE_RANK, role) && Object.hasOwn(ROLE_RANK, min) && ROLE_RANK[role] >= ROLE_RANK[min];
 }
 
 // Membership row for an email, or null.
