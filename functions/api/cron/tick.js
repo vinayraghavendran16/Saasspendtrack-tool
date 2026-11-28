@@ -2,6 +2,7 @@
 // Idempotent cadence runner. Call it hourly (Cloudflare cron worker or any
 // scheduler). Each email kind is sent at most once per user via email_log.
 import { json, unauthorized, now, DAY, safeEqual } from '../../_shared/util.js';
+import { claimTrialDelivery, finishTrialDelivery } from '../../_shared/trial-delivery-claims.js';
 import { sendEmail, nudgeEmail, expiredEmail } from '../../_shared/email.js';
 
 export async function onRequestGet({ request, env }) {
@@ -14,6 +15,16 @@ export async function onRequestGet({ request, env }) {
   const payUrl = `${appUrl}/#pricing`;
   const t = now();
   const sent = { day2: 0, day4: 0, day6: 0, expired: 0 };
+  async function deliver(email,kind,m){
+    const id=await claimTrialDelivery(env.DB,email,kind,now());
+    if(!id)return;
+    const outcome=await sendEmail(env,{to:email,subject:m.subject,html:m.html});
+    if(!await finishTrialDelivery(env.DB,email,kind,id,outcome.ok===true,now()))throw Error('delivery_claim_changed');
+    if(outcome.ok===true){
+      await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)').bind(email,kind,now()).run();
+      sent[kind]++;
+    }
+  }
 
   // Users still on a trial track (cap the batch so a run stays quick).
   const { results = [] } = await env.DB.prepare(
@@ -33,11 +44,7 @@ export async function onRequestGet({ request, env }) {
       }
       if (cadenceEnabled && !logged.has('expired')) {
         const m = expiredEmail(payUrl);
-        if ((await sendEmail(env, { to: u.email, subject: m.subject, html: m.html })).ok) {
-          await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
-            .bind(u.email, 'expired', t).run();
-          sent.expired++;
-        }
+        await deliver(u.email,'expired',m);
       }
       continue;
     }
@@ -53,11 +60,7 @@ export async function onRequestGet({ request, env }) {
     if (!kind || !cadenceEnabled) continue;
 
     const m = nudgeEmail(kind, payUrl, appUrl);
-    if ((await sendEmail(env, { to: u.email, subject: m.subject, html: m.html })).ok) {
-      await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
-        .bind(u.email, kind, t).run();
-      sent[kind]++;
-    }
+    await deliver(u.email,kind,m);
   }
 
   // Bound deletion work per tick. Missing analytics schema must not interrupt mail.
