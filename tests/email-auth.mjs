@@ -18,6 +18,17 @@ assert.equal(authAppUrl(new Request('https://bad..saasspendtrack-preview-us.page
 assert.equal(authAppUrl(new Request('http://b344120a.saasspendtrack-preview-us.pages.dev/api/auth/request'), { APP_URL: 'https://configured.example/' }), 'https://configured.example');
 assert.equal(authAppUrl(new Request('https://saasspendtrack.pages.dev/api/auth/request'), {}), 'https://app.saasspendtrack.com');
 
+const { recordEmailHealth } = await import('../functions/_shared/email-health.js');
+const points = [];
+const healthEnv = { EMAIL_HEALTH: { writeDataPoint: point => points.push(point) } };
+assert.equal(recordEmailHealth(healthEnv,'resend','accepted'),true);
+assert.deepEqual(points,[{indexes:['resend'],blobs:['resend','accepted'],doubles:[1]}]);
+assert.equal(recordEmailHealth(healthEnv,'recipient@example.com','accepted'),false);
+assert.equal(recordEmailHealth(healthEnv,'resend','private-link-token'),false);
+assert.equal(recordEmailHealth({},'resend','accepted'),false);
+assert.equal(recordEmailHealth({EMAIL_HEALTH:{writeDataPoint(){throw new Error('private-link-token');}}},'resend','accepted'),false);
+assert.equal(points.length,1);
+
 const originalFetch = globalThis.fetch;
 const originalError = console.error;
 const originalInfo = console.info;
@@ -59,6 +70,16 @@ try {
   const payload = JSON.parse(calls.at(-1).options.body);
   assert.deepEqual(payload.from, { address: 'sender@example.com', name: 'Preview' });
   assert.deepEqual(payload.reply_to, [{ address: 'reply@example.com', name: 'Preview' }]);
+  // Misconfigured endpoints must never receive credentials or authentication links.
+  const beforeInvalidEndpoints = calls.length;
+  for (const url of ['http://api.zeptomail.in/v1.1/email', 'https://api.zeptomail.in.attacker.example/v1.1/email', 'https://api.zeptomail.in/v1.1/email?unexpected=1', 'https://attacker.example/v1.1/email']) {
+    assert.deepEqual(await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret', ZEPTOMAIL_URL: url }, mail), { ok: false, error: 'invalid_provider_endpoint' });
+  }
+  assert.equal(calls.length, beforeInvalidEndpoints);
+  for (const url of ['https://cpaas.zoho.in/v1.1/email', 'https://cpaas.zoho.com/v1.1/email']) {
+    assert.deepEqual(await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret', ZEPTOMAIL_URL: url }, mail), { ok: true });
+    assert.equal(calls.at(-1).url, url);
+  }
   for (const status of [401, 403, 429, 500]) {
     globalThis.fetch = async () => new Response('test-secret recipient@example.com private-link-token', { status });
     assert.deepEqual(await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret' }, mail), { ok: false, error: 'provider_rejected', status });
@@ -77,6 +98,40 @@ try {
     globalThis.fetch = async () => { throw error; };
     assert.equal((await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret' }, mail)).error, error.name === 'TimeoutError' ? 'timeout' : 'transport_error');
   }
+  // Explicit provider selection: never fall back to another provider.
+  const resendEnv = { EMAIL_PROVIDER: 'resend', RESEND_API_KEY: 'test-secret', ZEPTOMAIL_TOKEN: 'unused-secret' };
+  let resendCalls = [];
+  globalThis.fetch = async (url, options) => { resendCalls.push({url, options}); return new Response('{}', {status: 202}); };
+  assert.deepEqual(await sendEmail(resendEnv, mail), {ok: true});
+  assert.equal(resendCalls[0].url, 'https://api.resend.com/emails');
+  assert.equal(resendCalls[0].options.headers.Authorization, 'Bearer test-secret');
+  assert.equal(resendCalls[0].options.redirect, 'manual');
+  assert.ok(resendCalls[0].options.signal instanceof AbortSignal);
+  assert.deepEqual(JSON.parse(resendCalls[0].options.body), {from: 'hello@saasspendtrack.com', to: [mail.to], reply_to: 'hello@saasspendtrack.com', subject: mail.subject, html: mail.html});
+  for (const env of [{EMAIL_PROVIDER:'resend'}, {EMAIL_PROVIDER:'resend', RESEND_API_KEY:'bad key'}, {EMAIL_PROVIDER:'unknown'}]) {
+    assert.equal((await sendEmail(env, mail)).ok, false);
+  }
+  assert.equal(resendCalls.length, 1);
+  for (const status of [302, 401, 429, 500]) {
+    let attempts = 0;
+    globalThis.fetch = async () => { attempts++; return new Response('test-secret private-link-token', {status}); };
+    assert.deepEqual(await sendEmail(resendEnv, mail), {ok:false, error:status===302?'provider_redirect':'provider_rejected', status});
+    assert.equal(attempts, 1);
+  }
+  for (const error of [new DOMException('test-secret','TimeoutError'), new Error('private-link-token')]) {
+    let attempts = 0;
+    globalThis.fetch = async () => { attempts++; throw error; };
+    assert.equal((await sendEmail(resendEnv, mail)).error, error.name==='TimeoutError'?'timeout':'transport_error');
+    assert.equal(attempts, 1);
+  }
+  const health = logs.filter(([name]) => name === 'email_provider_health').map(([,data]) => data);
+  for (const provider of ['zeptomail','resend']) {
+    for (const outcome of ['accepted','provider_rejected','timeout','transport_error','provider_redirect']) {
+      assert.ok(health.some(x => x.provider === provider && x.outcome === outcome), provider + ':' + outcome);
+    }
+  }
+  assert.ok(health.some(x => x.provider === 'invalid' && x.outcome === 'invalid_email_provider'));
+  for (const event of health) assert.deepEqual(Object.keys(event).sort(), ['outcome','provider']);
   assert.doesNotMatch(JSON.stringify(logs), /test-secret|recipient@example.com|private-link-token/);
 
   // Exercise the actual auth handler with a D1 stub, including its hashed token.

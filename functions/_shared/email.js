@@ -1,3 +1,4 @@
+import { recordEmailHealth } from './email-health.js';
 // Zoho ZeptoMail transactional send + the trial email templates.
 // Copy is adapted from Vinay's Apps Script drip, reframed for the 7-day gated
 // trial (access pauses after day 7; data is preserved and returns on payment).
@@ -12,7 +13,47 @@ function mailFailure(error, status, diagnostic = {}) {
   return result;
 }
 
-export async function sendEmail(env, { to, subject, html }) {
+async function sendResend(env, { to, subject, html }) {
+  const fail = (error, status) => {
+    const result = { ok: false, error, ...(status ? { status } : {}) };
+    console.error('Resend send failed', result);
+    return result;
+  };
+  const token = typeof env.RESEND_API_KEY === 'string' ? env.RESEND_API_KEY.trim() : '';
+  if (!token || /\s/.test(token)) return fail('invalid_token_format');
+  const from = (env.FROM_EMAIL || 'hello@saasspendtrack.com').trim();
+  const replyTo = (env.REPLY_TO || from).trim();
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(10000),
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ from, to: [to], reply_to: replyTo, subject, html }),
+    });
+    if (res.body) await res.body.cancel().catch(() => {});
+    if (res.status >= 300 && res.status < 400) return fail('provider_redirect', res.status);
+    if (!res.ok) return fail('provider_rejected', res.status);
+    return { ok: true };
+  } catch (error) {
+    return fail(error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'timeout' : 'transport_error');
+  }
+}
+
+export async function sendEmail(env, message) {
+  const configured = env.EMAIL_PROVIDER || 'zeptomail';
+  const provider = ['zeptomail', 'resend'].includes(configured) ? configured : 'invalid';
+  const result = await sendEmailInternal(env, message);
+  const knownErrors = ['no_token','invalid_token_format','invalid_provider_endpoint','invalid_email_provider','provider_redirect','provider_rejected','timeout','redirect_rejected','timeout_unsupported','transport_error'];
+  const outcome = result.ok === true ? 'accepted' : knownErrors.includes(result.error) ? result.error : 'unknown_failure';
+  // Fixed dimensions only; never include recipients, credentials or message data.
+  console.info('email_provider_health', { provider, outcome });
+  recordEmailHealth(env, provider, outcome);
+  return result;
+}
+
+async function sendEmailInternal(env, { to, subject, html }) {
+  const provider = env.EMAIL_PROVIDER || 'zeptomail';
+  if (provider === 'resend') return sendResend(env, { to, subject, html });
+  if (provider !== 'zeptomail') return { ok: false, error: 'invalid_email_provider' };
   const rawToken = typeof env.ZEPTOMAIL_TOKEN === 'string' ? env.ZEPTOMAIL_TOKEN.trim() : '';
   if (!rawToken) return mailFailure('no_token');
   const token = rawToken.replace(/^Zoho-enczapikey\s+/i, '');
@@ -26,6 +67,14 @@ export async function sendEmail(env, { to, subject, html }) {
     });
   }
   const url = (env.ZEPTOMAIL_URL || 'https://api.zeptomail.in/v1.1/email').trim();
+  // Restrict credential-bearing requests to documented provider endpoints.
+  const allowedEndpoints = new Set([
+    'https://api.zeptomail.in/v1.1/email',
+    'https://api.zeptomail.com/v1.1/email',
+    'https://cpaas.zoho.in/v1.1/email',
+    'https://cpaas.zoho.com/v1.1/email',
+  ]);
+  if (!allowedEndpoints.has(url)) return mailFailure('invalid_provider_endpoint');
   const from = (env.FROM_EMAIL || 'hello@saasspendtrack.com').trim();
   const fromName = env.FROM_NAME || 'SaaS Spend Track';
   const replyTo = (env.REPLY_TO || from).trim();

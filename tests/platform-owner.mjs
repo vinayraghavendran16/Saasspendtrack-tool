@@ -69,3 +69,35 @@ const ctx = {ownerEmail:owner,membership:{status:'active',role:'owner'}};
 assert.equal((await resolveWorkspaceEntitlement(noDb,expiredOwner,ctx)).entitled,true);
 assert.equal(await resolveWorkspaceEntitlement(noDb,expiredOwner,{...ctx,membership:{status:'removed'}}),null);
 console.log('Platform owner lifetime entitlement regression checks passed');
+
+const {onRequestGet: emailHealth} = await import('../functions/api/admin/email-health.js');
+for (const [cookie,e,status] of [
+  ['',env(owner),401],
+  ['sst_session=invalid',env(owner),401],
+  ['sst_session='+validToken,env(customer),403],
+  ['sst_session='+validToken,env(owner,''),403],
+  ['sst_session='+validToken,env(owner),200],
+  ['sst_session='+validToken,{...env(owner),EMAIL_PROVIDER:'resend',EMAIL_HEALTH:{writeDataPoint(){}},RESEND_API_KEY:'private-secret'},200],
+  ['sst_session='+validToken,{...env(owner),EMAIL_PROVIDER:'private-secret'},200]
+]) {
+  const response = await emailHealth({request:req(cookie),env:e});
+  assert.equal(response.status,status);
+  assert.match(response.headers.get('cache-control'),/no-store/);
+  const body = await response.text();
+  assert.doesNotMatch(body,/private-secret/);
+  if(status===200) {
+    const data=JSON.parse(body);
+    assert.equal(data.metricsAvailable,false);
+    assert.equal(data.deliveryVerified,false);
+    assert.equal(data.provider,e.EMAIL_PROVIDER==='resend'?'resend':e.EMAIL_PROVIDER?'invalid':'zeptomail');
+    assert.equal(data.aggregationConfigured,Boolean(e.EMAIL_HEALTH));
+  }
+}
+
+const {summarizeEmailHealth} = await import('../functions/_shared/email-health-summary.js');
+assert.deepEqual(summarizeEmailHealth([]),[]);
+assert.deepEqual(summarizeEmailHealth([{provider:'resend',outcome:'accepted',count:8},{provider:'resend',outcome:'timeout',count:2}]),[{provider:'resend',attempts:10,accepted:8,failures:2,acceptanceRate:0.8,deliveryVerified:false}]);
+assert.equal(summarizeEmailHealth([{provider:'zeptomail',outcome:'accepted',count:0}])[0].acceptanceRate,null);
+for(const row of [{provider:'private@example.com',outcome:'accepted',count:1},{provider:'resend',outcome:'secret',count:1},{provider:'resend',outcome:'accepted',count:-1},{provider:'resend',outcome:'accepted',count:1.5}]) assert.throws(()=>summarizeEmailHealth([row]));
+assert.throws(()=>summarizeEmailHealth(Array(101).fill({provider:'resend',outcome:'accepted',count:1})));
+assert.throws(()=>summarizeEmailHealth([{provider:'resend',outcome:'accepted',count:Number.MAX_SAFE_INTEGER},{provider:'resend',outcome:'timeout',count:1}]));
