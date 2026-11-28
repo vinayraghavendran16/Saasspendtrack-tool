@@ -59,6 +59,16 @@ try {
   const payload = JSON.parse(calls.at(-1).options.body);
   assert.deepEqual(payload.from, { address: 'sender@example.com', name: 'Preview' });
   assert.deepEqual(payload.reply_to, [{ address: 'reply@example.com', name: 'Preview' }]);
+  // Misconfigured endpoints must never receive credentials or authentication links.
+  const beforeInvalidEndpoints = calls.length;
+  for (const url of ['http://api.zeptomail.in/v1.1/email', 'https://api.zeptomail.in.attacker.example/v1.1/email', 'https://api.zeptomail.in/v1.1/email?unexpected=1', 'https://attacker.example/v1.1/email']) {
+    assert.deepEqual(await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret', ZEPTOMAIL_URL: url }, mail), { ok: false, error: 'invalid_provider_endpoint' });
+  }
+  assert.equal(calls.length, beforeInvalidEndpoints);
+  for (const url of ['https://cpaas.zoho.in/v1.1/email', 'https://cpaas.zoho.com/v1.1/email']) {
+    assert.deepEqual(await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret', ZEPTOMAIL_URL: url }, mail), { ok: true });
+    assert.equal(calls.at(-1).url, url);
+  }
   for (const status of [401, 403, 429, 500]) {
     globalThis.fetch = async () => new Response('test-secret recipient@example.com private-link-token', { status });
     assert.deepEqual(await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret' }, mail), { ok: false, error: 'provider_rejected', status });
