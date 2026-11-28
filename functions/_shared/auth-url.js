@@ -11,6 +11,7 @@ export function authAppUrl(request, env) {
   const trustedPreviewHost = [
     '.saasspendtrack.pages.dev',
     '.saasspendtrack-preview-us.pages.dev',
+    '.saasspendtrack-checkout-sandbox.pages.dev',
   ].some((suffix) => hostname.endsWith(suffix) && hostname.length > suffix.length);
 
   if (url.protocol === 'https:' && !url.username && !url.password && !url.port
