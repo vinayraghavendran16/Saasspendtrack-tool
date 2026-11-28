@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {rollup} from '../functions/_shared/commercial-rollup.js';
+import {effectivePupm} from '../functions/_shared/pupm.js';
+const line={quantity_decimal:'1.25',unit_price_minor:100,billing_period:'monthly',currency:'USD'};
+const totals=rollup([line,{...line,currency:'EUR',billing_period:'annual'}]).filter(x=>x.dimension==='total');
+assert.equal(totals.find(x=>x.currency==='USD').annualMinorScaled,'1500000000');
+assert.equal(totals.find(x=>x.currency==='EUR').annualMinorScaled,'125000000');
+for(const currency of [null,['USD'],'usd','US']) assert.throws(()=>rollup([{...line,currency}]));
+assert.throws(()=>rollup([{...line,quantity_decimal:1.25}]));
+assert.equal(rollup([{...line,unit_price_minor:Number.MAX_SAFE_INTEGER}])[0].annualMinorScaled,String(BigInt(Number.MAX_SAFE_INTEGER)*15000000n));
+const seat={id:'1',unit:'seat',skuId:'sku',period:'2026',currency:'USD',netRecurringMinor:100,seatMonths:3};
+assert.equal(effectivePupm([seat])[0].denominatorSeatMonths,'3');
+assert.throws(()=>effectivePupm([{...seat,currency:['USD']}]));
+assert.throws(()=>effectivePupm([seat,seat]));
+console.log('PASS: financial boundaries and currency isolation');

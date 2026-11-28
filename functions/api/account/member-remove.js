@@ -26,8 +26,9 @@ export async function onRequestPost({ request, env }) {
   }
 
   try {
-    await env.DB.prepare('DELETE FROM memberships WHERE email=? AND account_id=?')
-      .bind(email, membership.account_id).run();
+    const result = await env.DB.prepare("DELETE FROM memberships WHERE email=? AND account_id=? AND role=? AND role<>'owner' AND EXISTS (SELECT 1 FROM memberships actor WHERE actor.email=? AND actor.account_id=? AND actor.status='active' AND (actor.role='owner' OR (actor.role='admin' AND memberships.role='member')))")
+      .bind(email, membership.account_id, target.role, normalizeEmail(user.email), membership.account_id).run();
+    if (result.meta?.changes !== 1) return json({error:'membership_changed'},409);
   } catch (err) {
     console.error('member-remove failed', err && err.message);
     return json({ error: 'server', message: 'Could not remove the teammate. Please try again.' }, 500);

@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {authRetention} from '../functions/_shared/auth-retention.js';
+let queries=[];
+const DB={prepare(sql){queries.push(sql);return {bind(){return {first:async()=>({n:2}),run:async()=>({meta:{changes:2}})}}}}};
+assert.deepEqual(await authRetention({DB}),{mode:'disabled'});
+assert.equal(queries.length,0);
+const result=await authRetention({DB,AUTH_RETENTION_MODE:'dry-run'},{now:200000000});
+assert.deepEqual(result.counts,{login_tokens:2,sessions:2,rate_limits:2});
+assert.equal(queries.length,3);
+assert.ok(queries.every(q=>q.startsWith('SELECT COUNT')&&q.includes('LIMIT 500')));
+await assert.rejects(authRetention({DB,AUTH_RETENTION_MODE:'enabled'},{now:NaN}));
+console.log('PASS: retention disabled and dry-run boundaries');
