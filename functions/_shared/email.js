@@ -37,7 +37,18 @@ async function sendResend(env, { to, subject, html }) {
   }
 }
 
-export async function sendEmail(env, { to, subject, html }) {
+export async function sendEmail(env, message) {
+  const configured = env.EMAIL_PROVIDER || 'zeptomail';
+  const provider = ['zeptomail', 'resend'].includes(configured) ? configured : 'invalid';
+  const result = await sendEmailInternal(env, message);
+  const knownErrors = ['no_token','invalid_token_format','invalid_provider_endpoint','invalid_email_provider','provider_redirect','provider_rejected','timeout','redirect_rejected','timeout_unsupported','transport_error'];
+  const outcome = result.ok === true ? 'accepted' : knownErrors.includes(result.error) ? result.error : 'unknown_failure';
+  // Fixed dimensions only; never include recipients, credentials or message data.
+  console.info('email_provider_health', { provider, outcome });
+  return result;
+}
+
+async function sendEmailInternal(env, { to, subject, html }) {
   const provider = env.EMAIL_PROVIDER || 'zeptomail';
   if (provider === 'resend') return sendResend(env, { to, subject, html });
   if (provider !== 'zeptomail') return { ok: false, error: 'invalid_email_provider' };
