@@ -8,9 +8,9 @@ const server=http.createServer(async(req,res)=>{try{const name=new URL(req.url,'
   return;
 }if(!['/','/auth-gate.js','/sw.js','/app.js','/manifest.json'].includes(name)){res.statusCode=404;res.end();return;}const f=path.join(repo,name==='/'?'index.html':name);const data=await fs.readFile(f);res.setHeader('content-type',f.endsWith('.js')?'text/javascript':f.endsWith('.html')?'text/html':'application/octet-stream');res.end(data)}catch{res.statusCode=404;res.end()}});await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
 const engine=process.env.E2E_BROWSER||'chromium';const engines={chromium,firefox,webkit};assert.ok(Object.hasOwn(engines,engine),'Unsupported browser engine');const browser=await engines[engine].launch({...(process.env.PLAYWRIGHT_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH}:{}),headless:true,...(engine==='chromium'?{chromiumSandbox:true}:{})});const ctx=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});ctx.setDefaultTimeout(10000);
-let data={subscriptions:[{id:'local-cedar',name:'Synthetic Cedar Local',cost:1440,cycle:'yearly',renewal:'2026-12-26',active:true}],invoices:[],settings:{currency:'USD'}},version=1;const results=[];
+let data={subscriptions:[{id:'local-cedar',name:'Synthetic Cedar Local',cost:1440,cycle:'yearly',renewal:'2026-12-26',active:true}],invoices:[],settings:{currency:'USD'}},version=1;const results=[];let authFixture="trial";
 // Keep the attachment request outside Playwright routing so the browser handles it natively.
-await ctx.route(url=>url.href!==origin+'/api/ai/evidence',async route=>{const u=new URL(route.request().url());if(u.origin!==origin)return route.abort();if(!u.pathname.startsWith('/api/'))return route.continue();let body={},status=200;switch(u.pathname){case '/api/me':body={authenticated:true,entitled:true,status:'trial',email:'local@example.invalid',daysLeft:1,trialEndsAt:Date.now()+86400000,account:{id:'local-test',role:'owner',name:'Local Synthetic',isOwner:true}};break;case '/api/data':if(route.request().method()==='PUT'){assert.equal(route.request().headers()['if-match'],String(version));data=route.request().postDataJSON();version++;}body={data,version,workspaceId:'local-test'};break;case '/api/ai/consent':body={enabled:false,canEnable:false,canManage:true,canLock:true};break;case '/api/ai/audit':body={records:[]};break;case '/api/account/members':body={members:[],invites:[],role:'owner',canManage:true};break;default:body={};}await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});});
+await ctx.route(url=>url.href!==origin+'/api/ai/evidence',async route=>{const u=new URL(route.request().url());if(u.origin!==origin)return route.abort();if(!u.pathname.startsWith('/api/'))return route.continue();let body={},status=200;switch(u.pathname){case '/api/me':body=authFixture==='anonymous'?{authenticated:false}:{authenticated:true,entitled:true,status:authFixture==='owner'?'active':'trial',plan:authFixture==='owner'?'platform_owner':null,platformOwner:authFixture==='owner',email:'local@example.invalid',daysLeft:1,trialEndsAt:Date.now()+86400000,account:{id:'local-test',role:'owner',name:'Local Synthetic',isOwner:true}};break;case '/api/auth/oauth/providers':body={providers:['google','microsoft']};break;case '/api/data':if(route.request().method()==='PUT'){assert.equal(route.request().headers()['if-match'],String(version));data=route.request().postDataJSON();version++;}body={data,version,workspaceId:'local-test'};break;case '/api/ai/consent':body={enabled:false,canEnable:false,canManage:true,canLock:true};break;case '/api/ai/audit':body={records:[]};break;case '/api/account/members':body={members:[],invites:[],role:'owner',canManage:true};break;default:body={};}await route.fulfill({status,contentType:'application/json',body:JSON.stringify(body)});});
 const p=await ctx.newPage();async function test(name,fn){try{await fn();results.push({name,status:'passed'});console.log('PASS',name)}catch(e){results.push({name,status:'failed',error:e.message});console.error('FAIL',name,e.message)}await fs.writeFile(out+'/results.json',JSON.stringify(results,null,2))}
 await p.goto(origin+'/#subscriptions');await p.locator('#subscriptions').getByText('Synthetic Cedar Local',{exact:true}).filter({visible:true}).waitFor();
 await test('pointer save unobstructed by onboarding widget',async()=>{await p.getByRole('button',{name:/Add subscription/}).click();await p.locator('#f-name:focus').waitFor();await p.locator('#f-name').fill('Pointer Regression');await p.locator('#f-cost').fill('25');await Promise.all([p.waitForResponse(r=>r.url()===origin+'/api/data'&&r.request().method()==='PUT'),p.locator('#sub-form').getByRole('button',{name:'Save',exact:true}).click()]);await p.locator('#modal').waitFor({state:'hidden'});assert.ok(data.subscriptions.some(s=>s.name==='Pointer Regression'));await p.screenshot({path:out+'/pointer-save.png'});});
@@ -221,4 +221,25 @@ await test('250-subscription workspace loads and filters accurately',async()=>{
   await fs.writeFile(path.join(out,'large-workspace.json'),JSON.stringify(timings,null,2));
 });
 
+await test('owner lifetime badge and explicit OAuth connections',async()=>{
+  authFixture='owner';
+  await p.goto(origin+'/?fixture=owner#subscriptions');
+  await p.getByText('Platform Owner — Lifetime Access',{exact:true}).waitFor();
+  assert.equal(await p.locator('#sst-upgrade').count(),0);
+  assert.equal(await p.locator('[data-view="pricing"]:visible').count(),0);
+  const google=p.locator('#sst-connected-sign-in button').filter({hasText:'Connect Google'});
+  assert.equal(await google.evaluate(button=>button.form.method),'post');
+  assert.ok((await google.evaluate(button=>button.form.action)).endsWith('/api/auth/oauth/google/start'));
+});
+await test('Google, Microsoft and email choices on sign-in',async()=>{
+  authFixture='anonymous';
+  await p.reload();
+  await p.getByRole('button',{name:'Email me a sign-in link',exact:true}).waitFor();
+  for(const provider of ['Google','Microsoft']){
+    const button=p.getByRole('button',{name:'Continue with '+provider,exact:true});
+    await button.waitFor();
+    assert.equal(await button.evaluate(el=>el.form.method),'get');
+    assert.ok((await button.evaluate(el=>el.form.action)).endsWith('/api/auth/oauth/'+provider.toLowerCase()+'/start'));
+  }
+});
 await browser.close();server.close();process.exitCode=results.some(r=>r.status==='failed')?1:0;

@@ -91,7 +91,7 @@ export async function resolveEntitlement(env, user) {
       email: user.email,
       status: 'active',
       plan: 'platform_owner',
-      trialEndsAt: user.trial_ends_at,
+      trialEndsAt: null,
       paidUntil: null,
       daysLeft: 0,
       entitled: true,
@@ -262,6 +262,16 @@ export async function getUserFromSession(request, env) {
 // ===================================================================
 export const ROLE_RANK = { member: 1, admin: 2, owner: 3 };
 export const MAX_MEMBERS = 50;
+
+export async function workspaceMemberCap(env, accountId) {
+  const owner = normalizeEmail(env.PLATFORM_OWNER_EMAIL);
+  if (!owner) return MAX_MEMBERS;
+  const owned = await env.DB.prepare(`SELECT 1 FROM accounts a
+    JOIN memberships m ON m.account_id=a.id AND m.email=a.owner_email
+    WHERE a.id=? AND a.owner_email=? AND m.role='owner' AND m.status='active'`)
+    .bind(accountId, owner).first();
+  return owned ? null : MAX_MEMBERS;
+}
 
 // True if `role` meets or exceeds `min` in the hierarchy.
 export function roleAtLeast(role, min) {

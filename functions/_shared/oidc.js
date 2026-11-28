@@ -26,7 +26,7 @@ export async function validateIdToken(token, provider, clientId, nonce, fetcher=
   const t=Math.floor(clock()/1000);
   if(!Number.isSafeInteger(claims.exp)||claims.exp<=t||!Number.isSafeInteger(claims.iat)||claims.iat>t+60||claims.iat<t-900||(claims.nbf!==undefined&&(!Number.isSafeInteger(claims.nbf)||claims.nbf>t+60))) throw new Error('invalid_time');
   if(claims.nonce!==nonce || typeof claims.sub!=='string'||!claims.sub||claims.sub.length>255) throw new Error('invalid_identity');
-  const response=await fetcher(keysUrl,{redirect:'error',headers:{accept:'application/json'}});
+  const response=await fetcher(keysUrl,{redirect:'manual',signal:AbortSignal.timeout(10000),headers:{accept:'application/json'}});
   if(!response.ok) throw new Error('keys_unavailable');
   const jwks=await response.json();
   const matches=(jwks.keys||[]).filter(k=>k.kid===header.kid&&k.kty==='RSA'&&(!k.use||k.use==='sig')&&(!k.alg||k.alg==='RS256')&&(!k.issuer||k.issuer.replace('{tenantid}',claims.tid)===issuer));

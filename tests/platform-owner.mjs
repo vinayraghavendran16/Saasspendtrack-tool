@@ -56,6 +56,7 @@ for (const status of ['trial','expired','active']) {
   const ent = await resolveEntitlement(noDb,{...expiredOwner,status});
   assert.equal(ent.entitled,true);
   assert.equal(ent.plan,'platform_owner');
+  assert.equal(ent.trialEndsAt,null);
   assert.equal(ent.paidUntil,null);
 }
 for (const configured of ['', 'invalid', customer]) {

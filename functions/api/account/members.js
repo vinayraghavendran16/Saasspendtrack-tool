@@ -1,7 +1,7 @@
 // GET /api/account/members
 // Lists the members of the signed-in user's account. Any member sees the roster;
 // owners/admins also see pending invites. Read-only (Phase 5 adds mutate actions).
-import { json, requireRole, MAX_MEMBERS, normalizeEmail } from '../../_shared/util.js';
+import { json, requireRole, MAX_MEMBERS, normalizeEmail, workspaceMemberCap } from '../../_shared/util.js';
 
 export async function onRequestGet({ request, env }) {
   const gate = await requireRole(request, env, 'member');
@@ -39,7 +39,7 @@ export async function onRequestGet({ request, env }) {
     members,
     invites,
     count: members.length,
-    cap: MAX_MEMBERS,
+    cap: await workspaceMemberCap(env, accountId),
     role: membership.role,
     canManage: isManager,
     self: normalizeEmail(user && user.email),

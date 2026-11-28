@@ -9,6 +9,7 @@ import {
   sha256Hex, randomToken, now, DAY, SESSION_DAYS, sessionCookie,
 } from '../../_shared/util.js';
 import { sendEmail, welcomeEmail } from '../../_shared/email.js';
+import { isPlatformOwner } from '../../_shared/platform-owner.js';
 
 function redirect(location, cookie) {
   const headers = { Location: location, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' };
@@ -49,7 +50,7 @@ export async function onRequestGet({ request, env }) {
   } catch (_) { console.warn('Login analytics unavailable'); }
 
   // Welcome email, once, on first successful sign-in (best-effort).
-  const welcomed = await env.DB.prepare('SELECT 1 FROM email_log WHERE email=? AND kind=?')
+  const welcomed = isPlatformOwner(env, row) || await env.DB.prepare('SELECT 1 FROM email_log WHERE email=? AND kind=?')
     .bind(row.email, 'welcome').first();
   if (!welcomed) {
     const w = welcomeEmail('', appUrl);
