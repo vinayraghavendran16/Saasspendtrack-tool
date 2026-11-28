@@ -5,7 +5,7 @@ const original=globalThis.fetch;
 globalThis.fetch=async()=>{sends++;return new Response('{}',{status:200})};
 const t=Date.now(),day=86400000;
 const user={email:'test@example.test',status:'trial',created_at:t-6*day,trial_ends_at:t+day/2};
-const DB={prepare(sql){return {bind(...args){return {
+const DB={prepare(sql){return {all:async()=>({results:[user]}),bind(...args){return {
  all:async()=>({results:sql.includes('FROM users')?[user]:logged?[{kind:'day6'}]:[]}),
  first:async()=>{if(sql.startsWith('INSERT INTO trial_delivery_claims')){if(claimed)return null;claimed=true;return {id:args[1]}}if(sql.startsWith('UPDATE trial_delivery_claims')){review=args[0]==='review';return {id:args[4]}}throw Error('unexpected query')},
  run:async()=>{if(sql.startsWith('INSERT OR IGNORE INTO email_log'))logged=true;return {meta:{changes:1}}}
