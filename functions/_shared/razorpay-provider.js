@@ -1,4 +1,5 @@
 const endpoint = 'https://api.razorpay.com/v1/payment_links';
+const providerErrorCodes = new Set(['BAD_REQUEST_ERROR', 'GATEWAY_ERROR', 'SERVER_ERROR']);
 
 export function providerConfigurationError(env) {
   if (env.CHECKOUT_ISOLATED_SANDBOX !== 'true' || env.CHECKOUT_PROVIDER_ENABLED !== 'true') return 'provider_disabled';
@@ -9,9 +10,14 @@ export function providerConfigurationError(env) {
 
 export class ProviderError extends Error {}
 
-function providerRequestError(code, phase, exception) {
+function providerRequestError(code, phase, exception, response, data) {
   const error = new ProviderError(code);
   error.details = {phase, exception};
+  if (response) {
+    const providerCode = data?.error?.code;
+    error.details.httpStatus = response.status;
+    error.details.providerCode = providerErrorCodes.has(providerCode) ? providerCode : null;
+  }
   return error;
 }
 
@@ -58,26 +64,27 @@ export async function requestPaymentLinks(env, transport, {body, referenceId, si
     throw providerRequestError(signal.aborted ? 'provider_timeout' : 'provider_network_failure', 'fetch', exceptionKind(error));
   }
   if (response.status >= 300 && response.status < 400) {
-    throw providerRequestError('provider_network_failure', 'redirect_blocked', null);
+    throw providerRequestError('provider_network_failure', 'redirect_blocked', null, response);
   }
   let data;
   try {
     data = await response.json();
   } catch (error) {
-    if (signal.aborted) throw providerRequestError('provider_timeout', 'response_body', exceptionKind(error));
-    if (response.ok) throw providerRequestError(error instanceof SyntaxError ? 'provider_invalid_json' : 'provider_network_failure', 'response_body', exceptionKind(error));
+    if (signal.aborted) throw providerRequestError('provider_timeout', 'response_body', exceptionKind(error), response);
+    if (response.ok) throw providerRequestError(error instanceof SyntaxError ? 'provider_invalid_json' : 'provider_network_failure', 'response_body', exceptionKind(error), response);
   }
   if (response.ok) return data;
   const description = typeof data?.error?.description === 'string' ? data.error.description.trim().toLowerCase() : '';
-  if (description === 'the api key provided is invalid') throw new ProviderError('invalid_test_credentials');
-  if ([401, 403].includes(response.status) || description === 'authentication failed') throw new ProviderError('provider_authentication_failed');
+  const reject = code => providerRequestError(code, 'provider_response', null, response, data);
+  if (description === 'the api key provided is invalid') throw reject('invalid_test_credentials');
+  if ([401, 403].includes(response.status) || description === 'authentication failed') throw reject('provider_authentication_failed');
   if ([400, 422].includes(response.status)) {
     if (/(?:currency.{0,40}(?:not supported|not enabled|disabled)|unsupported currency)/.test(description)) {
-      throw new ProviderError('provider_unsupported_currency');
+      throw reject('provider_unsupported_currency');
     }
-    throw new ProviderError('provider_validation_failed');
+    throw reject('provider_validation_failed');
   }
-  throw new ProviderError('provider_lookup_unavailable');
+  throw reject('provider_lookup_unavailable');
 }
 
 export function validatePaymentLink(link, checkout) {

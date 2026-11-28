@@ -79,7 +79,7 @@ for (const body of [undefined, {amount: c.amount}]) {
     return Response.redirect('https://redirect.example.invalid', 307);
   }, {body}), {
     message: 'provider_network_failure',
-    details: {phase: 'redirect_blocked', exception: null}
+    details: {phase: 'redirect_blocked', exception: null, httpStatus: 307, providerCode: null}
   });
 }
 
@@ -105,6 +105,20 @@ try {
     correlationId: 'correlation-fixture', code: 'provider_network_failure',
     providerDetails: {phase: 'fetch', exception: 'TypeError'}
   }]);
+  for (const providerCode of ['BAD_REQUEST_ERROR', 'DO_NOT_LOG_CUSTOMER_DATA']) {
+    await assert.rejects(requestPaymentLinks(env, listMock({
+      error: {code: providerCode, description: 'customer detail that must never be logged'}
+    }, 400), {body: {amount: c.amount}}), asyncError => {
+      const response = checkoutFailure('create', 'provider_create', 'correlation-fixture', asyncError);
+      assert.equal(response.status, 502);
+      assert.deepEqual(logs.at(-1).providerDetails, {
+        phase: 'provider_response', exception: null, httpStatus: 400,
+        providerCode: providerCode === 'BAD_REQUEST_ERROR' ? providerCode : null
+      });
+      assert.ok(!JSON.stringify(logs.at(-1)).includes('customer detail'));
+      return true;
+    });
+  }
 } finally {
   console.error = originalConsoleError;
 }
