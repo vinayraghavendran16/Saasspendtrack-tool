@@ -87,6 +87,32 @@ try {
     globalThis.fetch = async () => { throw error; };
     assert.equal((await sendEmail({ ZEPTOMAIL_TOKEN: 'test-secret' }, mail)).error, error.name === 'TimeoutError' ? 'timeout' : 'transport_error');
   }
+  // Explicit provider selection: never fall back to another provider.
+  const resendEnv = { EMAIL_PROVIDER: 'resend', RESEND_API_KEY: 'test-secret', ZEPTOMAIL_TOKEN: 'unused-secret' };
+  let resendCalls = [];
+  globalThis.fetch = async (url, options) => { resendCalls.push({url, options}); return new Response('{}', {status: 202}); };
+  assert.deepEqual(await sendEmail(resendEnv, mail), {ok: true});
+  assert.equal(resendCalls[0].url, 'https://api.resend.com/emails');
+  assert.equal(resendCalls[0].options.headers.Authorization, 'Bearer test-secret');
+  assert.equal(resendCalls[0].options.redirect, 'manual');
+  assert.ok(resendCalls[0].options.signal instanceof AbortSignal);
+  assert.deepEqual(JSON.parse(resendCalls[0].options.body), {from: 'hello@saasspendtrack.com', to: [mail.to], reply_to: 'hello@saasspendtrack.com', subject: mail.subject, html: mail.html});
+  for (const env of [{EMAIL_PROVIDER:'resend'}, {EMAIL_PROVIDER:'resend', RESEND_API_KEY:'bad key'}, {EMAIL_PROVIDER:'unknown'}]) {
+    assert.equal((await sendEmail(env, mail)).ok, false);
+  }
+  assert.equal(resendCalls.length, 1);
+  for (const status of [302, 401, 429, 500]) {
+    let attempts = 0;
+    globalThis.fetch = async () => { attempts++; return new Response('test-secret private-link-token', {status}); };
+    assert.deepEqual(await sendEmail(resendEnv, mail), {ok:false, error:status===302?'provider_redirect':'provider_rejected', status});
+    assert.equal(attempts, 1);
+  }
+  for (const error of [new DOMException('test-secret','TimeoutError'), new Error('private-link-token')]) {
+    let attempts = 0;
+    globalThis.fetch = async () => { attempts++; throw error; };
+    assert.equal((await sendEmail(resendEnv, mail)).error, error.name==='TimeoutError'?'timeout':'transport_error');
+    assert.equal(attempts, 1);
+  }
   assert.doesNotMatch(JSON.stringify(logs), /test-secret|recipient@example.com|private-link-token/);
 
   // Exercise the actual auth handler with a D1 stub, including its hashed token.
