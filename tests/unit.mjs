@@ -349,7 +349,7 @@ function acct3Env(o) {
         return { results: [] };
       },
       run: async () => {
-        if (/^(UPDATE|DELETE) memberships/i.test(sql)) return {meta:{changes:o.staleMutation?0:1}};
+        if (/^(UPDATE|DELETE FROM) memberships/i.test(sql)) return {meta:{changes:o.staleMutation?0:1}};
         if (/INSERT INTO memberships/i.test(sql)) { o.members ||= {}; o.members[b[0]] = { email: b[0], account_id: b[1], role: b[2], status: 'active' }; }
       },
     }; }, };
