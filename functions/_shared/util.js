@@ -89,7 +89,7 @@ export async function resolveEntitlement(env, user) {
   let status = user.status;
   if (status === 'trial' && t >= user.trial_ends_at) {
     status = 'expired';
-    await env.DB.prepare('UPDATE users SET status=? WHERE email=?').bind('expired', user.email).run();
+    await env.DB.prepare("UPDATE users SET status=? WHERE email=? AND status='trial' AND paid_at IS NULL AND trial_ends_at<=?").bind('expired', user.email,t).run();
   }
   // Existing paid customers without a reconciled ledger retain legacy access.
   // New ledger-backed payments expire at their recorded entitlement boundary.
