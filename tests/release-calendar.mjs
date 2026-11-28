@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {calendarDay,noticeDeadline,deadlineMilestone} from '../functions/_shared/governance-deadlines.js';
+import {reportPeriod,calendarBucket} from '../functions/_shared/report-period.js';
+assert.equal(calendarDay('2027-02-29'),null);
+assert.notEqual(calendarDay('2028-02-29'),null);
+assert.equal(noticeDeadline('2028-03-01',1),'2028-02-29');
+assert.equal(noticeDeadline('2027-03-01',1),'2027-02-28');
+assert.equal(noticeDeadline('2027-01-01',1),'2026-12-31');
+assert.equal(noticeDeadline('2027-01-01',-1),null);
+assert.deepEqual(deadlineMilestone({today:'2028-02-29',deadline:'2028-03-01',kind:'notice'}),{milestone:1,remaining:1});
+assert.throws(()=>reportPeriod('2027-02-29','2027-03-01'));
+assert.throws(()=>reportPeriod('2027-03-01','2027-02-28'));
+assert.equal(calendarBucket('2028-12-31','quarter'),'2028-Q4');
+console.log('PASS: renewal and reporting calendar boundaries');
