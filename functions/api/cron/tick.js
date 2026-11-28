@@ -26,7 +26,8 @@ export async function onRequestGet({ request, env }) {
 
     if (t >= u.trial_ends_at) {
       if (u.status !== 'expired') {
-        await env.DB.prepare('UPDATE users SET status=? WHERE email=?').bind('expired', u.email).run();
+        const changed = await env.DB.prepare("UPDATE users SET status=? WHERE email=? AND status='trial' AND paid_at IS NULL AND trial_ends_at<=?").bind('expired', u.email,t).run();
+        if(changed.meta?.changes!==1) continue;
       }
       if (!logged.has('expired')) {
         const m = expiredEmail(payUrl);
