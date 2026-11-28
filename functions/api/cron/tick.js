@@ -28,8 +28,10 @@ export async function onRequestGet({ request, env }) {
 
   // Users still on a trial track (cap the batch so a run stays quick).
   const { results = [] } = await env.DB.prepare(
-    "SELECT * FROM users WHERE status IN ('trial','expired') AND (paid_at IS NULL) ORDER BY CASE WHEN status='trial' THEN 0 ELSE 1 END, trial_ends_at, email LIMIT 500",
-  ).all();
+    cadenceEnabled
+      ? "SELECT * FROM users WHERE paid_at IS NULL AND (status='trial' OR (status='expired' AND NOT EXISTS(SELECT 1 FROM email_log l WHERE l.email=users.email AND l.kind='expired') AND NOT EXISTS(SELECT 1 FROM trial_delivery_claims c WHERE c.email=users.email AND c.kind='expired'))) ORDER BY CASE WHEN status='trial' THEN 0 ELSE 1 END, trial_ends_at, email LIMIT 500"
+      : "SELECT * FROM users WHERE status='trial' AND paid_at IS NULL AND trial_ends_at<=? ORDER BY trial_ends_at,email LIMIT 500",
+  ).bind(...(cadenceEnabled?[]:[t])).all();
 
   for (const u of results) {
     const logged = new Set(
