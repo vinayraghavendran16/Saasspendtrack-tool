@@ -6,10 +6,10 @@ claim,finish=re.findall(r'prepare\("([^"]+)"\)',source)
 with tempfile.TemporaryDirectory() as d:
     path=str(Path(d)/'test.db')
     db=sqlite3.connect(path)
-    db.executescript("CREATE TABLE users(email TEXT PRIMARY KEY,status TEXT,paid_at INTEGER,trial_ends_at INTEGER); CREATE TABLE email_log(email TEXT,kind TEXT,PRIMARY KEY(email,kind));")
+    db.executescript("CREATE TABLE users(email TEXT PRIMARY KEY,status TEXT,paid_at INTEGER,trial_ends_at INTEGER); CREATE TABLE email_log(email TEXT,kind TEXT,sent_at INTEGER NOT NULL,PRIMARY KEY(email,kind));")
     db.executescript((root/'docs/trial-delivery-schema-proposal.sql').read_text())
     db.executemany('INSERT INTO users VALUES(?,?,?,?)',[('trial','trial',None,200),('paid','active',50,200),('sent','trial',None,200),('expired','expired',None,50)])
-    db.execute("INSERT INTO email_log VALUES('sent','day2')")
+    db.execute("INSERT INTO email_log VALUES('sent','day2',50)")
     db.commit()
     def reserve(conn,email,kind,id):
         return conn.execute(claim,(kind,id,100,email,kind,100,kind,100,kind)).fetchone()
