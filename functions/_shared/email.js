@@ -26,6 +26,14 @@ export async function sendEmail(env, { to, subject, html }) {
     });
   }
   const url = (env.ZEPTOMAIL_URL || 'https://api.zeptomail.in/v1.1/email').trim();
+  // Restrict credential-bearing requests to documented provider endpoints.
+  const allowedEndpoints = new Set([
+    'https://api.zeptomail.in/v1.1/email',
+    'https://api.zeptomail.com/v1.1/email',
+    'https://cpaas.zoho.in/v1.1/email',
+    'https://cpaas.zoho.com/v1.1/email',
+  ]);
+  if (!allowedEndpoints.has(url)) return mailFailure('invalid_provider_endpoint');
   const from = (env.FROM_EMAIL || 'hello@saasspendtrack.com').trim();
   const fromName = env.FROM_NAME || 'SaaS Spend Track';
   const replyTo = (env.REPLY_TO || from).trim();
