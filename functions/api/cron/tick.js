@@ -8,6 +8,8 @@ export async function onRequestGet({ request, env }) {
   const token = new URL(request.url).searchParams.get('token') || '';
   if (!env.CRON_SECRET || !safeEqual(token, env.CRON_SECRET)) return unauthorized();
 
+  // Keep external cadence delivery disabled until durable claims are deployed.
+  const cadenceEnabled = env.TRIAL_CADENCE_ENABLED === 'true';
   const appUrl = (env.APP_URL || 'https://app.saasspendtrack.com').replace(/\/$/, '');
   const payUrl = `${appUrl}/#pricing`;
   const t = now();
@@ -29,7 +31,7 @@ export async function onRequestGet({ request, env }) {
         const changed = await env.DB.prepare("UPDATE users SET status=? WHERE email=? AND status='trial' AND paid_at IS NULL AND trial_ends_at<=?").bind('expired', u.email,t).run();
         if(changed.meta?.changes!==1) continue;
       }
-      if (!logged.has('expired')) {
+      if (cadenceEnabled && !logged.has('expired')) {
         const m = expiredEmail(payUrl);
         if ((await sendEmail(env, { to: u.email, subject: m.subject, html: m.html })).ok) {
           await env.DB.prepare('INSERT OR IGNORE INTO email_log (email, kind, sent_at) VALUES (?,?,?)')
@@ -48,7 +50,7 @@ export async function onRequestGet({ request, env }) {
     if (daysLeft <= 1 && !logged.has('day6')) kind = 'day6';
     else if (elapsed >= 4 * DAY && daysLeft >= 2 && !logged.has('day4')) kind = 'day4';
     else if (elapsed >= 2 * DAY && daysLeft >= 3 && !logged.has('day2')) kind = 'day2';
-    if (!kind) continue;
+    if (!kind || !cadenceEnabled) continue;
 
     const m = nudgeEmail(kind, payUrl, appUrl);
     if ((await sendEmail(env, { to: u.email, subject: m.subject, html: m.html })).ok) {
