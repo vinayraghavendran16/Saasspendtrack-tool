@@ -20,3 +20,5 @@ jobs:
       - run: node tests/release-ai-egress.mjs
 
       - run: node tests/release-calendar.mjs
+
+      - run: node tests/release-retention.mjs
