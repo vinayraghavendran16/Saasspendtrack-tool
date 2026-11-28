@@ -128,6 +128,7 @@ export function isAdmin(env, email) {
 export async function rateLimit(env, key, limit, windowMs, { failClosed = false } = {}) {
   const t = now();
   const threshold = t - windowMs;
+  if (typeof key !== 'string' || !key || !Number.isSafeInteger(limit) || limit < 1 || !Number.isSafeInteger(windowMs) || windowMs < 1) return {ok:false,count:0,limit,unavailable:true};
   try {
     const row = await env.DB.prepare(
       `INSERT INTO rate_limits (rl_key, count, window_start) VALUES (?1, 1, ?2)
