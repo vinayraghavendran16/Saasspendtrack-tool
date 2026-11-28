@@ -113,6 +113,14 @@ try {
     assert.equal((await sendEmail(resendEnv, mail)).error, error.name==='TimeoutError'?'timeout':'transport_error');
     assert.equal(attempts, 1);
   }
+  const health = logs.filter(([name]) => name === 'email_provider_health').map(([,data]) => data);
+  for (const provider of ['zeptomail','resend']) {
+    for (const outcome of ['accepted','provider_rejected','timeout','transport_error','provider_redirect']) {
+      assert.ok(health.some(x => x.provider === provider && x.outcome === outcome), provider + ':' + outcome);
+    }
+  }
+  assert.ok(health.some(x => x.provider === 'invalid' && x.outcome === 'invalid_email_provider'));
+  for (const event of health) assert.deepEqual(Object.keys(event).sort(), ['outcome','provider']);
   assert.doesNotMatch(JSON.stringify(logs), /test-secret|recipient@example.com|private-link-token/);
 
   // Exercise the actual auth handler with a D1 stub, including its hashed token.
