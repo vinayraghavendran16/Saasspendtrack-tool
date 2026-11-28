@@ -1,3 +1,4 @@
+import { recordEmailHealth } from './email-health.js';
 // Zoho ZeptoMail transactional send + the trial email templates.
 // Copy is adapted from Vinay's Apps Script drip, reframed for the 7-day gated
 // trial (access pauses after day 7; data is preserved and returns on payment).
@@ -45,6 +46,7 @@ export async function sendEmail(env, message) {
   const outcome = result.ok === true ? 'accepted' : knownErrors.includes(result.error) ? result.error : 'unknown_failure';
   // Fixed dimensions only; never include recipients, credentials or message data.
   console.info('email_provider_health', { provider, outcome });
+  recordEmailHealth(env, provider, outcome);
   return result;
 }
 
