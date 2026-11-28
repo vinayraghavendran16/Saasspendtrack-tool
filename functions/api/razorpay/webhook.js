@@ -1,6 +1,7 @@
 import { validatePaidLink } from '../../_shared/payment-policy.js';
 import { recordUsage } from '../../_shared/usage.js';
 import { getMembership } from '../../_shared/util.js';
+import { enqueueLegacyPayment, legacyPaymentForReview } from '../../_shared/legacy-payment-reconciliation.js';
 // POST /api/razorpay/webhook
 // Razorpay calls this on payment events. We verify the signature, then flip the
 // paying user to 'active'. Configure the same secret in the Razorpay dashboard.
@@ -19,6 +20,18 @@ export async function onRequestPost({ request, env }) {
 
   let evt;
   try { evt = JSON.parse(raw); } catch { return new Response('bad json', { status: 400 }); }
+
+  if (evt?.event === 'payment.captured' || evt?.event === 'order.paid') {
+    const payment = legacyPaymentForReview(evt);
+    if (!payment) return new Response('invalid legacy payment event', { status: 422 });
+    try {
+      await enqueueLegacyPayment(env.DB, evt.event, payment, now());
+    } catch {
+      console.error('razorpay: legacy payment reconciliation unavailable');
+      return new Response('reconciliation unavailable', { status: 503 });
+    }
+    return new Response('accepted for reconciliation', { status: 200 });
+  }
 
   if (evt?.event !== 'payment_link.paid') return new Response('ignored', { status: 200 });
   let catalogue;
