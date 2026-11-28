@@ -93,3 +93,11 @@ for (const [cookie,e,status] of [
     assert.equal(data.aggregationConfigured,Boolean(e.EMAIL_HEALTH));
   }
 }
+
+const {summarizeEmailHealth} = await import('../functions/_shared/email-health-summary.js');
+assert.deepEqual(summarizeEmailHealth([]),[]);
+assert.deepEqual(summarizeEmailHealth([{provider:'resend',outcome:'accepted',count:8},{provider:'resend',outcome:'timeout',count:2}]),[{provider:'resend',attempts:10,accepted:8,failures:2,acceptanceRate:0.8,deliveryVerified:false}]);
+assert.equal(summarizeEmailHealth([{provider:'zeptomail',outcome:'accepted',count:0}])[0].acceptanceRate,null);
+for(const row of [{provider:'private@example.com',outcome:'accepted',count:1},{provider:'resend',outcome:'secret',count:1},{provider:'resend',outcome:'accepted',count:-1},{provider:'resend',outcome:'accepted',count:1.5}]) assert.throws(()=>summarizeEmailHealth([row]));
+assert.throws(()=>summarizeEmailHealth(Array(101).fill({provider:'resend',outcome:'accepted',count:1})));
+assert.throws(()=>summarizeEmailHealth([{provider:'resend',outcome:'accepted',count:Number.MAX_SAFE_INTEGER},{provider:'resend',outcome:'timeout',count:1}]));
