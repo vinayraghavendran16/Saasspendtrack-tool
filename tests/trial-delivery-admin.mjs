@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {onRequestGet} from '../functions/api/admin/trial-delivery-health.js';
+let email='member@example.test',healthReads=0,fail=false;
+const DB={prepare(sql){const first=async()=>{if(sql.includes('FROM sessions'))return {email};if(sql.includes('FROM users'))return {email};healthReads++;if(fail)throw Error('unavailable');return {review:1,stale:0,unlogged:0}};return {first,bind(){return {first}}}}};
+const env={DB,ADMIN_EMAILS:'admin@example.test'};
+const get=(auth=true)=>onRequestGet({env,request:new Request('https://example.test/api/admin/trial-delivery-health',{headers:auth?{Cookie:'sst_session='+'a'.repeat(64)}:{}})});
+assert.equal((await get()).status,404);
+env.TRIAL_DELIVERY_HEALTH_ENABLED='true';
+assert.equal((await get(false)).status,401);
+assert.equal((await get()).status,401);
+assert.equal(healthReads,0);
+email='admin@example.test';
+let r=await get();assert.equal(r.status,200);assert.equal((await r.json()).requiresReview,true);
+fail=true;assert.equal((await get()).status,503);
+console.log('PASS: admin trial delivery health authorization');
