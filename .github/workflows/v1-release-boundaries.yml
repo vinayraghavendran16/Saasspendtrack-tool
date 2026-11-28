@@ -24,3 +24,5 @@ jobs:
       - run: node tests/release-retention.mjs
 
       - run: node tests/release-rate-limit.mjs
+
+      - run: python3 tests/release-entitlement-race.py
