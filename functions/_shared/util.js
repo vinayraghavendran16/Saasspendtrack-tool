@@ -85,6 +85,18 @@ export function normalizeEmail(raw) {
 // Returns the user's entitlement view, lazily expiring a lapsed trial.
 export async function resolveEntitlement(env, user) {
   if (!user) return null;
+  const configuredOwner = normalizeEmail(env.PLATFORM_OWNER_EMAIL);
+  if (configuredOwner && normalizeEmail(user.email) === configuredOwner) {
+    return {
+      email: user.email,
+      status: 'active',
+      plan: 'platform_owner',
+      trialEndsAt: user.trial_ends_at,
+      paidUntil: null,
+      daysLeft: 0,
+      entitled: true,
+    };
+  }
   const t = now();
   let status = user.status;
   if (status === 'trial' && t >= user.trial_ends_at) {
